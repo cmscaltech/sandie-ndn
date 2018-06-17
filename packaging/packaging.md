@@ -1,6 +1,6 @@
 # Guidelines for installation of NDN stack on Centos 7.5
 
-We consider the NDN stack to be composed of: **boost**, **ndn-cxx**, **nfd** and **xrootd**. I had to manually install these softwares as well as creating RPMs and bellow are a few guidelines for anyone how wants to do the same.
+We consider the NDN stack to be composed of: **boost**, **ndn-cxx**, **nfd**, **ndn-tools** and **xrootd**. I had to manually install these softwares as well as creating RPMs and bellow are a few guidelines for anyone how wants to do the same.
 
 By manually install any of these softwares you also resolve a lot of the steps which are needed to create the packages. Basically, when you have to create an rpm, you have to make the software compile and install on your machine. Consider the next sections as steps in booth installing the software and preparing your build system.
 
@@ -20,7 +20,10 @@ caltech@cms:~# yum install  yum-utils \
                             doxygen \
                             graphviz \
                             python-sphinx \
-                            libpcap*
+                            libpcap* \
+                            psmisc \
+                            dpkg-devel dpkg-dev \
+                            sqlite-devel
 
 caltech@cms:~# yum groupinstall 'Development Tools'
 
@@ -47,7 +50,7 @@ caltech@cms:~# ls -s /usr/local/lib/libbz2.so.1.0.6 /usr/local/lib/libbz2.so
 
 ## gcc
 
-For **ndn-cxx 0.6.2** at least gcc 5.3.0 is required. For our purpose, we've used **gcc 7.3.1**. You can install it with the following commands:
+For **ndn-cxx 0.6.2** at least gcc 5.3.0 is required. For our purpose, we've used **gcc 7.3.1**. You can install it from [Centos Software Collections (SCL) Repository](https://wiki.centos.org/AdditionalResources/Repositories/SCL) with the following commands:
 
 ```bash
 caltech@cms:~# yum install centos-release-scl
@@ -100,6 +103,19 @@ caltech@cms:~# ./waf install
 caltech@cms:~# cp nfd.conf.sample /usr/local/etc/ndn/nfd.conf
 ```
 
+## NDN Essential Tools
+
+With the following commands, you clone the [NDN Essential Tools](https://github.com/named-data/ndn-tools.git) git repository, compile the source files and install the binaries:
+
+```bash
+caltech@cms:~# git clone https://github.com/named-data/ndn-tools.git
+caltech@cms:~# cd ndn-tools
+caltech@cms:~# git submodule update --init
+caltech@cms:~# ./waf configure --with-tests
+caltech@cms:~# ./waf
+caltech@cms:~# ./waf install
+```
+
 ## Packaging - How to create an rpm
 
 In order to create an rpm from your sources you need to install the rpmdevtools. You can do this with the following command:
@@ -127,7 +143,7 @@ In the end you can see the content of the rpm file:
 caltech@cms:~# rpm -qpl rpmbuild/RPMS/<arch>/<rpm-name>.rpm
 ```
 
-In this repository you can find both rpms and specs for: [boost 1.58](packaging/SPECS/libboost.spec), [ndn-cxx 0.6.2](packaging/SPECS/libndn-cxx.spec) and [NFD 0.6.2](packaging/SPECS/nfd.spec).
+In this repository you can find both rpms and specs for: [boost 1.58](SPECS/libboost.spec), [ndn-cxx 0.6.2](SPECS/libndn-cxx.spec), [NFD 0.6.2](SPECS/nfd.spec) and [ndn-tools 0.6.1](SPECS/ndn-tools.spec).
 
 ## xrootd
 

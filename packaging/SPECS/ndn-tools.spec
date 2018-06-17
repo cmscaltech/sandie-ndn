@@ -17,8 +17,8 @@ These tools are recommended to be installed on all NDN nodes.
 rm -rf %{name}
 git clone %{url}
 cd %{name}
-git checkout tags/%{name}-%{version}
 git fetch --all --tags --prune
+git checkout tags/%{name}-%{version}
 find -type f ! \( -name \*.sh -o -name \*.py -o -name \*.pl \) -exec chmod -x {} +
 find . -name \*.orig -exec rm {} +
 

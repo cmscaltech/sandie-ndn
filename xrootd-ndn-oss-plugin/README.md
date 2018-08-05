@@ -1,0 +1,1 @@
+# XrdNdnOss plugin

@@ -1,0 +1,45 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        // defaults
+        {
+            "label": "gdbserver-stop",
+            "type": "shell",
+            "command": "ssh root@192.168.0.69 killall gdbserver"
+        },
+        // building remote targets
+        {
+            "label": "build-remote-test-ndn-consumer",
+            "type": "shell",
+            "args": [
+                "test-ndn-consumer"
+            ],
+            "command": "${workspaceRoot}/.vscode/build-remote-target.sh"
+        },
+        {
+            "label": "build-remote-test-ndn-producer",
+            "type": "shell",
+            "args": [
+                "test-ndn-producer"
+            ],
+            "command": "${workspaceRoot}/.vscode/build-remote-target.sh"
+        },
+        // starting remote gdbserver instances
+        {
+            "label": "gdbserver-test-ndn-consumer",
+            "dependsOn": "build-remote-test-ndn-consumer",
+            "type": "shell",
+            "command": "ssh -L9091:localhost:9091 root@192.168.0.69 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9091 ./xrootd-ndn-oss-plugin/bin/test-ndn-consumer'\"",
+            "isBackground": true
+        },
+        {
+            "label": "gdbserver-test-ndn-producer",
+            "dependsOn": "build-remote-test-ndn-producer",
+            "type": "shell",
+            "command": "ssh -L9092:localhost:9092 root@192.168.0.69 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9092 ./xrootd-ndn-oss-plugin/bin/test-ndn-producer'\"",
+            "isBackground": true
+        }
+    ]
+}

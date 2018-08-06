@@ -18,8 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>. *
  **************************************************************************/
 
-#include <ndn-cxx/face.hpp>
-#include <ndn-cxx/security/key-chain.hpp>
+ #include <ndn-cxx/face.hpp>
 #include <iostream>
 
 // Enclosing code in ndn simplifies coding (can also use `using namespace ndn`)
@@ -27,62 +26,49 @@ namespace ndn {
 // Additional nested namespaces can be used to prevent/limit name conflicts
 namespace examples {
 
-class Producer : noncopyable
+class Consumer : noncopyable
 {
 public:
   void
   run()
   {
-    m_face.setInterestFilter("/example/testApp",
-                             bind(&Producer::onInterest, this, _1, _2),
-                             RegisterPrefixSuccessCallback(),
-                             bind(&Producer::onRegisterFailed, this, _1, _2));
+    Interest interest(Name("/example/testApp/randomData"));
+    interest.setInterestLifetime(30_s); // 2 seconds
+    interest.setMustBeFresh(true);
+
+    m_face.expressInterest(interest,
+                           bind(&Consumer::onData, this,  _1, _2),
+                           bind(&Consumer::onNack, this, _1, _2),
+                           bind(&Consumer::onTimeout, this, _1));
+
+    std::cout << "Sending " << interest << std::endl;
+
+    // processEvents will block until the requested data received or timeout occurs
     m_face.processEvents();
   }
 
 private:
   void
-  onInterest(const InterestFilter& filter, const Interest& interest)
+  onData(const Interest& interest, const Data& data)
   {
-    std::cout << "<< I: " << interest << std::endl;
-
-    // Create new name, based on Interest's name
-    Name dataName(interest.getName());
-    dataName
-      .append("testApp") // add "testApp" component to Interest name
-      .appendVersion();  // add "version" component (current UNIX timestamp in milliseconds)
-
-    static const std::string content = "HELLO KITTY";
-
-    // Create Data packet
-    shared_ptr<Data> data = make_shared<Data>();
-    data->setName(dataName);
-    data->setFreshnessPeriod(10_s); // 10 seconds
-    data->setContent(reinterpret_cast<const uint8_t*>(content.data()), content.size());
-
-    // Sign Data packet with default identity
-    m_keyChain.sign(*data);
-    // m_keyChain.sign(data, <identityName>);
-    // m_keyChain.sign(data, <certificate>);
-
-    // Return Data packet to the requester
-    std::cout << ">> D: " << *data << std::endl;
-    m_face.put(*data);
+    std::cout << data << std::endl;
   }
 
+  void
+  onNack(const Interest& interest, const lp::Nack& nack)
+  {
+    std::cout << "received Nack with reason " << nack.getReason()
+              << " for interest " << interest << std::endl;
+  }
 
   void
-  onRegisterFailed(const Name& prefix, const std::string& reason)
+  onTimeout(const Interest& interest)
   {
-    std::cerr << "ERROR: Failed to register prefix \""
-              << prefix << "\" in local hub's daemon (" << reason << ")"
-              << std::endl;
-    m_face.shutdown();
+    std::cout << "Timeout " << interest << std::endl;
   }
 
 private:
   Face m_face;
-  KeyChain m_keyChain;
 };
 
 } // namespace examples
@@ -91,9 +77,9 @@ private:
 int
 main(int argc, char** argv)
 {
-  ndn::examples::Producer producer;
+  ndn::examples::Consumer consumer;
   try {
-    producer.run();
+    consumer.run();
   }
   catch (const std::exception& e) {
     std::cerr << "ERROR: " << e.what() << std::endl;

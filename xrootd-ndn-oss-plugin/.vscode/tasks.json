@@ -11,34 +11,34 @@
         },
         // building remote targets
         {
-            "label": "build-remote-test-ndn-consumer",
+            "label": "build-remote-xrdndn-consumer",
             "type": "shell",
             "args": [
-                "test-ndn-consumer"
+                "xrdndn-consumer"
             ],
             "command": "${workspaceRoot}/.vscode/build-remote-target.sh"
         },
         {
-            "label": "build-remote-test-ndn-producer",
+            "label": "build-remote-xrdndn-producer",
             "type": "shell",
             "args": [
-                "test-ndn-producer"
+                "xrdndn-producer"
             ],
             "command": "${workspaceRoot}/.vscode/build-remote-target.sh"
         },
         // starting remote gdbserver instances
         {
-            "label": "gdbserver-test-ndn-consumer",
-            "dependsOn": "build-remote-test-ndn-consumer",
+            "label": "gdbserver-xrdndn-consumer",
+            "dependsOn": "build-remote-xrdndn-consumer",
             "type": "shell",
-            "command": "ssh -L9091:localhost:9091 root@192.168.0.69 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9091 ./xrootd-ndn-oss-plugin/bin/test-ndn-consumer'\"",
+            "command": "ssh -L9091:localhost:9091 root@192.168.0.69 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9091 ./xrootd-ndn-oss-plugin/bin/xrdndn-consumer'\"",
             "isBackground": true
         },
         {
-            "label": "gdbserver-test-ndn-producer",
-            "dependsOn": "build-remote-test-ndn-producer",
+            "label": "gdbserver-xrdndn-producer",
+            "dependsOn": "build-remote-xrdndn-producer",
             "type": "shell",
-            "command": "ssh -L9092:localhost:9092 root@192.168.0.69 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9092 ./xrootd-ndn-oss-plugin/bin/test-ndn-producer'\"",
+            "command": "ssh -L9092:localhost:9092 root@192.168.0.69 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9092 ./xrootd-ndn-oss-plugin/bin/xrdndn-producer'\"",
             "isBackground": true
         }
     ]

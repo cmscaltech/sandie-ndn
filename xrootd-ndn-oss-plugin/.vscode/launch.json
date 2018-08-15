@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch test-ndn-consumer",
+            "name": "Launch xrdndn-consumer",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/bin/test-ndn-consumer",
+            "program": "${workspaceRoot}/bin/xrdndn-consumer",
             "miDebuggerServerAddress": "localhost:9091",
             "args": [],
             "stopAtEntry": false,
@@ -24,14 +24,13 @@
             "windows": {
                 "MIMode": "gdb"
             },
-            "preLaunchTask": "gdbserver-test-ndn-consumer",
-            "postDebugTask": "gdbserver-stop"
+            "preLaunchTask": "gdbserver-xrdndn-consumer"
         },
         {
-            "name": "Launch test-ndn-producer",
+            "name": "Launch xrdndn-producer",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/bin/test-ndn-producer",
+            "program": "${workspaceRoot}/bin/xrdndn-producer",
             "miDebuggerServerAddress": "localhost:9092",
             "args": [],
             "stopAtEntry": false,
@@ -47,7 +46,8 @@
             "windows": {
                 "MIMode": "gdb"
             },
-            "preLaunchTask": "gdbserver-test-ndn-producer"
+            "preLaunchTask": "gdbserver-xrdndn-producer",
+            "postDebugTask": "gdbserver-stop"
         }
     ]
 }

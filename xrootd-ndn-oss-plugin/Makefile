@@ -1,25 +1,26 @@
-TEST_NDN_CONSUMER = test-ndn-consumer
-TEST_NDN_PRODUCER = test-ndn-producer
+CONSUMER = xrdndn-consumer
+PRODUCER = xrdndn-producer
 
 CXX	= g++ -std=c++11
 CXXFLAG	= -g -Wall -O0
-LDLIBS	= -lboost_system -lndn-cxx
+LDLIBS	= -lboost_system -lboost_thread-mt -lndn-cxx
 
 SRC_DIR     = ./src
 BIN_DIR     = ./bin
 
-SRC_LIST = $(wildcard $(SRC_DIR)/*.cpp)
+NDN_CONSUMER_FILES=$(wildcard $(SRC_DIR)/$(CONSUMER)*.cc)
+NDN_PRODUCER_FILES=$(wildcard $(SRC_DIR)/$(PRODUCER)*.cc)
 
 .PHONY:   all
 .DEFAULT: all
 
-all: $(TEST_NDN_CONSUMER) $(TEST_NDN_PRODUCER)
+all: $(CONSUMER) $(PRODUCER)
 
-$(TEST_NDN_CONSUMER):
-	$(CXX) $(CXXFLAG) $(wildcard $(SRC_DIR)/$(TEST_NDN_CONSUMER)*.cpp) -o $(BIN_DIR)/$(TEST_NDN_CONSUMER) $(LDLIBS)
+$(CONSUMER):
+	$(CXX) $(CXXFLAG) $(NDN_CONSUMER_FILES) -o $(BIN_DIR)/$(CONSUMER) $(LDLIBS)
 
-$(TEST_NDN_PRODUCER):
-	$(CXX) $(CXXFLAG) $(wildcard $(SRC_DIR)/$(TEST_NDN_PRODUCER)*.cpp) -o $(BIN_DIR)/$(TEST_NDN_PRODUCER) $(LDLIBS)
+$(PRODUCER):
+	$(CXX) $(CXXFLAG) $(NDN_PRODUCER_FILES) -o $(BIN_DIR)/$(PRODUCER) $(LDLIBS)
 
 clean:
-	rm -f $(BIN_DIR)/*
+	rm -rf $(BIN_DIR)/*

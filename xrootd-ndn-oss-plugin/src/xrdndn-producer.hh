@@ -37,15 +37,20 @@ class Producer : DFHandler {
     virtual int Open(std::string path) override;
     void onOpenInterest(const ndn::InterestFilter &filter,
                         const ndn::Interest &interest);
+    virtual int Close(std::string path) override;
+    void onCloseInterest(const ndn::InterestFilter &filter,
+                         const ndn::Interest &interest);
 
   private:
     ndn::Face &m_face;
     ndn::KeyChain m_keyChain;
 
     const ndn::RegisteredPrefixId *m_xrdndnPrefixId;
-    const ndn::InterestFilterId *m_OpenFileFilterId;
+    const ndn::InterestFilterId *m_OpenFilterId;
+    const ndn::InterestFilterId *m_CloseFilterId;
 
-    ThreadSafeUMap<std::string, std::ifstream *> m_FileDescriptors;
+    ThreadSafeUMap<std::string, std::shared_ptr<std::ifstream>>
+        m_FileDescriptors;
 
     void registerPrefix();
 

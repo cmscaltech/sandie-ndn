@@ -31,9 +31,19 @@ Consumer::Consumer() {}
 
 Consumer::~Consumer() { m_face.shutdown(); }
 
+void Consumer::onNack(const Interest &interest, const lp::Nack &nack) {
+    std::cout << "xrdndnconsumer: Received NACK with reason: "
+              << nack.getReason() << " for interest " << interest << std::endl;
+}
+
+void Consumer::onTimeout(const Interest &interest) {
+    std::cout << "xrdndnconsumer: Timeout for interest: " << interest
+              << std::endl;
+}
+
 int Consumer::Open(std::string path) {
     Interest openInterest(Utils::getInterestUri(SystemCalls::open, path));
-    openInterest.setInterestLifetime(30_s); // Change this on release
+    openInterest.setInterestLifetime(100_s); // Change this on release
     openInterest.setMustBeFresh(true);
 
     int ret = -1;
@@ -43,21 +53,34 @@ int Consumer::Open(std::string path) {
                   << " with error code: " << ret << std::endl;
     };
 
-    auto openOnNack = [](const Interest &interest, const lp::Nack &nack) {
-        std::cout << "xrdndnconsumer: Received NACK with reason: "
-                  << nack.getReason() << " for interest " << interest
-                  << std::endl;
-    };
-
-    auto openOnTimeout = [](const Interest &interest) {
-        std::cout << "xrdndnconsumer: Timeout for interest: " << interest
-                  << std::endl;
-    };
-
     m_face.expressInterest(openInterest, bind(openOnData, _1, _2),
-                           bind(openOnNack, _1, _2), bind(openOnTimeout, _1));
+                           bind(&Consumer::onNack, this, _1, _2),
+                           bind(&Consumer::onTimeout, this, _1));
 
     std::cout << "xrdndnconsumer: Sending open file interest: " << openInterest
+              << std::endl;
+    m_face.processEvents();
+
+    return ret;
+}
+
+int Consumer::Close(std::string path) {
+    Interest openInterest(Utils::getInterestUri(SystemCalls::close, path));
+    openInterest.setInterestLifetime(100_s); // Change this on release
+    openInterest.setMustBeFresh(true);
+
+    int ret = -1;
+    auto closeOnData = [&](const Interest &interest, const Data &data) {
+        ret = this->getIntegerFromData(data);
+        std::cout << "xrdndnconsumer: Close file: " << path
+                  << " with error code: " << ret << std::endl;
+    };
+
+    m_face.expressInterest(openInterest, bind(closeOnData, _1, _2),
+                           bind(&Consumer::onNack, this, _1, _2),
+                           bind(&Consumer::onTimeout, this, _1));
+
+    std::cout << "xrdndnconsumer: Sending close file interest: " << openInterest
               << std::endl;
     m_face.processEvents();
 

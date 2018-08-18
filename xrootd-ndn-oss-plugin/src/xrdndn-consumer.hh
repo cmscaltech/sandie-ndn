@@ -32,9 +32,13 @@ class Consumer : DFHandler {
     ~Consumer();
 
     virtual int Open(std::string path) override;
+    virtual int Close(std::string path) override;
 
   private:
     ndn::Face m_face;
+
+    void onNack(const ndn::Interest &interest, const ndn::lp::Nack &nack);
+    void onTimeout(const ndn::Interest &interest);
 
     int getIntegerFromData(const ndn::Data &data);
 };

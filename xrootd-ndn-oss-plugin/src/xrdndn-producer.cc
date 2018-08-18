@@ -28,7 +28,8 @@
 using namespace ndn;
 
 namespace xrdndn {
-Producer::Producer(Face &face) : m_face(face), m_OpenFileFilterId(nullptr) {
+Producer::Producer(Face &face)
+    : m_face(face), m_OpenFilterId(nullptr), m_CloseFilterId(nullptr) {
     this->registerPrefix();
 }
 
@@ -36,9 +37,13 @@ Producer::~Producer() {
     if (m_xrdndnPrefixId != nullptr) {
         m_face.unsetInterestFilter(m_xrdndnPrefixId);
     }
-    if (m_OpenFileFilterId != nullptr) {
-        m_face.unsetInterestFilter(m_OpenFileFilterId);
+    if (m_OpenFilterId != nullptr) {
+        m_face.unsetInterestFilter(m_OpenFilterId);
     }
+    if (m_CloseFilterId != nullptr) {
+        m_face.unsetInterestFilter(m_CloseFilterId);
+    }
+    m_face.shutdown();
 
     // Close all opened files
     boost::shared_lock<boost::shared_mutex> lock(
@@ -61,10 +66,15 @@ void Producer::registerPrefix() {
                       << msg << std::endl;
         });
 
-    // Filter for file open system call
-    m_OpenFileFilterId =
+    // Filter for open system call
+    m_OpenFilterId =
         m_face.setInterestFilter(Utils::getInterestPrefix(SystemCalls::open),
                                  bind(&Producer::onOpenInterest, this, _1, _2));
+
+    // Filter for close system call
+    m_CloseFilterId = m_face.setInterestFilter(
+        Utils::getInterestPrefix(SystemCalls::close),
+        bind(&Producer::onCloseInterest, this, _1, _2));
 }
 
 void Producer::send(const ndn::Name &name, const Block &content,
@@ -94,19 +104,19 @@ void Producer::onOpenInterest(const InterestFilter &filter,
     std::cout << "xrdndnproducer: Filter: " << filter << std::endl;
     Name name(interest.getName());
 
-    int ret = Open(Utils::getFilePathFromName(name, SystemCalls::open));
+    int ret = this->Open(Utils::getFilePathFromName(name, SystemCalls::open));
 
     name.appendVersion();
     this->sendInteger(name, ret);
 }
 
 int Producer::Open(std::string path) {
-    std::ifstream fstream;
-    fstream.open(path, std::ifstream::in);
-    if (fstream.is_open()) {
+    std::shared_ptr<std::ifstream> fstream = std::make_shared<std::ifstream>();
+    fstream->open(path, std::ifstream::in);
+    if (fstream->is_open()) {
         this->m_FileDescriptors.insert(
-            std::make_pair<std::string, std::ifstream *>(std::string(path),
-                                                         &fstream));
+            std::make_pair<std::string &, std::shared_ptr<std::ifstream> &>(
+                path, fstream));
         return 0;
     } else {
         std::cout << "xrdndnproducer: Failed to open file: " << path
@@ -114,5 +124,40 @@ int Producer::Open(std::string path) {
     }
 
     return -1;
+}
+
+void Producer::onCloseInterest(const ndn::InterestFilter &filter,
+                               const ndn::Interest &interest) {
+    std::cout << "xrdndnproducer I:" << interest << std::endl;
+    std::cout << "xrdndnproducer I: Filter: " << filter << std::endl;
+    Name name(interest.getName());
+
+    int ret = this->Close(Utils::getFilePathFromName(name, SystemCalls::close));
+
+    name.appendVersion();
+    this->sendInteger(name, ret);
+}
+
+int Producer::Close(std::string path) {
+    if (!this->m_FileDescriptors.hasKey(path)) {
+        std::cout << "xrdndnproducer: File: " << path
+                  << " was not oppend previously" << std::endl;
+        return -1;
+    }
+
+    auto fstream = this->m_FileDescriptors.at(path);
+    boost::unique_lock<boost::shared_mutex> lock(
+        this->m_FileDescriptors.mutex_);
+    fstream->close();
+    lock.unlock();
+
+    if (fstream->is_open()) {
+        std::cout << "xrdndnproducer: Failed to close: " << path << std::endl;
+        return -1;
+    }
+
+    this->m_FileDescriptors.erase(path);
+
+    return 0;
 }
 } // namespace xrdndn

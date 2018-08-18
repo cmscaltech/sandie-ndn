@@ -33,8 +33,11 @@ class DFHandler {
     // File oriented methods
 
     /* Over NDN the file will be opened for reading only. On success
-       returns 0; on fail -1. */
+       returns 0; on fail -1.*/
     virtual int Open(std::string path) = 0;
+
+    /* Over NDN the name of the file to be close need to be passed.*/
+    virtual int Close(std::string path) = 0;
 };
 } // namespace xrdndn
 

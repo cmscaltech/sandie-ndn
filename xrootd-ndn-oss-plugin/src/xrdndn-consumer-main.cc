@@ -26,7 +26,16 @@ int main(int argc, char **argv) {
     xrdndn::Consumer consumer;
     try {
         consumer.Open(std::string("/root/test/path/for/ndn/xrd/test.txt"));
+        std::cout << std::endl;
+
         consumer.Open(std::string("/system/path/to/inexistent/file"));
+        std::cout << std::endl;
+
+        consumer.Close(std::string("/root/test/path/for/ndn/xrd/test.txt"));
+        std::cout << std::endl;
+
+        consumer.Close(std::string("/system/path/to/inexistent/file"));
+        std::cout << std::endl;
     } catch (const std::exception &e) {
         std::cerr << "ERROR: xrdndnconsumer: " << e.what() << std::endl;
     }

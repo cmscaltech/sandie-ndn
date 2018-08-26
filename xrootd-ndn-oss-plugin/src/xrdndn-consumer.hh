@@ -21,6 +21,7 @@
 #ifndef XRDNDN_CONSUMER_HH
 #define XRDNDN_CONSUMER_HH
 
+#include <map>
 #include <ndn-cxx/face.hpp>
 
 #include "xrdndn-directory-file-handler.hh"
@@ -33,6 +34,8 @@ class Consumer : DFHandler {
 
     virtual int Open(std::string path) override;
     virtual int Close(std::string path) override;
+    virtual ssize_t Read(void *buff, off_t offset, size_t blen,
+                         std::string path) override;
 
   private:
     ndn::Face m_face;
@@ -41,6 +44,26 @@ class Consumer : DFHandler {
     void onTimeout(const ndn::Interest &interest);
 
     int getIntegerFromData(const ndn::Data &data);
+};
+
+class FileReader {
+  public:
+    FileReader(ndn::Face &face);
+    ~FileReader();
+
+    ssize_t Read(void *buff, off_t offset, size_t blen, std::string path);
+
+  private:
+    ndn::Face &m_face;
+
+    std::map<uint64_t, std::shared_ptr<const ndn::Data>> m_bufferedData;
+    uint64_t m_nextToCopy;
+    off_t m_buffOffset;
+
+    void onNack(const ndn::Interest &interest, const ndn::lp::Nack &nack);
+    void onTimeout(const ndn::Interest &interest);
+
+    void saveDataInOrder(void *buff, off_t offset, size_t blen);
 };
 } // namespace xrdndn
 

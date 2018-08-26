@@ -29,7 +29,8 @@ using namespace ndn;
 
 namespace xrdndn {
 Producer::Producer(Face &face)
-    : m_face(face), m_OpenFilterId(nullptr), m_CloseFilterId(nullptr) {
+    : m_face(face), m_OpenFilterId(nullptr), m_CloseFilterId(nullptr),
+      m_ReadFilterId(nullptr) {
     this->registerPrefix();
 }
 
@@ -42,6 +43,9 @@ Producer::~Producer() {
     }
     if (m_CloseFilterId != nullptr) {
         m_face.unsetInterestFilter(m_CloseFilterId);
+    }
+    if (m_ReadFilterId != nullptr) {
+        m_face.unsetInterestFilter(m_ReadFilterId);
     }
     m_face.shutdown();
 
@@ -75,6 +79,11 @@ void Producer::registerPrefix() {
     m_CloseFilterId = m_face.setInterestFilter(
         Utils::getInterestPrefix(SystemCalls::close),
         bind(&Producer::onCloseInterest, this, _1, _2));
+
+    // Filter for read system call
+    m_ReadFilterId =
+        m_face.setInterestFilter(Utils::getInterestPrefix(SystemCalls::read),
+                                 bind(&Producer::onReadInterest, this, _1, _2));
 }
 
 void Producer::send(const ndn::Name &name, const Block &content,
@@ -160,4 +169,43 @@ int Producer::Close(std::string path) {
 
     return 0;
 }
+
+void Producer::onReadInterest(const ndn::InterestFilter &filter,
+                              const ndn::Interest &interest) {
+    std::cout << "xrdndnproducer I:" << interest << std::endl;
+    std::cout << "xrdndnproducer I: Filter: " << filter << std::endl;
+
+    Name name(interest.getName());
+
+    std::string buff(MAX_NDN_PACKET_SIZE, '\0');
+    uint64_t segmentNo = Utils::getSegmentFromPacket(interest);
+
+    this->Read(&buff[0], segmentNo * MAX_NDN_PACKET_SIZE, MAX_NDN_PACKET_SIZE,
+               Utils::getFilePathFromName(name, SystemCalls::read));
+
+    const Block content(reinterpret_cast<const uint8_t *>(buff.data()),
+                        buff.size());
+    name.appendVersion();
+    this->send(name, content, ndn::tlv::Content);
+}
+
+ssize_t Producer::Read(void *buff, off_t offset, size_t blen,
+                       std::string path) {
+
+    if (!this->m_FileDescriptors.hasKey(path)) {
+        std::cout << "xrdndnproducer: File: " << path
+                  << " was not oppend previously" << std::endl;
+        return -1;
+    }
+
+    auto fstream = this->m_FileDescriptors.at(path);
+    boost::unique_lock<boost::shared_mutex> lock(
+        this->m_FileDescriptors.mutex_);
+    fstream->seekg(offset, fstream->beg);
+    fstream->read((char *)buff, blen);
+    lock.unlock();
+
+    return fstream->gcount();
+}
+
 } // namespace xrdndn

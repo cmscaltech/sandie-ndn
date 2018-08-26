@@ -46,7 +46,30 @@ class Utils {
 
     // Returns file path from the ndn::Name for a specific system call
     static std::string getFilePathFromName(ndn::Name name, SystemCalls sc) {
-        return name.getSubName(getInterestPrefix(sc).size(), -1).toUri();
+        std::string ret;
+
+        switch (sc) {
+        case SystemCalls::read: {
+            size_t nPrefixSz = getInterestPrefix(sc).size();
+            size_t nComponents = name.size() - nPrefixSz - 1;
+            ret = name.getSubName(nPrefixSz, nComponents).toUri();
+            break;
+        }
+        case SystemCalls::open:
+        case SystemCalls::close:
+        default:
+            ret = name.getSubName(getInterestPrefix(sc).size(), ndn::Name::npos)
+                      .toUri();
+            break;
+        }
+
+        return ret;
+    }
+
+    // Returns segment number for read file system call specific request
+    template <typename Packet>
+    static uint64_t getSegmentFromPacket(const Packet &packet) {
+        return packet.getName().at(-1).toSegment();
     }
 };
 } // namespace xrdndn

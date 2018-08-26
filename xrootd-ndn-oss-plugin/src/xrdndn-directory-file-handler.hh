@@ -36,8 +36,15 @@ class DFHandler {
        returns 0; on fail -1.*/
     virtual int Open(std::string path) = 0;
 
-    /* Over NDN the name of the file to be close need to be passed.*/
+    /* Over NDN the name of the file to be close need to be passed.
+      On success returns 0; on fail -1.*/
     virtual int Close(std::string path) = 0;
+
+    /* It returns the number of bytes read from the file at path. Over
+      NDN only the actual data will be send and the return value will
+      be computed on the consumer side.*/
+    virtual ssize_t Read(void *buff, off_t offset, size_t blen,
+                         std::string path) = 0;
 };
 } // namespace xrdndn
 

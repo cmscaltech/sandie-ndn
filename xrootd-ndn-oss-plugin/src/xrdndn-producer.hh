@@ -41,6 +41,11 @@ class Producer : DFHandler {
     void onCloseInterest(const ndn::InterestFilter &filter,
                          const ndn::Interest &interest);
 
+    virtual ssize_t Read(void *buff, off_t offset, size_t blen,
+                         std::string path) override;
+    void onReadInterest(const ndn::InterestFilter &filter,
+                        const ndn::Interest &interest);
+
   private:
     ndn::Face &m_face;
     ndn::KeyChain m_keyChain;
@@ -48,6 +53,7 @@ class Producer : DFHandler {
     const ndn::RegisteredPrefixId *m_xrdndnPrefixId;
     const ndn::InterestFilterId *m_OpenFilterId;
     const ndn::InterestFilterId *m_CloseFilterId;
+    const ndn::InterestFilterId *m_ReadFilterId;
 
     ThreadSafeUMap<std::string, std::shared_ptr<std::ifstream>>
         m_FileDescriptors;

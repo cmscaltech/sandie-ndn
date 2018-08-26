@@ -87,9 +87,98 @@ int Consumer::Close(std::string path) {
     return ret;
 }
 
+ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
+                       std::string path) {
+
+    auto fileReader = shared_ptr<FileReader>(new FileReader(m_face));
+    return fileReader->Read(buff, offset, blen, path);
+}
+
 int Consumer::getIntegerFromData(const Data &data) {
     int value = readNonNegativeInteger(data.getContent());
     return data.getContentType() == xrdndn::tlv::negativeInteger ? -value
                                                                  : value;
 }
+
+FileReader::FileReader(Face &face) : m_face(face) {
+    m_bufferedData.clear();
+    m_nextToCopy = 0;
+    m_buffOffset = 0;
+}
+
+FileReader::~FileReader() { m_bufferedData.clear(); }
+
+void FileReader::onNack(const Interest &interest, const lp::Nack &nack) {
+    std::cout << "xrdndnconsumer: Received NACK with reason: "
+              << nack.getReason() << " for interest " << interest << std::endl;
+
+    // TODO
+}
+
+void FileReader::onTimeout(const Interest &interest) {
+    std::cout << "xrdndnconsumer: Timeout for interest: " << interest
+              << std::endl;
+
+    // TODO
+}
+
+ssize_t FileReader::Read(void *buff, off_t offset, size_t blen,
+                         std::string path) {
+
+    auto onData = [&](const Interest &interest, const Data &data) {
+        std::cout << "xrdndnconsumer: Read file: Received data for: "
+                  << interest << std::endl;
+        m_bufferedData[0] = data.shared_from_this();
+        this->saveDataInOrder(buff, offset, blen);
+    };
+
+    uint64_t firstSegment = offset / MAX_NDN_PACKET_SIZE;
+    uint64_t lastSegment = firstSegment + (blen / MAX_NDN_PACKET_SIZE);
+
+    m_nextToCopy = firstSegment;
+    for (auto i = firstSegment; i <= lastSegment; ++i) {
+        Name name = Utils::getInterestUri(SystemCalls::read, path);
+        name.appendSegment(i); // segment no.
+
+        Interest interest(name);
+        interest.setInterestLifetime(100_s);
+        interest.setMustBeFresh(true);
+
+        std::cout << "xrdndnconsumer: Sending read file interest: " << interest
+                  << std::endl;
+
+        m_face.expressInterest(interest, bind(onData, _1, _2),
+                               bind(&FileReader::onNack, this, _1, _2),
+                               bind(&FileReader::onTimeout, this, _1));
+    }
+
+    m_face.processEvents();
+
+    return m_buffOffset;
+}
+
+void FileReader::saveDataInOrder(void *buff, off_t offset, size_t blen) {
+    auto storeInBuff = [&](const Block &content, off_t contentOffset) {
+        size_t len = content.value_size() - contentOffset;
+        len = len < blen ? len : blen;
+
+        memcpy((uint8_t *)buff + m_buffOffset, content.value() + contentOffset,
+               len);
+        m_buffOffset += len;
+    };
+
+    for (auto it = m_bufferedData.begin();
+         it != m_bufferedData.end() && it->first == m_nextToCopy;
+         it = m_bufferedData.erase(it), ++m_nextToCopy) {
+
+        const Block &content = it->second->getContent();
+        if (m_buffOffset == 0) { // Store first chunk
+            off_t contentOffset = offset % MAX_NDN_PACKET_SIZE;
+            storeInBuff(content, contentOffset);
+        } else {
+            storeInBuff(content, 0);
+        }
+    }
+}
+
 } // namespace xrdndn

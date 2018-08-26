@@ -61,9 +61,11 @@
 			"__mutex_base": "cpp",
 			"shared_mutex": "cpp",
 			"fstream": "cpp",
-			"cstring": "cpp"
+			"cstring": "cpp",
+			"ostream": "cpp",
+			"stack": "cpp"
 		},
-		"workbench.colorTheme": "Default Light+",
+		"workbench.colorTheme": "Visual Studio Dark",
 		"window.zoomLevel": 0,
 		"fileHeaderComment.parameter":{
 			"*":{

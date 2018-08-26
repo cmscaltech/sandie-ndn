@@ -25,14 +25,31 @@
 int main(int argc, char **argv) {
     xrdndn::Consumer consumer;
     try {
+        size_t blen = 5;
+        off_t offset = 7;
+
         consumer.Open(std::string("/root/test/path/for/ndn/xrd/test.txt"));
+        std::cout << std::endl;
+
+        {
+            std::string buff(blen, '\0');
+            consumer.Read(&buff[0], offset, blen,
+                          std::string("/root/test/path/for/ndn/xrd/test.txt"));
+            std::cout << "FINAL RESULT: \"" << buff << "\"" << std::endl;
+        }
+
+        consumer.Close(std::string("/root/test/path/for/ndn/xrd/test.txt"));
         std::cout << std::endl;
 
         consumer.Open(std::string("/system/path/to/inexistent/file"));
         std::cout << std::endl;
 
-        consumer.Close(std::string("/root/test/path/for/ndn/xrd/test.txt"));
-        std::cout << std::endl;
+        {
+            std::string buff(blen, '\0');
+            consumer.Read(&buff[0], offset, blen,
+                          std::string("/system/path/to/inexistent/file"));
+            std::cout << "FINAL RESULT: \"" << buff << "\"" << std::endl;
+        }
 
         consumer.Close(std::string("/system/path/to/inexistent/file"));
         std::cout << std::endl;

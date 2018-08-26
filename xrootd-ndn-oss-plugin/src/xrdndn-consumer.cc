@@ -30,15 +30,16 @@ namespace xrdndn {
 Consumer::Consumer()
     : m_scheduler(m_face.getIoService()),
       m_validator(security::v2::getAcceptAllValidator()), m_nTimeouts(0),
-      m_nNacks(0), m_retOpen(-1), m_retClose(-1) {
+      m_nNacks(0), m_retOpen(-1), m_retClose(-1), m_nextToCopy(0),
+      m_buffOffset(0) {
     m_bufferedData.clear();
-    m_nextToCopy = 0;
-    m_buffOffset = 0;
 }
 
 Consumer::~Consumer() {
     m_face.removeAllPendingInterests();
+    m_scheduler.cancelAllEvents();
     m_face.shutdown();
+
     m_bufferedData.clear();
 }
 
@@ -79,9 +80,9 @@ void Consumer::onNack(const Interest &interest, const lp::Nack &nack,
             << m_nNacks << " while retrieving data for: " << interest
             << std::endl;
         return;
+    } else {
+        ++m_nNacks;
     }
-
-    ++m_nNacks;
 
     Interest newInterest(interest);
     newInterest.refreshNonce();
@@ -112,9 +113,9 @@ void Consumer::onTimeout(const Interest &interest, const SystemCalls call) {
             << m_nTimeouts << " while retrieving data for: " << interest
             << std::endl;
         return;
+    } else {
+        ++m_nTimeouts;
     }
-
-    ++m_nTimeouts;
 
     Interest newInterest(interest);
     newInterest.refreshNonce();
@@ -138,7 +139,7 @@ void Consumer::onOpenData(const Interest &interest, const Data &data) {
 
 int Consumer::Open(std::string path) {
     Interest openInterest =
-        this->composeInterest(Utils::getInterestUri(SystemCalls::open, path));
+        this->composeInterest(Utils::interestName(SystemCalls::open, path));
     this->expressInterest(openInterest, SystemCalls::open);
 
     std::cout << "xrdndnconsumer: Sending open file interest: " << openInterest
@@ -165,7 +166,7 @@ void Consumer::onCloseData(const Interest &interest, const Data &data) {
 
 int Consumer::Close(std::string path) {
     Interest openInterest =
-        this->composeInterest(Utils::getInterestUri(SystemCalls::close, path));
+        this->composeInterest(Utils::interestName(SystemCalls::close, path));
     this->expressInterest(openInterest, SystemCalls::close);
 
     std::cout << "xrdndnconsumer: Sending close file interest: " << openInterest
@@ -201,20 +202,18 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
 
     m_nextToCopy = firstSegment;
     for (auto i = firstSegment; i <= lastSegment; ++i) {
-        Name name = Utils::getInterestUri(SystemCalls::read, path);
+        Name name = Utils::interestName(SystemCalls::read, path);
         name.appendSegment(i); // segment no.
 
         Interest readInterest = this->composeInterest(name);
+        this->expressInterest(readInterest, SystemCalls::read);
 
         std::cout << "xrdndnconsumer: Sending read file interest: "
                   << readInterest << std::endl;
-        this->expressInterest(readInterest, SystemCalls::read);
     }
 
     m_face.processEvents();
-
     this->saveDataInOrder(buff, offset, blen);
-
     return m_buffOffset;
 }
 

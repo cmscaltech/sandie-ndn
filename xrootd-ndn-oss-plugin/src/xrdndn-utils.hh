@@ -30,19 +30,18 @@
 namespace xrdndn {
 class Utils {
   public:
-    // NDN Interest specific helper functions.
+    // NDN Interest specific helper functions //
 
-    // Returns ndn::Name for a given system call
-    static ndn::Name getInterestPrefix(SystemCalls sc) {
+    // Returns Name prefix for a system call
+    static ndn::Name interestPrefix(SystemCalls sc) {
         return ndn::Name(PLUGIN_INTEREST_PREFIX_URI).append(enumToString(sc));
     }
-
-    // Returns ndn::Name for a give system call on a file.
-    static ndn::Name getInterestUri(SystemCalls sc, std::string path) {
-        return getInterestPrefix(sc).append(path);
+    // Returns Name for a give system call on a file at path
+    static ndn::Name interestName(SystemCalls sc, std::string path) {
+        return interestPrefix(sc).append(path);
     }
 
-    //  NDN Name specific helper functions
+    // NDN Name specific helper functions //
 
     // Returns file path from the ndn::Name for a specific system call
     static std::string getFilePathFromName(ndn::Name name, SystemCalls sc) {
@@ -50,7 +49,7 @@ class Utils {
 
         switch (sc) {
         case SystemCalls::read: {
-            size_t nPrefixSz = getInterestPrefix(sc).size();
+            size_t nPrefixSz = interestPrefix(sc).size();
             size_t nComponents = name.size() - nPrefixSz - 1;
             ret = name.getSubName(nPrefixSz, nComponents).toUri();
             break;
@@ -58,7 +57,7 @@ class Utils {
         case SystemCalls::open:
         case SystemCalls::close:
         default:
-            ret = name.getSubName(getInterestPrefix(sc).size(), ndn::Name::npos)
+            ret = name.getSubName(interestPrefix(sc).size(), ndn::Name::npos)
                       .toUri();
             break;
         }

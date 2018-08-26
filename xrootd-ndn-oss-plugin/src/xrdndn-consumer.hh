@@ -47,12 +47,6 @@ class Consumer : DFHandler {
     virtual ssize_t Read(void *buff, off_t offset, size_t blen,
                          std::string path) override;
 
-    static int getIntegerFromData(const ndn::Data &data) {
-        int value = readNonNegativeInteger(data.getContent());
-        return data.getContentType() == xrdndn::tlv::negativeInteger ? -value
-                                                                     : value;
-    }
-
   private:
     ndn::Face m_face;
     ndn::util::Scheduler m_scheduler;
@@ -78,6 +72,13 @@ class Consumer : DFHandler {
     void onReadData(const ndn::Interest &interest, const ndn::Data &data);
 
     void saveDataInOrder(void *buff, off_t offset, size_t blen);
+
+  private:
+    static int getIntegerFromData(const ndn::Data &data) {
+        int value = readNonNegativeInteger(data.getContent());
+        return data.getContentType() == xrdndn::tlv::negativeInteger ? -value
+                                                                     : value;
+    }
 };
 } // namespace xrdndn
 

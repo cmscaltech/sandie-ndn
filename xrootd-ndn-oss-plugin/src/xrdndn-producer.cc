@@ -72,24 +72,24 @@ void Producer::registerPrefix() {
 
     // Filter for open system call
     m_OpenFilterId =
-        m_face.setInterestFilter(Utils::getInterestPrefix(SystemCalls::open),
+        m_face.setInterestFilter(Utils::interestPrefix(SystemCalls::open),
                                  bind(&Producer::onOpenInterest, this, _1, _2));
 
     // Filter for close system call
     m_CloseFilterId = m_face.setInterestFilter(
-        Utils::getInterestPrefix(SystemCalls::close),
+        Utils::interestPrefix(SystemCalls::close),
         bind(&Producer::onCloseInterest, this, _1, _2));
 
     // Filter for read system call
     m_ReadFilterId =
-        m_face.setInterestFilter(Utils::getInterestPrefix(SystemCalls::read),
+        m_face.setInterestFilter(Utils::interestPrefix(SystemCalls::read),
                                  bind(&Producer::onReadInterest, this, _1, _2));
 }
 
 void Producer::send(const ndn::Name &name, const Block &content,
                     uint32_t type) {
     shared_ptr<Data> data = make_shared<Data>(name);
-    data->setFreshnessPeriod(60_s);
+    data->setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
     data->setContent(content);
     data->setContentType(type);
 
@@ -111,11 +111,11 @@ void Producer::onOpenInterest(const InterestFilter &filter,
                               const Interest &interest) {
     std::cout << "xrdndnproducer I: " << interest << std::endl;
     std::cout << "xrdndnproducer: Filter: " << filter << std::endl;
+
     Name name(interest.getName());
-
     int ret = this->Open(Utils::getFilePathFromName(name, SystemCalls::open));
-
     name.appendVersion();
+
     this->sendInteger(name, ret);
 }
 
@@ -139,11 +139,11 @@ void Producer::onCloseInterest(const ndn::InterestFilter &filter,
                                const ndn::Interest &interest) {
     std::cout << "xrdndnproducer I:" << interest << std::endl;
     std::cout << "xrdndnproducer I: Filter: " << filter << std::endl;
+
     Name name(interest.getName());
-
     int ret = this->Close(Utils::getFilePathFromName(name, SystemCalls::close));
-
     name.appendVersion();
+
     this->sendInteger(name, ret);
 }
 

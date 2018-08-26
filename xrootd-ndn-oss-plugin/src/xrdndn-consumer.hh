@@ -23,10 +23,20 @@
 
 #include <map>
 #include <ndn-cxx/face.hpp>
+#include <ndn-cxx/security/v2/validation-error.hpp>
+#include <ndn-cxx/security/v2/validator.hpp>
+#include <ndn-cxx/security/validator-null.hpp>
+#include <ndn-cxx/util/scheduler.hpp>
+#include <ndn-cxx/util/time.hpp>
 
+#include "xrdndn-common.hh"
 #include "xrdndn-directory-file-handler.hh"
 
 namespace xrdndn {
+static const uint8_t MAX_RETRIES = 32;
+static const ndn::time::milliseconds CONGESTION_TIMEOUT =
+    ndn::time::seconds(10);
+
 class Consumer : DFHandler {
   public:
     Consumer();
@@ -37,31 +47,35 @@ class Consumer : DFHandler {
     virtual ssize_t Read(void *buff, off_t offset, size_t blen,
                          std::string path) override;
 
+    static int getIntegerFromData(const ndn::Data &data) {
+        int value = readNonNegativeInteger(data.getContent());
+        return data.getContentType() == xrdndn::tlv::negativeInteger ? -value
+                                                                     : value;
+    }
+
   private:
     ndn::Face m_face;
-
-    void onNack(const ndn::Interest &interest, const ndn::lp::Nack &nack);
-    void onTimeout(const ndn::Interest &interest);
-
-    int getIntegerFromData(const ndn::Data &data);
-};
-
-class FileReader {
-  public:
-    FileReader(ndn::Face &face);
-    ~FileReader();
-
-    ssize_t Read(void *buff, off_t offset, size_t blen, std::string path);
-
-  private:
-    ndn::Face &m_face;
+    ndn::util::Scheduler m_scheduler;
+    ndn::security::v2::Validator &m_validator;
+    uint8_t m_nTimeouts;
+    uint8_t m_nNacks;
 
     std::map<uint64_t, std::shared_ptr<const ndn::Data>> m_bufferedData;
     uint64_t m_nextToCopy;
     off_t m_buffOffset;
 
-    void onNack(const ndn::Interest &interest, const ndn::lp::Nack &nack);
-    void onTimeout(const ndn::Interest &interest);
+    int m_retOpen;
+    int m_retClose;
+
+    const ndn::Interest composeInterest(const ndn::Name name);
+    void expressInterest(const ndn::Interest &interest, const SystemCalls call);
+
+    void onNack(const ndn::Interest &interest, const ndn::lp::Nack &nack,
+                const SystemCalls call);
+    void onTimeout(const ndn::Interest &interest, const SystemCalls call);
+    void onOpenData(const ndn::Interest &interest, const ndn::Data &data);
+    void onCloseData(const ndn::Interest &interest, const ndn::Data &data);
+    void onReadData(const ndn::Interest &interest, const ndn::Data &data);
 
     void saveDataInOrder(void *buff, off_t offset, size_t blen);
 };

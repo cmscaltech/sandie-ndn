@@ -63,7 +63,8 @@
 			"fstream": "cpp",
 			"cstring": "cpp",
 			"ostream": "cpp",
-			"stack": "cpp"
+			"stack": "cpp",
+			"unordered_set": "cpp"
 		},
 		"workbench.colorTheme": "Visual Studio Dark",
 		"window.zoomLevel": 0,

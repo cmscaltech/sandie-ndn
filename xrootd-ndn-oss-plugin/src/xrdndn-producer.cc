@@ -185,7 +185,6 @@ void Producer::onReadInterest(const ndn::InterestFilter &filter,
 
     const Block content(reinterpret_cast<const uint8_t *>(buff.data()),
                         buff.size());
-    name.appendVersion();
     this->send(name, content, ndn::tlv::Content);
 }
 

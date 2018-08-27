@@ -68,7 +68,12 @@ class Utils {
     // Returns segment number for read file system call specific request
     template <typename Packet>
     static uint64_t getSegmentFromPacket(const Packet &packet) {
-        return packet.getName().at(-1).toSegment();
+        ndn::Name name= packet.getName();
+
+        if (name.at(-1).isVersion()) {
+            return name.at(-2).toSegment();
+        }
+        return name.at(-1).toSegment();
     }
 };
 } // namespace xrdndn

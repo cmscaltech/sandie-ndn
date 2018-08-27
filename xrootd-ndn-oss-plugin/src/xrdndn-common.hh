@@ -22,6 +22,8 @@
 #define XRDNDN_COMMON_HH
 
 namespace xrdndn {
+#define ESUCCESS  0
+#define EFAILURE -1
 // TLV-TYPE For application use
 enum tlv { nonNegativeInteger = 128, negativeInteger = 129 };
 } // namespace xrdndn

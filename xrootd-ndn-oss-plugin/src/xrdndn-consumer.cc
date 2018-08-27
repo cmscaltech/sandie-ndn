@@ -30,8 +30,8 @@ namespace xrdndn {
 Consumer::Consumer()
     : m_scheduler(m_face.getIoService()),
       m_validator(security::v2::getAcceptAllValidator()), m_nTimeouts(0),
-      m_nNacks(0), m_retOpen(-1), m_retClose(-1), m_nextToCopy(0),
-      m_buffOffset(0) {
+      m_nNacks(0), m_buffOffset(0), m_retOpen(-1), m_retClose(-1),
+      m_retRead(0) {
     m_bufferedData.clear();
 }
 
@@ -185,7 +185,12 @@ void Consumer::onReadData(const ndn::Interest &interest,
     m_validator.validate(
         data,
         [this, dataPtr](const Data &data) {
-            m_bufferedData[data.getName().at(-1).toSegment()] = dataPtr;
+            if (data.getContentType() == xrdndn::tlv::negativeInteger) {
+                m_retRead = EFAILURE;
+                m_face.shutdown();
+            } else {
+                m_bufferedData[Utils::getSegmentFromPacket(data)] = dataPtr;
+            }
         },
         [](const Data &, const security::v2::ValidationError &error) {
             std::cout
@@ -200,7 +205,6 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
     uint64_t firstSegment = offset / MAX_NDN_PACKET_SIZE;
     uint64_t lastSegment = firstSegment + (blen / MAX_NDN_PACKET_SIZE);
 
-    m_nextToCopy = firstSegment;
     for (auto i = firstSegment; i <= lastSegment; ++i) {
         Name name = Utils::interestName(SystemCalls::read, path);
         name.appendSegment(i); // segment no.
@@ -213,8 +217,13 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
     }
 
     m_face.processEvents();
-    this->saveDataInOrder(buff, offset, blen);
-    return m_buffOffset;
+
+    if (m_retRead == ESUCCESS) {
+        this->saveDataInOrder(buff, offset, blen);
+        return m_buffOffset;
+    }
+
+    return EFAILURE;
 }
 
 void Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {
@@ -227,9 +236,8 @@ void Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {
         m_buffOffset += len;
     };
 
-    for (auto it = m_bufferedData.begin();
-         it != m_bufferedData.end() && it->first == m_nextToCopy;
-         it = m_bufferedData.erase(it), ++m_nextToCopy) {
+    for (auto it = m_bufferedData.begin(); it != m_bufferedData.end();
+         it = m_bufferedData.erase(it)) {
 
         const Block &content = it->second->getContent();
         if (m_buffOffset == 0) { // Store first chunk

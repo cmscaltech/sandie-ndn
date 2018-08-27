@@ -55,11 +55,11 @@ class Consumer : DFHandler {
     uint8_t m_nNacks;
 
     std::map<uint64_t, std::shared_ptr<const ndn::Data>> m_bufferedData;
-    uint64_t m_nextToCopy;
     off_t m_buffOffset;
 
     int m_retOpen;
     int m_retClose;
+    int m_retRead;
 
     const ndn::Interest composeInterest(const ndn::Name name);
     void expressInterest(const ndn::Interest &interest, const SystemCalls call);

@@ -86,10 +86,10 @@ void Producer::registerPrefix() {
                                  bind(&Producer::onReadInterest, this, _1, _2));
 }
 
-void Producer::send(ndn::Data data) {
+void Producer::send(Data data) {
     data.setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
-    m_keyChain.sign(*data); // signWithDigestSha256
-    std::cout << "xrdndnproducer: D: " << *data << std::endl;
+    m_keyChain.sign(data); // signWithDigestSha256
+    std::cout << "xrdndnproducer: D: " << data << std::endl;
 
     m_face.put(data);
 }
@@ -99,7 +99,7 @@ void Producer::sendInteger(const Name &name, int value) {
                          : xrdndn::tlv::nonNegativeInteger;
     const Block content =
         makeNonNegativeIntegerBlock(ndn::tlv::Content, fabs(value));
-    
+
     Data data(name);
     data.setContent(content);
     data.setContentType(type);
@@ -185,8 +185,8 @@ void Producer::onReadInterest(const InterestFilter &filter,
     uint64_t segmentNo = Utils::getSegmentFromPacket(interest);
 
     int count = this->Read(&buff[0], segmentNo * MAX_NDN_PACKET_SIZE,
-                         MAX_NDN_PACKET_SIZE,
-                         Utils::getFilePathFromName(name, SystemCalls::read));
+                           MAX_NDN_PACKET_SIZE,
+                           Utils::getFilePathFromName(name, SystemCalls::read));
 
     name.appendVersion();
     if (count == EFAILURE) {

@@ -218,12 +218,8 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
 
     m_face.processEvents();
 
-    if (m_retRead == ESUCCESS) {
-        this->saveDataInOrder(buff, offset, blen);
-        return m_buffOffset;
-    }
-
-    return EFAILURE;
+    this->saveDataInOrder(buff, offset, blen);
+    return m_retRead == ESUCCESS ? m_buffOffset : EFAILURE;
 }
 
 void Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {

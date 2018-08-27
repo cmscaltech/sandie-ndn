@@ -86,16 +86,12 @@ void Producer::registerPrefix() {
                                  bind(&Producer::onReadInterest, this, _1, _2));
 }
 
-void Producer::send(const Name &name, const Block &content, uint32_t type) {
-    shared_ptr<Data> data = make_shared<Data>(name);
-    data->setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
-    data->setContent(content);
-    data->setContentType(type);
-
+void Producer::send(ndn::Data data) {
+    data.setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
     m_keyChain.sign(*data); // signWithDigestSha256
     std::cout << "xrdndnproducer: D: " << *data << std::endl;
 
-    m_face.put(*data);
+    m_face.put(data);
 }
 
 void Producer::sendInteger(const Name &name, int value) {
@@ -103,13 +99,17 @@ void Producer::sendInteger(const Name &name, int value) {
                          : xrdndn::tlv::nonNegativeInteger;
     const Block content =
         makeNonNegativeIntegerBlock(ndn::tlv::Content, fabs(value));
-    this->send(name, content, type);
+    
+    Data data(name);
+    data.setContent(content);
+    data.setContentType(type);
+    this->send(data);
 }
 
-void Producer::sendString(const Name &name, std::string buff) {
-    const Block content(reinterpret_cast<const uint8_t *>(buff.data()),
-                        buff.size());
-    this->send(name, content, ndn::tlv::Content);
+void Producer::sendString(const Name &name, std::string buff, ssize_t size) {
+    Data data(name);
+    data.setContent(reinterpret_cast<const uint8_t *>(buff.data()), size);
+    this->send(data);
 }
 
 void Producer::onOpenInterest(const InterestFilter &filter,
@@ -184,15 +184,15 @@ void Producer::onReadInterest(const InterestFilter &filter,
     std::string buff(MAX_NDN_PACKET_SIZE, '\0');
     uint64_t segmentNo = Utils::getSegmentFromPacket(interest);
 
-    int ret = this->Read(&buff[0], segmentNo * MAX_NDN_PACKET_SIZE,
+    int count = this->Read(&buff[0], segmentNo * MAX_NDN_PACKET_SIZE,
                          MAX_NDN_PACKET_SIZE,
                          Utils::getFilePathFromName(name, SystemCalls::read));
 
     name.appendVersion();
-    if (ret == EFAILURE) {
-        this->sendInteger(name, ret);
+    if (count == EFAILURE) {
+        this->sendInteger(name, count);
     } else {
-        this->sendString(name, buff);
+        this->sendString(name, buff, count);
     }
 }
 
@@ -210,8 +210,6 @@ ssize_t Producer::Read(void *buff, off_t offset, size_t blen,
         this->m_FileDescriptors.mutex_);
     fstream->seekg(offset, fstream->beg);
     fstream->read((char *)buff, blen);
-    lock.unlock();
-
     return fstream->gcount();
 }
 

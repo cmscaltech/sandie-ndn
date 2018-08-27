@@ -60,9 +60,9 @@ class Producer : DFHandler {
 
     void registerPrefix();
 
-    void send(const ndn::Name &name, const ndn::Block &content, uint32_t type);
+    void send_m(ndn::Data data);
     void sendInteger(const ndn::Name &name, int value);
-    void sendString(const ndn::Name &name, std::string buff);
+    void sendString(const ndn::Name &name, std::string buff, ssize_t size);
 };
 
 } // namespace xrdndn

@@ -20,8 +20,16 @@
 
 #include <fstream>
 #include <iostream>
+#include <thread>
+#include <vector>
 
 #include "xrdndn-consumer.hh"
+
+static const char *filesPath = "/root/test/path/for/ndn/xrd/";
+static const char *ext = ".out";
+static const std::vector<const char *> filesList = {
+    "test.txt", "convict-lake-autumn-4k-2k.jpg",
+    "wallpaper.wiki-Uhd-8k-river-wallpaperr-PIC-WPE0013289.jpg"};
 
 int _test_readFile(std::string path, std::string outputPath) {
     xrdndn::Consumer consumer;
@@ -30,9 +38,6 @@ int _test_readFile(std::string path, std::string outputPath) {
         std::ofstream output(outputPath, std::ofstream::binary);
 
         int retOpen = consumer.Open(path);
-        std::cout << "CONSUMER_MAIN: Open " << path
-                  << " error code: " << retOpen << std::endl
-                  << std::endl;
         if (retOpen)
             return -1;
 
@@ -47,11 +52,7 @@ int _test_readFile(std::string path, std::string outputPath) {
             ret = consumer.Read(&buff[0], offset, blen, path);
         }
         output.close();
-
-        int retClose = consumer.Close(path);
-        std::cout << "CONSUMER_MAIN: Close " << path
-                  << " error code: " << retClose << std::endl
-                  << std::endl;
+        consumer.Close(path);
     } catch (const std::exception &e) {
         std::cerr << "ERROR: _test_readFile: " << e.what() << std::endl;
     }
@@ -60,13 +61,35 @@ int _test_readFile(std::string path, std::string outputPath) {
 }
 
 int main(int argc, char **argv) {
-    _test_readFile(std::string("/root/test/path/for/ndn/xrd/test.txt"),
-                   std::string("/root/test/path/for/ndn/xrd/test.txt.out"));
+    // Single thread tests
+    for (uint64_t i = 0; i < filesList.size(); ++i) {
+        std::string pathIn(filesPath);
+        pathIn += filesList[i];
 
-    _test_readFile(
-        std::string(
-            "/root/test/path/for/ndn/xrd/convict-lake-autumn-4k-2k.jpg"),
-        std::string("/root/test/path/for/ndn/xrd/res.jpg"));
+        std::string pathOut = pathIn + ext;
+        std::cout << "Read file: " << pathIn << " to: " << pathOut << std::endl;
+
+        _test_readFile(pathIn, pathOut);
+        std::cout << std::endl;
+    }
+
+    // Multi-threading tests
+    std::thread threads[filesList.size()];
+
+    for (unsigned i = 0; i < filesList.size(); ++i) {
+        std::string pathIn(filesPath);
+        pathIn += filesList[i];
+
+        std::string pathOut = pathIn + ext;
+        std::cout << "Thread [" << i << "] Read file: " << pathIn
+                  << " to: " << pathOut << std::endl;
+
+        threads[i] = std::thread(_test_readFile, pathIn, pathOut);
+    }
+
+    for (unsigned i = 0; i < filesList.size(); ++i) {
+        threads[i].join();
+    }
 
     return 0;
 }

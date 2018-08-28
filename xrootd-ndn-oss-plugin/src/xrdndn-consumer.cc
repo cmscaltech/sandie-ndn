@@ -26,6 +26,8 @@
 
 using namespace ndn;
 
+NDN_LOG_INIT(xrdndnconsumer);
+
 namespace xrdndn {
 Consumer::Consumer()
     : m_scheduler(m_face.getIoService()),
@@ -83,10 +85,8 @@ void Consumer::expressInterest(const Interest &interest,
 void Consumer::onNack(const Interest &interest, const lp::Nack &nack,
                       const SystemCalls call) {
     if (m_nNacks > MAX_RETRIES) {
-        std::cout
-            << "xrdndnconsumer: Reached the maximum number of nack retries: "
-            << m_nNacks << " while retrieving data for: " << interest
-            << std::endl;
+        NDN_LOG_WARN("Reached the maximum number of nack retries: "
+                     << m_nNacks << " while retrieving data for: " << interest);
         return;
     } else {
         ++m_nNacks;
@@ -105,21 +105,19 @@ void Consumer::onNack(const Interest &interest, const lp::Nack &nack,
             bind(&Consumer::expressInterest, this, interest, call));
         break;
     default:
-        std::cout << "xrdndnconsumer: Received NACK with reason: "
-                  << nack.getReason() << " for interest " << interest
-                  << std::endl;
+        NDN_LOG_WARN("Received NACK with reason: "
+                     << nack.getReason() << " for interest " << interest);
         break;
     }
 }
 
 void Consumer::onTimeout(const Interest &interest, const SystemCalls call) {
-    std::cout << "xrdndnconsumer: Timeout for interest: " << interest
-              << std::endl;
+    NDN_LOG_TRACE("Timeout for interest: " << interest);
+
     if (m_nTimeouts > MAX_RETRIES) {
-        std::cout
-            << "xrdndnconsumer: Reached the maximum number of timeout retries: "
-            << m_nTimeouts << " while retrieving data for: " << interest
-            << std::endl;
+        NDN_LOG_WARN("Reached the maximum number of timeout retries: "
+                     << m_nTimeouts
+                     << " while retrieving data for: " << interest);
         return;
     } else {
         ++m_nTimeouts;
@@ -135,13 +133,12 @@ void Consumer::onOpenData(const Interest &interest, const Data &data) {
         data,
         [this, interest](const Data &data) {
             m_retOpen = this->getIntegerFromData(data);
-            std::cout << "xrdndnconsumer: Open file: " << interest
-                      << " with error code: " << m_retOpen << std::endl;
+            NDN_LOG_TRACE("Open file: " << interest
+                                        << " with error code: " << m_retOpen);
         },
         [](const Data &, const security::v2::ValidationError &error) {
-            std::cout
-                << "xrdndnconsumer: Error while validating data for open: "
-                << error.getInfo() << std::endl;
+            NDN_LOG_ERROR(
+                "Error while validating data for open: " << error.getInfo());
         });
 }
 
@@ -150,8 +147,7 @@ int Consumer::Open(std::string path) {
         this->composeInterest(Utils::interestName(SystemCalls::open, path));
     this->expressInterest(openInterest, SystemCalls::open);
 
-    std::cout << "xrdndnconsumer: Sending open file interest: " << openInterest
-              << std::endl;
+    NDN_LOG_TRACE("Sending open file interest: " << openInterest);
     m_face.processEvents();
 
     return m_retOpen;
@@ -162,13 +158,12 @@ void Consumer::onCloseData(const Interest &interest, const Data &data) {
         data,
         [this, interest](const Data &data) {
             m_retClose = this->getIntegerFromData(data);
-            std::cout << "xrdndnconsumer: Close file: " << interest
-                      << " with error code: " << m_retClose << std::endl;
+            NDN_LOG_TRACE("Close file: " << interest
+                                         << " with error code: " << m_retClose);
         },
         [](const Data &, const security::v2::ValidationError &error) {
-            std::cout
-                << "xrdndnconsumer: Error while validating data for close: "
-                << error.getInfo() << std::endl;
+            NDN_LOG_ERROR(
+                "Error while validating data for close: " << error.getInfo());
         });
 }
 
@@ -177,8 +172,7 @@ int Consumer::Close(std::string path) {
         this->composeInterest(Utils::interestName(SystemCalls::close, path));
     this->expressInterest(openInterest, SystemCalls::close);
 
-    std::cout << "xrdndnconsumer: Sending close file interest: " << openInterest
-              << std::endl;
+    NDN_LOG_TRACE("Sending close file interest: " << openInterest);
     m_face.processEvents();
 
     return m_retClose;
@@ -186,9 +180,7 @@ int Consumer::Close(std::string path) {
 
 void Consumer::onReadData(const ndn::Interest &interest,
                           const ndn::Data &data) {
-    std::cout << "xrdndnconsumer: Read file: Received data for: " << interest
-              << std::endl;
-
+    NDN_LOG_TRACE("Received data for: " << interest);
     auto dataPtr = data.shared_from_this();
     m_validator.validate(
         data,
@@ -201,9 +193,8 @@ void Consumer::onReadData(const ndn::Interest &interest,
             }
         },
         [](const Data &, const security::v2::ValidationError &error) {
-            std::cout
-                << "xrdndnconsumer: Error while validating data for read: "
-                << error.getInfo() << std::endl;
+            NDN_LOG_ERROR(
+                "Error while validating data for read: " << error.getInfo());
         });
 }
 
@@ -220,8 +211,7 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
         Interest readInterest = this->composeInterest(name);
         this->expressInterest(readInterest, SystemCalls::read);
 
-        std::cout << "xrdndnconsumer: Sending read file interest: "
-                  << readInterest << std::endl;
+        NDN_LOG_TRACE("Sending read file interest: " << readInterest);
     }
 
     m_face.processEvents();

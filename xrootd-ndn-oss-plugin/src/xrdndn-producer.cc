@@ -27,6 +27,8 @@
 
 using namespace ndn;
 
+NDN_LOG_INIT(xrdndnproducer);
+
 namespace xrdndn {
 Producer::Producer(Face &face)
     : m_face(face), m_OpenFilterId(nullptr), m_CloseFilterId(nullptr),
@@ -66,8 +68,7 @@ void Producer::registerPrefix() {
         Name(PLUGIN_INTEREST_PREFIX_URI), [](const Name &name) {},
         [](const Name &name, const std::string &msg) {
             // throw Error("cannot register ndnxrd prefix.");
-            std::cout << "xrdndnproducer: Cannot register ndnxrd prefix: "
-                      << msg << std::endl;
+            NDN_LOG_FATAL("Cannot register ndnxrd prefix: " << msg);
         });
 
     // Filter for open system call
@@ -89,8 +90,8 @@ void Producer::registerPrefix() {
 void Producer::send(Data data) {
     data.setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
     m_keyChain.sign(data); // signWithDigestSha256
-    std::cout << "xrdndnproducer: D: " << data << std::endl;
 
+    NDN_LOG_TRACE("Sending: " << data);
     m_face.put(data);
 }
 
@@ -114,8 +115,7 @@ void Producer::sendString(const Name &name, std::string buff, ssize_t size) {
 
 void Producer::onOpenInterest(const InterestFilter &filter,
                               const Interest &interest) {
-    std::cout << "xrdndnproducer I: " << interest << std::endl;
-    std::cout << "xrdndnproducer: Filter: " << filter << std::endl;
+    NDN_LOG_TRACE("onOpenInterest: " << interest);
 
     Name name(interest.getName());
     int ret = this->Open(Utils::getFilePathFromName(name, SystemCalls::open));
@@ -128,22 +128,21 @@ int Producer::Open(std::string path) {
     std::shared_ptr<std::ifstream> fstream = std::make_shared<std::ifstream>();
     fstream->open(path, std::ifstream::in);
     if (fstream->is_open()) {
+        NDN_LOG_INFO("Opened file: " << path);
         this->m_FileDescriptors.insert(
             std::make_pair<std::string &, std::shared_ptr<std::ifstream> &>(
                 path, fstream));
 
         return XRDNDN_ESUCCESS;
     } else {
-        std::cout << "xrdndnproducer: Failed to open file: " << path
-                  << std::endl;
+        NDN_LOG_WARN("Failed to open file: " << path);
     }
     return XRDNDN_EFAILURE;
 }
 
 void Producer::onCloseInterest(const InterestFilter &filter,
                                const Interest &interest) {
-    std::cout << "xrdndnproducer I:" << interest << std::endl;
-    std::cout << "xrdndnproducer I: Filter: " << filter << std::endl;
+    NDN_LOG_TRACE("onCloseInterest: " << interest);
 
     Name name(interest.getName());
     int ret = this->Close(Utils::getFilePathFromName(name, SystemCalls::close));
@@ -154,8 +153,7 @@ void Producer::onCloseInterest(const InterestFilter &filter,
 
 int Producer::Close(std::string path) {
     if (!this->m_FileDescriptors.hasKey(path)) {
-        std::cout << "xrdndnproducer: File: " << path
-                  << " was not oppend previously" << std::endl;
+        NDN_LOG_WARN("File: " << path << " was not oppend previously.");
         return XRDNDN_EFAILURE;
     }
 
@@ -166,7 +164,7 @@ int Producer::Close(std::string path) {
     lock.unlock();
 
     if (fstream->is_open()) {
-        std::cout << "xrdndnproducer: Failed to close: " << path << std::endl;
+        NDN_LOG_WARN("Failed to close: " << path);
         return XRDNDN_EFAILURE;
     }
 
@@ -176,8 +174,7 @@ int Producer::Close(std::string path) {
 
 void Producer::onReadInterest(const InterestFilter &filter,
                               const Interest &interest) {
-    std::cout << "xrdndnproducer I:" << interest << std::endl;
-    std::cout << "xrdndnproducer I: Filter: " << filter << std::endl;
+    NDN_LOG_TRACE("onReadInterest: " << interest);
 
     Name name(interest.getName());
 
@@ -200,8 +197,7 @@ ssize_t Producer::Read(void *buff, off_t offset, size_t blen,
                        std::string path) {
 
     if (!this->m_FileDescriptors.hasKey(path)) {
-        std::cout << "xrdndnproducer: File: " << path
-                  << " was not oppend previously" << std::endl;
+        NDN_LOG_WARN("File: " << path << " was not oppend previously");
         return XRDNDN_EFAILURE;
     }
 

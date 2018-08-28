@@ -23,6 +23,7 @@
 
 #include <cstring>
 #include <ndn-cxx/face.hpp>
+#include <ndn-cxx/util/logger.hpp>
 
 #include "xrdndn-directory-file-handler.hh"
 #include "xrdndn-namespaces.hh"

@@ -18,43 +18,55 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>. *
  **************************************************************************/
 
+#include <fstream>
 #include <iostream>
 
 #include "xrdndn-consumer.hh"
 
-int main(int argc, char **argv) {
+int _test_readFile(std::string path, std::string outputPath) {
     xrdndn::Consumer consumer;
+
     try {
-        size_t blen = 5;
-        off_t offset = 7;
+        std::ofstream output(outputPath, std::ofstream::binary);
 
-        consumer.Open(std::string("/root/test/path/for/ndn/xrd/test.txt"));
-        std::cout << std::endl;
+        int retOpen = consumer.Open(path);
+        std::cout << "CONSUMER_MAIN: Open " << path
+                  << " error code: " << retOpen << std::endl
+                  << std::endl;
+        if (retOpen)
+            return -1;
 
-        {
-            std::string buff(blen, '\0');
-            consumer.Read(&buff[0], offset, blen,
-                          std::string("/root/test/path/for/ndn/xrd/test.txt"));
-            std::cout << "FINAL RESULT: \"" << buff << "\"" << std::endl;
+        size_t blen = 32768;
+        off_t offset = 0;
+        std::string buff(blen, '\0');
+
+        int ret = consumer.Read(&buff[0], offset, blen, path);
+        while (ret > 0) {
+            output.write(buff.data(), ret);
+            offset += ret;
+            ret = consumer.Read(&buff[0], offset, blen, path);
         }
+        output.close();
 
-        consumer.Close(std::string("/root/test/path/for/ndn/xrd/test.txt"));
-        std::cout << std::endl;
-
-        consumer.Open(std::string("/system/path/to/inexistent/file"));
-        std::cout << std::endl;
-
-        {
-            std::string buff(blen, '\0');
-            consumer.Read(&buff[0], offset, blen,
-                          std::string("/system/path/to/inexistent/file"));
-            std::cout << "FINAL RESULT: \"" << buff << "\"" << std::endl;
-        }
-
-        consumer.Close(std::string("/system/path/to/inexistent/file"));
-        std::cout << std::endl;
+        int retClose = consumer.Close(path);
+        std::cout << "CONSUMER_MAIN: Close " << path
+                  << " error code: " << retClose << std::endl
+                  << std::endl;
     } catch (const std::exception &e) {
-        std::cerr << "ERROR: xrdndnconsumer: " << e.what() << std::endl;
+        std::cerr << "ERROR: _test_readFile: " << e.what() << std::endl;
     }
+
+    return 0;
+}
+
+int main(int argc, char **argv) {
+    _test_readFile(std::string("/root/test/path/for/ndn/xrd/test.txt"),
+                   std::string("/root/test/path/for/ndn/xrd/test.txt.out"));
+
+    _test_readFile(
+        std::string(
+            "/root/test/path/for/ndn/xrd/convict-lake-autumn-4k-2k.jpg"),
+        std::string("/root/test/path/for/ndn/xrd/res.jpg"));
+
     return 0;
 }

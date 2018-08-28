@@ -132,12 +132,12 @@ int Producer::Open(std::string path) {
             std::make_pair<std::string &, std::shared_ptr<std::ifstream> &>(
                 path, fstream));
 
-        return ESUCCESS;
+        return XRDNDN_ESUCCESS;
     } else {
         std::cout << "xrdndnproducer: Failed to open file: " << path
                   << std::endl;
     }
-    return EFAILURE;
+    return XRDNDN_EFAILURE;
 }
 
 void Producer::onCloseInterest(const InterestFilter &filter,
@@ -156,7 +156,7 @@ int Producer::Close(std::string path) {
     if (!this->m_FileDescriptors.hasKey(path)) {
         std::cout << "xrdndnproducer: File: " << path
                   << " was not oppend previously" << std::endl;
-        return EFAILURE;
+        return XRDNDN_EFAILURE;
     }
 
     auto fstream = this->m_FileDescriptors.at(path);
@@ -167,11 +167,11 @@ int Producer::Close(std::string path) {
 
     if (fstream->is_open()) {
         std::cout << "xrdndnproducer: Failed to close: " << path << std::endl;
-        return EFAILURE;
+        return XRDNDN_EFAILURE;
     }
 
     this->m_FileDescriptors.erase(path);
-    return ESUCCESS;
+    return XRDNDN_ESUCCESS;
 }
 
 void Producer::onReadInterest(const InterestFilter &filter,
@@ -181,15 +181,15 @@ void Producer::onReadInterest(const InterestFilter &filter,
 
     Name name(interest.getName());
 
-    std::string buff(MAX_NDN_PACKET_SIZE, '\0');
+    std::string buff(XRDNDN_MAX_NDN_PACKET_SIZE, '\0');
     uint64_t segmentNo = Utils::getSegmentFromPacket(interest);
 
-    int count = this->Read(&buff[0], segmentNo * MAX_NDN_PACKET_SIZE,
-                           MAX_NDN_PACKET_SIZE,
+    int count = this->Read(&buff[0], segmentNo * XRDNDN_MAX_NDN_PACKET_SIZE,
+                           XRDNDN_MAX_NDN_PACKET_SIZE,
                            Utils::getFilePathFromName(name, SystemCalls::read));
 
     name.appendVersion();
-    if (count == EFAILURE) {
+    if (count == XRDNDN_EFAILURE) {
         this->sendInteger(name, count);
     } else {
         this->sendString(name, buff, count);
@@ -202,7 +202,7 @@ ssize_t Producer::Read(void *buff, off_t offset, size_t blen,
     if (!this->m_FileDescriptors.hasKey(path)) {
         std::cout << "xrdndnproducer: File: " << path
                   << " was not oppend previously" << std::endl;
-        return EFAILURE;
+        return XRDNDN_EFAILURE;
     }
 
     auto fstream = this->m_FileDescriptors.at(path);

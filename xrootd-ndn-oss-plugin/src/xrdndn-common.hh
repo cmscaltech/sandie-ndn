@@ -22,10 +22,15 @@
 #define XRDNDN_COMMON_HH
 
 namespace xrdndn {
-#define ESUCCESS  0
-#define EFAILURE -1
+#define XRDNDN_ESUCCESS 0
+#define XRDNDN_EFAILURE -1
+
 // TLV-TYPE For application use
 enum tlv { nonNegativeInteger = 128, negativeInteger = 129 };
+
+// Data package size
+#define XRDNDN_MAX_NDN_PACKET_SIZE 7168
+
 } // namespace xrdndn
 
 #endif // XRDNDN_COMMON_HH

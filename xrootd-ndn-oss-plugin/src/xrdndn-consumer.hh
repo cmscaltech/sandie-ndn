@@ -74,6 +74,8 @@ class Consumer : DFHandler {
     void saveDataInOrder(void *buff, off_t offset, size_t blen);
 
   private:
+    void flush();
+
     static int getIntegerFromData(const ndn::Data &data) {
         int value = readNonNegativeInteger(data.getContent());
         return data.getContentType() == xrdndn::tlv::negativeInteger ? -value

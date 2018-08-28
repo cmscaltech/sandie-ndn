@@ -40,7 +40,15 @@ Consumer::~Consumer() {
     m_scheduler.cancelAllEvents();
     m_face.shutdown();
 
+    this->flush();
+}
+
+void Consumer::flush() {
     m_bufferedData.clear();
+    m_retOpen = 0;
+    m_retClose = 0;
+    m_retRead = 0;
+    m_buffOffset = 0;
 }
 
 const Interest Consumer::composeInterest(const Name name) {
@@ -186,7 +194,7 @@ void Consumer::onReadData(const ndn::Interest &interest,
         data,
         [this, dataPtr](const Data &data) {
             if (data.getContentType() == xrdndn::tlv::negativeInteger) {
-                m_retRead = EFAILURE;
+                m_retRead = XRDNDN_EFAILURE;
                 m_face.shutdown();
             } else {
                 m_bufferedData[Utils::getSegmentFromPacket(data)] = dataPtr;
@@ -201,9 +209,9 @@ void Consumer::onReadData(const ndn::Interest &interest,
 
 ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
                        std::string path) {
-
-    uint64_t firstSegment = offset / MAX_NDN_PACKET_SIZE;
-    uint64_t lastSegment = firstSegment + (blen / MAX_NDN_PACKET_SIZE);
+    this->flush();
+    uint64_t firstSegment = offset / XRDNDN_MAX_NDN_PACKET_SIZE;
+    uint64_t lastSegment = firstSegment + (blen / XRDNDN_MAX_NDN_PACKET_SIZE);
 
     for (auto i = firstSegment; i <= lastSegment; ++i) {
         Name name = Utils::interestName(SystemCalls::read, path);
@@ -219,7 +227,7 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
     m_face.processEvents();
 
     this->saveDataInOrder(buff, offset, blen);
-    return m_retRead == ESUCCESS ? m_buffOffset : EFAILURE;
+    return m_retRead == XRDNDN_ESUCCESS ? m_buffOffset : XRDNDN_EFAILURE;
 }
 
 void Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {
@@ -234,10 +242,12 @@ void Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {
 
     for (auto it = m_bufferedData.begin(); it != m_bufferedData.end();
          it = m_bufferedData.erase(it)) {
-
         const Block &content = it->second->getContent();
+
         if (m_buffOffset == 0) { // Store first chunk
-            off_t contentOffset = offset % MAX_NDN_PACKET_SIZE;
+            size_t contentOffset = offset % XRDNDN_MAX_NDN_PACKET_SIZE;
+            if (contentOffset >= content.value_size())
+                return;
             storeInBuff(content, contentOffset);
         } else {
             storeInBuff(content, 0);

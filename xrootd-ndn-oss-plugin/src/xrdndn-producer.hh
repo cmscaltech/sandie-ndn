@@ -60,7 +60,7 @@ class Producer : DFHandler {
 
     void registerPrefix();
 
-    void send(ndn::Data data);
+    void send(std::shared_ptr<ndn::Data> data);
     void sendInteger(const ndn::Name &name, int value);
     void sendString(const ndn::Name &name, std::string buff, ssize_t size);
 };

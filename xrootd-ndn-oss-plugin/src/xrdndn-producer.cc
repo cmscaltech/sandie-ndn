@@ -87,12 +87,12 @@ void Producer::registerPrefix() {
                                  bind(&Producer::onReadInterest, this, _1, _2));
 }
 
-void Producer::send(Data data) {
-    data.setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
-    m_keyChain.sign(data); // signWithDigestSha256
+void Producer::send(std::shared_ptr<Data> data) {
+    data->setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
+    m_keyChain.sign(*data); // signWithDigestSha256
 
-    NDN_LOG_TRACE("Sending: " << data);
-    m_face.put(data);
+    NDN_LOG_TRACE("Sending: " << *data);
+    m_face.put(*data);
 }
 
 void Producer::sendInteger(const Name &name, int value) {
@@ -101,15 +101,15 @@ void Producer::sendInteger(const Name &name, int value) {
     const Block content =
         makeNonNegativeIntegerBlock(ndn::tlv::Content, fabs(value));
 
-    Data data(name);
-    data.setContent(content);
-    data.setContentType(type);
+    std::shared_ptr<ndn::Data> data = std::make_shared<Data>(name);
+    data->setContent(content);
+    data->setContentType(type);
     this->send(data);
 }
 
 void Producer::sendString(const Name &name, std::string buff, ssize_t size) {
-    Data data(name);
-    data.setContent(reinterpret_cast<const uint8_t *>(buff.data()), size);
+    std::shared_ptr<ndn::Data> data = std::make_shared<Data>(name);
+    data->setContent(reinterpret_cast<const uint8_t *>(buff.data()), size);
     this->send(data);
 }
 

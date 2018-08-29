@@ -51,8 +51,8 @@ class Consumer : DFHandler {
     ndn::Face m_face;
     ndn::util::Scheduler m_scheduler;
     ndn::security::v2::Validator &m_validator;
-    uint8_t m_nTimeouts;
-    uint8_t m_nNacks;
+    int m_nTimeouts;
+    int m_nNacks;
 
     std::map<uint64_t, std::shared_ptr<const ndn::Data>> m_bufferedData;
     off_t m_buffOffset;

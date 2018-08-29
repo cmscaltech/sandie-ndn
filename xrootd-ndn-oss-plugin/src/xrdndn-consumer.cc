@@ -50,6 +50,8 @@ void Consumer::flush() {
     m_retOpen = 0;
     m_retClose = 0;
     m_retRead = 0;
+    m_nTimeouts = 0;
+    m_nNacks = 0;
     m_buffOffset = 0;
 }
 

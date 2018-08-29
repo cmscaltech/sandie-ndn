@@ -33,6 +33,7 @@ namespace xrdndn {
 Producer::Producer(Face &face)
     : m_face(face), m_OpenFilterId(nullptr), m_CloseFilterId(nullptr),
       m_ReadFilterId(nullptr) {
+    NDN_LOG_TRACE("Alloc xrdndn::Producer");
     this->registerPrefix();
 }
 
@@ -52,6 +53,7 @@ Producer::~Producer() {
     m_face.shutdown();
 
     // Close all opened files
+    NDN_LOG_TRACE("Dealloc xrdndn::Producer. Closing all files.");
     boost::shared_lock<boost::shared_mutex> lock(
         this->m_FileDescriptors.mutex_);
     for (auto it = this->m_FileDescriptors.begin();
@@ -63,39 +65,52 @@ Producer::~Producer() {
 }
 
 void Producer::registerPrefix() {
+    NDN_LOG_TRACE("Register prefixes.");
+
     // For nfd
     m_xrdndnPrefixId = m_face.registerPrefix(
         Name(PLUGIN_INTEREST_PREFIX_URI), [](const Name &name) {},
         [](const Name &name, const std::string &msg) {
-            // throw Error("cannot register ndnxrd prefix.");
-            NDN_LOG_FATAL("Cannot register ndnxrd prefix: " << msg);
+            NDN_LOG_FATAL("Could not register " << PLUGIN_INTEREST_PREFIX_URI
+                                                << " prefix for nfd: " << msg);
         });
 
     // Filter for open system call
     m_OpenFilterId =
         m_face.setInterestFilter(Utils::interestPrefix(SystemCalls::open),
                                  bind(&Producer::onOpenInterest, this, _1, _2));
+    if (!m_OpenFilterId) {
+        NDN_LOG_FATAL("Could not set interest filter for open systemcall.");
+    }
 
     // Filter for close system call
     m_CloseFilterId = m_face.setInterestFilter(
         Utils::interestPrefix(SystemCalls::close),
         bind(&Producer::onCloseInterest, this, _1, _2));
+    if (!m_CloseFilterId) {
+        NDN_LOG_FATAL("Could not set interest filter for close systemcall.");
+    }
 
     // Filter for read system call
     m_ReadFilterId =
         m_face.setInterestFilter(Utils::interestPrefix(SystemCalls::read),
                                  bind(&Producer::onReadInterest, this, _1, _2));
+    if (!m_CloseFilterId) {
+        NDN_LOG_FATAL("Could not set interest filter for read systemcall.");
+    }
 }
 
 void Producer::send(std::shared_ptr<Data> data) {
     data->setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
     m_keyChain.sign(*data); // signWithDigestSha256
 
-    NDN_LOG_TRACE("Sending: " << *data);
+    NDN_LOG_INFO("Sending: " << *data);
     m_face.put(*data);
 }
 
 void Producer::sendInteger(const Name &name, int value) {
+    NDN_LOG_TRACE("Sending integer.");
+
     int type = value < 0 ? xrdndn::tlv::negativeInteger
                          : xrdndn::tlv::nonNegativeInteger;
     const Block content =
@@ -108,6 +123,8 @@ void Producer::sendInteger(const Name &name, int value) {
 }
 
 void Producer::sendString(const Name &name, std::string buff, ssize_t size) {
+    NDN_LOG_TRACE("Sending string.");
+
     std::shared_ptr<ndn::Data> data = std::make_shared<Data>(name);
     data->setContent(reinterpret_cast<const uint8_t *>(buff.data()), size);
     this->send(data);
@@ -164,7 +181,7 @@ int Producer::Close(std::string path) {
     lock.unlock();
 
     if (fstream->is_open()) {
-        NDN_LOG_WARN("Failed to close: " << path);
+        NDN_LOG_WARN("Failed to close file: " << path);
         return XRDNDN_EFAILURE;
     }
 

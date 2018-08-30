@@ -28,8 +28,12 @@
 static const char *filesPath = "/root/test/path/for/ndn/xrd/";
 static const char *ext = ".out";
 static const std::vector<const char *> filesList = {
-    "test.txt", "convict-lake-autumn-4k-2k.jpg",
-    "wallpaper.wiki-Uhd-8k-river-wallpaperr-PIC-WPE0013289.jpg"};
+    "test.txt",
+    "convict-lake-autumn-4k-2k.jpg",
+    "wallpaper.wiki-Uhd-8k-river-wallpaperr-PIC-WPE0013289.jpg",
+    "empty_file.dat"/*,
+    "1gb_file",
+    "2gb_file"*/};
 
 int _test_readFile(std::string path, std::string outputPath) {
     xrdndn::Consumer consumer;
@@ -70,26 +74,25 @@ int main(int argc, char **argv) {
         std::cout << "Read file: " << pathIn << " to: " << pathOut << std::endl;
 
         _test_readFile(pathIn, pathOut);
-        std::cout << std::endl;
     }
 
     // Multi-threading tests
-    std::thread threads[filesList.size()];
+    // std::thread threads[filesList.size()];
 
-    for (unsigned i = 0; i < filesList.size(); ++i) {
-        std::string pathIn(filesPath);
-        pathIn += filesList[i];
+    // for (unsigned i = 0; i < filesList.size(); ++i) {
+    //     std::string pathIn(filesPath);
+    //     pathIn += filesList[i];
 
-        std::string pathOut = pathIn + ext;
-        std::cout << "Thread [" << i << "] Read file: " << pathIn
-                  << " to: " << pathOut << std::endl;
+    //     std::string pathOut = pathIn + ext;
+    //     std::cout << "Thread [" << i << "] Read file: " << pathIn
+    //               << " to: " << pathOut << std::endl;
 
-        threads[i] = std::thread(_test_readFile, pathIn, pathOut);
-    }
+    //     threads[i] = std::thread(_test_readFile, pathIn, pathOut);
+    // }
 
-    for (unsigned i = 0; i < filesList.size(); ++i) {
-        threads[i].join();
-    }
+    // for (unsigned i = 0; i < filesList.size(); ++i) {
+    //     threads[i].join();
+    // }
 
     return 0;
 }

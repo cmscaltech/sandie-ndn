@@ -204,7 +204,11 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
                        std::string path) {
     this->flush();
     uint64_t firstSegment = offset / XRDNDN_MAX_NDN_PACKET_SIZE;
-    uint64_t lastSegment = firstSegment + (blen / XRDNDN_MAX_NDN_PACKET_SIZE);
+    
+    int noSegments = blen / XRDNDN_MAX_NDN_PACKET_SIZE;
+    uint64_t lastSegment = firstSegment + noSegments;
+    if (noSegments != 0)
+        ++lastSegment;
 
     for (auto i = firstSegment; i <= lastSegment; ++i) {
         Name name = Utils::interestName(SystemCalls::read, path);
@@ -223,9 +227,11 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
 }
 
 void Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {
+    size_t leftToSave = blen;
     auto storeInBuff = [&](const Block &content, off_t contentOffset) {
         size_t len = content.value_size() - contentOffset;
-        len = len < blen ? len : blen;
+        len = len < leftToSave ? len : leftToSave;
+        leftToSave -= len;
 
         memcpy((uint8_t *)buff + m_buffOffset, content.value() + contentOffset,
                len);

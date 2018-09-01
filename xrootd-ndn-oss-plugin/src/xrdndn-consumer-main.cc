@@ -45,7 +45,7 @@ int _test_readFile(std::string path, std::string outputPath) {
         if (retOpen)
             return -1;
 
-        size_t blen = 32768;
+        size_t blen = 262144; //32768;
         off_t offset = 0;
         std::string buff(blen, '\0');
 

@@ -73,9 +73,12 @@ void Producer::registerPrefix() {
 
     // For nfd
     m_xrdndnPrefixId = m_face.registerPrefix(
-        Name(PLUGIN_INTEREST_PREFIX_URI), [](const Name &name) {},
+        Name(PLUGIN_INTEREST_PREFIX_URI),
+        [](const Name &name) {
+            NDN_LOG_INFO("Successfully registered prefix for: " << name);
+        },
         [](const Name &name, const std::string &msg) {
-            NDN_LOG_FATAL("Could not register " << PLUGIN_INTEREST_PREFIX_URI
+            NDN_LOG_FATAL("Could not register " << name
                                                 << " prefix for nfd: " << msg);
         });
 
@@ -160,7 +163,7 @@ void Producer::sendString(const Name &name, std::string buff, ssize_t size) {
 /*****************************************************************************/
 /*                                  O p e n                                  */
 /*****************************************************************************/
-void Producer::onOpenInterest(const InterestFilter &filter,
+void Producer::onOpenInterest(const InterestFilter &,
                               const Interest &interest) {
     NDN_LOG_TRACE("onOpenInterest: " << interest);
 
@@ -190,7 +193,7 @@ int Producer::Open(std::string path) {
 /*****************************************************************************/
 /*                                 C l o s e                                 */
 /*****************************************************************************/
-void Producer::onCloseInterest(const InterestFilter &filter,
+void Producer::onCloseInterest(const InterestFilter &,
                                const Interest &interest) {
     NDN_LOG_TRACE("onCloseInterest: " << interest);
 
@@ -225,7 +228,7 @@ int Producer::Close(std::string path) {
 /*****************************************************************************/
 /*                                F s t a t                                  */
 /*****************************************************************************/
-void Producer::onFstatInterest(const ndn::InterestFilter &filter,
+void Producer::onFstatInterest(const ndn::InterestFilter &,
                                const ndn::Interest &interest) {
     NDN_LOG_TRACE("onFstatInterest: " << interest);
 
@@ -262,7 +265,7 @@ int Producer::Fstat(struct stat *buff, std::string path) {
 /*****************************************************************************/
 /*                                  R e a d                                  */
 /*****************************************************************************/
-void Producer::onReadInterest(const InterestFilter &filter,
+void Producer::onReadInterest(const InterestFilter &,
                               const Interest &interest) {
     NDN_LOG_TRACE("onReadInterest: " << interest);
 

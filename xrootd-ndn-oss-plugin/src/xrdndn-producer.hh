@@ -35,20 +35,20 @@ class Producer : DFHandler {
 
   private:
     virtual int Open(std::string path) override;
-    void onOpenInterest(const ndn::InterestFilter &filter,
+    void onOpenInterest(const ndn::InterestFilter &,
                         const ndn::Interest &interest);
 
     virtual int Close(std::string path) override;
-    void onCloseInterest(const ndn::InterestFilter &filter,
+    void onCloseInterest(const ndn::InterestFilter &,
                          const ndn::Interest &interest);
 
     virtual int Fstat(struct stat *buff, std::string path) override;
-    void onFstatInterest(const ndn::InterestFilter &filter,
+    void onFstatInterest(const ndn::InterestFilter &,
                          const ndn::Interest &interest);
 
     virtual ssize_t Read(void *buff, off_t offset, size_t blen,
                          std::string path) override;
-    void onReadInterest(const ndn::InterestFilter &filter,
+    void onReadInterest(const ndn::InterestFilter &,
                         const ndn::Interest &interest);
 
   private:

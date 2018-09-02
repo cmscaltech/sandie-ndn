@@ -25,7 +25,7 @@
 
 namespace xrdndn {
 
-int main(int argc, char **argv) {
+int main() {
     ndn::Face face;
 
     try {
@@ -39,4 +39,4 @@ int main(int argc, char **argv) {
 }
 } // namespace xrdndn
 
-int main(int argc, char **argv) { return xrdndn::main(argc, argv); }
+int main(int, char **) { return xrdndn::main(); }

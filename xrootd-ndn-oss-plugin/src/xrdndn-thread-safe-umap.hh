@@ -43,7 +43,7 @@ template <typename K, typename V> class ThreadSafeUMap {
 
     size_t count(const K &key) {
         boost::shared_lock<boost::shared_mutex> lock(mutex_);
-        return this->m_unorderedMap.count();
+        return this->m_unorderedMap.count(key);
     }
 
     size_t erase(const K &key) {

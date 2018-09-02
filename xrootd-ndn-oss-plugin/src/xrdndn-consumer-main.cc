@@ -74,7 +74,7 @@ int _test_readFile(std::string path, std::string outputPath) {
     return 0;
 }
 
-int main(int argc, char **argv) {
+int main(int, char **) {
     // Single thread tests
     for (uint64_t i = 0; i < filesList.size(); ++i) {
         std::string pathIn(filesPath);

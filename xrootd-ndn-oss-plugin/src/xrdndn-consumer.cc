@@ -1,22 +1,22 @@
-/**************************************************************************
- * Named Data Networking plugin for xrootd                                *
- * Copyright © 2018 California Institute of Technology                    *
- *                                                                        *
- * Author: Catalin Iordache <catalin.iordache@cern.ch>                    *
- *                                                                        *
- * This program is free software: you can redistribute it and/or modify   *
- * it under the terms of the GNU General Public License as published by   *
- * the Free Software Foundation, either version 3 of the License, or      *
- * (at your option) any later version.                                    *
- *                                                                        *
- * This program is distributed in the hope that it will be useful,        *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of         *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          *
- * GNU General Public License for more details.                           *
- *                                                                        *
- * You should have received a copy of the GNU General Public License      *
- * along with this program.  If not, see <https://www.gnu.org/licenses/>. *
- **************************************************************************/
+/******************************************************************************
+ * Named Data Networking plugin for xrootd                                    *
+ * Copyright © 2018 California Institute of Technology                        *
+ *                                                                            *
+ * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
+ *                                                                            *
+ * This program is free software: you can redistribute it and/or modify       *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation, either version 3 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * This program is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
+ *****************************************************************************/
 
 #include <functional>
 #include <iostream>
@@ -47,6 +47,7 @@ Consumer::~Consumer() {
     this->flush();
 }
 
+// Reset all class members.
 void Consumer::flush() {
     m_bufferedData.clear();
     m_retOpen = XRDNDN_EFAILURE;
@@ -58,6 +59,7 @@ void Consumer::flush() {
     m_buffOffset = XRDNDN_ESUCCESS;
 }
 
+// Return an interest for the given name.
 const Interest Consumer::composeInterest(const Name name) {
     Interest interest(name);
     interest.setInterestLifetime(DEFAULT_INTEREST_LIFETIME);
@@ -65,6 +67,7 @@ const Interest Consumer::composeInterest(const Name name) {
     return interest;
 }
 
+// Express interest on face for a given system call.
 void Consumer::expressInterest(const Interest &interest,
                                const SystemCalls call) {
     std::function<void(const Interest &interest, const Data &data)> onData;
@@ -90,6 +93,7 @@ void Consumer::expressInterest(const Interest &interest,
                            bind(&Consumer::onTimeout, this, _1, call));
 }
 
+// On NACK, the interest will be send again for MAX_ENTRIES times.
 void Consumer::onNack(const Interest &interest, const lp::Nack &nack,
                       const SystemCalls call) {
     if (m_nNacks > MAX_RETRIES) {
@@ -119,6 +123,7 @@ void Consumer::onNack(const Interest &interest, const lp::Nack &nack,
     }
 }
 
+// On timeout, retry for MAX_RETRIES times
 void Consumer::onTimeout(const Interest &interest, const SystemCalls call) {
     NDN_LOG_TRACE("Timeout for interest: " << interest);
 
@@ -136,6 +141,9 @@ void Consumer::onTimeout(const Interest &interest, const SystemCalls call) {
     this->expressInterest(newInterest, call);
 }
 
+/*****************************************************************************/
+/*                                  O p e n                                  */
+/*****************************************************************************/
 void Consumer::onOpenData(const Interest &interest, const Data &data) {
     m_validator.validate(
         data,
@@ -161,6 +169,9 @@ int Consumer::Open(std::string path) {
     return m_retOpen;
 }
 
+/*****************************************************************************/
+/*                                 C l o s e                                 */
+/*****************************************************************************/
 void Consumer::onCloseData(const Interest &interest, const Data &data) {
     m_validator.validate(
         data,
@@ -186,6 +197,9 @@ int Consumer::Close(std::string path) {
     return m_retClose;
 }
 
+/*****************************************************************************/
+/*                                F s t a t                                  */
+/*****************************************************************************/
 void Consumer::onFstatData(const ndn::Interest &interest,
                            const ndn::Data &data) {
     NDN_LOG_TRACE("Received data for fstat: " << interest);
@@ -221,6 +235,9 @@ int Consumer::Fstat(struct stat *buff, std::string path) {
     return m_retFstat;
 }
 
+/*****************************************************************************/
+/*                                  R e a d                                  */
+/*****************************************************************************/
 void Consumer::onReadData(const ndn::Interest &interest,
                           const ndn::Data &data) {
     NDN_LOG_TRACE("Received data for read: " << interest);
@@ -267,6 +284,7 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
     return m_retRead == XRDNDN_ESUCCESS ? m_buffOffset : XRDNDN_EFAILURE;
 }
 
+// Store data received from producer.
 void Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {
     size_t leftToSave = blen;
     auto storeInBuff = [&](const Block &content, off_t contentOffset) {

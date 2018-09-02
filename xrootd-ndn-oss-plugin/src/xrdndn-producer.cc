@@ -1,22 +1,22 @@
-/**************************************************************************
- * Named Data Networking plugin for xrootd                                *
- * Copyright © 2018 California Institute of Technology                    *
- *                                                                        *
- * Author: Catalin Iordache <catalin.iordache@cern.ch>                    *
- *                                                                        *
- * This program is free software: you can redistribute it and/or modify   *
- * it under the terms of the GNU General Public License as published by   *
- * the Free Software Foundation, either version 3 of the License, or      *
- * (at your option) any later version.                                    *
- *                                                                        *
- * This program is distributed in the hope that it will be useful,        *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of         *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          *
- * GNU General Public License for more details.                           *
- *                                                                        *
- * You should have received a copy of the GNU General Public License      *
- * along with this program.  If not, see <https://www.gnu.org/licenses/>. *
- **************************************************************************/
+/******************************************************************************
+ * Named Data Networking plugin for xrootd                                    *
+ * Copyright © 2018 California Institute of Technology                        *
+ *                                                                            *
+ * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
+ *                                                                            *
+ * This program is free software: you can redistribute it and/or modify       *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation, either version 3 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * This program is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
+ *****************************************************************************/
 
 #include <iostream>
 #include <math.h>
@@ -67,6 +67,7 @@ Producer::~Producer() {
     this->m_FileDescriptors.clear();
 }
 
+// Register all interest filters that this producer will answer to
 void Producer::registerPrefix() {
     NDN_LOG_TRACE("Register prefixes.");
 
@@ -123,6 +124,7 @@ void Producer::registerPrefix() {
     }
 }
 
+// Send Data
 void Producer::send(std::shared_ptr<Data> data) {
     data->setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
     m_keyChain.sign(*data); // signWithDigestSha256
@@ -131,6 +133,7 @@ void Producer::send(std::shared_ptr<Data> data) {
     m_face.put(*data);
 }
 
+// Prepare Data containing an non/negative integer
 void Producer::sendInteger(const Name &name, int value) {
     NDN_LOG_TRACE("Sending integer.");
 
@@ -145,6 +148,7 @@ void Producer::sendInteger(const Name &name, int value) {
     this->send(data);
 }
 
+// Prepare Data as bytes
 void Producer::sendString(const Name &name, std::string buff, ssize_t size) {
     NDN_LOG_TRACE("Sending string.");
 
@@ -153,6 +157,9 @@ void Producer::sendString(const Name &name, std::string buff, ssize_t size) {
     this->send(data);
 }
 
+/*****************************************************************************/
+/*                                  O p e n                                  */
+/*****************************************************************************/
 void Producer::onOpenInterest(const InterestFilter &filter,
                               const Interest &interest) {
     NDN_LOG_TRACE("onOpenInterest: " << interest);
@@ -180,6 +187,9 @@ int Producer::Open(std::string path) {
     return XRDNDN_EFAILURE;
 }
 
+/*****************************************************************************/
+/*                                 C l o s e                                 */
+/*****************************************************************************/
 void Producer::onCloseInterest(const InterestFilter &filter,
                                const Interest &interest) {
     NDN_LOG_TRACE("onCloseInterest: " << interest);
@@ -212,6 +222,9 @@ int Producer::Close(std::string path) {
     return XRDNDN_ESUCCESS;
 }
 
+/*****************************************************************************/
+/*                                F s t a t                                  */
+/*****************************************************************************/
 void Producer::onFstatInterest(const ndn::InterestFilter &filter,
                                const ndn::Interest &interest) {
     NDN_LOG_TRACE("onFstatInterest: " << interest);
@@ -246,6 +259,9 @@ int Producer::Fstat(struct stat *buff, std::string path) {
     return XRDNDN_ESUCCESS;
 }
 
+/*****************************************************************************/
+/*                                  R e a d                                  */
+/*****************************************************************************/
 void Producer::onReadInterest(const InterestFilter &filter,
                               const Interest &interest) {
     NDN_LOG_TRACE("onReadInterest: " << interest);
@@ -288,5 +304,4 @@ ssize_t Producer::Read(void *buff, off_t offset, size_t blen,
     }
     return fstream->gcount();
 }
-
 } // namespace xrdndn

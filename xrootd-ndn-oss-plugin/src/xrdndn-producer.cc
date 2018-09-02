@@ -280,6 +280,12 @@ ssize_t Producer::Read(void *buff, off_t offset, size_t blen,
         this->m_FileDescriptors.mutex_);
     fstream->seekg(offset, fstream->beg);
     fstream->read((char *)buff, blen);
+
+    // On mt reading must reset eof bit
+    if (fstream->eof()) {
+        fstream->clear();
+        fstream->seekg(0, std::ios::beg);
+    }
     return fstream->gcount();
 }
 

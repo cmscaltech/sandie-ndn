@@ -26,7 +26,7 @@ add_definitions(-DBOOST_LOG_DYN_LINK)
 # Compile libXrdNdnDFS.so
 add_library(XrdNdnDFS MODULE src/xrootd-xrdndn-dfs/xrdndn.cc)
 target_link_libraries(XrdNdnDFS ${XROOTD_UTILS})
-target_include_directories(XrdNdnDFS PUBLIC ${XROOTD_INCLUDES})
+target_include_directories(XrdNdnDFS SYSTEM PUBLIC ${XROOTD_INCLUDES})
 
 # Compile libXrdNdnDFSReal.so
 add_library(XrdNdnDFSReal MODULE 
@@ -39,7 +39,7 @@ target_link_libraries(XrdNdnDFSReal
     ${CMAKE_THREAD_LIBS_INIT} 
     ${XROOTD_UTILS})
 
-target_include_directories(XrdNdnDFSReal PUBLIC ${XROOTD_INCLUDES})
+target_include_directories(XrdNdnDFSReal SYSTEM PUBLIC ${XROOTD_INCLUDES})
 
 # Compile xrdndn-consumer application
 add_executable(xrdndn-consumer 

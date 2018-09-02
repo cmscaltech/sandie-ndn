@@ -22,7 +22,7 @@
 #include <XrdSys/XrdSysPlugin.hh>
 #include <XrdVersion.hh>
 
-XrdVERSIONINFO(XrdOssGetStorageSystem, "xrdndndfs");
+XrdVERSIONINFO(XrdOssGetStorageSystem, "xrdndndfs")
 XrdSysError OssErouteMain(0, "xrdndnd_main_");
 
 // Forward declarations.

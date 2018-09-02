@@ -49,8 +49,8 @@ using namespace xrdndndfs;
 /*                       G e t F i l e S y s t e m                           */
 /*****************************************************************************/
 extern "C" {
-XrdOss *XrdOssGetStorageSystem(XrdOss *native_oss, XrdSysLogger *Logger,
-                               const char *config_fn, const char *parms) {
+XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
+                               const char *config_fn, const char *) {
     return (XrdNdnDfsSS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdNdnDfsSS);
 }
 }
@@ -58,17 +58,15 @@ XrdOss *XrdOssGetStorageSystem(XrdOss *native_oss, XrdSysLogger *Logger,
 /*****************************************************************************/
 /*                F i l e   O b j e c t   I n t e r f a c e s                */
 /*****************************************************************************/
-XrdNdnDfsFile::XrdNdnDfsFile(const char *tident) {}
+XrdNdnDfsFile::XrdNdnDfsFile(const char *) {}
 
 XrdNdnDfsFile::~XrdNdnDfsFile() {}
 
 /*****************************************************************************/
 /*                                  O p e n                                  */
 /*****************************************************************************/
-/* Over NDN the file will be opened for reading only, thus only path parameter
- * is considered.*/
-int XrdNdnDfsFile::Open(const char *path, int openMode, mode_t createMode,
-                        XrdOucEnv &client) {
+/* Over NDN the file will be opened for reading only.*/
+int XrdNdnDfsFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
     // XrdNdnDfsSS.Say("Open file: ", path);
 
     filePath = std::string(path);
@@ -115,7 +113,7 @@ int XrdNdnDfsFile::Read(XrdSfsAio *aiop) {
 /*****************************************************************************/
 /*                                 C l o s e                                 */
 /*****************************************************************************/
-int XrdNdnDfsFile::Close(long long *retsz) {
+int XrdNdnDfsFile::Close(long long *) {
     // XrdNdnDfsSS.Say("Close file: ", filePath.c_str());
     xrdndn::Consumer consumer;
     int retClose = consumer.Close(filePath);
@@ -126,7 +124,7 @@ int XrdNdnDfsFile::Close(long long *retsz) {
 /*****************************************************************************/
 /*         F i l e   S y s t e m   O b j e c t   I n t e r f a c e s         */
 /*****************************************************************************/
-int XrdNdnDfsSys::Init(XrdSysLogger *lp, const char *config_fn) {
+int XrdNdnDfsSys::Init(XrdSysLogger *lp, const char *) {
     m_eDest = &OssEroute;
     m_eDest->logger(lp);
 

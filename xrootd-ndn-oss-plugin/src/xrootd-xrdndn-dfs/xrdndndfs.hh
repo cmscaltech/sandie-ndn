@@ -38,14 +38,14 @@ class XrdSysLogger;
 /*****************************************************************************/
 class XrdNdnDfsDirectory : public XrdOssDF {
   public:
-    XrdNdnDfsDirectory(const char *tident = 0) {}
+    XrdNdnDfsDirectory(const char *) {}
     ~XrdNdnDfsDirectory() {}
 
   public:
     int Opendir(const char *, XrdOucEnv &) { return -ENOTDIR; }
-    int Readdir(char *buff, int blen) { return -ENOTDIR; }
-    int StatRet(struct stat *buff) { return -ENOTSUP; }
-    int Close(long long *retsz = 0) { return 0; }
+    int Readdir(char *, int) { return -ENOTDIR; }
+    int StatRet(struct stat *) { return -ENOTSUP; }
+    int Close(long long * = 0) { return 0; }
 };
 
 /*****************************************************************************/
@@ -53,7 +53,7 @@ class XrdNdnDfsDirectory : public XrdOssDF {
 /*****************************************************************************/
 class XrdNdnDfsFile : public XrdOssDF {
   public:
-    XrdNdnDfsFile(const char *tident = 0);
+    XrdNdnDfsFile(const char *);
     ~XrdNdnDfsFile();
 
   public:
@@ -120,30 +120,21 @@ class XrdNdnDfsSys : public XrdOss {
     XrdOssDF *newFile(const char *tident) {
         return (XrdNdnDfsFile *)new XrdNdnDfsFile(tident);
     }
-    int Chmod(const char *, mode_t mode, XrdOucEnv *eP = 0) { return -ENOTSUP; }
-    int Create(const char *, const char *, mode_t, XrdOucEnv &, int opts = 0) {
+    int Chmod(const char *, mode_t, XrdOucEnv *) { return -ENOTSUP; }
+    int Create(const char *, const char *, mode_t, XrdOucEnv &, int) {
         return -ENOTSUP;
     }
     int Init(XrdSysLogger *, const char *);
-    int Mkdir(const char *, mode_t mode, int mkpath = 0, XrdOucEnv *eP = 0) {
+    int Mkdir(const char *, mode_t, int, XrdOucEnv *) { return -ENOTSUP; }
+    int Remdir(const char *, int, XrdOucEnv *) { return -ENOTSUP; }
+    int Rename(const char *, const char *, XrdOucEnv *, XrdOucEnv *) {
         return -ENOTSUP;
     }
-    int Remdir(const char *, int Opts = 0, XrdOucEnv *eP = 0) {
+    int Stat(const char *, struct stat *, int, XrdOucEnv *) { return -ENOTSUP; }
+    int Truncate(const char *, unsigned long long, XrdOucEnv *) {
         return -ENOTSUP;
     }
-    int Rename(const char *, const char *, XrdOucEnv *eP1 = 0,
-               XrdOucEnv *eP2 = 0) {
-        return -ENOTSUP;
-    }
-    int Stat(const char *, struct stat *, int opts = 0, XrdOucEnv *eP = 0) {
-        return -ENOTSUP;
-    }
-    int Truncate(const char *, unsigned long long, XrdOucEnv *eP = 0) {
-        return -ENOTSUP;
-    }
-    int Unlink(const char *, int Opts = 0, XrdOucEnv *eP = 0) {
-        return -ENOTSUP;
-    }
+    int Unlink(const char *, int, XrdOucEnv *) { return -ENOTSUP; }
 
     XrdSysError *m_eDest;
 };

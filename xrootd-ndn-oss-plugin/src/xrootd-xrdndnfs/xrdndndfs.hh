@@ -1,22 +1,22 @@
-/**************************************************************************
- * Named Data Networking plugin for xrootd                                *
- * Copyright © 2018 California Institute of Technology                    *
- *                                                                        *
- * Author: Catalin Iordache <catalin.iordache@cern.ch>                    *
- *                                                                        *
- * This program is free software: you can redistribute it and/or modify   *
- * it under the terms of the GNU General Public License as published by   *
- * the Free Software Foundation, either version 3 of the License, or      *
- * (at your option) any later version.                                    *
- *                                                                        *
- * This program is distributed in the hope that it will be useful,        *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of         *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the          *
- * GNU General Public License for more details.                           *
- *                                                                        *
- * You should have received a copy of the GNU General Public License      *
- * along with this program.  If not, see <https://www.gnu.org/licenses/>. *
- **************************************************************************/
+/******************************************************************************
+ * Named Data Networking plugin for xrootd                                    *
+ * Copyright © 2018 California Institute of Technology                        *
+ *                                                                            *
+ * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
+ *                                                                            *
+ * This program is free software: you can redistribute it and/or modify       *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation, either version 3 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * This program is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
+ *****************************************************************************/
 
 #ifndef XRDNDNDFS_HH
 #define XRDNDNDFS_HH
@@ -33,9 +33,9 @@
 class XrdSfsAio;
 class XrdSysLogger;
 
-/**************************************************************************/
-/*                    X r d H d f s D i r e c t o r y                     */
-/**************************************************************************/
+/*****************************************************************************/
+/*                      X r d H d f s D i r e c t o r y                      */
+/*****************************************************************************/
 class XrdNdnDfsDirectory : public XrdOssDF {
   public:
     XrdNdnDfsDirectory(const char *tident = 0) {}
@@ -43,44 +43,39 @@ class XrdNdnDfsDirectory : public XrdOssDF {
 
   public:
     int Opendir(const char *, XrdOucEnv &) { return -ENOTDIR; }
-    int Readdir(char *buff, int blen) {
-        (void)buff;
-        (void)blen;
-        return -ENOTDIR;
-    }
-    int StatRet(struct stat *buff) {
-        (void)buff;
-        return -ENOTSUP;
-    }
+    int Readdir(char *buff, int blen) { return -ENOTDIR; }
+    int StatRet(struct stat *buff) { return -ENOTSUP; }
     int Close(long long *retsz = 0) { return 0; }
 };
 
-/**************************************************************************/
-/*                          X r d H d f s F i l e                         */
-/**************************************************************************/
+/*****************************************************************************/
+/*                           X r d H d f s F i l e                           */
+/*****************************************************************************/
 class XrdNdnDfsFile : public XrdOssDF {
   public:
-    XrdNdnDfsFile(const char *tident = 0) {}
-    ~XrdNdnDfsFile() {}
+    XrdNdnDfsFile(const char *tident = 0);
+    ~XrdNdnDfsFile();
 
   public:
     // Supported file system calls
-    int Open(const char *, int, mode_t, XrdOucEnv &) { return -EISDIR; }
-    ssize_t Read(off_t, size_t) { return (ssize_t)-EISDIR; }
-    ssize_t Read(void *, off_t, size_t) { return (ssize_t)-EISDIR; }
-    int Read(XrdSfsAio *aoip) {
-        (void)aoip;
-        return (ssize_t)-EISDIR;
-    }
-    ssize_t ReadRaw(void *, off_t, size_t) { return (ssize_t)-EISDIR; }
-    int Close(long long *retsz = 0) { return -ENOTSUP; }
+
+    int Fstat(struct stat *);
+    int Open(const char *, int, mode_t, XrdOucEnv &);
+    ssize_t Read(off_t, size_t);
+    ssize_t Read(void *, off_t, size_t);
+    int Read(XrdSfsAio *aoip);
+    ssize_t ReadRaw(void *, off_t, size_t);
+    int Close(long long *retsz = 0);
+
+  private:
+    XrdOucErrInfo error;
+    std::string filePath;
 
   public:
     int Fchmod(mode_t mode) {
         (void)mode;
         return -EISDIR;
     }
-    int Fstat(struct stat *) { return -EISDIR; }
     int Fsync() { return -EISDIR; }
     int Fsync(XrdSfsAio *aiop) {
         (void)aiop;
@@ -103,13 +98,19 @@ class XrdNdnDfsFile : public XrdOssDF {
     }
 };
 
-/**************************************************************************/
-/*                           X r d H d f s S y s                          */
-/**************************************************************************/
+/*****************************************************************************/
+/*                           X r d H d f s S y s                             */
+/*****************************************************************************/
 class XrdNdnDfsSys : public XrdOss {
   public:
     XrdNdnDfsSys() : XrdOss() {}
     virtual ~XrdNdnDfsSys() {}
+
+  public:
+    static int Emsg(const char *, XrdOucErrInfo &, int, const char *x,
+                    const char *y = "");
+    void Say(const char *, const char *x = "", const char *y = "",
+             const char *z = "");
 
   public:
     XrdOssDF *newDir(const char *tident) {

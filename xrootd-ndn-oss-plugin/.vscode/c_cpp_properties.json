@@ -4,7 +4,9 @@
             "name": "Mac",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/usr/local/include/xrootd"
+                "/usr/local/include/xrootd",
+                "/Users/cataliniordache/sandie/sandie-ndn/xrootd-ndn-oss-plugin/src"
+
             ],
             "defines": [],
             "macFrameworkPath": [

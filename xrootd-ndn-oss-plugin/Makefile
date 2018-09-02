@@ -16,6 +16,7 @@ else
 # Darwin OS
 XROOT_INCLUDES=/usr/local/include/xrootd
 endif
+XROOTLDLIBS = $(LDLIBS) -lXrdUtils
 
 NDN_CONSUMER_FILES=$(wildcard $(SRC_DIR)/$(CONSUMER)*.cc)
 NDN_PRODUCER_FILES=$(wildcard $(SRC_DIR)/$(PRODUCER)*.cc)
@@ -35,7 +36,7 @@ xrdndn-dfslib:
 	$(CXX) -fPIC ./src/xrootd-xrdndnfs/xrdndn.cc -shared -o $(BIN_DIR)/libXrdNdnDFS.so -Wl,-lXrdUtils -I$(XROOT_INCLUDES)
 
 xrdndn-dfslib-real:
-	$(CXX) -fPIC ./src/xrootd-xrdndnfs/xrdndndfs.cc  -shared -o $(BIN_DIR)/libXrdNdnDFSReal.so -Wl,-lXrdUtils -I$(XROOT_INCLUDES)
+	$(CXX) $(CXXFLAG) -fPIC ./src/xrootd-xrdndnfs/xrdndndfs.cc ./src/xrdndn-consumer.cc  -shared -o $(BIN_DIR)/libXrdNdnDFSReal.so -Wl,$(XROOTLDLIBS) -I$(XROOT_INCLUDES)
 
 clean:
 	rm -rf $(BIN_DIR)/*

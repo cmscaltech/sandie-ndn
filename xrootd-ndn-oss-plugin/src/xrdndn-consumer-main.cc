@@ -28,10 +28,11 @@
 static const char *filesPath = "/root/test/path/for/ndn/xrd/";
 static const char *ext = ".out";
 static const std::vector<const char *> filesList = {
+    "inexistent_file",
     "test.txt",
     "convict-lake-autumn-4k-2k.jpg",
-    "wallpaper.wiki-Uhd-8k-river-wallpaperr-PIC-WPE0013289.jpg",
-    "empty_file.dat"/*,
+    "wallpaper.wiki-Uhd-8k-river-wallpaperr-PIC-WPE0013289.jpg"//,
+    /*"empty_file.dat",
     "1gb_file",
     "2gb_file"*/};
 
@@ -45,7 +46,16 @@ int _test_readFile(std::string path, std::string outputPath) {
         if (retOpen)
             return -1;
 
-        size_t blen = 262144; //32768;
+        struct stat info;
+        int retFstat = consumer.Fstat(&info, path);
+
+        if (retFstat == 0) {
+            std::cout << "file_size = " << info.st_size << std::endl;
+        } else {
+            return -1;
+        }
+
+        size_t blen = 262144; // 32768;
         off_t offset = 0;
         std::string buff(blen, '\0');
 

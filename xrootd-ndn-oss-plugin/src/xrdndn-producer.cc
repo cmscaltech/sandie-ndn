@@ -47,6 +47,9 @@ Producer::~Producer() {
     if (m_CloseFilterId != nullptr) {
         m_face.unsetInterestFilter(m_CloseFilterId);
     }
+    if (m_FstatFilterId != nullptr) {
+        m_face.unsetInterestFilter(m_FstatFilterId);
+    }
     if (m_ReadFilterId != nullptr) {
         m_face.unsetInterestFilter(m_ReadFilterId);
     }
@@ -81,6 +84,9 @@ void Producer::registerPrefix() {
                                  bind(&Producer::onOpenInterest, this, _1, _2));
     if (!m_OpenFilterId) {
         NDN_LOG_FATAL("Could not set interest filter for open systemcall.");
+    } else {
+        NDN_LOG_INFO("Successfully registered prefix for: "
+                     << Utils::interestPrefix(SystemCalls::open));
     }
 
     // Filter for close system call
@@ -89,6 +95,20 @@ void Producer::registerPrefix() {
         bind(&Producer::onCloseInterest, this, _1, _2));
     if (!m_CloseFilterId) {
         NDN_LOG_FATAL("Could not set interest filter for close systemcall.");
+    } else {
+        NDN_LOG_INFO("Successfully registered prefix for: "
+                     << Utils::interestPrefix(SystemCalls::close));
+    }
+
+    // Filter for fstat system call
+    m_FstatFilterId = m_face.setInterestFilter(
+        Utils::interestPrefix(SystemCalls::fstat),
+        bind(&Producer::onFstatInterest, this, _1, _2));
+    if (!m_FstatFilterId) {
+        NDN_LOG_FATAL("Could not set interest filter for fstat systemcall.");
+    } else {
+        NDN_LOG_INFO("Successfully registered prefix for: "
+                     << Utils::interestPrefix(SystemCalls::fstat));
     }
 
     // Filter for read system call
@@ -97,6 +117,9 @@ void Producer::registerPrefix() {
                                  bind(&Producer::onReadInterest, this, _1, _2));
     if (!m_CloseFilterId) {
         NDN_LOG_FATAL("Could not set interest filter for read systemcall.");
+    } else {
+        NDN_LOG_INFO("Successfully registered prefix for: "
+                     << Utils::interestPrefix(SystemCalls::read));
     }
 }
 
@@ -186,6 +209,40 @@ int Producer::Close(std::string path) {
     }
 
     this->m_FileDescriptors.erase(path);
+    return XRDNDN_ESUCCESS;
+}
+
+void Producer::onFstatInterest(const ndn::InterestFilter &filter,
+                               const ndn::Interest &interest) {
+    NDN_LOG_TRACE("onFstatInterest: " << interest);
+
+    Name name(interest.getName());
+    struct stat info;
+    int ret = this->Fstat(&info,
+                          Utils::getFilePathFromName(name, SystemCalls::fstat));
+    name.appendVersion();
+
+    if (ret != 0) {
+        this->sendInteger(name, ret);
+    } else {
+        // Send stat
+        std::string buff(sizeof(info), '\0');
+        memcpy(&buff[0], &info, sizeof(info));
+        this->sendString(name, buff, sizeof(info));
+    }
+}
+
+int Producer::Fstat(struct stat *buff, std::string path) {
+    if (!this->m_FileDescriptors.hasKey(path)) {
+        NDN_LOG_WARN("File: " << path << " was not oppend previously");
+        return XRDNDN_EFAILURE;
+    }
+
+    // Call stat as is sufficient
+    if (stat(path.c_str(), buff) != 0) {
+        return XRDNDN_EFAILURE;
+    }
+
     return XRDNDN_ESUCCESS;
 }
 

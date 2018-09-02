@@ -21,12 +21,16 @@
 #ifndef XRDNDN_DIRECTORY_FILE_HANDLER_HH
 #define XRDNDN_DIRECTORY_FILE_HANDLER_HH
 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include "xrdndn-namespaces.hh"
 
 namespace xrdndn {
 
 // System calls enumeration.
-DEFINE_ENUM_WITH_STRING_CONVERSIONS(SystemCalls, (open)(read)(close))
+DEFINE_ENUM_WITH_STRING_CONVERSIONS(SystemCalls, (open)(read)(fstat)(close))
 
 class DFHandler {
   public:
@@ -39,6 +43,10 @@ class DFHandler {
     /* Over NDN the name of the file to be close need to be passed.
       On success returns 0; on fail -1.*/
     virtual int Close(std::string path) = 0;
+
+    /* Over NDN the name of the files has to be passed. It returns 0 on success
+     * and -1 on error. It fills buff with fstat result on file at path.*/
+    virtual int Fstat(struct stat *buff, std::string path) = 0;
 
     /* It returns the number of bytes read from the file at path. Over
       NDN only the actual data will be send and the return value will

@@ -44,6 +44,7 @@ class Consumer : DFHandler {
 
     virtual int Open(std::string path) override;
     virtual int Close(std::string path) override;
+    virtual int Fstat(struct stat *buff, std::string path) override;
     virtual ssize_t Read(void *buff, off_t offset, size_t blen,
                          std::string path) override;
 
@@ -59,6 +60,7 @@ class Consumer : DFHandler {
 
     int m_retOpen;
     int m_retClose;
+    int m_retFstat;
     int m_retRead;
 
     const ndn::Interest composeInterest(const ndn::Name name);
@@ -69,6 +71,7 @@ class Consumer : DFHandler {
     void onTimeout(const ndn::Interest &interest, const SystemCalls call);
     void onOpenData(const ndn::Interest &interest, const ndn::Data &data);
     void onCloseData(const ndn::Interest &interest, const ndn::Data &data);
+    void onFstatData(const ndn::Interest &interest, const ndn::Data &data);
     void onReadData(const ndn::Interest &interest, const ndn::Data &data);
 
     void saveDataInOrder(void *buff, off_t offset, size_t blen);

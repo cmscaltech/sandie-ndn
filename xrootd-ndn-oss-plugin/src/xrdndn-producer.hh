@@ -37,8 +37,13 @@ class Producer : DFHandler {
     virtual int Open(std::string path) override;
     void onOpenInterest(const ndn::InterestFilter &filter,
                         const ndn::Interest &interest);
+
     virtual int Close(std::string path) override;
     void onCloseInterest(const ndn::InterestFilter &filter,
+                         const ndn::Interest &interest);
+
+    virtual int Fstat(struct stat *buff, std::string path) override;
+    void onFstatInterest(const ndn::InterestFilter &filter,
                          const ndn::Interest &interest);
 
     virtual ssize_t Read(void *buff, off_t offset, size_t blen,
@@ -53,6 +58,7 @@ class Producer : DFHandler {
     const ndn::RegisteredPrefixId *m_xrdndnPrefixId;
     const ndn::InterestFilterId *m_OpenFilterId;
     const ndn::InterestFilterId *m_CloseFilterId;
+    const ndn::InterestFilterId *m_FstatFilterId;
     const ndn::InterestFilterId *m_ReadFilterId;
 
     ThreadSafeUMap<std::string, std::shared_ptr<std::ifstream>>

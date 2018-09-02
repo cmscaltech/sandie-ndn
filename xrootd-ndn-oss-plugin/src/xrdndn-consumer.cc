@@ -31,9 +31,11 @@ NDN_LOG_INIT(xrdndnconsumer);
 namespace xrdndn {
 Consumer::Consumer()
     : m_scheduler(m_face.getIoService()),
-      m_validator(security::v2::getAcceptAllValidator()), m_nTimeouts(0),
-      m_nNacks(0), m_buffOffset(0), m_retOpen(-1), m_retClose(-1),
-      m_retRead(0) {
+      m_validator(security::v2::getAcceptAllValidator()),
+      m_nTimeouts(XRDNDN_ESUCCESS), m_nNacks(XRDNDN_ESUCCESS),
+      m_buffOffset(XRDNDN_ESUCCESS), m_retOpen(XRDNDN_EFAILURE),
+      m_retClose(XRDNDN_EFAILURE), m_retFstat(XRDNDN_EFAILURE),
+      m_retRead(XRDNDN_ESUCCESS) {
     m_bufferedData.clear();
 }
 
@@ -47,12 +49,13 @@ Consumer::~Consumer() {
 
 void Consumer::flush() {
     m_bufferedData.clear();
-    m_retOpen = 0;
-    m_retClose = 0;
-    m_retRead = 0;
-    m_nTimeouts = 0;
-    m_nNacks = 0;
-    m_buffOffset = 0;
+    m_retOpen = XRDNDN_EFAILURE;
+    m_retClose = XRDNDN_EFAILURE;
+    m_retFstat = XRDNDN_EFAILURE;
+    m_retRead = XRDNDN_ESUCCESS;
+    m_nTimeouts = XRDNDN_ESUCCESS;
+    m_nNacks = XRDNDN_ESUCCESS;
+    m_buffOffset = XRDNDN_ESUCCESS;
 }
 
 const Interest Consumer::composeInterest(const Name name) {
@@ -74,6 +77,9 @@ void Consumer::expressInterest(const Interest &interest,
         break;
     case (SystemCalls::read):
         onData = bind(&Consumer::onReadData, this, _1, _2);
+        break;
+    case (SystemCalls::fstat):
+        onData = bind(&Consumer::onFstatData, this, _1, _2);
         break;
     default:
         return;
@@ -180,9 +186,44 @@ int Consumer::Close(std::string path) {
     return m_retClose;
 }
 
+void Consumer::onFstatData(const ndn::Interest &interest,
+                           const ndn::Data &data) {
+    NDN_LOG_TRACE("Received data for fstat: " << interest);
+
+    auto dataPtr = data.shared_from_this();
+    m_validator.validate(
+        data,
+        [this, dataPtr, interest](const Data &data) {
+            if (data.getContentType() == xrdndn::tlv::negativeInteger) {
+                m_face.shutdown();
+            } else {
+                m_retFstat = XRDNDN_ESUCCESS;
+                m_bufferedData[0] = dataPtr;
+            }
+        },
+        [](const Data &, const security::v2::ValidationError &error) {
+            NDN_LOG_ERROR(
+                "Error while validating data for fstat: " << error.getInfo());
+        });
+}
+
+int Consumer::Fstat(struct stat *buff, std::string path) {
+    this->flush();
+
+    Interest fstatInterest =
+        this->composeInterest(Utils::interestName(SystemCalls::fstat, path));
+    this->expressInterest(fstatInterest, SystemCalls::fstat);
+
+    NDN_LOG_TRACE("Sending fstat interest: " << fstatInterest);
+    m_face.processEvents();
+
+    this->saveDataInOrder(buff, 0, sizeof(struct stat));
+    return m_retFstat;
+}
+
 void Consumer::onReadData(const ndn::Interest &interest,
                           const ndn::Data &data) {
-    NDN_LOG_TRACE("Received data for: " << interest);
+    NDN_LOG_TRACE("Received data for read: " << interest);
     auto dataPtr = data.shared_from_this();
     m_validator.validate(
         data,
@@ -204,7 +245,7 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
                        std::string path) {
     this->flush();
     uint64_t firstSegment = offset / XRDNDN_MAX_NDN_PACKET_SIZE;
-    
+
     int noSegments = blen / XRDNDN_MAX_NDN_PACKET_SIZE;
     uint64_t lastSegment = firstSegment + noSegments;
     if (noSegments != 0)

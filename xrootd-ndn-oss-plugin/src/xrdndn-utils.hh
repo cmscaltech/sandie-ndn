@@ -57,6 +57,7 @@ class Utils {
         }
         case SystemCalls::open:
         case SystemCalls::close:
+        case SystemCalls::fstat:
         default:
             ret = name.getSubName(interestPrefix(sc).size(), ndn::Name::npos)
                       .toUri();
@@ -69,7 +70,7 @@ class Utils {
     // Returns segment number for read file system call specific request
     template <typename Packet>
     static uint64_t getSegmentFromPacket(const Packet &packet) {
-        ndn::Name name= packet.getName();
+        ndn::Name name = packet.getName();
 
         if (name.at(-1).isVersion()) {
             return name.at(-2).toSegment();

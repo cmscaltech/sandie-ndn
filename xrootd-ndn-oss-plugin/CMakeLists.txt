@@ -60,3 +60,18 @@ target_link_libraries(xrdndn-producer
     ${Boost_LIBRARIES} 
     ${NDN_CXX_LIB} 
     ${CMAKE_THREAD_LIBS_INIT})
+
+# Install
+set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
+
+if (NOT DEFINED LIB_INSTALL_DIR)
+    SET(LIB_INSTALL_DIR "/usr/lib64")
+endif()
+
+install(TARGETS XrdNdnFS
+        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+        OPTIONAL)
+
+install(TARGETS XrdNdnFSReal
+        LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+        OPTIONAL)

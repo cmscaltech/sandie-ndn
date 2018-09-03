@@ -35,7 +35,7 @@ cd %{SrcDir}/build
 make xrdndn-producer install DESTDIR=$RPM_BUILD_ROOT
 
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/ndn
-cp ../rpm/nfd.xrootd.conf.sample $RPM_BUILD_ROOT%{_sysconfdir}/ndn/nfd.xrootd.conf.sample
+cp ../rpms/nfd.xrootd.conf.sample $RPM_BUILD_ROOT%{_sysconfdir}/ndn/nfd.xrootd.conf.sample
 
 %files
 %{_bindir}/xrdndn-producer

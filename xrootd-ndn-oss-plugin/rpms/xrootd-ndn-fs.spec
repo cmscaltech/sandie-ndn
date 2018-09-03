@@ -39,7 +39,7 @@ make XrdNdnFS install DESTDIR=$RPM_BUILD_ROOT
 make XrdNdnFSReal install DESTDIR=$RPM_BUILD_ROOT
 
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
-cp ../rpm/xrootd.sample.ndnfd.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd.sample.ndnfd.cfg
+cp ../rpms/xrootd.sample.ndnfd.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd.sample.ndnfd.cfg
 
 %files
 %{_libdir}/libXrdNdnFS.so

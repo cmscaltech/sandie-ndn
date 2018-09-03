@@ -31,19 +31,16 @@ mkdir build
 cd build
 cmake ../
 make XrdNdnFS VERBOSE=1
-make XrdNdnFSReal VERBOSE=1
 
 %install
 cd %{SrcDir}/build
 make XrdNdnFS install DESTDIR=$RPM_BUILD_ROOT
-make XrdNdnFSReal install DESTDIR=$RPM_BUILD_ROOT
 
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
 cp ../rpms/xrootd.sample.ndnfd.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd.sample.ndnfd.cfg
 
 %files
 %{_libdir}/libXrdNdnFS.so
-%{_libdir}/libXrdNdnFSReal.so
 %{_sysconfdir}/xrootd/xrootd.sample.ndnfd.cfg
 
 %changelog

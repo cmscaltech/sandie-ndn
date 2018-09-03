@@ -18,7 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include <XrdOuc/XrdOucTrace.hh>
+#include <XrdVersion.hh>
 #include <fcntl.h>
 #include <iostream>
 #include <sys/stat.h>
@@ -39,8 +39,7 @@
 /*****************************************************************************/
 namespace xrdndnfs {
 XrdSysError OssEroute(0, "xrdndnfs_");
-XrdOucTrace OssTrace(&OssEroute);
-static XrdNdnfsSys XrdNdnFsSS;
+static XrdNdnfsSys XrdNdnFS;
 } // namespace xrdndnfs
 
 using namespace xrdndnfs;
@@ -51,7 +50,7 @@ using namespace xrdndnfs;
 extern "C" {
 XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
                                const char *config_fn, const char *) {
-    return (XrdNdnFsSS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdNdnFsSS);
+    return (XrdNdnFS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdNdnFS);
 }
 }
 
@@ -67,7 +66,7 @@ XrdNdnFsFile::~XrdNdnFsFile() {}
 /*****************************************************************************/
 /* Over NDN the file will be opened for reading only.*/
 int XrdNdnFsFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
-    // XrdNdnFsSS.Say("Open file: ", path);
+    // XrdNdnFS.Say("Open file: ", path);
 
     filePath = std::string(path);
 
@@ -80,7 +79,7 @@ int XrdNdnFsFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
 /*                                F s t a t                                  */
 /*****************************************************************************/
 int XrdNdnFsFile::Fstat(struct stat *buf) {
-    // XrdNdnFsSS.Say("Fstat on file: ", filePath.c_str());
+    // XrdNdnFS.Say("Fstat on file: ", filePath.c_str());
 
     xrdndn::Consumer consumer;
     return consumer.Fstat(buf, filePath);
@@ -90,7 +89,7 @@ int XrdNdnFsFile::Fstat(struct stat *buf) {
 /*                                  R e a d                                  */
 /*****************************************************************************/
 ssize_t XrdNdnFsFile::Read(void *buff, off_t offset, size_t blen) {
-    // XrdNdnFsSS.Say("Read file: ", filePath.c_str());
+    // XrdNdnFS.Say("Read file: ", filePath.c_str());
 
     xrdndn::Consumer consumer;
     int retRead = consumer.Read(buff, offset, blen, filePath);
@@ -114,7 +113,7 @@ int XrdNdnFsFile::Read(XrdSfsAio *aiop) {
 /*                                 C l o s e                                 */
 /*****************************************************************************/
 int XrdNdnFsFile::Close(long long *) {
-    // XrdNdnFsSS.Say("Close file: ", filePath.c_str());
+    // XrdNdnFS.Say("Close file: ", filePath.c_str());
     xrdndn::Consumer consumer;
     int retClose = consumer.Close(filePath);
     filePath.clear();
@@ -135,16 +134,16 @@ int XrdNdnfsSys::Init(XrdSysLogger *lp, const char *) {
 }
 
 void XrdNdnfsSys::Say(const char *msg, const char *x, const char *y,
-                       const char *z) {
+                      const char *z) {
     m_eDest->Say(msg, x, y, z);
 }
 
 // Taken from https://github.com/opensciencegrid/xrootd-hdfs
 int XrdNdnfsSys::Emsg(const char *pfx,      // Message prefix value
-                       XrdOucErrInfo &einfo, // Place to put text & error code
-                       int ecode,            // The error code
-                       const char *op,       // Operation being performed
-                       const char *target)   // The target (e.g., fname)
+                      XrdOucErrInfo &einfo, // Place to put text & error code
+                      int ecode,            // The error code
+                      const char *op,       // Operation being performed
+                      const char *target)   // The target (e.g., fname)
 {
     char *etext, buffer[XrdOucEI::Max_Error_Len], unkbuff[64];
 
@@ -170,3 +169,5 @@ int XrdNdnfsSys::Emsg(const char *pfx,      // Message prefix value
         return (errno > 0) ? -errno : errno;
     return -1;
 }
+
+XrdVERSIONINFO(XrdOssGetStorageSystem, "xrdndnfs")

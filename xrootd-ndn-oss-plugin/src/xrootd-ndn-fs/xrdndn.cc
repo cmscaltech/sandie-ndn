@@ -22,7 +22,7 @@
 #include <XrdSys/XrdSysPlugin.hh>
 #include <XrdVersion.hh>
 
-XrdVERSIONINFO(XrdOssGetStorageSystem, "xrdndndfs")
+XrdVERSIONINFO(XrdOssGetStorageSystem, "xrdndnfs")
 XrdSysError OssErouteMain(0, "xrdndnd_main_");
 
 // Forward declarations.
@@ -49,7 +49,7 @@ static XrdOss *XrdOssGetSS(XrdOss *native_oss, XrdSysLogger *Logger,
 
     // Create a plugin object. Take into account the proxy library.
     XrdSysPlugin *myLib;
-    myLib = new XrdSysPlugin(&OssErouteMain, "libXrdNdnDFSReal.so");
+    myLib = new XrdSysPlugin(&OssErouteMain, "libXrdNdnFSReal.so");
     if (!myLib)
         return 0;
 

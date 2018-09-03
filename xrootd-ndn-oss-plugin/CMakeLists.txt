@@ -23,23 +23,23 @@ set (CMAKE_CXX_STANDARD 11)
 add_compile_options(-g -Wall -Wextra -Wpedantic -O0)
 add_definitions(-DBOOST_LOG_DYN_LINK)
 
-# Compile libXrdNdnDFS.so
-add_library(XrdNdnDFS MODULE src/xrootd-xrdndn-dfs/xrdndn.cc)
-target_link_libraries(XrdNdnDFS ${XROOTD_UTILS})
-target_include_directories(XrdNdnDFS SYSTEM PUBLIC ${XROOTD_INCLUDES})
+# Compile libXrdNdnFS.so
+add_library(XrdNdnFS MODULE src/xrootd-ndn-fs/xrdndn.cc)
+target_link_libraries(XrdNdnFS ${XROOTD_UTILS})
+target_include_directories(XrdNdnFS SYSTEM PUBLIC ${XROOTD_INCLUDES})
 
-# Compile libXrdNdnDFSReal.so
-add_library(XrdNdnDFSReal MODULE 
-    src/xrootd-xrdndn-dfs/xrdndndfs.cc 
+# Compile libXrdNdnFSReal.so
+add_library(XrdNdnFSReal MODULE 
+    src/xrootd-ndn-fs/xrdndnfs.cc 
     src/xrdndn-consumer.cc)
 
-target_link_libraries(XrdNdnDFSReal 
+target_link_libraries(XrdNdnFSReal 
     Boost::system Boost::log 
     ${NDN_CXX_LIB} 
     ${CMAKE_THREAD_LIBS_INIT} 
     ${XROOTD_UTILS})
 
-target_include_directories(XrdNdnDFSReal SYSTEM PUBLIC ${XROOTD_INCLUDES})
+target_include_directories(XrdNdnFSReal SYSTEM PUBLIC ${XROOTD_INCLUDES})
 
 # Compile xrdndn-consumer application
 add_executable(xrdndn-consumer 

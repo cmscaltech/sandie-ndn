@@ -18,8 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#ifndef XRDNDNDFS_HH
-#define XRDNDNDFS_HH
+#ifndef XRDNDNFS_HH
+#define XRDNDNFS_HH
 
 #include <XrdOss/XrdOss.hh>
 #include <XrdOuc/XrdOucErrInfo.hh>
@@ -36,10 +36,10 @@ class XrdSysLogger;
 /*****************************************************************************/
 /*                      X r d H d f s D i r e c t o r y                      */
 /*****************************************************************************/
-class XrdNdnDfsDirectory : public XrdOssDF {
+class XrdNdnFsDirectory : public XrdOssDF {
   public:
-    XrdNdnDfsDirectory(const char *) {}
-    ~XrdNdnDfsDirectory() {}
+    XrdNdnFsDirectory(const char *) {}
+    ~XrdNdnFsDirectory() {}
 
   public:
     int Opendir(const char *, XrdOucEnv &) { return -ENOTDIR; }
@@ -51,10 +51,10 @@ class XrdNdnDfsDirectory : public XrdOssDF {
 /*****************************************************************************/
 /*                           X r d H d f s F i l e                           */
 /*****************************************************************************/
-class XrdNdnDfsFile : public XrdOssDF {
+class XrdNdnFsFile : public XrdOssDF {
   public:
-    XrdNdnDfsFile(const char *);
-    ~XrdNdnDfsFile();
+    XrdNdnFsFile(const char *);
+    ~XrdNdnFsFile();
 
   public:
     // Supported file system calls
@@ -101,10 +101,10 @@ class XrdNdnDfsFile : public XrdOssDF {
 /*****************************************************************************/
 /*                           X r d H d f s S y s                             */
 /*****************************************************************************/
-class XrdNdnDfsSys : public XrdOss {
+class XrdNdnfsSys : public XrdOss {
   public:
-    XrdNdnDfsSys() : XrdOss() {}
-    virtual ~XrdNdnDfsSys() {}
+    XrdNdnfsSys() : XrdOss() {}
+    virtual ~XrdNdnfsSys() {}
 
   public:
     static int Emsg(const char *, XrdOucErrInfo &, int, const char *x,
@@ -114,11 +114,11 @@ class XrdNdnDfsSys : public XrdOss {
 
   public:
     XrdOssDF *newDir(const char *tident) {
-        return (XrdNdnDfsDirectory *)new XrdNdnDfsDirectory(tident);
+        return (XrdNdnFsDirectory *)new XrdNdnFsDirectory(tident);
     }
 
     XrdOssDF *newFile(const char *tident) {
-        return (XrdNdnDfsFile *)new XrdNdnDfsFile(tident);
+        return (XrdNdnFsFile *)new XrdNdnFsFile(tident);
     }
     int Chmod(const char *, mode_t, XrdOucEnv *) { return -ENOTSUP; }
     int Create(const char *, const char *, mode_t, XrdOucEnv &, int) {
@@ -139,4 +139,4 @@ class XrdNdnDfsSys : public XrdOss {
     XrdSysError *m_eDest;
 };
 
-#endif // XRDNDNDFS_HH
+#endif // XRDNDNFS_HH

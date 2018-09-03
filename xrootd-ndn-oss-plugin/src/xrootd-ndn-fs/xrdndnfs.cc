@@ -25,7 +25,7 @@
 #include <sys/types.h>
 
 #include "../xrdndn-consumer.hh"
-#include "xrdndndfs.hh"
+#include "xrdndnfs.hh"
 
 /*****************************************************************************/
 /*       O S   D i r e c t o r y   H a n d l i n g   I n t e r f a c e       */
@@ -37,13 +37,13 @@
 /*****************************************************************************/
 /*                  E r r o r   R o u t i n g   O b j e c t                  */
 /*****************************************************************************/
-namespace xrdndndfs {
-XrdSysError OssEroute(0, "xrdndndfs_");
+namespace xrdndnfs {
+XrdSysError OssEroute(0, "xrdndnfs_");
 XrdOucTrace OssTrace(&OssEroute);
-static XrdNdnDfsSys XrdNdnDfsSS;
-} // namespace xrdndndfs
+static XrdNdnfsSys XrdNdnFsSS;
+} // namespace xrdndnfs
 
-using namespace xrdndndfs;
+using namespace xrdndnfs;
 
 /*****************************************************************************/
 /*                       G e t F i l e S y s t e m                           */
@@ -51,23 +51,23 @@ using namespace xrdndndfs;
 extern "C" {
 XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
                                const char *config_fn, const char *) {
-    return (XrdNdnDfsSS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdNdnDfsSS);
+    return (XrdNdnFsSS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdNdnFsSS);
 }
 }
 
 /*****************************************************************************/
 /*                F i l e   O b j e c t   I n t e r f a c e s                */
 /*****************************************************************************/
-XrdNdnDfsFile::XrdNdnDfsFile(const char *) {}
+XrdNdnFsFile::XrdNdnFsFile(const char *) {}
 
-XrdNdnDfsFile::~XrdNdnDfsFile() {}
+XrdNdnFsFile::~XrdNdnFsFile() {}
 
 /*****************************************************************************/
 /*                                  O p e n                                  */
 /*****************************************************************************/
 /* Over NDN the file will be opened for reading only.*/
-int XrdNdnDfsFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
-    // XrdNdnDfsSS.Say("Open file: ", path);
+int XrdNdnFsFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
+    // XrdNdnFsSS.Say("Open file: ", path);
 
     filePath = std::string(path);
 
@@ -79,8 +79,8 @@ int XrdNdnDfsFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
 /*****************************************************************************/
 /*                                F s t a t                                  */
 /*****************************************************************************/
-int XrdNdnDfsFile::Fstat(struct stat *buf) {
-    // XrdNdnDfsSS.Say("Fstat on file: ", filePath.c_str());
+int XrdNdnFsFile::Fstat(struct stat *buf) {
+    // XrdNdnFsSS.Say("Fstat on file: ", filePath.c_str());
 
     xrdndn::Consumer consumer;
     return consumer.Fstat(buf, filePath);
@@ -89,21 +89,21 @@ int XrdNdnDfsFile::Fstat(struct stat *buf) {
 /*****************************************************************************/
 /*                                  R e a d                                  */
 /*****************************************************************************/
-ssize_t XrdNdnDfsFile::Read(void *buff, off_t offset, size_t blen) {
-    // XrdNdnDfsSS.Say("Read file: ", filePath.c_str());
+ssize_t XrdNdnFsFile::Read(void *buff, off_t offset, size_t blen) {
+    // XrdNdnFsSS.Say("Read file: ", filePath.c_str());
 
     xrdndn::Consumer consumer;
     int retRead = consumer.Read(buff, offset, blen, filePath);
     return retRead;
 }
 
-ssize_t XrdNdnDfsFile::Read(off_t, size_t) { return XrdOssOK; }
+ssize_t XrdNdnFsFile::Read(off_t, size_t) { return XrdOssOK; }
 
-ssize_t XrdNdnDfsFile::ReadRaw(void *buff, off_t offset, size_t blen) {
+ssize_t XrdNdnFsFile::ReadRaw(void *buff, off_t offset, size_t blen) {
     return Read(buff, offset, blen);
 }
 
-int XrdNdnDfsFile::Read(XrdSfsAio *aiop) {
+int XrdNdnFsFile::Read(XrdSfsAio *aiop) {
     aiop->Result = this->Read((void *)aiop->sfsAio.aio_buf,
                               aiop->sfsAio.aio_offset, aiop->sfsAio.aio_nbytes);
     aiop->doneRead();
@@ -113,8 +113,8 @@ int XrdNdnDfsFile::Read(XrdSfsAio *aiop) {
 /*****************************************************************************/
 /*                                 C l o s e                                 */
 /*****************************************************************************/
-int XrdNdnDfsFile::Close(long long *) {
-    // XrdNdnDfsSS.Say("Close file: ", filePath.c_str());
+int XrdNdnFsFile::Close(long long *) {
+    // XrdNdnFsSS.Say("Close file: ", filePath.c_str());
     xrdndn::Consumer consumer;
     int retClose = consumer.Close(filePath);
     filePath.clear();
@@ -124,7 +124,7 @@ int XrdNdnDfsFile::Close(long long *) {
 /*****************************************************************************/
 /*         F i l e   S y s t e m   O b j e c t   I n t e r f a c e s         */
 /*****************************************************************************/
-int XrdNdnDfsSys::Init(XrdSysLogger *lp, const char *) {
+int XrdNdnfsSys::Init(XrdSysLogger *lp, const char *) {
     m_eDest = &OssEroute;
     m_eDest->logger(lp);
 
@@ -134,13 +134,13 @@ int XrdNdnDfsSys::Init(XrdSysLogger *lp, const char *) {
     return 0;
 }
 
-void XrdNdnDfsSys::Say(const char *msg, const char *x, const char *y,
+void XrdNdnfsSys::Say(const char *msg, const char *x, const char *y,
                        const char *z) {
     m_eDest->Say(msg, x, y, z);
 }
 
 // Taken from https://github.com/opensciencegrid/xrootd-hdfs
-int XrdNdnDfsSys::Emsg(const char *pfx,      // Message prefix value
+int XrdNdnfsSys::Emsg(const char *pfx,      // Message prefix value
                        XrdOucErrInfo &einfo, // Place to put text & error code
                        int ecode,            // The error code
                        const char *op,       // Operation being performed

@@ -11,7 +11,7 @@ scp -r ../$projdirname $remote_host:.
 echo "compile new files on remote"
 ssh $remote_host "source /opt/rh/devtoolset-7/enable && \
                 zsh -l -c 'cd $buildir && \
-                            rm -rf CMake* && \
+                            rm -rf CMake\* && \
                             cmake ../  && \
                             make $1 VERBOSE=1'"
 

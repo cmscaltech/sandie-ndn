@@ -75,3 +75,11 @@ install(TARGETS XrdNdnFS
 install(TARGETS XrdNdnFSReal
         LIBRARY DESTINATION ${LIB_INSTALL_DIR}
         OPTIONAL)
+
+if (NOT DEFINED BIN_INSTALL_DIR)
+    SET(BIN_INSTALL_DIR "/usr/bin")
+endif()
+
+install(TARGETS xrdndn-producer
+        RUNTIME DESTINATION ${BIN_INSTALL_DIR}
+        OPTIONAL)

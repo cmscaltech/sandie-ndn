@@ -20,8 +20,8 @@ This is an NDN producer who compliments the NDN based OSS xrootd plugin.
 %define SrcDir %{RepoName}/xrootd-ndn-oss-plugin
 
 %prep
-# rm -rf %{RepoName}
-# git clone %{url}
+rm -rf %{RepoName}
+git clone %{url}
 
 %build
 cd %{SrcDir}

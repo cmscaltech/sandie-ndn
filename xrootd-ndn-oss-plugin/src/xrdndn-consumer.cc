@@ -93,6 +93,17 @@ void Consumer::expressInterest(const Interest &interest,
                            bind(&Consumer::onTimeout, this, _1, call));
 }
 
+// Process any data to receive and exit gracefully
+int Consumer::processEvents() {
+    try {
+        m_face.processEvents();
+    } catch (const std::exception &e) {
+        NDN_LOG_ERROR(e.what());
+        return XRDNDN_EFAILURE;
+    }
+    return XRDNDN_ESUCCESS;
+}
+
 // On NACK, the interest will be send again for MAX_ENTRIES times.
 void Consumer::onNack(const Interest &interest, const lp::Nack &nack,
                       const SystemCalls call) {
@@ -164,7 +175,9 @@ int Consumer::Open(std::string path) {
     this->expressInterest(openInterest, SystemCalls::open);
 
     NDN_LOG_TRACE("Sending open file interest: " << openInterest);
-    m_face.processEvents();
+    if (this->processEvents()) {
+        return XRDNDN_EFAILURE;
+    }
 
     return m_retOpen;
 }
@@ -192,7 +205,9 @@ int Consumer::Close(std::string path) {
     this->expressInterest(openInterest, SystemCalls::close);
 
     NDN_LOG_TRACE("Sending close file interest: " << openInterest);
-    m_face.processEvents();
+    if (this->processEvents()) {
+        return XRDNDN_EFAILURE;
+    }
 
     return m_retClose;
 }
@@ -229,7 +244,9 @@ int Consumer::Fstat(struct stat *buff, std::string path) {
     this->expressInterest(fstatInterest, SystemCalls::fstat);
 
     NDN_LOG_TRACE("Sending fstat interest: " << fstatInterest);
-    m_face.processEvents();
+    if (this->processEvents()) {
+        return XRDNDN_EFAILURE;
+    }
 
     this->saveDataInOrder(buff, 0, sizeof(struct stat));
     return m_retFstat;
@@ -278,7 +295,9 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
         NDN_LOG_TRACE("Sending read file interest: " << readInterest);
     }
 
-    m_face.processEvents();
+    if (this->processEvents()) {
+        return XRDNDN_EFAILURE;
+    }
 
     this->saveDataInOrder(buff, offset, blen);
     return m_retRead == XRDNDN_ESUCCESS ? m_buffOffset : XRDNDN_EFAILURE;

@@ -65,6 +65,7 @@ class Consumer : DFHandler {
 
     const ndn::Interest composeInterest(const ndn::Name name);
     void expressInterest(const ndn::Interest &interest, const SystemCalls call);
+    int processEvents();
 
     void onNack(const ndn::Interest &interest, const ndn::lp::Nack &nack,
                 const SystemCalls call);

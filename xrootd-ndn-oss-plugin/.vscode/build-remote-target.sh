@@ -1,11 +1,11 @@
 #!/bin/sh
-remote_host=root@192.168.0.69
+remote_host=root@192.168.56.101
 projdirname=xrootd-ndn-oss-plugin
 buildir=$projdirname/build
 
 #copy new source files remote
 echo "copy new files on remote"
-scp -r ../$projdirname $remote_host:.
+scp -r ../$projdirname/src ../$projdirname/cmake ../$projdirname/rpms ../$projdirname/CMakeLists.txt  $remote_host:./xrootd-ndn-oss-plugin
 
 #compile new source files remote
 echo "compile new files on remote"

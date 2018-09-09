@@ -7,7 +7,7 @@
         {
             "label": "gdbserver-stop",
             "type": "shell",
-            "command": "ssh root@192.168.0.69 killall gdbserver"
+            "command": "ssh root@192.168.56.101 killall gdbserver"
         },
         // building remote targets
         {
@@ -31,14 +31,14 @@
             "label": "gdbserver-xrdndn-consumer",
             "dependsOn": "build-remote-xrdndn-consumer",
             "type": "shell",
-            "command": "ssh -L9091:localhost:9091 root@192.168.0.69 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9091 ./xrootd-ndn-oss-plugin/build/xrdndn-consumer'\"",
+            "command": "ssh -L9091:localhost:9091 root@192.168.56.101 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9091 ./xrootd-ndn-oss-plugin/build/xrdndn-consumer'\"",
             "isBackground": true
         },
         {
             "label": "gdbserver-xrdndn-producer",
             "dependsOn": "build-remote-xrdndn-producer",
             "type": "shell",
-            "command": "ssh -L9092:localhost:9092 root@192.168.0.69 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9092 ./xrootd-ndn-oss-plugin/build/xrdndn-producer'\"",
+            "command": "ssh -L9092:localhost:9092 root@192.168.56.101 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9092 ./xrootd-ndn-oss-plugin/build/xrdndn-producer'\"",
             "isBackground": true
         }
     ]

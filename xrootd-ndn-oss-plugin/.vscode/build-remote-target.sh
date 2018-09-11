@@ -5,7 +5,7 @@ buildir=$projdirname/build
 
 #copy new source files remote
 echo "copy new files on remote"
-scp -r ../$projdirname/src ../$projdirname/cmake ../$projdirname/rpms ../$projdirname/CMakeLists.txt  $remote_host:./xrootd-ndn-oss-plugin
+scp -r ../$projdirname/src ../$projdirname/cmake ../$projdirname/rpms ../$projdirname/CMakeLists.txt  $remote_host:./$projdirname
 
 #compile new source files remote
 echo "compile new files on remote"

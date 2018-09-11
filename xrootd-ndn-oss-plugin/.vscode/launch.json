@@ -24,7 +24,10 @@
             "windows": {
                 "MIMode": "gdb"
             },
-            "preLaunchTask": "gdbserver-xrdndn-consumer"
+            "preLaunchTask": "gdbserver-xrdndn-consumer",
+            "sourceFileMap": {
+                "/root/xrootd-ndn-oss-plugin": "${workspaceRoot}"
+            }
         },
         {
             "name": "Launch xrdndn-producer",
@@ -47,7 +50,10 @@
                 "MIMode": "gdb"
             },
             "preLaunchTask": "gdbserver-xrdndn-producer",
-            "postDebugTask": "gdbserver-stop"
+            "postDebugTask": "gdbserver-stop",
+            "sourceFileMap": {
+                "/root/xrootd-ndn-oss-plugin": "${workspaceRoot}"
+            }
         }
     ]
 }

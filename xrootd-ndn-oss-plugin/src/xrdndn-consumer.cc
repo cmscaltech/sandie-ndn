@@ -32,7 +32,7 @@ namespace xrdndn {
 Consumer::Consumer()
     : m_scheduler(m_face.getIoService()),
       m_validator(security::v2::getAcceptAllValidator()),
-      m_nTimeouts(XRDNDN_ESUCCESS), m_nNacks(XRDNDN_ESUCCESS),
+      m_nTimeouts(0), m_nNacks(0),
       m_buffOffset(XRDNDN_ESUCCESS), m_retOpen(XRDNDN_EFAILURE),
       m_retClose(XRDNDN_EFAILURE), m_retFstat(XRDNDN_EFAILURE),
       m_retRead(XRDNDN_ESUCCESS) {
@@ -54,8 +54,8 @@ void Consumer::flush() {
     m_retClose = XRDNDN_EFAILURE;
     m_retFstat = XRDNDN_EFAILURE;
     m_retRead = XRDNDN_ESUCCESS;
-    m_nTimeouts = XRDNDN_ESUCCESS;
-    m_nNacks = XRDNDN_ESUCCESS;
+    m_nTimeouts = 0;
+    m_nNacks = 0;
     m_buffOffset = XRDNDN_ESUCCESS;
 }
 
@@ -143,13 +143,14 @@ void Consumer::onTimeout(const Interest &interest, const SystemCalls call) {
                      << m_nTimeouts
                      << " while retrieving data for: " << interest);
         return;
-    } else {
-        ++m_nTimeouts;
     }
+    ++m_nTimeouts;
 
     Interest newInterest(interest);
     newInterest.refreshNonce();
-    this->expressInterest(newInterest, call);
+    m_scheduler.scheduleEvent(
+            TIMEOUT,
+            bind(&Consumer::expressInterest, this, interest, call));
 }
 
 /*****************************************************************************/

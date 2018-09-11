@@ -37,6 +37,9 @@ static const uint8_t MAX_RETRIES = 32;
 static const ndn::time::milliseconds CONGESTION_TIMEOUT =
     ndn::time::seconds(10);
 
+static const ndn::time::milliseconds TIMEOUT =
+    ndn::time::seconds(2);
+
 class Consumer : DFHandler {
   public:
     Consumer();

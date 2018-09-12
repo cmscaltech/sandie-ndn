@@ -1,0 +1,11 @@
+[sandie]
+name=SDN-Assisted NDN for Data Intensive Experiments
+failovermethod=priority
+metalink=https://github.com/cmscaltech/sandie-ndn/tree/master/packaging/RPMS/x86_64
+enabled=1
+metadata_expire=7d
+repo_gpgcheck=0
+type=rpm
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-$basearch
+skip_if_unavailable=False

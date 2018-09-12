@@ -8,14 +8,14 @@ import argparse
 if __name__ == '__main__':
 
     p = argparse.ArgumentParser()
-    p.add_argument("-m", "--pdf_file", required=True, help="write the generated topology to this pdf map")
+    p.add_argument("-o", "--output_pdf", required=True, help="write the generated topology to this pdf map")
     args = p.parse_args()
-    filename = args.pdf_file
+    filename = args.output_pdf
 
 
     site_dicts = {"T2_US_Caltech":"http://perfsonar.ultralight.org/toolkit/","T2_US_MIT":"http://perfsonar02.cmsaf.mit.edu/toolkit/","T2_US_Purdue":"http://perfsonar-cms2.itns.purdue.edu/toolkit/","T2_BR_Sprace":"http://perfsonar-bw.sprace.org.br/toolkit/","T2_US_Florida":"http://perfsonar2.ihepa.ufl.edu/toolkit/","T2_US_UCSD":"http://perfsonar-1.t2.ucsd.edu/toolkit/","T2_US_Vanderbilt":"http://perfsonar-bwctl.accre.vanderbilt.edu/toolkit/","T2_US_Wisconsin":"http://perfsonar02.hep.wisc.edu/toolkit/","T2_US_Nebraska":"http://hcc-ps02.unl.edu/toolkit/","T1_US_FNAL":"https://psonar3.fnal.gov/toolkit/"}
 
-    labels_dict = {"18.12.1.172": ["MIT",1], "192.84.86.121":["CalTech",2], "128.211.143.4":["Purdue",3], "200.136.80.19":["Sprace",4], "128.227.221.45":["UFL",5], "169.228.130.41":["UCSD",6], "192.111.108.111":["Vanderbilt",7], "144.92.180.76":["WISC",8], "129.93.239.163":["Nebraska",9], "131.225.205.23":["FANL",10]}
+    labels_dict = {"18.12.1.172": ["MIT",1], "192.84.86.121":["Caltech",2], "128.211.143.4":["Purdue",3], "200.136.80.19":["Sprace",4], "128.227.221.45":["UFL",5], "169.228.130.41":["UCSD",6], "192.111.108.111":["Vanderbilt",7], "144.92.180.76":["WISC",8], "129.93.239.163":["Nebraska",9], "131.225.205.23":["Fermilab",10]}
     router_labels = {'64.57.30.225':'I2','190.103.185.145':'ampath','198.124.80.149':'esnet','149.165.255.193':'gigapop', '137.164.26.197':'cenic', '169.228.130.1':'ucsd', '143.215.193.3':'sox', '143.108.254.241':'ansp','164.113.255.253':'greatplains'}
  #   site_dicts = {"T2_US_Caltech":"http://192.84.86.122/toolkit/","T2_US_FNAL":"https://psonar3.fnal.gov/toolkit/"}
     trace = get_traceroute_results.TracePathsBetweenNodes()

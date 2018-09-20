@@ -294,10 +294,10 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
         this->expressInterest(readInterest, SystemCalls::read);
 
         NDN_LOG_TRACE("Sending read file interest: " << readInterest);
-    }
 
-    if (this->processEvents()) {
-        return XRDNDN_EFAILURE;
+        if (this->processEvents()) {
+            return XRDNDN_EFAILURE;
+        }
     }
 
     this->saveDataInOrder(buff, offset, blen);

@@ -1,1 +1,1 @@
-NDN_LOG="xrdndnproducer*=TRACE"
+NDN_LOG="xrdndnproducer*=INFO"

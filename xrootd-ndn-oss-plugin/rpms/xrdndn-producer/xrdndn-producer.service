@@ -5,7 +5,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=xrdndn-producer
+ExecStart=/usr/bin/xrdndn-producer
 Restart=on-abort
 StandardOutput=syslog
 StandardError=syslog

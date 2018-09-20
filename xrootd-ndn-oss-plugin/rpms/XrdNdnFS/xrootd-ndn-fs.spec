@@ -1,5 +1,5 @@
 Name:    xrootd-ndn-fs
-Version: 0.1.0
+Version: 0.1.1
 Release: 1%{?dist}
 Summary: Named Data Networking (NDN) based Open Storage System plugin for xrootd
 Group:   System Environment/Development
@@ -37,12 +37,14 @@ cd %{SrcDir}/build
 make XrdNdnFS install DESTDIR=$RPM_BUILD_ROOT
 
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
-cp ../rpms/xrootd.sample.ndnfd.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd.sample.ndnfd.cfg
+cp ../rpms/XrdNdnFS/xrootd.sample.ndnfd.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd.sample.ndnfd.cfg
 
 %files
 %{_libdir}/libXrdNdnFS.so
 %{_sysconfdir}/xrootd/xrootd.sample.ndnfd.cfg
 
 %changelog
+* Thu Sep 20 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.1
+- Handle Consumer runtime errors gracefully.
 * Mon Sep 3 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.0
 - Initial NDN based OSS plugin for xrootd packaging.

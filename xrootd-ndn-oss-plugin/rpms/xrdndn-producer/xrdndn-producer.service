@@ -1,0 +1,17 @@
+[Unit]
+Description=The NDN Producer Service who compliments the NDN based OSS xrootd plugin.
+Documentation=https://github.com/cmscaltech/sandie-ndn/tree/master/xrootd-ndn-oss-plugin
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=xrdndn-producer
+Restart=on-abort
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=xrdndn-producer
+EnvironmentFile=-/etc/sysconfig/xrdndn-producer
+User=root
+
+[Install]
+WantedBy=multi-user.target

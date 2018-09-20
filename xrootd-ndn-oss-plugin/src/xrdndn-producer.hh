@@ -21,10 +21,10 @@
 #ifndef XRDNDN_PRODUCER_HH
 #define XRDNDN_PRODUCER_HH
 
-#include <fstream>
 #include <ndn-cxx/face.hpp>
 
 #include "xrdndn-directory-file-handler.hh"
+#include "xrdndn-file-object.hh"
 #include "xrdndn-thread-safe-umap.hh"
 
 namespace xrdndn {
@@ -61,7 +61,7 @@ class Producer : DFHandler {
     const ndn::InterestFilterId *m_FstatFilterId;
     const ndn::InterestFilterId *m_ReadFilterId;
 
-    ThreadSafeUMap<std::string, std::shared_ptr<std::ifstream>>
+    ThreadSafeUMap<std::string, std::shared_ptr<FileDescriptor>>
         m_FileDescriptors;
 
     void registerPrefix();

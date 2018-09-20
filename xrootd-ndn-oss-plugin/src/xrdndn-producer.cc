@@ -59,11 +59,6 @@ Producer::~Producer() {
     NDN_LOG_TRACE("Dealloc xrdndn::Producer. Closing all files.");
     boost::shared_lock<boost::shared_mutex> lock(
         this->m_FileDescriptors.mutex_);
-    for (auto it = this->m_FileDescriptors.begin();
-         it != this->m_FileDescriptors.end(); ++it) {
-        it->second->close();
-    }
-    lock.unlock();
     this->m_FileDescriptors.clear();
 }
 
@@ -132,7 +127,7 @@ void Producer::send(std::shared_ptr<Data> data) {
     data->setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
     m_keyChain.sign(*data); // signWithDigestSha256
 
-    NDN_LOG_INFO("Sending: " << *data);
+    NDN_LOG_TRACE("Sending: " << *data);
     m_face.put(*data);
 }
 
@@ -175,19 +170,19 @@ void Producer::onOpenInterest(const InterestFilter &,
 }
 
 int Producer::Open(std::string path) {
-    std::shared_ptr<std::ifstream> fstream = std::make_shared<std::ifstream>();
-    fstream->open(path, std::ifstream::in);
-    if (fstream->is_open()) {
-        NDN_LOG_INFO("Opened file: " << path);
-        this->m_FileDescriptors.insert(
-            std::make_pair<std::string &, std::shared_ptr<std::ifstream> &>(
-                path, fstream));
+    auto fdEntry = std::make_shared<FileDescriptor>(path.c_str());
 
-        return XRDNDN_ESUCCESS;
-    } else {
+    if (fdEntry->get() == -1) {
         NDN_LOG_WARN("Failed to open file: " << path);
+        return XRDNDN_EFAILURE;
     }
-    return XRDNDN_EFAILURE;
+
+    NDN_LOG_INFO("Opened file: " << path);
+    this->m_FileDescriptors.insert(
+        std::make_pair<std::string &, std::shared_ptr<FileDescriptor> &>(
+            path, fdEntry));
+
+    return XRDNDN_ESUCCESS;
 }
 
 /*****************************************************************************/
@@ -210,18 +205,13 @@ int Producer::Close(std::string path) {
         return XRDNDN_EFAILURE;
     }
 
-    auto fstream = this->m_FileDescriptors.at(path);
-    boost::unique_lock<boost::shared_mutex> lock(
-        this->m_FileDescriptors.mutex_);
-    fstream->close();
-    lock.unlock();
+    this->m_FileDescriptors.erase(path);
 
-    if (fstream->is_open()) {
+    if (m_FileDescriptors.hasKey(path)) {
         NDN_LOG_WARN("Failed to close file: " << path);
         return XRDNDN_EFAILURE;
     }
 
-    this->m_FileDescriptors.erase(path);
     return XRDNDN_ESUCCESS;
 }
 
@@ -294,17 +284,6 @@ ssize_t Producer::Read(void *buff, off_t offset, size_t blen,
         return XRDNDN_EFAILURE;
     }
 
-    auto fstream = this->m_FileDescriptors.at(path);
-    boost::unique_lock<boost::shared_mutex> lock(
-        this->m_FileDescriptors.mutex_);
-    fstream->seekg(offset, fstream->beg);
-    fstream->read((char *)buff, blen);
-
-    // On mt reading must reset eof bit
-    if (fstream->eof()) {
-        fstream->clear();
-        fstream->seekg(0, std::ios::beg);
-    }
-    return fstream->gcount();
+    return pread(this->m_FileDescriptors.at(path)->get(), buff, blen, offset);
 }
 } // namespace xrdndn

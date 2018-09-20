@@ -212,6 +212,7 @@ int Producer::Close(std::string path) {
         return XRDNDN_EFAILURE;
     }
 
+    NDN_LOG_INFO("Closed file: " << path);
     return XRDNDN_ESUCCESS;
 }
 
@@ -249,6 +250,7 @@ int Producer::Fstat(struct stat *buff, std::string path) {
         return XRDNDN_EFAILURE;
     }
 
+    NDN_LOG_INFO("Return fstat for file: " << path);
     return XRDNDN_ESUCCESS;
 }
 

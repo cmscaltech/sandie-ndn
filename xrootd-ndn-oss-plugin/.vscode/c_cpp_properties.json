@@ -5,8 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/usr/local/include/xrootd",
-                "/Users/cataliniordache/sandie/sandie-ndn/xrootd-ndn-oss-plugin/src"
-
+                "/Users/cataliniordache/sandie/sandie-ndn/xrootd-ndn-oss-plugin/src",
+                "/System/Library/Frameworks/Kernel.framework/Versions/A/Headers/sys"
             ],
             "defines": [],
             "macFrameworkPath": [

@@ -45,12 +45,14 @@ mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/
 cp ../rpms/xrdndn-producer/xrdndn-producer-environment $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/xrdndn-producer
 
 %post
+ln -s -f %{_prefix}/lib/systemd/system/xrdndn-producer.service  %{_prefix}/lib/systemd/system/multi-user.target.wants/xrdndn-producer.service
 %systemd_post xrdndn-producer.service
 
 %preun
 %systemd_preun xrdndn-producer.service
 
 %postun
+unlink %{_prefix}/lib/systemd/system/multi-user.target.wants/xrdndn-producer.service
 %systemd_postun_with_restart rdndn-producer.service
 systemctl restart rsyslog.service
 

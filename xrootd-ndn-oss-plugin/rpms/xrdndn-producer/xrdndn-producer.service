@@ -1,5 +1,5 @@
 [Unit]
-Description=The NDN Producer Service who compliments the NDN based OSS xrootd plugin.
+Description=The NDN Producer Service who compliments the NDN based File System XRootD Server plugin.
 Documentation=https://github.com/cmscaltech/sandie-ndn/tree/master/xrootd-ndn-oss-plugin
 After=network.target
 

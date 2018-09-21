@@ -1,5 +1,5 @@
 Name:    xrdndn-producer
-Version: 0.1.1
+Version: 0.1.2
 Release: 1%{?dist}
 Summary: Named Data Networking (NDN) Producer for xrootd plugin
 Group:   System Environment/Development
@@ -16,7 +16,7 @@ BuildRequires: xrootd-server-devel >= 4.8.0
 BuildRequires: systemd
 
 %description
-This is an NDN producer who compliments the NDN based OSS xrootd plugin.
+This is an NDN producer who compliments the NDN based File System XRootD Server plugin.
 
 %define RepoName sandie-ndn
 %define SrcDir %{RepoName}/xrootd-ndn-oss-plugin
@@ -68,7 +68,13 @@ systemctl start xrdndn-producer.service
 %{_sysconfdir}/rsyslog.d/xrdndn-producer-rsyslog.conf
 
 %changelog
-* Thu Sep 20 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.1
-- TODO
+* Thu Sep 21 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.2
+- On close interest a task is scheduled to close the file in 180s.
+- Install NDN producer as a systemd service in CentOS 7 / RHEL.
+- Resolved "corrupted data error" on XRootD Server.
+- By default logging level is INFO. The logs are saved in /var/log/xrdndn-producer.log .
+- The logs can also be seen using journalctl: journalctl -l -u xrdndn-producer .
+- To change logging level edit /etc/sysconfig/xrdndn-producer .
+
 * Mon Sep 3 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.0
 - Initial NDN producer for NDN based OSS plugin for xrootd packaging.

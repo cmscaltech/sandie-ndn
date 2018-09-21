@@ -115,9 +115,8 @@ int XrdNdnFsFile::Read(XrdSfsAio *aiop) {
 int XrdNdnFsFile::Close(long long *) {
     // XrdNdnFS.Say("Close file: ", filePath.c_str());
     xrdndn::Consumer consumer;
-    int retClose = consumer.Close(filePath);
-    filePath.clear();
-    return retClose;
+    consumer.Close(filePath);
+    return 0;
 }
 
 /*****************************************************************************/

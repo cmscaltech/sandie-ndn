@@ -19,16 +19,21 @@
  *****************************************************************************/
 
 #include <fcntl.h>
+#include <iostream>
 #include <unistd.h>
+
+#include <ndn-cxx/util/time.hpp>
+
+static const ndn::time::milliseconds CLOSING_FILE_DELAY =
+    ndn::time::seconds(180);
 
 class FileDescriptor {
   public:
     FileDescriptor(const char *filePath) { m_fd = open(filePath, O_RDONLY); }
 
     ~FileDescriptor() {
-        if (m_fd != -1) {
+        if (m_fd == -1)
             close(m_fd);
-        }
     }
 
     int get() { return m_fd; }

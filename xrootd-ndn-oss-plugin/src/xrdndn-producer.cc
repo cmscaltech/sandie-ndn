@@ -31,8 +31,8 @@ NDN_LOG_INIT(xrdndnproducer);
 
 namespace xrdndn {
 Producer::Producer(Face &face)
-    : m_face(face), m_OpenFilterId(nullptr), m_CloseFilterId(nullptr),
-      m_ReadFilterId(nullptr) {
+    : m_face(face), m_scheduler(face.getIoService()), m_OpenFilterId(nullptr),
+      m_CloseFilterId(nullptr), m_ReadFilterId(nullptr) {
     NDN_LOG_TRACE("Alloc xrdndn::Producer");
     this->registerPrefix();
 }
@@ -53,12 +53,13 @@ Producer::~Producer() {
     if (m_ReadFilterId != nullptr) {
         m_face.unsetInterestFilter(m_ReadFilterId);
     }
+
+    m_scheduler.cancelAllEvents();
     m_face.shutdown();
 
     // Close all opened files
     NDN_LOG_TRACE("Dealloc xrdndn::Producer. Closing all files.");
-    boost::shared_lock<boost::shared_mutex> lock(
-        this->m_FileDescriptors.mutex_);
+    this->m_FileClosingEvets.clear();
     this->m_FileDescriptors.clear();
 }
 
@@ -170,6 +171,19 @@ void Producer::onOpenInterest(const InterestFilter &,
 }
 
 int Producer::Open(std::string path) {
+    // If the file is already opened, no need to open it again
+    if (this->m_FileDescriptors.hasKey(path)) {
+        auto closeEventInProgress = this->m_FileClosingEvets.at(path);
+        if (closeEventInProgress) {
+            NDN_LOG_INFO(
+                "File already opened. Cancel closing task in progress.");
+            m_scheduler.cancelEvent(closeEventInProgress);
+            this->m_FileClosingEvets.erase(path);
+        }
+
+        return XRDNDN_ESUCCESS;
+    }
+
     auto fdEntry = std::make_shared<FileDescriptor>(path.c_str());
 
     if (fdEntry->get() == -1) {
@@ -205,14 +219,17 @@ int Producer::Close(std::string path) {
         return XRDNDN_EFAILURE;
     }
 
-    this->m_FileDescriptors.erase(path);
+    auto closeEvent =
+        m_scheduler.scheduleEvent(CLOSING_FILE_DELAY, [this, path] {
+            if (this->m_FileDescriptors.hasKey(path)) {
+                NDN_LOG_INFO("Closing file: " << path);
+                this->m_FileDescriptors.erase(path);
+            }
+        });
 
-    if (m_FileDescriptors.hasKey(path)) {
-        NDN_LOG_WARN("Failed to close file: " << path);
-        return XRDNDN_EFAILURE;
-    }
+    this->m_FileClosingEvets.insert(std::make_pair(path, closeEvent));
 
-    NDN_LOG_INFO("Closed file: " << path);
+    NDN_LOG_INFO("Schedule event for closing file: " << path);
     return XRDNDN_ESUCCESS;
 }
 
@@ -283,7 +300,8 @@ ssize_t Producer::Read(void *buff, off_t offset, size_t blen,
 
     if (!this->m_FileDescriptors.hasKey(path)) {
         NDN_LOG_WARN("File: " << path << " was not oppend previously");
-        return XRDNDN_EFAILURE;
+        if (this->Open(path) == -1)
+            return XRDNDN_EFAILURE;
     }
 
     return pread(this->m_FileDescriptors.at(path)->get(), buff, blen, offset);

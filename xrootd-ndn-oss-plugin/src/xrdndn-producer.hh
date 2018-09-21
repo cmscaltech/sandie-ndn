@@ -22,6 +22,7 @@
 #define XRDNDN_PRODUCER_HH
 
 #include <ndn-cxx/face.hpp>
+#include <ndn-cxx/util/scheduler.hpp>
 
 #include "xrdndn-directory-file-handler.hh"
 #include "xrdndn-file-object.hh"
@@ -54,6 +55,7 @@ class Producer : DFHandler {
   private:
     ndn::Face &m_face;
     ndn::KeyChain m_keyChain;
+    ndn::util::Scheduler m_scheduler;
 
     const ndn::RegisteredPrefixId *m_xrdndnPrefixId;
     const ndn::InterestFilterId *m_OpenFilterId;
@@ -63,6 +65,9 @@ class Producer : DFHandler {
 
     ThreadSafeUMap<std::string, std::shared_ptr<FileDescriptor>>
         m_FileDescriptors;
+
+    ThreadSafeUMap<std::string, const ndn::util::scheduler::EventId>
+        m_FileClosingEvets;
 
     void registerPrefix();
 

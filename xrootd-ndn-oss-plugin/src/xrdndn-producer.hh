@@ -71,10 +71,6 @@ class Producer : DFHandler {
         m_FileClosingEvets;
 
     void registerPrefix();
-
-    void send(std::shared_ptr<ndn::Data> data);
-    void sendInteger(const ndn::Name &name, int value);
-    void sendString(const ndn::Name &name, std::string buff, ssize_t size);
 };
 
 } // namespace xrdndn

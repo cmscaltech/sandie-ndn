@@ -25,6 +25,7 @@
 #include <ndn-cxx/util/scheduler.hpp>
 
 #include "xrdndn-directory-file-handler.hh"
+#include "xrdndn-dispatcher.hh"
 #include "xrdndn-file-object.hh"
 #include "xrdndn-thread-safe-umap.hh"
 
@@ -54,8 +55,8 @@ class Producer : DFHandler {
 
   private:
     ndn::Face &m_face;
-    ndn::KeyChain m_keyChain;
     ndn::util::Scheduler m_scheduler;
+    std::shared_ptr<xrdndn::Dispatcher> m_dispatcher;
 
     const ndn::RegisteredPrefixId *m_xrdndnPrefixId;
     const ndn::InterestFilterId *m_OpenFilterId;

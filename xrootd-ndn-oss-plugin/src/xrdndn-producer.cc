@@ -19,7 +19,6 @@
  *****************************************************************************/
 
 #include <iostream>
-#include <math.h>
 
 #include "xrdndn-common.hh"
 #include "xrdndn-producer.hh"
@@ -35,6 +34,8 @@ Producer::Producer(Face &face)
       m_CloseFilterId(nullptr), m_ReadFilterId(nullptr) {
     NDN_LOG_TRACE("Alloc xrdndn::Producer");
     this->registerPrefix();
+
+    m_dispatcher = std::make_shared<Dispatcher>(&face);
 }
 
 Producer::~Producer() {
@@ -123,39 +124,6 @@ void Producer::registerPrefix() {
     }
 }
 
-// Send Data
-void Producer::send(std::shared_ptr<Data> data) {
-    data->setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
-    m_keyChain.sign(*data); // signWithDigestSha256
-
-    NDN_LOG_TRACE("Sending: " << *data);
-    m_face.put(*data);
-}
-
-// Prepare Data containing an non/negative integer
-void Producer::sendInteger(const Name &name, int value) {
-    NDN_LOG_TRACE("Sending integer.");
-
-    int type = value < 0 ? xrdndn::tlv::negativeInteger
-                         : xrdndn::tlv::nonNegativeInteger;
-    const Block content =
-        makeNonNegativeIntegerBlock(ndn::tlv::Content, fabs(value));
-
-    std::shared_ptr<ndn::Data> data = std::make_shared<Data>(name);
-    data->setContent(content);
-    data->setContentType(type);
-    this->send(data);
-}
-
-// Prepare Data as bytes
-void Producer::sendString(const Name &name, std::string buff, ssize_t size) {
-    NDN_LOG_TRACE("Sending string.");
-
-    std::shared_ptr<ndn::Data> data = std::make_shared<Data>(name);
-    data->setContent(reinterpret_cast<const uint8_t *>(buff.data()), size);
-    this->send(data);
-}
-
 /*****************************************************************************/
 /*                                  O p e n                                  */
 /*****************************************************************************/
@@ -167,7 +135,7 @@ void Producer::onOpenInterest(const InterestFilter &,
     int ret = this->Open(Utils::getFilePathFromName(name, SystemCalls::open));
     name.appendVersion();
 
-    this->sendInteger(name, ret);
+    m_dispatcher->sendInteger(name, ret);
 }
 
 int Producer::Open(std::string path) {
@@ -210,7 +178,7 @@ void Producer::onCloseInterest(const InterestFilter &,
     int ret = this->Close(Utils::getFilePathFromName(name, SystemCalls::close));
     name.appendVersion();
 
-    this->sendInteger(name, ret);
+    m_dispatcher->sendInteger(name, ret);
 }
 
 int Producer::Close(std::string path) {
@@ -247,12 +215,12 @@ void Producer::onFstatInterest(const ndn::InterestFilter &,
     name.appendVersion();
 
     if (ret != 0) {
-        this->sendInteger(name, ret);
+        m_dispatcher->sendInteger(name, ret);
     } else {
         // Send stat
         std::string buff(sizeof(info), '\0');
         memcpy(&buff[0], &info, sizeof(info));
-        this->sendString(name, buff, sizeof(info));
+        m_dispatcher->sendString(name, buff, sizeof(info));
     }
 }
 
@@ -289,9 +257,9 @@ void Producer::onReadInterest(const InterestFilter &,
 
     name.appendVersion();
     if (count == XRDNDN_EFAILURE) {
-        this->sendInteger(name, count);
+        m_dispatcher->sendInteger(name, count);
     } else {
-        this->sendString(name, buff, count);
+        m_dispatcher->sendString(name, buff, count);
     }
 }
 

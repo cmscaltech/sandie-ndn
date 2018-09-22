@@ -65,7 +65,8 @@
 			"ostream": "cpp",
 			"stack": "cpp",
 			"unordered_set": "cpp",
-			"thread": "cpp"
+			"thread": "cpp",
+			"variant": "cpp"
 		},
 		"workbench.colorTheme": "Visual Studio Dark",
 		"window.zoomLevel": 0,

@@ -276,8 +276,16 @@ void Consumer::onReadData(const ndn::Interest &interest,
         });
 }
 
+    
+
 ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
                        std::string path) {
+//This is potentially dangerous. You will flood the producer and packets will get dropped if you 
+    //send too many Interests. A better way to do this would be send n interests in a pipeline. 
+    //As you start getting data, send requests for subsequent chunks from onData. The producer 
+    //should set "FinalBlockId" on the last chunk and the consumer should check for it.
+    //Alternately, using congestion control is a better idea than the above.
+        
     this->flush();
     uint64_t firstSegment = offset / XRDNDN_MAX_NDN_PACKET_SIZE;
 

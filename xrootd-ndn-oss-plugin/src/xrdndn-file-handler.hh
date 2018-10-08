@@ -39,9 +39,6 @@ namespace xrdndnproducer {
 static const ndn::time::milliseconds CLOSING_FILE_DELAY =
     ndn::time::seconds(180);
 
-// Forward declaration
-class LRUCacheEntry;
-
 class FileDescriptor {
   public:
     FileDescriptor(const char *filePath);
@@ -89,23 +86,8 @@ class FileHandler : xrdndn::FileHandlerInterface {
     std::string m_FilePath;
     std::shared_ptr<Packager> m_packager;
     std::shared_ptr<FileDescriptor> m_FileDescriptor;
-    std::shared_ptr<LRUCache<uint64_t, std::shared_ptr<LRUCacheEntry>>>
-        m_LRUCache;
+    std::shared_ptr<LRUCache<uint64_t, ndn::Data>> m_LRUCache;
     boost::mutex mtx_FileReader;
-};
-
-class LRUCacheEntry {
-  public:
-    LRUCacheEntry() { isProcessed = false; }
-    ~LRUCacheEntry() {
-        boost::unique_lock<boost::mutex> lock(mutex);
-        cond.notify_all();
-    }
-
-    std::shared_ptr<ndn::Data> data;
-    bool isProcessed;
-    boost::condition_variable cond;
-    mutable boost::mutex mutex;
 };
 } // namespace xrdndnproducer
 

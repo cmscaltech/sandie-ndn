@@ -59,7 +59,7 @@ FileHandler::FileHandler()
     }
 
     m_LRUCache =
-        std::make_shared<LRUCache<uint64_t, std::shared_ptr<LRUCacheEntry>>>(
+        std::make_shared<LRUCache<uint64_t, Data>>(
             CACHE_SZ, CACHE_LINE_SZ);
 
     m_packager = std::make_shared<Packager>();
@@ -161,11 +161,6 @@ std::shared_ptr<Data> FileHandler::getFStatData(const ndn::Interest &interest) {
 }
 
 int FileHandler::Fstat(struct stat *buff, std::string path) {
-    if (!m_FileDescriptor) {
-        NDN_LOG_WARN("Fstat file: " << path << " was not oppend previously");
-        return XRDNDN_EFAILURE;
-    }
-
     // Call stat as is sufficient
     if (stat(path.c_str(), buff) != 0) {
         NDN_LOG_ERROR("Fstat fail for file: " << path);
@@ -197,7 +192,9 @@ void FileHandler::insertEmptyCacheLine(off_t offset) {
     boost::unique_lock<boost::mutex> lock(mtx_FileReader);
     off_t cacheLineEndOffset = offset + CACHE_LINE_SZ;
     for (off_t i = offset; i < cacheLineEndOffset; ++i) {
-        m_LRUCache->insert(i, std::make_shared<LRUCacheEntry>());
+        auto entry = std::make_shared<LRUCacheEntry<Data>>();
+        m_LRUCache->insert(i, entry);
+        m_LRUCache->at(i)->avoidEviction = true;
     }
 }
 
@@ -226,10 +223,13 @@ void FileHandler::readCacheLine(off_t offset) {
         }
 
         // Update previously empty cache line entry and notify waiting thread
+        // if (!m_LRUCache->at(i)) {
+        //     NDN_LOG_ERROR("entry doesn't exists!!");
+        // }
         boost::unique_lock<boost::mutex> lock(m_LRUCache->at(i)->mutex);
         auto entry = m_LRUCache->at(i);
         entry->data = data;
-        entry->isProcessed = true;
+        entry->processingData = true;
         entry->cond.notify_one();
     }
 }
@@ -237,9 +237,8 @@ void FileHandler::readCacheLine(off_t offset) {
 // Wait for a worker thread to finish preparing the requested segment from the
 // file
 void FileHandler::waitForPackage(off_t segmentNo) {
-    auto entry = m_LRUCache->at(segmentNo);
-    boost::unique_lock<boost::mutex> lock(entry->mutex);
-    entry->cond.wait(lock, [&] { return entry->isProcessed; });
+    boost::unique_lock<boost::mutex> lock(m_LRUCache->at(segmentNo)->mutex);
+    m_LRUCache->at(segmentNo)->cond.wait(lock, [&] { return m_LRUCache->at(segmentNo)->processingData; });
 }
 
 // Return an ndn::Data package containing a chunk from the file
@@ -271,6 +270,7 @@ std::shared_ptr<Data> FileHandler::getReadData(const ndn::Interest &interest) {
     }
 
     ret = m_LRUCache->at(segmentNo)->data;
+    m_LRUCache->at(segmentNo)->avoidEviction = false;
     return ret;
 }
 } // namespace xrdndnproducer

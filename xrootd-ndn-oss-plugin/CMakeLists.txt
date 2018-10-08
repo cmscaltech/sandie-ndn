@@ -48,7 +48,9 @@ target_link_libraries(xrdndn-consumer
 
 # Compile xrdndn-producer application
 add_executable(xrdndn-producer 
-    src/xrdndn-producer-main.cc 
+    src/xrdndn-producer-main.cc
+    src/xrdndn-packager.cc
+    src/xrdndn-file-handler.cc
     src/xrdndn-producer.cc)
 
 target_link_libraries(xrdndn-producer 

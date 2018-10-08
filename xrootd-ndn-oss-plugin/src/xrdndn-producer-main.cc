@@ -23,7 +23,7 @@
 
 #include "xrdndn-producer.hh"
 
-namespace xrdndn {
+namespace xrdndnproducer {
 
 int main() {
     ndn::Face face;
@@ -37,6 +37,6 @@ int main() {
     }
     return 0;
 }
-} // namespace xrdndn
+} // namespace xrdndnproducer
 
-int main(int, char **) { return xrdndn::main(); }
+int main(int, char **) { return xrdndnproducer::main(); }

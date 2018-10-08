@@ -21,21 +21,22 @@
 #include <iostream>
 
 #include "xrdndn-common.hh"
+#include "xrdndn-logger.hh"
 #include "xrdndn-producer.hh"
 #include "xrdndn-utils.hh"
 
 using namespace ndn;
+using namespace xrdndn;
 
-NDN_LOG_INIT(xrdndnproducer);
+namespace xrdndnproducer {
 
-namespace xrdndn {
 Producer::Producer(Face &face)
-    : m_face(face), m_scheduler(face.getIoService()), m_OpenFilterId(nullptr),
-      m_CloseFilterId(nullptr), m_ReadFilterId(nullptr) {
+    : m_face(face), m_OpenFilterId(nullptr), m_CloseFilterId(nullptr),
+      m_ReadFilterId(nullptr) {
     NDN_LOG_TRACE("Alloc xrdndn::Producer");
     this->registerPrefix();
-
-    m_dispatcher = std::make_shared<Dispatcher>(&face);
+    m_fileHandler = std::make_shared<FileHandler>();
+    m_packager = std::make_shared<Packager>();
 }
 
 Producer::~Producer() {
@@ -55,13 +56,8 @@ Producer::~Producer() {
         m_face.unsetInterestFilter(m_ReadFilterId);
     }
 
-    m_scheduler.cancelAllEvents();
     m_face.shutdown();
-
-    // Close all opened files
-    NDN_LOG_TRACE("Dealloc xrdndn::Producer. Closing all files.");
-    this->m_FileClosingEvets.clear();
-    this->m_FileDescriptors.clear();
+    m_FileHandlers.clear();
 }
 
 // Register all interest filters that this producer will answer to
@@ -124,154 +120,82 @@ void Producer::registerPrefix() {
     }
 }
 
-/*****************************************************************************/
-/*                                  O p e n                                  */
-/*****************************************************************************/
+void Producer::insertNewFileHandler(std::string path) {
+    if (!m_FileHandlers.hasKey(path)) {
+        auto entry = std::make_shared<FileHandler>();
+        m_FileHandlers.insert(
+            std::make_pair<std::string &, std::shared_ptr<FileHandler> &>(
+                path, entry));
+    }
+}
+
 void Producer::onOpenInterest(const InterestFilter &,
                               const Interest &interest) {
-    NDN_LOG_TRACE("onOpenInterest: " << interest);
 
-    Name name(interest.getName());
-    int ret = this->Open(Utils::getFilePathFromName(name, SystemCalls::open));
-    name.appendVersion();
+    m_face.getIoService().post([&] {
+        NDN_LOG_TRACE("onOpenInterest: " << interest);
 
-    m_dispatcher->sendInteger(name, ret);
+        Name name(interest.getName());
+        std::string path =
+            xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::open);
+
+        insertNewFileHandler(path);
+        auto data = m_FileHandlers.at(path)->getOpenData(interest);
+
+        NDN_LOG_TRACE("Sending: " << *data);
+        m_face.put(*data);
+    });
 }
 
-int Producer::Open(std::string path) {
-    // If the file is already opened, no need to open it again
-    if (this->m_FileDescriptors.hasKey(path)) {
-        auto closeEventInProgress = this->m_FileClosingEvets.at(path);
-        if (closeEventInProgress) {
-            NDN_LOG_INFO(
-                "File already opened. Cancel closing task in progress.");
-            m_scheduler.cancelEvent(closeEventInProgress);
-            this->m_FileClosingEvets.erase(path);
-        }
-
-        return XRDNDN_ESUCCESS;
-    }
-
-    auto fdEntry = std::make_shared<FileDescriptor>(path.c_str());
-
-    if (fdEntry->get() == -1) {
-        NDN_LOG_WARN("Failed to open file: " << path);
-        return XRDNDN_EFAILURE;
-    }
-
-    NDN_LOG_INFO("Opened file: " << path);
-    this->m_FileDescriptors.insert(
-        std::make_pair<std::string &, std::shared_ptr<FileDescriptor> &>(
-            path, fdEntry));
-
-    return XRDNDN_ESUCCESS;
-}
-
-/*****************************************************************************/
-/*                                 C l o s e                                 */
-/*****************************************************************************/
 void Producer::onCloseInterest(const InterestFilter &,
                                const Interest &interest) {
-    NDN_LOG_TRACE("onCloseInterest: " << interest);
+    m_face.getIoService().post([&] {
+        NDN_LOG_TRACE("onCloseInterest: " << interest);
+        Name name(interest.getName());
+        std::string path = xrdndn::Utils::getFilePathFromName(
+            name, xrdndn::SystemCalls::close);
 
-    Name name(interest.getName());
-    int ret = this->Close(Utils::getFilePathFromName(name, SystemCalls::close));
-    name.appendVersion();
+        std::shared_ptr<Data> data;
+        if (m_FileHandlers.hasKey(path)) {
+            data = m_FileHandlers.at(path)->getCloseData(interest);
+        } else {
+            data = m_packager->getPackage(name, XRDNDN_ESUCCESS);
+        }
 
-    m_dispatcher->sendInteger(name, ret);
+        NDN_LOG_TRACE("Sending: " << *data);
+        m_face.put(*data);
+    });
 }
 
-int Producer::Close(std::string path) {
-    if (!this->m_FileDescriptors.hasKey(path)) {
-        NDN_LOG_WARN("File: " << path << " was not oppend previously.");
-        return XRDNDN_EFAILURE;
-    }
-
-    auto closeEvent =
-        m_scheduler.scheduleEvent(CLOSING_FILE_DELAY, [this, path] {
-            if (this->m_FileDescriptors.hasKey(path)) {
-                NDN_LOG_INFO("Closing file: " << path);
-                this->m_FileDescriptors.erase(path);
-            }
-        });
-
-    this->m_FileClosingEvets.insert(std::make_pair(path, closeEvent));
-
-    NDN_LOG_INFO("Schedule event for closing file: " << path);
-    return XRDNDN_ESUCCESS;
-}
-
-/*****************************************************************************/
-/*                                F s t a t                                  */
-/*****************************************************************************/
 void Producer::onFstatInterest(const ndn::InterestFilter &,
                                const ndn::Interest &interest) {
-    NDN_LOG_TRACE("onFstatInterest: " << interest);
+    m_face.getIoService().post([&] {
+        NDN_LOG_TRACE("onFstatInterest: " << interest);
+        Name name(interest.getName());
+        std::string path = xrdndn::Utils::getFilePathFromName(
+            name, xrdndn::SystemCalls::fstat);
 
-    Name name(interest.getName());
-    struct stat info;
-    int ret = this->Fstat(&info,
-                          Utils::getFilePathFromName(name, SystemCalls::fstat));
-    name.appendVersion();
+        insertNewFileHandler(path);
+        auto data = m_fileHandler->getFStatData(interest);
 
-    if (ret != 0) {
-        m_dispatcher->sendInteger(name, ret);
-    } else {
-        // Send stat
-        std::string buff(sizeof(info), '\0');
-        memcpy(&buff[0], &info, sizeof(info));
-        m_dispatcher->sendString(name, buff, sizeof(info));
-    }
+        NDN_LOG_TRACE("Sending: " << *data);
+        m_face.put(*data);
+    });
 }
 
-int Producer::Fstat(struct stat *buff, std::string path) {
-    if (!this->m_FileDescriptors.hasKey(path)) {
-        NDN_LOG_WARN("File: " << path << " was not oppend previously");
-        return XRDNDN_EFAILURE;
-    }
-
-    // Call stat as is sufficient
-    if (stat(path.c_str(), buff) != 0) {
-        return XRDNDN_EFAILURE;
-    }
-
-    NDN_LOG_INFO("Return fstat for file: " << path);
-    return XRDNDN_ESUCCESS;
-}
-
-/*****************************************************************************/
-/*                                  R e a d                                  */
-/*****************************************************************************/
 void Producer::onReadInterest(const InterestFilter &,
                               const Interest &interest) {
-    NDN_LOG_TRACE("onReadInterest: " << interest);
+    m_face.getIoService().post([&] {
+        NDN_LOG_TRACE("onReadInterest: " << interest);
+        Name name(interest.getName());
+        std::string path =
+            xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::read);
 
-    Name name(interest.getName());
+        insertNewFileHandler(path);
+        auto data = m_fileHandler->getReadData(interest);
 
-    std::string buff(XRDNDN_MAX_NDN_PACKET_SIZE, '\0');
-    uint64_t segmentNo = Utils::getSegmentFromPacket(interest);
-
-    int count = this->Read(&buff[0], segmentNo * XRDNDN_MAX_NDN_PACKET_SIZE,
-                           XRDNDN_MAX_NDN_PACKET_SIZE,
-                           Utils::getFilePathFromName(name, SystemCalls::read));
-
-    name.appendVersion();
-    if (count == XRDNDN_EFAILURE) {
-        m_dispatcher->sendInteger(name, count);
-    } else {
-        m_dispatcher->sendString(name, buff, count);
-    }
+        NDN_LOG_TRACE("Sending: " << *data);
+        m_face.put(*data);
+    });
 }
-
-ssize_t Producer::Read(void *buff, off_t offset, size_t blen,
-                       std::string path) {
-
-    if (!this->m_FileDescriptors.hasKey(path)) {
-        NDN_LOG_WARN("File: " << path << " was not oppend previously");
-        if (this->Open(path) == -1)
-            return XRDNDN_EFAILURE;
-    }
-
-    return pread(this->m_FileDescriptors.at(path)->get(), buff, blen, offset);
-}
-} // namespace xrdndn
+} // namespace xrdndnproducer

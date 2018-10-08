@@ -30,7 +30,7 @@
 #include <ndn-cxx/util/time.hpp>
 
 #include "xrdndn-common.hh"
-#include "xrdndn-directory-file-handler.hh"
+#include "xrdndn-dfh-interface.hh"
 
 namespace xrdndn {
 static const uint8_t MAX_RETRIES = 32;
@@ -40,7 +40,7 @@ static const ndn::time::milliseconds CONGESTION_TIMEOUT =
 static const ndn::time::milliseconds TIMEOUT =
     ndn::time::seconds(2);
 
-class Consumer : DFHandler {
+class Consumer : FileHandlerInterface {
   public:
     Consumer();
     ~Consumer();

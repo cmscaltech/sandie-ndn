@@ -18,8 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#ifndef XRDNDN_DIRECTORY_FILE_HANDLER_HH
-#define XRDNDN_DIRECTORY_FILE_HANDLER_HH
+#ifndef XRDNDN_DFH_INTERFACE_HH
+#define XRDNDN_DFH_INTERFACE_HH
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -32,7 +32,10 @@ namespace xrdndn {
 // System calls enumeration.
 DEFINE_ENUM_WITH_STRING_CONVERSIONS(SystemCalls, (open)(read)(fstat)(close))
 
-class DFHandler {
+class FileHandlerInterface {
+  public:
+    virtual ~FileHandlerInterface() {}
+
   public:
     // File oriented methods
 
@@ -56,4 +59,4 @@ class DFHandler {
 };
 } // namespace xrdndn
 
-#endif // XRDNDN_DIRECTORY_FILE_HANDLER_HH
+#endif // XRDNDN_DFH_INTERFACE_HH

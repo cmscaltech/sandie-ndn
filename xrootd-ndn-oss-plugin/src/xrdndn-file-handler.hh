@@ -81,13 +81,13 @@ class FileHandler : xrdndn::FileHandlerInterface {
     boost::thread_group m_threads;
 
     ndn::util::Scheduler m_scheduler;
-    ndn::util::scheduler::EventId m_FileClosingEvent;
+    ndn::util::scheduler::EventId m_fileClosingEvent;
 
-    std::string m_FilePath;
+    std::string m_filePath;
     std::shared_ptr<Packager> m_packager;
-    std::shared_ptr<FileDescriptor> m_FileDescriptor;
+    std::shared_ptr<FileDescriptor> m_fileDescriptor;
     std::shared_ptr<LRUCache<uint64_t, ndn::Data>> m_LRUCache;
-    boost::mutex mtx_FileReader;
+    boost::mutex mtx_fileReader;
 };
 } // namespace xrdndnproducer
 

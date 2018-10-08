@@ -59,8 +59,7 @@ FileHandler::FileHandler()
     }
 
     m_LRUCache =
-        std::make_shared<LRUCache<uint64_t, Data>>(
-            CACHE_SZ, CACHE_LINE_SZ);
+        std::make_shared<LRUCache<uint64_t, Data>>(CACHE_SZ, CACHE_LINE_SZ);
 
     m_packager = std::make_shared<Packager>();
 }
@@ -87,25 +86,25 @@ std::shared_ptr<Data> FileHandler::getOpenData(const ndn::Interest &interest) {
 
 int FileHandler::Open(std::string path) {
     // If the file is already opened, no need to open it again
-    if (m_FileDescriptor && m_FileDescriptor->isOpened()) {
-        if (m_FileClosingEvent) {
+    if (m_fileDescriptor && m_fileDescriptor->isOpened()) {
+        if (m_fileClosingEvent) {
             NDN_LOG_INFO(
                 "File already opened. Cancel closing task in progress.");
-            m_scheduler.cancelEvent(m_FileClosingEvent);
+            m_scheduler.cancelEvent(m_fileClosingEvent);
         }
 
         return XRDNDN_ESUCCESS;
     }
 
-    m_FileDescriptor = std::make_shared<FileDescriptor>(path.c_str());
+    m_fileDescriptor = std::make_shared<FileDescriptor>(path.c_str());
 
-    if (!m_FileDescriptor || !m_FileDescriptor->isOpened()) {
+    if (!m_fileDescriptor || !m_fileDescriptor->isOpened()) {
         NDN_LOG_WARN("Failed to open file: " << path);
         return XRDNDN_EFAILURE;
     }
 
     NDN_LOG_INFO("Opened file: " << path);
-    m_FilePath = path;
+    m_filePath = path;
     return XRDNDN_ESUCCESS;
 }
 
@@ -122,14 +121,14 @@ std::shared_ptr<Data> FileHandler::getCloseData(const ndn::Interest &interest) {
 }
 
 int FileHandler::Close(std::string path) {
-    if (!m_FileDescriptor) {
+    if (!m_fileDescriptor) {
         NDN_LOG_WARN("File: " << path << " was not oppend previously.");
         return XRDNDN_EFAILURE;
     }
 
-    m_FileClosingEvent =
+    m_fileClosingEvent =
         m_scheduler.scheduleEvent(CLOSING_FILE_DELAY, [this, path] {
-            if (m_FileDescriptor) {
+            if (m_fileDescriptor) {
                 NDN_LOG_INFO("Closing file: " << path);
             }
         });
@@ -176,20 +175,20 @@ int FileHandler::Fstat(struct stat *buff, std::string path) {
 /*****************************************************************************/
 // Read chunk from file
 ssize_t FileHandler::Read(void *buff, size_t count, off_t offset) {
-    if (!m_FileDescriptor || !m_FileDescriptor->isOpened()) {
-        NDN_LOG_WARN("Read file: " << m_FilePath
+    if (!m_fileDescriptor || !m_fileDescriptor->isOpened()) {
+        NDN_LOG_WARN("Read file: " << m_filePath
                                    << " was not oppend previously");
         return XRDNDN_EFAILURE;
     }
 
-    auto ret = pread(m_FileDescriptor->get(), buff, count, offset);
+    auto ret = pread(m_fileDescriptor->get(), buff, count, offset);
     return ret;
 }
 
 // Insert a cache line in cache, with empty data entries. This is done in order
 // for multiple threads to wait on the same mutex.
 void FileHandler::insertEmptyCacheLine(off_t offset) {
-    boost::unique_lock<boost::mutex> lock(mtx_FileReader);
+    boost::unique_lock<boost::mutex> lock(mtx_fileReader);
     off_t cacheLineEndOffset = offset + CACHE_LINE_SZ;
     for (off_t i = offset; i < cacheLineEndOffset; ++i) {
         auto entry = std::make_shared<LRUCacheEntry<Data>>();
@@ -202,7 +201,7 @@ void FileHandler::insertEmptyCacheLine(off_t offset) {
 // file
 void FileHandler::readCacheLine(off_t offset) {
     ndn::Name readPrefix =
-        xrdndn::Utils::interestName(xrdndn::SystemCalls::read, m_FilePath);
+        xrdndn::Utils::interestName(xrdndn::SystemCalls::read, m_filePath);
     off_t cacheLineEndOffset = offset + CACHE_LINE_SZ;
     ssize_t len = 0;
 
@@ -238,7 +237,8 @@ void FileHandler::readCacheLine(off_t offset) {
 // file
 void FileHandler::waitForPackage(off_t segmentNo) {
     boost::unique_lock<boost::mutex> lock(m_LRUCache->at(segmentNo)->mutex);
-    m_LRUCache->at(segmentNo)->cond.wait(lock, [&] { return m_LRUCache->at(segmentNo)->processingData; });
+    m_LRUCache->at(segmentNo)->cond.wait(
+        lock, [&] { return m_LRUCache->at(segmentNo)->processingData; });
 }
 
 // Return an ndn::Data package containing a chunk from the file
@@ -246,7 +246,7 @@ std::shared_ptr<Data> FileHandler::getReadData(const ndn::Interest &interest) {
     std::shared_ptr<Data> ret;
     Name name(interest.getName());
 
-    if (!m_FileDescriptor || !m_FileDescriptor->isOpened()) {
+    if (!m_fileDescriptor || !m_fileDescriptor->isOpened()) {
         std::string path =
             xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::read);
 

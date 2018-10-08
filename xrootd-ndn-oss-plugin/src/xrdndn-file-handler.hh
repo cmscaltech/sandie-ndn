@@ -18,26 +18,95 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include <fcntl.h>
-#include <iostream>
-#include <unistd.h>
+#ifndef XRDNDN_FILE_HANDLER
+#define XRDNDN_FILE_HANDLER
 
+#include <ndn-cxx/face.hpp>
+#include <ndn-cxx/util/scheduler.hpp>
 #include <ndn-cxx/util/time.hpp>
 
+#include <boost/asio/io_service.hpp>
+#include <boost/thread/condition.hpp>
+#include <boost/thread/thread.hpp>
+
+#include "xrdndn-dfh-interface.hh"
+#include "xrdndn-lru-cache.hh"
+#include "xrdndn-packager.hh"
+
+using namespace ndn;
+
+namespace xrdndnproducer {
 static const ndn::time::milliseconds CLOSING_FILE_DELAY =
     ndn::time::seconds(180);
 
+// Forward declaration
+class LRUCacheEntry;
+
 class FileDescriptor {
   public:
-    FileDescriptor(const char *filePath) { m_fd = open(filePath, O_RDONLY); }
+    FileDescriptor(const char *filePath);
+    ~FileDescriptor();
 
-    ~FileDescriptor() {
-        if (m_fd == -1)
-            close(m_fd);
-    }
-
-    int get() { return m_fd; }
+    int get();
+    bool isOpened();
 
   private:
     int m_fd;
 };
+
+class FileHandler : xrdndn::FileHandlerInterface {
+    const size_t NUM_THREADS_PER_FILEHANDLER = 2;
+    const size_t CACHE_SZ = 9472;     // 66304 KB
+    const size_t CACHE_LINE_SZ = 148; // 1036 KB
+
+  public:
+    FileHandler();
+    ~FileHandler();
+
+    std::shared_ptr<Data> getOpenData(const ndn::Interest &interest);
+    std::shared_ptr<Data> getCloseData(const ndn::Interest &interest);
+    std::shared_ptr<Data> getFStatData(const ndn::Interest &interest);
+    std::shared_ptr<Data> getReadData(const ndn::Interest &interest);
+
+  private:
+    virtual int Open(std::string path) override;
+    virtual int Close(std::string path) override;
+    virtual int Fstat(struct stat *buff, std::string path) override;
+    ssize_t Read(void *, off_t, size_t, std::string) override { return 0; }
+    ssize_t Read(void *buff, size_t count, off_t offset);
+    void readCacheLine(off_t offset);
+    void insertEmptyCacheLine(off_t offset);
+    void waitForPackage(off_t segmentNo);
+
+  private:
+    boost::asio::io_service m_ioService;
+    boost::asio::io_service::work m_ioServiceWork;
+    boost::thread_group m_threads;
+
+    ndn::util::Scheduler m_scheduler;
+    ndn::util::scheduler::EventId m_FileClosingEvent;
+
+    std::string m_FilePath;
+    std::shared_ptr<Packager> m_packager;
+    std::shared_ptr<FileDescriptor> m_FileDescriptor;
+    std::shared_ptr<LRUCache<uint64_t, std::shared_ptr<LRUCacheEntry>>>
+        m_LRUCache;
+    boost::mutex mtx_FileReader;
+};
+
+class LRUCacheEntry {
+  public:
+    LRUCacheEntry() { isProcessed = false; }
+    ~LRUCacheEntry() {
+        boost::unique_lock<boost::mutex> lock(mutex);
+        cond.notify_all();
+    }
+
+    std::shared_ptr<ndn::Data> data;
+    bool isProcessed;
+    boost::condition_variable cond;
+    mutable boost::mutex mutex;
+};
+} // namespace xrdndnproducer
+
+#endif // XRDNDN_FILE_HANDLER

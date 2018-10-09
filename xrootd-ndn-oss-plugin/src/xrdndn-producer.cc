@@ -140,7 +140,7 @@ void Producer::onOpenInterest(const InterestFilter &,
             xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::open);
 
         insertNewFileHandler(path);
-        auto data = m_FileHandlers.at(path)->getOpenData(interest);
+        auto data = m_FileHandlers.at(path)->getOpenData(name, path);
 
         NDN_LOG_TRACE("Sending: " << *data);
         m_face.put(*data);
@@ -157,7 +157,7 @@ void Producer::onCloseInterest(const InterestFilter &,
 
         std::shared_ptr<Data> data;
         if (m_FileHandlers.hasKey(path)) {
-            data = m_FileHandlers.at(path)->getCloseData(interest);
+            data = m_FileHandlers.at(path)->getCloseData(name, path);
         } else {
             data = m_packager->getPackage(name, XRDNDN_ESUCCESS);
         }
@@ -176,7 +176,7 @@ void Producer::onFstatInterest(const ndn::InterestFilter &,
             name, xrdndn::SystemCalls::fstat);
 
         insertNewFileHandler(path);
-        auto data = m_fileHandler->getFStatData(interest);
+        auto data = m_fileHandler->getFStatData(name, path);
 
         NDN_LOG_TRACE("Sending: " << *data);
         m_face.put(*data);
@@ -192,7 +192,8 @@ void Producer::onReadInterest(const InterestFilter &,
             xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::read);
 
         insertNewFileHandler(path);
-        auto data = m_fileHandler->getReadData(interest);
+        auto data = m_fileHandler->getReadData(
+            xrdndn::Utils::getSegmentFromPacket(interest), name, path);
 
         NDN_LOG_TRACE("Sending: " << *data);
         m_face.put(*data);

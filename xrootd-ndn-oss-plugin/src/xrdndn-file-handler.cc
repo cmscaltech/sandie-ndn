@@ -75,10 +75,9 @@ FileHandler::~FileHandler() {
 /*****************************************************************************/
 /*                                  O p e n                                  */
 /*****************************************************************************/
-std::shared_ptr<Data> FileHandler::getOpenData(const ndn::Interest &interest) {
-    Name name(interest.getName());
-    int ret = Open(
-        xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::open));
+std::shared_ptr<Data> FileHandler::getOpenData(ndn::Name &name,
+                                               const std::string path) {
+    int ret = Open(path);
     name.appendVersion();
 
     return m_packager->getPackage(name, ret);
@@ -111,10 +110,9 @@ int FileHandler::Open(std::string path) {
 /*****************************************************************************/
 /*                                 C l o s e                                 */
 /*****************************************************************************/
-std::shared_ptr<Data> FileHandler::getCloseData(const ndn::Interest &interest) {
-    Name name(interest.getName());
-    int ret = Close(
-        xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::close));
+std::shared_ptr<Data> FileHandler::getCloseData(ndn::Name &name,
+                                                const std::string path) {
+    int ret = Close(path);
     name.appendVersion();
 
     return m_packager->getPackage(name, ret);
@@ -140,11 +138,10 @@ int FileHandler::Close(std::string path) {
 /*****************************************************************************/
 /*                                F s t a t                                  */
 /*****************************************************************************/
-std::shared_ptr<Data> FileHandler::getFStatData(const ndn::Interest &interest) {
-    Name name(interest.getName());
+std::shared_ptr<Data> FileHandler::getFStatData(ndn::Name &name,
+                                                const std::string path) {
     struct stat info;
-    int ret = Fstat(&info, xrdndn::Utils::getFilePathFromName(
-                               name, xrdndn::SystemCalls::fstat));
+    int ret = Fstat(&info, path);
     name.appendVersion();
 
     if (ret != 0) {
@@ -222,9 +219,6 @@ void FileHandler::readCacheLine(off_t offset) {
         }
 
         // Update previously empty cache line entry and notify waiting thread
-        // if (!m_LRUCache->at(i)) {
-        //     NDN_LOG_ERROR("entry doesn't exists!!");
-        // }
         boost::unique_lock<boost::mutex> lock(m_LRUCache->at(i)->mutex);
         auto entry = m_LRUCache->at(i);
         entry->data = data;
@@ -242,14 +236,11 @@ void FileHandler::waitForPackage(off_t segmentNo) {
 }
 
 // Return an ndn::Data package containing a chunk from the file
-std::shared_ptr<Data> FileHandler::getReadData(const ndn::Interest &interest) {
+std::shared_ptr<Data> FileHandler::getReadData(const off_t segmentNo,
+                                               ndn::Name &name,
+                                               const std::string path) {
     std::shared_ptr<Data> ret;
-    Name name(interest.getName());
-
     if (!m_fileDescriptor || !m_fileDescriptor->isOpened()) {
-        std::string path =
-            xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::read);
-
         NDN_LOG_WARN("GetReadData for file: " << path
                                               << " was not opened previosly.");
         if (Open(path) == XRDNDN_EFAILURE) {
@@ -258,7 +249,6 @@ std::shared_ptr<Data> FileHandler::getReadData(const ndn::Interest &interest) {
         }
     }
 
-    auto segmentNo = xrdndn::Utils::getSegmentFromPacket(interest);
     if (m_LRUCache->hasKey(segmentNo)) { // Cache HIT
         waitForPackage(segmentNo);
     } else { // Trigger a new task that will populate a cache line and notify

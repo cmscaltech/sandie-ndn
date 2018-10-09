@@ -60,10 +60,11 @@ class FileHandler : xrdndn::FileHandlerInterface {
     FileHandler();
     ~FileHandler();
 
-    std::shared_ptr<Data> getOpenData(const ndn::Interest &interest);
-    std::shared_ptr<Data> getCloseData(const ndn::Interest &interest);
-    std::shared_ptr<Data> getFStatData(const ndn::Interest &interest);
-    std::shared_ptr<Data> getReadData(const ndn::Interest &interest);
+    std::shared_ptr<Data> getOpenData(ndn::Name &name, const std::string path);
+    std::shared_ptr<Data> getCloseData(ndn::Name &name, const std::string path);
+    std::shared_ptr<Data> getFStatData(ndn::Name &name, const std::string path);
+    std::shared_ptr<Data> getReadData(const off_t segmentNo, ndn::Name &name,
+                                      const std::string path);
 
   private:
     virtual int Open(std::string path) override;

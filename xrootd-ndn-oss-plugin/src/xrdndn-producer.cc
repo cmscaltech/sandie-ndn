@@ -176,7 +176,7 @@ void Producer::onFstatInterest(const ndn::InterestFilter &,
             name, xrdndn::SystemCalls::fstat);
 
         insertNewFileHandler(path);
-        auto data = _FileHandlers.at(path)->getFStatData(name, path);
+        auto data = m_FileHandlers.at(path)->getFStatData(name, path);
 
         NDN_LOG_TRACE("Sending: " << *data);
         m_face.put(*data);
@@ -192,7 +192,7 @@ void Producer::onReadInterest(const InterestFilter &,
             xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::read);
 
         insertNewFileHandler(path);
-        auto data = _FileHandlers.at(path)->getReadData(
+        auto data = m_FileHandlers.at(path)->getReadData(
             xrdndn::Utils::getSegmentFromPacket(interest), name, path);
 
         NDN_LOG_TRACE("Sending: " << *data);

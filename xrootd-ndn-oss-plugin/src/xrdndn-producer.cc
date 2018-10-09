@@ -33,9 +33,9 @@ namespace xrdndnproducer {
 Producer::Producer(Face &face)
     : m_face(face), m_OpenFilterId(nullptr), m_CloseFilterId(nullptr),
       m_ReadFilterId(nullptr) {
+
     NDN_LOG_TRACE("Alloc xrdndn::Producer");
     this->registerPrefix();
-    m_fileHandler = std::make_shared<FileHandler>();
     m_packager = std::make_shared<Packager>();
 }
 
@@ -176,7 +176,7 @@ void Producer::onFstatInterest(const ndn::InterestFilter &,
             name, xrdndn::SystemCalls::fstat);
 
         insertNewFileHandler(path);
-        auto data = m_fileHandler->getFStatData(name, path);
+        auto data = _FileHandlers.at(path)->getFStatData(name, path);
 
         NDN_LOG_TRACE("Sending: " << *data);
         m_face.put(*data);
@@ -192,7 +192,7 @@ void Producer::onReadInterest(const InterestFilter &,
             xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::read);
 
         insertNewFileHandler(path);
-        auto data = m_fileHandler->getReadData(
+        auto data = _FileHandlers.at(path)->getReadData(
             xrdndn::Utils::getSegmentFromPacket(interest), name, path);
 
         NDN_LOG_TRACE("Sending: " << *data);

@@ -53,7 +53,6 @@ class Producer : noncopyable {
 
     xrdndn::ThreadSafeUMap<std::string, std::shared_ptr<FileHandler>>
         m_FileHandlers;
-    std::shared_ptr<FileHandler> m_fileHandler;
     std::shared_ptr<Packager> m_packager;
 
     const ndn::RegisteredPrefixId *m_xrdndnPrefixId;

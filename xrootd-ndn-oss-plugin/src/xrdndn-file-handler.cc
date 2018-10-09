@@ -33,11 +33,7 @@ FileDescriptor::FileDescriptor(const char *filePath) {
     m_fd = open(filePath, O_RDONLY);
 }
 
-FileDescriptor::~FileDescriptor() {
-    if (isOpened()) {
-        close(m_fd);
-    }
-}
+FileDescriptor::~FileDescriptor() { closeFD(); }
 
 int FileDescriptor::get() { return m_fd; }
 
@@ -45,8 +41,13 @@ bool FileDescriptor::isOpened() {
     if (this->m_fd != -1) {
         return true;
     }
-
     return false;
+}
+
+void FileDescriptor::closeFD() {
+    if (isOpened()) {
+        close(m_fd);
+    }
 }
 
 FileHandler::FileHandler()
@@ -128,6 +129,7 @@ int FileHandler::Close(std::string path) {
         m_scheduler.scheduleEvent(CLOSING_FILE_DELAY, [this, path] {
             if (m_fileDescriptor) {
                 NDN_LOG_INFO("Closing file: " << path);
+                m_fileDescriptor->closeFD();
             }
         });
 

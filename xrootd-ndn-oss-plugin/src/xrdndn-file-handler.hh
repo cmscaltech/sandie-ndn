@@ -46,6 +46,7 @@ class FileDescriptor {
 
     int get();
     bool isOpened();
+    void closeFD();
 
   private:
     int m_fd;

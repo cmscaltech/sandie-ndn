@@ -27,6 +27,9 @@
 namespace xrdndn {
 template <typename K, typename V> class ThreadSafeUMap {
   public:
+    typedef typename std::unordered_map<K, V>::iterator ThreadSafeUUmapIterator;
+
+  public:
     ThreadSafeUMap() = default;
 
     ~ThreadSafeUMap() { this->clear(); }
@@ -59,9 +62,9 @@ template <typename K, typename V> class ThreadSafeUMap {
         return it == this->m_unorderedMap.end() ? 0 : 1;
     }
 
-    void insert(std::pair<K, V> element) {
+    std::pair<ThreadSafeUUmapIterator, bool> insert(std::pair<K, V> element) {
         boost::unique_lock<boost::shared_mutex> lock(mutex_);
-        this->m_unorderedMap.insert(element);
+        return this->m_unorderedMap.insert(element);
     }
 
     size_t size() {

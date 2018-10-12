@@ -62,7 +62,7 @@ class Producer : noncopyable {
     const ndn::InterestFilterId *m_ReadFilterId;
 
     void registerPrefix();
-    void insertNewFileHandler(std::string path);
+    bool setFileHandler(std::string path);
 };
 
 } // namespace xrdndnproducer

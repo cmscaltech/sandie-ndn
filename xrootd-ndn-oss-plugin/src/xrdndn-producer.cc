@@ -120,18 +120,25 @@ void Producer::registerPrefix() {
     }
 }
 
-void Producer::insertNewFileHandler(std::string path) {
-    if (!m_FileHandlers.hasKey(path)) {
-        auto entry = std::make_shared<FileHandler>();
-        m_FileHandlers.insert(
-            std::make_pair<std::string &, std::shared_ptr<FileHandler> &>(
-                path, entry));
+bool Producer::setFileHandler(std::string path) {
+    if (m_FileHandlers.hasKey(path)) {
+        return true;
     }
+
+    auto entry = std::make_shared<FileHandler>();
+    auto ret = m_FileHandlers.insert(
+        std::make_pair<std::string &, std::shared_ptr<FileHandler> &>(path,
+                                                                      entry));
+
+    if (!ret.second) {
+        NDN_LOG_ERROR("Failed to create file handler for: " << path);
+        return false;
+    }
+    return true;
 }
 
 void Producer::onOpenInterest(const InterestFilter &,
                               const Interest &interest) {
-
     m_face.getIoService().post([&] {
         NDN_LOG_TRACE("onOpenInterest: " << interest);
 
@@ -139,8 +146,12 @@ void Producer::onOpenInterest(const InterestFilter &,
         std::string path =
             xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::open);
 
-        insertNewFileHandler(path);
-        auto data = m_FileHandlers.at(path)->getOpenData(name, path);
+        std::shared_ptr<Data> data;
+        if (!setFileHandler(path)) {
+            data = m_packager->getPackage(name, XRDNDN_EFAILURE);
+        } else {
+            data = m_FileHandlers.at(path)->getOpenData(name, path);
+        }
 
         NDN_LOG_TRACE("Sending: " << *data);
         m_face.put(*data);
@@ -175,8 +186,12 @@ void Producer::onFstatInterest(const ndn::InterestFilter &,
         std::string path = xrdndn::Utils::getFilePathFromName(
             name, xrdndn::SystemCalls::fstat);
 
-        insertNewFileHandler(path);
-        auto data = m_FileHandlers.at(path)->getFStatData(name, path);
+        std::shared_ptr<Data> data;
+        if (!setFileHandler(path)) {
+            data = m_packager->getPackage(name, XRDNDN_EFAILURE);
+        } else {
+            data = m_FileHandlers.at(path)->getFStatData(name, path);
+        }
 
         NDN_LOG_TRACE("Sending: " << *data);
         m_face.put(*data);
@@ -191,9 +206,13 @@ void Producer::onReadInterest(const InterestFilter &,
         std::string path =
             xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::read);
 
-        insertNewFileHandler(path);
-        auto data = m_FileHandlers.at(path)->getReadData(
-            xrdndn::Utils::getSegmentFromPacket(interest), name, path);
+        std::shared_ptr<Data> data;
+        if (!setFileHandler(path)) {
+            data = m_packager->getPackage(name, XRDNDN_EFAILURE);
+        } else {
+            data = m_FileHandlers.at(path)->getReadData(
+                xrdndn::Utils::getSegmentFromPacket(interest), name, path);
+        }
 
         NDN_LOG_TRACE("Sending: " << *data);
         m_face.put(*data);

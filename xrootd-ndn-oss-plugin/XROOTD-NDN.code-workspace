@@ -68,7 +68,7 @@
 			"thread": "cpp",
 			"variant": "cpp"
 		},
-		"workbench.colorTheme": "Visual Studio Dark",
+		"workbench.colorTheme": "Default Dark+",
 		"window.zoomLevel": 0,
 		"fileHeaderComment.parameter":{
 			"*":{

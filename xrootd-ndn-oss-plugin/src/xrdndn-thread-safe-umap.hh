@@ -27,7 +27,7 @@
 namespace xrdndn {
 template <typename K, typename V> class ThreadSafeUMap {
   public:
-    typedef typename std::unordered_map<K, V>::iterator ThreadSafeUUmapIterator;
+    typedef typename std::unordered_map<K, V>::const_iterator const_iterator;
 
   public:
     ThreadSafeUMap() = default;
@@ -54,6 +54,11 @@ template <typename K, typename V> class ThreadSafeUMap {
         return this->m_unorderedMap.erase(key);
     }
 
+    const_iterator erase(const_iterator it) {
+        boost::unique_lock<boost::shared_mutex> lock(mutex_);
+        return this->m_unorderedMap.erase(it);
+    }
+
     size_t hasKey(const K &key) {
         boost::shared_lock<boost::shared_mutex> lock(mutex_);
         typename std::unordered_map<K, V>::const_iterator it =
@@ -62,7 +67,7 @@ template <typename K, typename V> class ThreadSafeUMap {
         return it == this->m_unorderedMap.end() ? 0 : 1;
     }
 
-    std::pair<ThreadSafeUUmapIterator, bool> insert(std::pair<K, V> element) {
+    std::pair<const_iterator, bool> insert(std::pair<K, V> element) {
         boost::unique_lock<boost::shared_mutex> lock(mutex_);
         return this->m_unorderedMap.insert(element);
     }
@@ -74,16 +79,11 @@ template <typename K, typename V> class ThreadSafeUMap {
 
     /* Iteration over this containter must be handled in a thread
      * safe manner by the user using the public mutex of this class. */
-
-    typename std::unordered_map<K, V>::const_iterator begin() {
-        return this->m_unorderedMap.begin();
-    }
+    const_iterator begin() { return this->m_unorderedMap.begin(); }
 
     /* Thread safety must be handled by end user using the mutex of this
      * class.*/
-    typename std::unordered_map<K, V>::const_iterator end() {
-        return this->m_unorderedMap.end();
-    }
+    const_iterator end() { return this->m_unorderedMap.end(); }
 
   public:
     mutable boost::shared_mutex mutex_;

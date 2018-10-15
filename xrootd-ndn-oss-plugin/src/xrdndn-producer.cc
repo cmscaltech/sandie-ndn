@@ -37,6 +37,10 @@ Producer::Producer(Face &face)
     NDN_LOG_TRACE("Alloc xrdndn::Producer");
     this->registerPrefix();
     m_packager = std::make_shared<Packager>();
+    m_GarbageCollectorTimer =
+        std::make_shared<system_timer>(m_face.getIoService());
+    m_GarbageCollectorTimer->async_wait(
+        std::bind(&Producer::onGarbageCollector, this));
 }
 
 Producer::~Producer() {
@@ -56,6 +60,7 @@ Producer::~Producer() {
         m_face.unsetInterestFilter(m_ReadFilterId);
     }
 
+    m_GarbageCollectorTimer->cancel();
     m_face.shutdown();
     m_FileHandlers.clear();
 }
@@ -120,6 +125,23 @@ void Producer::registerPrefix() {
     }
 }
 
+void Producer::onGarbageCollector() {
+    boost::unique_lock<boost::shared_mutex>(m_FileHandlers.mutex_);
+    auto it = m_FileHandlers.begin();
+    while (it != m_FileHandlers.end()) {
+        if (it->second->refCount == 0) {
+            NDN_LOG_INFO("Dealloc FileHandler object for file: " << it->first);
+            it = m_FileHandlers.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    m_GarbageCollectorTimer->expires_from_now(std::chrono::seconds(90));
+    m_GarbageCollectorTimer->async_wait(
+        std::bind(&Producer::onGarbageCollector, this));
+}
+
 bool Producer::setFileHandler(std::string path) {
     if (m_FileHandlers.hasKey(path)) {
         return true;
@@ -132,6 +154,7 @@ bool Producer::setFileHandler(std::string path) {
 
     if (!ret.second) {
         NDN_LOG_ERROR("Failed to create file handler for: " << path);
+        m_FileHandlers.erase(path);
         return false;
     }
     return true;

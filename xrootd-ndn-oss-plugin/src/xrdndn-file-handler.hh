@@ -67,6 +67,9 @@ class FileHandler : xrdndn::FileHandlerInterface {
     std::shared_ptr<Data> getReadData(const off_t segmentNo, ndn::Name &name,
                                       const std::string path);
 
+  public:
+    size_t refCount;
+
   private:
     virtual int Open(std::string path) override;
     virtual int Close(std::string path) override;

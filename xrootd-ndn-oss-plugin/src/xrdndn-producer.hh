@@ -21,7 +21,9 @@
 #ifndef XRDNDN_PRODUCER_HH
 #define XRDNDN_PRODUCER_HH
 
+#include <boost/asio/basic_waitable_timer.hpp>
 #include <boost/noncopyable.hpp>
+#include <chrono>
 #include <ndn-cxx/face.hpp>
 
 #include "xrdndn-file-handler.hh"
@@ -31,6 +33,9 @@ using boost::noncopyable;
 
 namespace xrdndnproducer {
 class Producer : noncopyable {
+    typedef boost::asio::basic_waitable_timer<std::chrono::system_clock>
+        system_timer;
+
   public:
     Producer(ndn::Face &face);
     ~Producer();
@@ -48,12 +53,15 @@ class Producer : noncopyable {
     void onReadInterest(const ndn::InterestFilter &,
                         const ndn::Interest &interest);
 
+    void onGarbageCollector();
+
   private:
     ndn::Face &m_face;
 
     xrdndn::ThreadSafeUMap<std::string, std::shared_ptr<FileHandler>>
         m_FileHandlers;
     std::shared_ptr<Packager> m_packager;
+    std::shared_ptr<system_timer> m_GarbageCollectorTimer;
 
     const ndn::RegisteredPrefixId *m_xrdndnPrefixId;
     const ndn::InterestFilterId *m_OpenFilterId;

@@ -51,7 +51,7 @@ void FileDescriptor::closeFD() {
 }
 
 FileHandler::FileHandler()
-    : m_ioServiceWork(m_ioService), m_scheduler(m_ioService) {
+    : refCount(1), m_ioServiceWork(m_ioService), m_scheduler(m_ioService) {
     for (size_t i = 0; i < NUM_THREADS_PER_FILEHANDLER; ++i) {
         m_threads.create_thread(
             std::bind(static_cast<size_t (boost::asio::io_service::*)()>(
@@ -91,6 +91,7 @@ int FileHandler::Open(std::string path) {
             NDN_LOG_INFO(
                 "File already opened. Cancel closing task in progress.");
             m_scheduler.cancelEvent(m_fileClosingEvent);
+            refCount = 1;
         }
 
         return XRDNDN_ESUCCESS;
@@ -105,6 +106,7 @@ int FileHandler::Open(std::string path) {
 
     NDN_LOG_INFO("Opened file: " << path);
     m_filePath = path;
+    refCount = 1;
     return XRDNDN_ESUCCESS;
 }
 
@@ -130,6 +132,7 @@ int FileHandler::Close(std::string path) {
             if (m_fileDescriptor) {
                 NDN_LOG_INFO("Closing file: " << path);
                 m_fileDescriptor->closeFD();
+                refCount = 0;
             }
         });
 

@@ -37,7 +37,7 @@ static const std::vector<const char *> filesList = {
     "2gb_file"*/};
 
 int _test_readFile(std::string path, std::string outputPath) {
-    xrdndn::Consumer consumer;
+    xrdndnconsumer::Consumer consumer;
 
     try {
         std::ofstream output(outputPath, std::ofstream::binary);

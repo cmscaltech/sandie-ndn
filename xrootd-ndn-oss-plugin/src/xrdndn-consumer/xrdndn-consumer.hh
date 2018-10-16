@@ -32,14 +32,14 @@
 #include "../common/xrdndn-common.hh"
 #include "../common/xrdndn-dfh-interface.hh"
 
-namespace xrdndn {
+namespace xrdndnconsumer {
 static const uint8_t MAX_RETRIES = 32;
 static const ndn::time::milliseconds CONGESTION_TIMEOUT =
     ndn::time::seconds(10);
 
 static const ndn::time::milliseconds TIMEOUT = ndn::time::seconds(2);
 
-class Consumer : FileHandlerInterface {
+class Consumer : xrdndn::FileHandlerInterface {
   public:
     Consumer();
     ~Consumer();
@@ -66,12 +66,14 @@ class Consumer : FileHandlerInterface {
     int m_retRead;
 
     const ndn::Interest composeInterest(const ndn::Name name);
-    void expressInterest(const ndn::Interest &interest, const SystemCalls call);
+    void expressInterest(const ndn::Interest &interest,
+                         const xrdndn::SystemCalls call);
     int processEvents();
 
     void onNack(const ndn::Interest &interest, const ndn::lp::Nack &nack,
-                const SystemCalls call);
-    void onTimeout(const ndn::Interest &interest, const SystemCalls call);
+                const xrdndn::SystemCalls call);
+    void onTimeout(const ndn::Interest &interest,
+                   const xrdndn::SystemCalls call);
     void onOpenData(const ndn::Interest &interest, const ndn::Data &data);
     void onCloseData(const ndn::Interest &interest, const ndn::Data &data);
     void onFstatData(const ndn::Interest &interest, const ndn::Data &data);
@@ -89,6 +91,6 @@ class Consumer : FileHandlerInterface {
                                                                      : value;
     }
 };
-} // namespace xrdndn
+} // namespace xrdndnconsumer
 
 #endif // XRDNDN_CONSUMER_HH

@@ -21,14 +21,13 @@
 #include <functional>
 #include <iostream>
 
+#include "../common/xrdndn-logger.hh"
 #include "../common/xrdndn-utils.hh"
 #include "xrdndn-consumer.hh"
 
 using namespace ndn;
 
-NDN_LOG_INIT(xrdndnconsumer);
-
-namespace xrdndn {
+namespace xrdndnconsumer {
 Consumer::Consumer()
     : m_scheduler(m_face.getIoService()),
       m_validator(security::v2::getAcceptAllValidator()), m_nTimeouts(0),
@@ -68,19 +67,19 @@ const Interest Consumer::composeInterest(const Name name) {
 
 // Express interest on face for a given system call.
 void Consumer::expressInterest(const Interest &interest,
-                               const SystemCalls call) {
+                               const xrdndn::SystemCalls call) {
     std::function<void(const Interest &interest, const Data &data)> onData;
     switch (call) {
-    case (SystemCalls::open):
+    case (xrdndn::SystemCalls::open):
         onData = bind(&Consumer::onOpenData, this, _1, _2);
         break;
-    case (SystemCalls::close):
+    case (xrdndn::SystemCalls::close):
         onData = bind(&Consumer::onCloseData, this, _1, _2);
         break;
-    case (SystemCalls::read):
+    case (xrdndn::SystemCalls::read):
         onData = bind(&Consumer::onReadData, this, _1, _2);
         break;
-    case (SystemCalls::fstat):
+    case (xrdndn::SystemCalls::fstat):
         onData = bind(&Consumer::onFstatData, this, _1, _2);
         break;
     default:
@@ -105,7 +104,7 @@ int Consumer::processEvents() {
 
 // On NACK, the interest will be send again for MAX_ENTRIES times.
 void Consumer::onNack(const Interest &interest, const lp::Nack &nack,
-                      const SystemCalls call) {
+                      const xrdndn::SystemCalls call) {
     if (m_nNacks > MAX_RETRIES) {
         NDN_LOG_WARN("Reached the maximum number of nack retries: "
                      << m_nNacks << " while retrieving data for: " << interest);
@@ -134,7 +133,8 @@ void Consumer::onNack(const Interest &interest, const lp::Nack &nack,
 }
 
 // On timeout, retry for MAX_RETRIES times
-void Consumer::onTimeout(const Interest &interest, const SystemCalls call) {
+void Consumer::onTimeout(const Interest &interest,
+                         const xrdndn::SystemCalls call) {
     NDN_LOG_TRACE("Timeout for interest: " << interest);
 
     if (m_nTimeouts > MAX_RETRIES) {
@@ -169,9 +169,9 @@ void Consumer::onOpenData(const Interest &interest, const Data &data) {
 }
 
 int Consumer::Open(std::string path) {
-    Interest openInterest =
-        this->composeInterest(Utils::interestName(SystemCalls::open, path));
-    this->expressInterest(openInterest, SystemCalls::open);
+    Interest openInterest = this->composeInterest(
+        xrdndn::Utils::interestName(xrdndn::SystemCalls::open, path));
+    this->expressInterest(openInterest, xrdndn::SystemCalls::open);
 
     NDN_LOG_TRACE("Sending open file interest: " << openInterest);
     if (this->processEvents()) {
@@ -199,9 +199,9 @@ void Consumer::onCloseData(const Interest &interest, const Data &data) {
 }
 
 int Consumer::Close(std::string path) {
-    Interest openInterest =
-        this->composeInterest(Utils::interestName(SystemCalls::close, path));
-    this->expressInterest(openInterest, SystemCalls::close);
+    Interest openInterest = this->composeInterest(
+        xrdndn::Utils::interestName(xrdndn::SystemCalls::close, path));
+    this->expressInterest(openInterest, xrdndn::SystemCalls::close);
 
     NDN_LOG_TRACE("Sending close file interest: " << openInterest);
     if (this->processEvents()) {
@@ -238,9 +238,9 @@ void Consumer::onFstatData(const ndn::Interest &interest,
 int Consumer::Fstat(struct stat *buff, std::string path) {
     this->flush();
 
-    Interest fstatInterest =
-        this->composeInterest(Utils::interestName(SystemCalls::fstat, path));
-    this->expressInterest(fstatInterest, SystemCalls::fstat);
+    Interest fstatInterest = this->composeInterest(
+        xrdndn::Utils::interestName(xrdndn::SystemCalls::fstat, path));
+    this->expressInterest(fstatInterest, xrdndn::SystemCalls::fstat);
 
     NDN_LOG_TRACE("Sending fstat interest: " << fstatInterest);
     if (this->processEvents()) {
@@ -265,7 +265,8 @@ void Consumer::onReadData(const ndn::Interest &interest,
                 m_retRead = XRDNDN_EFAILURE;
                 m_face.shutdown();
             } else {
-                m_bufferedData[Utils::getSegmentFromPacket(data)] = dataPtr;
+                m_bufferedData[xrdndn::Utils::getSegmentFromPacket(data)] =
+                    dataPtr;
             }
         },
         [](const Data &, const security::v2::ValidationError &error) {
@@ -285,11 +286,12 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
         ++lastSegment;
 
     for (auto i = firstSegment; i <= lastSegment; ++i) {
-        Name name = Utils::interestName(SystemCalls::read, path);
+        Name name =
+            xrdndn::Utils::interestName(xrdndn::SystemCalls::read, path);
         name.appendSegment(i); // segment no.
 
         Interest readInterest = this->composeInterest(name);
-        this->expressInterest(readInterest, SystemCalls::read);
+        this->expressInterest(readInterest, xrdndn::SystemCalls::read);
 
         NDN_LOG_TRACE("Sending read file interest: " << readInterest);
 
@@ -329,4 +331,4 @@ void Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {
         }
     }
 }
-} // namespace xrdndn
+} // namespace xrdndnconsumer

@@ -20,10 +20,10 @@
 
 #include <iostream>
 
-#include "xrdndn-common.hh"
-#include "xrdndn-logger.hh"
+#include "../common/xrdndn-common.hh"
+#include "../common/xrdndn-logger.hh"
+#include "../common/xrdndn-utils.hh"
 #include "xrdndn-producer.hh"
-#include "xrdndn-utils.hh"
 
 using namespace ndn;
 using namespace xrdndn;

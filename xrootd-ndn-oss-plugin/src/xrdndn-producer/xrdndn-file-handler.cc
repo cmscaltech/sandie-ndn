@@ -23,10 +23,10 @@
 #include <iostream>
 #include <unistd.h>
 
-#include "xrdndn-common.hh"
+#include "../common/xrdndn-common.hh"
+#include "../common/xrdndn-logger.hh"
+#include "../common/xrdndn-utils.hh"
 #include "xrdndn-file-handler.hh"
-#include "xrdndn-logger.hh"
-#include "xrdndn-utils.hh"
 
 namespace xrdndnproducer {
 FileDescriptor::FileDescriptor(const char *filePath) {

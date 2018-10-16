@@ -26,7 +26,7 @@ add_definitions(-DBOOST_LOG_DYN_LINK)
 # Compile libXrdNdnFS.so
 add_library(XrdNdnFS MODULE 
     src/xrootd-ndn-fs/xrdndnfs.cc 
-    src/xrdndn-consumer.cc)
+    src/xrdndn-consumer/xrdndn-consumer.cc)
 
 target_link_libraries(XrdNdnFS 
     Boost::system Boost::log 
@@ -38,8 +38,8 @@ target_include_directories(XrdNdnFS SYSTEM PUBLIC ${XROOTD_INCLUDES})
 
 # Compile xrdndn-consumer application
 add_executable(xrdndn-consumer 
-    src/xrdndn-consumer-main.cc 
-    src/xrdndn-consumer.cc)
+    src/xrdndn-consumer/xrdndn-consumer-main.cc
+    src/xrdndn-consumer/xrdndn-consumer.cc)
 
 target_link_libraries(xrdndn-consumer 
     Boost::system Boost::log 
@@ -48,10 +48,10 @@ target_link_libraries(xrdndn-consumer
 
 # Compile xrdndn-producer application
 add_executable(xrdndn-producer 
-    src/xrdndn-producer-main.cc
-    src/xrdndn-packager.cc
-    src/xrdndn-file-handler.cc
-    src/xrdndn-producer.cc)
+    src/xrdndn-producer/xrdndn-producer-main.cc
+    src/xrdndn-producer/xrdndn-packager.cc
+    src/xrdndn-producer/xrdndn-file-handler.cc
+    src/xrdndn-producer/xrdndn-producer.cc)
 
 target_link_libraries(xrdndn-producer 
     ${Boost_LIBRARIES} 

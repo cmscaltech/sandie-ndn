@@ -28,7 +28,7 @@
 #include <list>
 #include <unordered_map>
 
-#include "xrdndn-logger.hh"
+#include "../common/xrdndn-logger.hh"
 
 namespace xrdndnproducer {
 template <typename T> class LRUCacheEntry {

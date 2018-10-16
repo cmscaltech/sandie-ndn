@@ -21,8 +21,8 @@
 #include <functional>
 #include <iostream>
 
+#include "../common/xrdndn-utils.hh"
 #include "xrdndn-consumer.hh"
-#include "xrdndn-utils.hh"
 
 using namespace ndn;
 
@@ -31,9 +31,8 @@ NDN_LOG_INIT(xrdndnconsumer);
 namespace xrdndn {
 Consumer::Consumer()
     : m_scheduler(m_face.getIoService()),
-      m_validator(security::v2::getAcceptAllValidator()),
-      m_nTimeouts(0), m_nNacks(0),
-      m_buffOffset(XRDNDN_ESUCCESS), m_retOpen(XRDNDN_EFAILURE),
+      m_validator(security::v2::getAcceptAllValidator()), m_nTimeouts(0),
+      m_nNacks(0), m_buffOffset(XRDNDN_ESUCCESS), m_retOpen(XRDNDN_EFAILURE),
       m_retClose(XRDNDN_EFAILURE), m_retFstat(XRDNDN_EFAILURE),
       m_retRead(XRDNDN_ESUCCESS) {
     m_bufferedData.clear();
@@ -149,8 +148,7 @@ void Consumer::onTimeout(const Interest &interest, const SystemCalls call) {
     Interest newInterest(interest);
     newInterest.refreshNonce();
     m_scheduler.scheduleEvent(
-            TIMEOUT,
-            bind(&Consumer::expressInterest, this, interest, call));
+        TIMEOUT, bind(&Consumer::expressInterest, this, interest, call));
 }
 
 /*****************************************************************************/

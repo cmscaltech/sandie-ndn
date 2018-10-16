@@ -29,16 +29,15 @@
 #include <ndn-cxx/util/scheduler.hpp>
 #include <ndn-cxx/util/time.hpp>
 
-#include "xrdndn-common.hh"
-#include "xrdndn-dfh-interface.hh"
+#include "../common/xrdndn-common.hh"
+#include "../common/xrdndn-dfh-interface.hh"
 
 namespace xrdndn {
 static const uint8_t MAX_RETRIES = 32;
 static const ndn::time::milliseconds CONGESTION_TIMEOUT =
     ndn::time::seconds(10);
 
-static const ndn::time::milliseconds TIMEOUT =
-    ndn::time::seconds(2);
+static const ndn::time::milliseconds TIMEOUT = ndn::time::seconds(2);
 
 class Consumer : FileHandlerInterface {
   public:

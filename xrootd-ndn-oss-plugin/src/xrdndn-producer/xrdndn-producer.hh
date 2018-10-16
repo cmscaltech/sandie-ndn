@@ -26,8 +26,8 @@
 #include <chrono>
 #include <ndn-cxx/face.hpp>
 
+#include "../common/xrdndn-thread-safe-umap.hh"
 #include "xrdndn-file-handler.hh"
-#include "xrdndn-thread-safe-umap.hh"
 
 using boost::noncopyable;
 

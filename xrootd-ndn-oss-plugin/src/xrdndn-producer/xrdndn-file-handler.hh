@@ -29,7 +29,7 @@
 #include <boost/thread/condition.hpp>
 #include <boost/thread/thread.hpp>
 
-#include "xrdndn-dfh-interface.hh"
+#include "../common/xrdndn-dfh-interface.hh"
 #include "xrdndn-lru-cache.hh"
 #include "xrdndn-packager.hh"
 

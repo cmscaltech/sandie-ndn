@@ -20,8 +20,8 @@
 
 #include <math.h>
 
-#include "xrdndn-common.hh"
-#include "xrdndn-logger.hh"
+#include "../common/xrdndn-common.hh"
+#include "../common/xrdndn-logger.hh"
 #include "xrdndn-packager.hh"
 
 using namespace ndn;

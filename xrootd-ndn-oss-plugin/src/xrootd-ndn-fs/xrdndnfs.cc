@@ -24,7 +24,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "../xrdndn-consumer.hh"
+#include "../xrdndn-consumer/xrdndn-consumer.hh"
 #include "xrdndnfs.hh"
 
 /*****************************************************************************/

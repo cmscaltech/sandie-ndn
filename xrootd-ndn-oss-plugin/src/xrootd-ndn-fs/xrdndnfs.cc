@@ -70,7 +70,7 @@ int XrdNdnFsFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
 
     filePath = std::string(path);
 
-    xrdndn::Consumer consumer;
+    xrdndnconsumer::Consumer consumer;
     int retOpen = consumer.Open(filePath);
     return retOpen;
 }
@@ -81,7 +81,7 @@ int XrdNdnFsFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
 int XrdNdnFsFile::Fstat(struct stat *buf) {
     // XrdNdnFS.Say("Fstat on file: ", filePath.c_str());
 
-    xrdndn::Consumer consumer;
+    xrdndnconsumer::Consumer consumer;
     return consumer.Fstat(buf, filePath);
 }
 
@@ -91,7 +91,7 @@ int XrdNdnFsFile::Fstat(struct stat *buf) {
 ssize_t XrdNdnFsFile::Read(void *buff, off_t offset, size_t blen) {
     // XrdNdnFS.Say("Read file: ", filePath.c_str());
 
-    xrdndn::Consumer consumer;
+    xrdndnconsumer::Consumer consumer;
     int retRead = consumer.Read(buff, offset, blen, filePath);
     return retRead;
 }
@@ -114,7 +114,7 @@ int XrdNdnFsFile::Read(XrdSfsAio *aiop) {
 /*****************************************************************************/
 int XrdNdnFsFile::Close(long long *) {
     // XrdNdnFS.Say("Close file: ", filePath.c_str());
-    xrdndn::Consumer consumer;
+    xrdndnconsumer::Consumer consumer;
     consumer.Close(filePath);
     return 0;
 }

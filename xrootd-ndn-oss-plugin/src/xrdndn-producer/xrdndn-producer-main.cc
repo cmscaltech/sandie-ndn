@@ -21,20 +21,49 @@
 #include <iostream>
 #include <ndn-cxx/face.hpp>
 
+#include <boost/asio/io_service.hpp>
+#include <boost/thread/thread.hpp>
+
+#include "../common/xrdndn-logger.hh"
 #include "xrdndn-producer.hh"
 
 namespace xrdndnproducer {
 
-int main() {
-    ndn::Face face;
+#define NUM_FACE_WORKERS 32
 
+static boost::asio::io_service ioService;
+static boost::thread_group threads;
+
+int main() {
+    auto addWorkerThreads = [&]() {
+        NDN_LOG_INFO("[main]: "
+                     << NUM_FACE_WORKERS
+                     << " threads were added for processing face events.");
+        for (size_t i = 0; i < NUM_FACE_WORKERS; ++i)
+            threads.create_thread(
+                std::bind(static_cast<size_t (boost::asio::io_service::*)()>(
+                              &boost::asio::io_service::run),
+                          &ioService));
+    };
+
+    auto joinWorkerThreads = [&]() {
+        NDN_LOG_INFO("[main]: Joining " << NUM_FACE_WORKERS
+                                        << " processing threads from face.");
+        threads.join_all();
+    };
+
+    addWorkerThreads();
+    ndn::Face face(ioService);
     try {
         Producer producer(face);
         face.processEvents();
     } catch (const std::exception &e) {
-        std::cerr << "ERROR: xrdndnproducer: " << e.what() << std::endl;
+        NDN_LOG_ERROR("[main]: " << e.what());
+        joinWorkerThreads();
         return 1;
     }
+
+    joinWorkerThreads();
     return 0;
 }
 } // namespace xrdndnproducer

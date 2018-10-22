@@ -102,12 +102,15 @@ int Consumer::processEvents() {
     return XRDNDN_ESUCCESS;
 }
 
-// On NACK, the interest will be send again for MAX_ENTRIES times.
+// On NACK, the interest will be send again for MAX_ENTRIES times o DUPLICATE
+// or CONGESTION reasons.
 void Consumer::onNack(const Interest &interest, const lp::Nack &nack,
                       const xrdndn::SystemCalls call) {
-    if (m_nNacks > MAX_RETRIES) {
+    NDN_LOG_TRACE("NACK with reason: " << nack.getReason() << " for interest "
+                                       << interest);
+    if (m_nNacks >= MAX_RETRIES) {
         NDN_LOG_WARN("Reached the maximum number of nack retries: "
-                     << m_nNacks << " while retrieving data for: " << interest);
+                     << m_nNacks << " while retrieving Data for: " << interest);
         return;
     } else {
         ++m_nNacks;
@@ -118,16 +121,21 @@ void Consumer::onNack(const Interest &interest, const lp::Nack &nack,
 
     switch (nack.getReason()) {
     case lp::NackReason::DUPLICATE:
-        this->expressInterest(newInterest, call);
+        NDN_LOG_TRACE("Resending interest: " << interest);
+        m_scheduler.scheduleEvent(
+            DUPLICATE_BACKOFF,
+            bind(&Consumer::expressInterest, this, interest, call));
         break;
     case lp::NackReason::CONGESTION:
+        NDN_LOG_TRACE("Resending interest: " << interest);
         m_scheduler.scheduleEvent(
-            CONGESTION_TIMEOUT,
+            CONGESTION_BACKOFF,
             bind(&Consumer::expressInterest, this, interest, call));
         break;
     default:
-        NDN_LOG_WARN("Received NACK with reason: "
-                     << nack.getReason() << " for interest " << interest);
+        NDN_LOG_WARN("NACK with reason: "
+                     << nack.getReason()
+                     << " does not trigger a retry for interest: " << interest);
         break;
     }
 }
@@ -137,18 +145,21 @@ void Consumer::onTimeout(const Interest &interest,
                          const xrdndn::SystemCalls call) {
     NDN_LOG_TRACE("Timeout for interest: " << interest);
 
-    if (m_nTimeouts > MAX_RETRIES) {
+    if (m_nTimeouts >= MAX_RETRIES) {
         NDN_LOG_WARN("Reached the maximum number of timeout retries: "
                      << m_nTimeouts
-                     << " while retrieving data for: " << interest);
+                     << " while retrieving Data for: " << interest);
         return;
+    } else {
+        ++m_nTimeouts;
     }
-    ++m_nTimeouts;
 
     Interest newInterest(interest);
     newInterest.refreshNonce();
-    m_scheduler.scheduleEvent(
-        TIMEOUT, bind(&Consumer::expressInterest, this, interest, call));
+
+    NDN_LOG_TRACE("Resending interest: " << interest);
+    m_scheduler.scheduleEvent(TIMEOUT_BACKOFF, bind(&Consumer::expressInterest,
+                                                    this, interest, call));
 }
 
 /*****************************************************************************/
@@ -164,7 +175,7 @@ void Consumer::onOpenData(const Interest &interest, const Data &data) {
         },
         [](const Data &, const security::v2::ValidationError &error) {
             NDN_LOG_ERROR(
-                "Error while validating data for open: " << error.getInfo());
+                "Error while validating Data for open: " << error.getInfo());
         });
 }
 
@@ -194,7 +205,7 @@ void Consumer::onCloseData(const Interest &interest, const Data &data) {
         },
         [](const Data &, const security::v2::ValidationError &error) {
             NDN_LOG_ERROR(
-                "Error while validating data for close: " << error.getInfo());
+                "Error while validating Data for close: " << error.getInfo());
         });
 }
 
@@ -231,7 +242,7 @@ void Consumer::onFstatData(const ndn::Interest &interest,
         },
         [](const Data &, const security::v2::ValidationError &error) {
             NDN_LOG_ERROR(
-                "Error while validating data for fstat: " << error.getInfo());
+                "Error while validating Data for fstat: " << error.getInfo());
         });
 }
 
@@ -271,7 +282,7 @@ void Consumer::onReadData(const ndn::Interest &interest,
         },
         [](const Data &, const security::v2::ValidationError &error) {
             NDN_LOG_ERROR(
-                "Error while validating data for read: " << error.getInfo());
+                "Error while validating Data for read: " << error.getInfo());
         });
 }
 

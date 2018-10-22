@@ -34,10 +34,11 @@
 
 namespace xrdndnconsumer {
 static const uint8_t MAX_RETRIES = 32;
-static const ndn::time::milliseconds CONGESTION_TIMEOUT =
-    ndn::time::seconds(10);
 
-static const ndn::time::milliseconds TIMEOUT = ndn::time::seconds(2);
+static const ndn::time::milliseconds DUPLICATE_BACKOFF = ndn::time::seconds(1);
+static const ndn::time::milliseconds CONGESTION_BACKOFF =
+    ndn::time::seconds(10);
+static const ndn::time::milliseconds TIMEOUT_BACKOFF = ndn::time::seconds(2);
 
 class Consumer : xrdndn::FileHandlerInterface {
   public:

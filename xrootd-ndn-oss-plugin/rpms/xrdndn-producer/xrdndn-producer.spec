@@ -1,5 +1,5 @@
 Name:    xrdndn-producer
-Version: 0.1.2
+Version: 0.1.3
 Release: 1%{?dist}
 Summary: Named Data Networking (NDN) Producer for xrootd plugin
 Group:   System Environment/Development
@@ -68,6 +68,11 @@ systemctl start xrdndn-producer.service
 %{_sysconfdir}/rsyslog.d/xrdndn-producer-rsyslog.conf
 
 %changelog
+* Wed Oct 24 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.3
+- Performance improvements.
+- There are 32 threads processing request on the ndn::Face.
+- In addition, a FileHandler object has been introduced, which is processing one file using two threads.
+
 * Thu Sep 21 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.2
 - On close interest a task is scheduled to close the file in 180s.
 - Install NDN producer as a systemd service in CentOS 7 / RHEL.

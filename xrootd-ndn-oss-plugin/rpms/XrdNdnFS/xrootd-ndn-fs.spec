@@ -1,5 +1,5 @@
 Name:    xrootd-ndn-fs
-Version: 0.1.2
+Version: 0.1.3
 Release: 1%{?dist}
 Summary: Named Data Networking (NDN) based Open Storage System plugin for xrootd
 Group:   System Environment/Development
@@ -43,6 +43,10 @@ cp ../rpms/XrdNdnFS/xrootd.sample.ndnfd.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
 %{_sysconfdir}/xrootd/xrootd.sample.ndnfd.cfg
 
 %changelog
+* Wed Oct 24 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.3
+- More verbose on the NACK and Timeout scenarios.
+- Small bug fixes.
+
 * Thu Sep 21 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.2
 - Handle Consumer runtime errors gracefully.
 - Close return value from Producer is not be considered as NDN is stateless.

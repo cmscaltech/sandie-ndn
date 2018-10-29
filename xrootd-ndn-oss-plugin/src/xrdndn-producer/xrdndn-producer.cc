@@ -38,7 +38,7 @@ Producer::Producer(Face &face)
     this->registerPrefix();
     m_packager = std::make_shared<Packager>();
     m_GarbageCollectorTimer =
-        std::make_shared<system_timer>(m_face.getIoService());
+        std::make_shared<SystemTimer>(m_face.getIoService());
     m_GarbageCollectorTimer->async_wait(
         std::bind(&Producer::onGarbageCollector, this));
 }

@@ -55,10 +55,13 @@ template <typename T> class LRUCacheEntry {
 };
 
 template <typename K, typename V> class LRUCache {
-    typedef std::list<K> List; // For O(1) access time in cache
-    typedef std::shared_ptr<LRUCacheEntry<V>> Entry;
-    typedef std::unordered_map<K, std::pair<Entry, typename List::iterator>>
-        Cache;
+    using List = std::list<K>; // For O(1) access time in cache
+    using ListIterator = typename List::iterator;
+
+    using Entry = std::shared_ptr<LRUCacheEntry<V>>;
+
+    using Cache = std::unordered_map<K, std::pair<Entry, ListIterator>>;
+    using CacheIterator = typename Cache::iterator;
 
   public:
     LRUCache(size_t cache_size, size_t cache_line_size)
@@ -89,7 +92,7 @@ template <typename K, typename V> class LRUCache {
         }
 
         boost::unique_lock<boost::shared_mutex> lock(m_mutex);
-        typename List::iterator it = m_List.insert(m_List.end(), key);
+        ListIterator it = m_List.insert(m_List.end(), key);
         m_Cache.insert(std::make_pair(key, std::make_pair(value, it)));
     }
 
@@ -114,7 +117,7 @@ template <typename K, typename V> class LRUCache {
         }
 
         boost::unique_lock<boost::shared_mutex> lock(m_mutex);
-        const typename Cache::iterator it = m_Cache.find(m_List.front());
+        CacheIterator it = m_Cache.find(m_List.front());
 
         if (it->second.first->avoidEviction) {
             m_List.splice(m_List.end(), m_List, it->second.second);

@@ -27,7 +27,7 @@
 namespace xrdndn {
 template <typename K, typename V> class ThreadSafeUMap {
   public:
-    typedef typename std::unordered_map<K, V>::const_iterator const_iterator;
+    using const_iterator = typename std::unordered_map<K, V>::const_iterator;
 
   public:
     ThreadSafeUMap() = default;

@@ -33,8 +33,8 @@ using boost::noncopyable;
 
 namespace xrdndnproducer {
 class Producer : noncopyable {
-    typedef boost::asio::basic_waitable_timer<std::chrono::system_clock>
-        system_timer;
+    using SystemTimer =
+        boost::asio::basic_waitable_timer<std::chrono::system_clock>;
 
   public:
     Producer(ndn::Face &face);
@@ -61,7 +61,7 @@ class Producer : noncopyable {
     xrdndn::ThreadSafeUMap<std::string, std::shared_ptr<FileHandler>>
         m_FileHandlers;
     std::shared_ptr<Packager> m_packager;
-    std::shared_ptr<system_timer> m_GarbageCollectorTimer;
+    std::shared_ptr<SystemTimer> m_GarbageCollectorTimer;
 
     const ndn::RegisteredPrefixId *m_xrdndnPrefixId;
     const ndn::InterestFilterId *m_OpenFilterId;

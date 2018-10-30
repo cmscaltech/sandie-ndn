@@ -31,45 +31,37 @@
 namespace xrdndn {
 class Utils {
   public:
-    // NDN Interest specific helper functions //
-
-    // Returns Name prefix for a system call
-    static ndn::Name interestPrefix(SystemCalls sc) {
+    // Given a SystemCall, it returns the Interest/Data Name prefix for it
+    static ndn::Name interestPrefix(SystemCalls sc) noexcept {
         return ndn::Name(PLUGIN_INTEREST_PREFIX_URI).append(enumToString(sc));
     }
-    // Returns Name for a give system call on a file at path
-    static ndn::Name interestName(SystemCalls sc, std::string path) {
+    // Given a file path and a SystemCall, it returns the Interest/Data Name
+    // prefix for it
+    static ndn::Name interestName(SystemCalls sc, std::string path) noexcept {
         return interestPrefix(sc).append(path);
     }
 
-    // NDN Name specific helper functions //
+    // Returns file path from the ndn::Name for a SystemCall
+    static std::string getFilePathFromName(ndn::Name name,
+                                           SystemCalls sc) noexcept {
+        auto subNameToUri = [name](ssize_t iStartComponent,
+                                   size_t nComponents) {
+            return name.getSubName(iStartComponent, nComponents).toUri();
+        };
 
-    // Returns file path from the ndn::Name for a specific system call
-    static std::string getFilePathFromName(ndn::Name name, SystemCalls sc) {
-        std::string ret;
+        auto prefixSz = interestPrefix(sc).size();
+        auto nComponents = ndn::Name::npos;
 
-        switch (sc) {
-        case SystemCalls::read: {
-            size_t nPrefixSz = interestPrefix(sc).size();
-            size_t nComponents = name.size() - nPrefixSz - 1;
-            ret = name.getSubName(nPrefixSz, nComponents).toUri();
-            break;
-        }
-        case SystemCalls::open:
-        case SystemCalls::close:
-        case SystemCalls::fstat:
-        default:
-            ret = name.getSubName(interestPrefix(sc).size(), ndn::Name::npos)
-                      .toUri();
-            break;
+        if (sc == SystemCalls::read) {
+            nComponents = name.size() - prefixSz - 1;
         }
 
-        return ret;
+        return subNameToUri(prefixSz, nComponents);
     }
 
     // Returns segment number for read file system call specific request
     template <typename Packet>
-    static uint64_t getSegmentFromPacket(const Packet &packet) {
+    static uint64_t getSegmentFromPacket(const Packet &packet) noexcept {
         ndn::Name name = packet.getName();
 
         if (name.at(-1).isVersion()) {

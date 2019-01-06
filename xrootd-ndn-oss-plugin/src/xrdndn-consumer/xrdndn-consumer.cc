@@ -60,7 +60,7 @@ void Consumer::flush() {
 // Return an interest for the given name.
 const Interest Consumer::composeInterest(const Name name) {
     Interest interest(name);
-    interest.setInterestLifetime(DEFAULT_INTEREST_LIFETIME);
+    interest.setInterestLifetime(16_s);
     interest.setMustBeFresh(true);
     return interest;
 }
@@ -305,10 +305,10 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
         this->expressInterest(readInterest, xrdndn::SystemCalls::read);
 
         NDN_LOG_TRACE("Sending read file interest: " << readInterest);
+    }
 
-        if (this->processEvents()) {
-            return XRDNDN_EFAILURE;
-        }
+    if (this->processEvents()) {
+        return XRDNDN_EFAILURE;
     }
 
     this->saveDataInOrder(buff, offset, blen);

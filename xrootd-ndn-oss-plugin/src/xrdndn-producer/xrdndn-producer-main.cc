@@ -22,6 +22,9 @@
 #include <ndn-cxx/face.hpp>
 
 #include <boost/asio/io_service.hpp>
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/variables_map.hpp>
 #include <boost/thread/thread.hpp>
 
 #include "../common/xrdndn-logger.hh"
@@ -34,7 +37,7 @@ namespace xrdndnproducer {
 static boost::asio::io_service ioService;
 static boost::thread_group threads;
 
-int main() {
+int run(const Producer::Options &opts) {
     auto addWorkerThreads = [&]() {
         NDN_LOG_INFO("[main]: "
                      << NUM_FACE_WORKERS
@@ -55,17 +58,71 @@ int main() {
     addWorkerThreads();
     ndn::Face face(ioService);
     try {
-        Producer producer(face);
+        Producer producer(face, opts);
         face.processEvents();
     } catch (const std::exception &e) {
         NDN_LOG_ERROR("[main]: " << e.what());
         joinWorkerThreads();
-        return 1;
+        return 2;
     }
 
     joinWorkerThreads();
     return 0;
 }
+
+static void usage(std::ostream &os, const std::string &programName,
+                  const boost::program_options::options_description &desc) {
+    os << "Usage: " << programName
+       << " [options]\n Note: This application can be run without "
+          "arguments.\n\n"
+       << desc;
+}
+
+int main(int argc, char **argv) {
+    std::string programName = argv[0];
+
+    Producer::Options opts;
+
+    boost::program_options::options_description description("Options");
+    description.add_options()("help,h", "Print this help message and exit")(
+        "precache-files,P",
+        boost::program_options::bool_switch(&opts.precacheFile),
+        "Precache files in memory before responding to read interests")(
+        "signer-type,s",
+        boost::program_options::value<uint32_t>(&opts.signerType)
+            ->default_value(opts.signerType),
+        "Signer type: 0, 1, 2, 3 or 4. See more information at "
+        "https://named-data.net/doc/NDN-packet-spec/current/signature.html");
+
+    boost::program_options::variables_map vm;
+
+    try {
+        boost::program_options::store(
+            boost::program_options::command_line_parser(argc, argv)
+                .options(description)
+                .run(),
+            vm);
+        boost::program_options::notify(vm);
+    } catch (const boost::program_options::error &e) {
+        NDN_LOG_ERROR("[main]: " << e.what());
+        return 2;
+    } catch (const boost::bad_any_cast &e) {
+        NDN_LOG_ERROR("[main]: " << e.what());
+        return 2;
+    }
+
+    if (vm.count("help") > 0) {
+        usage(std::cout, programName, description);
+        return 0;
+    }
+
+    if (opts.signerType > 4) {
+        NDN_LOG_ERROR("[main]: Signer type value must be 0, 1, 2, 3 or 4");
+        return 2;
+    }
+
+    return run(opts);
+}
 } // namespace xrdndnproducer
 
-int main(int, char **) { return xrdndnproducer::main(); }
+int main(int argc, char **argv) { return xrdndnproducer::main(argc, argv); }

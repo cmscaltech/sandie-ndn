@@ -107,6 +107,7 @@
 				"${commentend}",
 				""
 			]
-		}
+		},
+		"python.pythonPath": "/usr/bin/python"
 	}
 }

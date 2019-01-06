@@ -12,7 +12,7 @@ endif()
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Search for required libraries to compile the sources
-find_package(Boost 1.58 REQUIRED COMPONENTS system log thread)
+find_package(Boost 1.58 REQUIRED COMPONENTS system log thread program_options)
 find_package(ndn-cxx 0.6.2 REQUIRED)
 find_package(Threads)
 find_package(xrootd-utils)

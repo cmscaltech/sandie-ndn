@@ -27,7 +27,7 @@
 namespace xrdndnproducer {
 class Packager {
   public:
-    Packager();
+    Packager(uint32_t signerType);
     ~Packager();
 
     std::shared_ptr<ndn::Data> getPackage(const ndn::Name &name, int value);
@@ -39,6 +39,7 @@ class Packager {
 
   private:
     ndn::KeyChain m_keyChain;
+    ndn::security::SigningInfo::SignerType m_signerType;
     mutable boost::shared_mutex m_mutex;
 };
 } // namespace xrdndnproducer

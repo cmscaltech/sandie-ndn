@@ -27,12 +27,16 @@
 using namespace ndn;
 
 namespace xrdndnproducer {
-Packager::Packager() {}
+Packager::Packager(uint32_t signerType) {
+    m_signerType =
+        static_cast<ndn::security::SigningInfo::SignerType>(signerType);
+}
 Packager::~Packager() {}
 
 void Packager::digest(std::shared_ptr<ndn::Data> &data) {
     data->setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
-    m_keyChain.sign(*data); // signWithDigestSha256
+    security::SigningInfo signingInfo(m_signerType);
+    m_keyChain.sign(*data, signingInfo);
 }
 
 // Prepare Data containing an non/negative integer

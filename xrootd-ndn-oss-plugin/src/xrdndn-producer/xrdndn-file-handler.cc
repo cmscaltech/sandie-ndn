@@ -50,7 +50,7 @@ void FileDescriptor::closeFD() {
     }
 }
 
-FileHandler::FileHandler()
+FileHandler::FileHandler(uint32_t signerType)
     : refCount(1), m_ioServiceWork(m_ioService), m_scheduler(m_ioService) {
     for (size_t i = 0; i < NUM_THREADS_PER_FILEHANDLER; ++i) {
         m_threads.create_thread(
@@ -62,7 +62,7 @@ FileHandler::FileHandler()
     m_LRUCache =
         std::make_shared<LRUCache<uint64_t, Data>>(CACHE_SZ, CACHE_LINE_SZ);
 
-    m_packager = std::make_shared<Packager>();
+    m_packager = std::make_shared<Packager>(signerType);
 }
 
 FileHandler::~FileHandler() {

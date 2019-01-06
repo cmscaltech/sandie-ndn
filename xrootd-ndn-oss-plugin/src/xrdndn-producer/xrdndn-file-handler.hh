@@ -58,7 +58,7 @@ class FileHandler : xrdndn::FileHandlerInterface {
     const size_t CACHE_LINE_SZ = 148; // 1036 KB
 
   public:
-    FileHandler();
+    FileHandler(uint32_t signerType);
     ~FileHandler();
 
     std::shared_ptr<Data> getOpenData(ndn::Name &name, const std::string path);

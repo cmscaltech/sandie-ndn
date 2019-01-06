@@ -30,13 +30,13 @@ using namespace xrdndn;
 
 namespace xrdndnproducer {
 
-Producer::Producer(Face &face)
-    : m_face(face), m_OpenFilterId(nullptr), m_CloseFilterId(nullptr),
-      m_ReadFilterId(nullptr) {
+Producer::Producer(Face &face, const Options &opts)
+    : m_face(face), m_options(opts), m_OpenFilterId(nullptr),
+      m_CloseFilterId(nullptr), m_ReadFilterId(nullptr) {
 
     NDN_LOG_TRACE("Alloc xrdndn::Producer");
     this->registerPrefix();
-    m_packager = std::make_shared<Packager>();
+    m_packager = std::make_shared<Packager>(opts.signerType);
     m_GarbageCollectorTimer =
         std::make_shared<SystemTimer>(m_face.getIoService());
     m_GarbageCollectorTimer->async_wait(
@@ -147,7 +147,7 @@ bool Producer::setFileHandler(std::string path) {
         return true;
     }
 
-    auto entry = std::make_shared<FileHandler>();
+    auto entry = std::make_shared<FileHandler>(m_options.signerType);
     auto ret = m_FileHandlers.insert(
         std::make_pair<std::string &, std::shared_ptr<FileHandler> &>(path,
                                                                       entry));

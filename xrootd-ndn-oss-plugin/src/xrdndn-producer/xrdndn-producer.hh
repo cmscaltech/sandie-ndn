@@ -37,7 +37,13 @@ class Producer : noncopyable {
         boost::asio::basic_waitable_timer<std::chrono::system_clock>;
 
   public:
-    Producer(ndn::Face &face);
+    struct Options {
+        uint32_t signerType = 0;
+        bool precacheFile = false;
+    };
+
+  public:
+    Producer(ndn::Face &face, const Options &opts);
     ~Producer();
 
   private:
@@ -57,6 +63,7 @@ class Producer : noncopyable {
 
   private:
     ndn::Face &m_face;
+    const Options m_options;
 
     xrdndn::ThreadSafeUMap<std::string, std::shared_ptr<FileHandler>>
         m_FileHandlers;

@@ -104,10 +104,10 @@ int main(int argc, char **argv) {
             vm);
         boost::program_options::notify(vm);
     } catch (const boost::program_options::error &e) {
-        NDN_LOG_ERROR("[main]: " << e.what());
+        std::cerr << "ERROR: " << e.what());
         return 2;
     } catch (const boost::bad_any_cast &e) {
-        NDN_LOG_ERROR("[main]: " << e.what());
+        std::cerr << "ERROR: " << e.what());
         return 2;
     }
 
@@ -117,7 +117,8 @@ int main(int argc, char **argv) {
     }
 
     if (opts.signerType > 4) {
-        NDN_LOG_ERROR("[main]: Signer type value must be 0, 1, 2, 3 or 4");
+        std::cerr << "ERROR: Signer type value must be 0, 1, 2, 3 or 4"
+                  << std::endl;
         return 2;
     }
 

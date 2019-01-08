@@ -18,91 +18,155 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include <fstream>
 #include <iostream>
-#include <thread>
-#include <vector>
+#include <stdlib.h>
 
+#include <boost/filesystem.hpp>
+#include <boost/program_options/options_description.hpp>
+#include <boost/program_options/parsers.hpp>
+#include <boost/program_options/variables_map.hpp>
+
+#include "../common/xrdndn-logger.hh"
+#include "../common/xrdndn-throughput.hh"
 #include "xrdndn-consumer.hh"
 
-static const char *filesPath = "/root/test/path/for/ndn/xrd/";
-static const char *ext = ".out";
-static const std::vector<const char *> filesList = {
-    "inexistent_file",
-    "test.txt",
-    "convict-lake-autumn-4k-2k.jpg",
-    "wallpaper.wiki-Uhd-8k-river-wallpaperr-PIC-WPE0013289.jpg"//,
-    /*"empty_file.dat",
-    "1gb_file",
-    "2gb_file"*/};
+namespace xrdndnconsumer {
 
-int _test_readFile(std::string path, std::string outputPath) {
-    xrdndnconsumer::Consumer consumer;
+uint64_t bufferSize(262144);
 
+int copyFileOverNDN(std::string filePath) {
+    Consumer consumer;
     try {
-        std::ofstream output(outputPath, std::ofstream::binary);
-
-        int retOpen = consumer.Open(path);
-        if (retOpen)
+        int retOpen = consumer.Open(filePath);
+        if (retOpen) {
+            std::cerr << "ERROR: Unable to open file: " << filePath
+                      << std::endl;
             return -1;
+        }
 
         struct stat info;
-        int retFstat = consumer.Fstat(&info, path);
-
-        if (retFstat == 0) {
-            std::cout << "file_size = " << info.st_size << std::endl;
-        } else {
+        int retFstat = consumer.Fstat(&info, filePath);
+        if (retFstat) {
+            std::cerr << "ERROR: Unable to get fstat for file: " << filePath
+                      << std::endl;
             return -1;
         }
 
-        size_t blen = 262144; // 32768;
         off_t offset = 0;
-        std::string buff(blen, '\0');
+        std::string buff(bufferSize, '\0');
 
-        int ret = consumer.Read(&buff[0], offset, blen, path);
-        while (ret > 0) {
-            output.write(buff.data(), ret);
-            offset += ret;
-            ret = consumer.Read(&buff[0], offset, blen, path);
+        xrdndnconsumer::ThroughputComputation pThroughputComputation;
+        pThroughputComputation.start();
+
+        int retRead = consumer.Read(&buff[0], offset, bufferSize, filePath);
+        while (retRead > 0) {
+            offset += retRead;
+            retRead = consumer.Read(&buff[0], offset, bufferSize, filePath);
         }
-        output.close();
-        consumer.Close(path);
+
+        pThroughputComputation.stop();
+        consumer.Close(filePath);
+
+        pThroughputComputation.printSummary(consumer.getNoSegmentsReceived(),
+                                            filePath);
     } catch (const std::exception &e) {
-        std::cerr << "ERROR: _test_readFile: " << e.what() << std::endl;
+        std::cerr << "ERROR: " << e.what() << std::endl;
     }
 
     return 0;
 }
 
-int main(int, char **) {
-    // Single thread tests
-    for (uint64_t i = 0; i < filesList.size(); ++i) {
-        std::string pathIn(filesPath);
-        pathIn += filesList[i];
+int runTest(std::string dirPath, std::string filePath) {
+    int ret = 1;
 
-        std::string pathOut = pathIn + ext;
-        std::cout << "Read file: " << pathIn << " to: " << pathOut << std::endl;
-
-        _test_readFile(pathIn, pathOut);
+    if (boost::filesystem::is_directory(dirPath)) {
+        for (auto &entry : boost::make_iterator_range(
+                 boost::filesystem::directory_iterator(dirPath), {})) {
+            auto absolutePath =
+                boost::filesystem::canonical(entry.path(),
+                                             boost::filesystem::current_path())
+                    .string();
+            ret &= copyFileOverNDN(absolutePath);
+        }
     }
 
-    // Multi-threading tests
-    // std::thread threads[filesList.size()];
+    try {
+        auto absolutePath =
+            boost::filesystem::canonical(boost::filesystem::path(filePath),
+                                         boost::filesystem::current_path())
+                .string();
+        ret &= copyFileOverNDN(absolutePath);
+    } catch (const boost::filesystem::filesystem_error &e) {
+        std::cerr << "ERROR: " << e.what() << std::endl;
+        return 2;
+    }
 
-    // for (unsigned i = 0; i < filesList.size(); ++i) {
-    //     std::string pathIn(filesPath);
-    //     pathIn += filesList[i];
-
-    //     std::string pathOut = pathIn + ext;
-    //     std::cout << "Thread [" << i << "] Read file: " << pathIn
-    //               << " to: " << pathOut << std::endl;
-
-    //     threads[i] = std::thread(_test_readFile, pathIn, pathOut);
-    // }
-
-    // for (unsigned i = 0; i < filesList.size(); ++i) {
-    //     threads[i].join();
-    // }
-
-    return 0;
+    return ret;
 }
+
+static void usage(std::ostream &os, const std::string &programName,
+                  const boost::program_options::options_description &desc) {
+    os << "Usage: " << programName
+       << " [options]\nYou must specify one of dir/file parameters. \n\n"
+       << desc;
+}
+
+int main(int argc, char **argv) {
+    std::string programName = argv[0];
+
+    std::string filePath;
+    std::string dirPath;
+
+    boost::program_options::options_description description("Options");
+    description.add_options()(
+        "bsize,b",
+        boost::program_options::value<uint64_t>(&bufferSize)
+            ->default_value(bufferSize),
+        "Maximum size of the read buffer. The default is 262144. Specify any "
+        "value between 8KB and 1GB in bytes.")(
+        "dir,d", boost::program_options::value<std::string>(&dirPath),
+        "Path to a directory of files to be copied via NDN.")(
+        "file,f", boost::program_options::value<std::string>(&filePath),
+        "Path to the file to be copied via NDN.")(
+        "help,h", "Print this help message and exit");
+
+    boost::program_options::variables_map vm;
+    try {
+        boost::program_options::store(
+            boost::program_options::command_line_parser(argc, argv)
+                .options(description)
+                .run(),
+            vm);
+        boost::program_options::notify(vm);
+    } catch (const boost::program_options::error &e) {
+        std::cerr << "ERROR: " << e.what() << std::endl;
+        return 2;
+    } catch (const boost::bad_any_cast &e) {
+        std::cerr << "ERROR: " << e.what() << std::endl;
+        return 2;
+    }
+
+    if (vm.count("help") > 0) {
+        usage(std::cout, programName, description);
+        return 0;
+    }
+
+    if ((vm.count("file") == 0) && (vm.count("dir") == 0)) {
+        std::cerr << "ERROR: Specify path to a file or a directory if files to "
+                     "be copied over NDN."
+                  << std::endl;
+        usage(std::cerr, programName, description);
+        return 2;
+    }
+
+    if (bufferSize < 8192 || bufferSize > 1073741824) {
+        std::cerr << "ERROR: Buffer size must be between 8KB and 1GB."
+                  << std::endl;
+        return 2;
+    }
+
+    return runTest(dirPath, filePath);
+}
+} // namespace xrdndnconsumer
+
+int main(int argc, char **argv) { return xrdndnconsumer::main(argc, argv); }

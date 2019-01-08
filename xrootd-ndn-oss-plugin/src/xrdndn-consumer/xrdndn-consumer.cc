@@ -31,9 +31,9 @@ namespace xrdndnconsumer {
 Consumer::Consumer()
     : m_scheduler(m_face.getIoService()),
       m_validator(security::v2::getAcceptAllValidator()), m_nTimeouts(0),
-      m_nNacks(0), m_buffOffset(XRDNDN_ESUCCESS), m_retOpen(XRDNDN_EFAILURE),
-      m_retClose(XRDNDN_EFAILURE), m_retFstat(XRDNDN_EFAILURE),
-      m_retRead(XRDNDN_ESUCCESS) {
+      m_nNacks(0), m_SegmentsReceived(0), m_buffOffset(XRDNDN_ESUCCESS),
+      m_retOpen(XRDNDN_EFAILURE), m_retClose(XRDNDN_EFAILURE),
+      m_retFstat(XRDNDN_EFAILURE), m_retRead(XRDNDN_ESUCCESS) {
     m_bufferedData.clear();
 }
 
@@ -326,6 +326,7 @@ void Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {
         memcpy((uint8_t *)buff + m_buffOffset, content.value() + contentOffset,
                len);
         m_buffOffset += len;
+        ++m_SegmentsReceived;
     };
 
     for (auto it = m_bufferedData.begin(); it != m_bufferedData.end();
@@ -342,4 +343,6 @@ void Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {
         }
     }
 }
+
+int64_t Consumer::getNoSegmentsReceived() { return m_SegmentsReceived; }
 } // namespace xrdndnconsumer

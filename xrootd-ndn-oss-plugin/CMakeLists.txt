@@ -43,6 +43,7 @@ add_executable(xrdndn-consumer
 
 target_link_libraries(xrdndn-consumer 
     Boost::system Boost::log 
+    ${Boost_LIBRARIES}
     ${NDN_CXX_LIB} 
     ${CMAKE_THREAD_LIBS_INIT})
 

@@ -104,10 +104,10 @@ int main(int argc, char **argv) {
             vm);
         boost::program_options::notify(vm);
     } catch (const boost::program_options::error &e) {
-        std::cerr << "ERROR: " << e.what());
+        std::cerr << "ERROR: " << e.what() << std::endl;
         return 2;
     } catch (const boost::bad_any_cast &e) {
-        std::cerr << "ERROR: " << e.what());
+        std::cerr << "ERROR: " << e.what() << std::endl;
         return 2;
     }
 

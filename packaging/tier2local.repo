@@ -1,0 +1,5 @@
+[tier2local]
+name=Caltech Tier2 Local Repo
+baseurl=http://131.215.207.102/
+gpgcheck=0
+enabled=0

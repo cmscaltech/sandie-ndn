@@ -68,6 +68,7 @@ int copyFileOverNDN(std::string filePath) {
         consumer.Close(filePath);
 
         pThroughputComputation.printSummary(consumer.getNoSegmentsReceived(),
+                                            consumer.getDataSizeReceived(),
                                             filePath);
     } catch (const std::exception &e) {
         std::cerr << "ERROR: " << e.what() << std::endl;

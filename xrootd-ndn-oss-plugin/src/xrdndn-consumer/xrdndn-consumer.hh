@@ -52,6 +52,7 @@ class Consumer : xrdndn::FileHandlerInterface {
                          std::string path) override;
 
     int64_t getNoSegmentsReceived();
+    int64_t getDataSizeReceived();
 
   private:
     ndn::Face m_face;
@@ -59,7 +60,9 @@ class Consumer : xrdndn::FileHandlerInterface {
     ndn::security::v2::Validator &m_validator;
     int m_nTimeouts;
     int m_nNacks;
-    int64_t m_SegmentsReceived;
+
+    int64_t m_segmentsReceived;
+    int64_t m_dataSizeReceived;
 
     std::map<uint64_t, std::shared_ptr<const ndn::Data>> m_bufferedData;
     off_t m_buffOffset;

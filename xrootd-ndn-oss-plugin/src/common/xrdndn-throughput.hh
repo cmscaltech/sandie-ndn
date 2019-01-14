@@ -34,21 +34,19 @@ class ThroughputComputation {
     void start() { m_startTime = ndn::time::steady_clock::now(); }
     void stop() { m_endTime = ndn::time::steady_clock::now(); }
 
-    void printSummary(int64_t nSegmentsReceived = 0,
+    void printSummary(int64_t nSegmentsReceived = 0, int64_t nBytesReceived = 0,
                       std::string fileName = "") {
         ndn::time::duration<double, ndn::time::milliseconds::period>
             timeElapsed = m_endTime - m_startTime;
 
-        size_t m_receivedSize = nSegmentsReceived * XRDNDN_MAX_NDN_PACKET_SIZE;
-        double throughput = (8 * m_receivedSize * 1000) / timeElapsed.count();
+        double throughput = (8 * nBytesReceived * 1000) / timeElapsed.count();
 
-        std::cout
-            << "Not an actual error! All segments have been received for file: "
-            << fileName << "\nTime elapsed: " << timeElapsed
-            << "\nTotal # of segments received:" << nSegmentsReceived
-            << "\nTotal size: " << static_cast<double>(m_receivedSize) / 1000
-            << "kB"
-            << "\nThroughput: " << formatThroughput(throughput) << "\n\n";
+        std::cout << "All segments have been received for file: " << fileName
+                  << "\nTime elapsed: " << timeElapsed
+                  << "\nTotal # of segments received:" << nSegmentsReceived
+                  << "\nTotal size: "
+                  << static_cast<double>(nBytesReceived) / 1000 << " kB"
+                  << "\nThroughput: " << formatThroughput(throughput) << "\n\n";
     }
 
   private:

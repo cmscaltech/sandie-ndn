@@ -32,6 +32,7 @@
 #include "../common/xrdndn-dfh-interface.hh"
 #include "xrdndn-lru-cache.hh"
 #include "xrdndn-packager.hh"
+#include "xrdndn-producer-options.hh"
 
 using namespace ndn;
 
@@ -58,7 +59,7 @@ class FileHandler : xrdndn::FileHandlerInterface {
     const size_t CACHE_LINE_SZ = 148; // 1036 KB
 
   public:
-    FileHandler(uint32_t signerType);
+    FileHandler(const Options &opts);
     ~FileHandler();
 
     std::shared_ptr<Data> getOpenData(ndn::Name &name, const std::string path);
@@ -79,6 +80,7 @@ class FileHandler : xrdndn::FileHandlerInterface {
     void readCacheLine(off_t offset);
     void insertEmptyCacheLine(off_t offset);
     void waitForPackage(off_t segmentNo);
+    void cacheEntireFile(off_t fileSize, std::string path);
 
   private:
     boost::asio::io_service m_ioService;
@@ -93,6 +95,9 @@ class FileHandler : xrdndn::FileHandlerInterface {
     std::shared_ptr<FileDescriptor> m_fileDescriptor;
     std::shared_ptr<LRUCache<uint64_t, ndn::Data>> m_LRUCache;
     boost::mutex mtx_fileReader;
+
+    const Options m_options;
+    bool m_fileIsPrecached;
 };
 } // namespace xrdndnproducer
 

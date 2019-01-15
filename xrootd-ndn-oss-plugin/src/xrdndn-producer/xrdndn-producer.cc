@@ -147,7 +147,7 @@ bool Producer::setFileHandler(std::string path) {
         return true;
     }
 
-    auto entry = std::make_shared<FileHandler>(m_options.signerType);
+    auto entry = std::make_shared<FileHandler>(m_options);
     auto ret = m_FileHandlers.insert(
         std::make_pair<std::string &, std::shared_ptr<FileHandler> &>(path,
                                                                       entry));

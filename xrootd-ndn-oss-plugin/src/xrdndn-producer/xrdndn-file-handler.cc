@@ -50,8 +50,9 @@ void FileDescriptor::closeFD() {
     }
 }
 
-FileHandler::FileHandler(uint32_t signerType)
-    : refCount(1), m_ioServiceWork(m_ioService), m_scheduler(m_ioService) {
+FileHandler::FileHandler(const Options &opts)
+    : refCount(1), m_ioServiceWork(m_ioService), m_scheduler(m_ioService),
+      m_options(opts), m_fileIsPrecached(false) {
     for (size_t i = 0; i < NUM_THREADS_PER_FILEHANDLER; ++i) {
         m_threads.create_thread(
             std::bind(static_cast<size_t (boost::asio::io_service::*)()>(
@@ -62,7 +63,7 @@ FileHandler::FileHandler(uint32_t signerType)
     m_LRUCache =
         std::make_shared<LRUCache<uint64_t, Data>>(CACHE_SZ, CACHE_LINE_SZ);
 
-    m_packager = std::make_shared<Packager>(signerType);
+    m_packager = std::make_shared<Packager>(m_options.signerType);
 }
 
 FileHandler::~FileHandler() {
@@ -168,6 +169,10 @@ int FileHandler::Fstat(struct stat *buff, std::string path) {
         return XRDNDN_EFAILURE;
     }
 
+    if (m_options.precacheFile && !m_fileIsPrecached) {
+        cacheEntireFile(buff->st_size, path);
+    }
+
     NDN_LOG_INFO("Return fstat for file: " << path);
     return XRDNDN_ESUCCESS;
 }
@@ -175,6 +180,20 @@ int FileHandler::Fstat(struct stat *buff, std::string path) {
 /*****************************************************************************/
 /*                                  R e a d                                  */
 /*****************************************************************************/
+void FileHandler::cacheEntireFile(off_t fileSize, std::string path) {
+    NDN_LOG_INFO("Starting pre-caching file: " << path);
+    auto newCacheSize = fileSize / XRDNDN_MAX_NDN_PACKET_SIZE + CACHE_LINE_SZ;
+    m_LRUCache->resize(newCacheSize);
+
+    for (auto i = 0; i < newCacheSize; i += CACHE_LINE_SZ) {
+        insertEmptyCacheLine(i);
+        readCacheLine(i);
+    }
+
+    m_fileIsPrecached = true;
+    NDN_LOG_INFO("Finished pre-caching file: " << path);
+}
+
 // Read chunk from file
 ssize_t FileHandler::Read(void *buff, size_t count, off_t offset) {
     if (!m_fileDescriptor || !m_fileDescriptor->isOpened()) {

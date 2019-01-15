@@ -37,7 +37,7 @@ namespace xrdndnproducer {
 static boost::asio::io_service ioService;
 static boost::thread_group threads;
 
-int run(const Producer::Options &opts) {
+int run(const Options &opts) {
     auto addWorkerThreads = [&]() {
         NDN_LOG_INFO("[main]: "
                      << NUM_FACE_WORKERS
@@ -78,10 +78,18 @@ static void usage(std::ostream &os, const std::string &programName,
        << desc;
 }
 
+static void info(const Options &opts) {
+    NDN_LOG_INFO(
+        "\nThe suitable NDN Producer for the NDN based filesystem plugin for "
+        "XRootD.\nDeveloped by Caltech@CMS.\n\nSelected Options: Pre-cache "
+        "files: "
+        << opts.precacheFile << ", Signer Type: " << opts.signerType << "\n");
+}
+
 int main(int argc, char **argv) {
     std::string programName = argv[0];
 
-    Producer::Options opts;
+    Options opts;
 
     boost::program_options::options_description description("Options");
     description.add_options()("help,h", "Print this help message and exit")(
@@ -122,6 +130,7 @@ int main(int argc, char **argv) {
         return 2;
     }
 
+    info(opts);
     return run(opts);
 }
 } // namespace xrdndnproducer

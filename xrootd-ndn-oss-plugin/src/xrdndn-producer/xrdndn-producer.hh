@@ -28,6 +28,7 @@
 
 #include "../common/xrdndn-thread-safe-umap.hh"
 #include "xrdndn-file-handler.hh"
+#include "xrdndn-producer-options.hh"
 
 using boost::noncopyable;
 
@@ -35,12 +36,6 @@ namespace xrdndnproducer {
 class Producer : noncopyable {
     using SystemTimer =
         boost::asio::basic_waitable_timer<std::chrono::system_clock>;
-
-  public:
-    struct Options {
-        uint32_t signerType = 0;
-        bool precacheFile = false;
-    };
 
   public:
     Producer(ndn::Face &face, const Options &opts);

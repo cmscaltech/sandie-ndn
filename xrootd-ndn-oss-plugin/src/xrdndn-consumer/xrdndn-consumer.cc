@@ -59,9 +59,11 @@ void Consumer::flush() {
 }
 
 // Return an interest for the given name.
-const Interest Consumer::composeInterest(const Name name) {
+const Interest
+Consumer::composeInterest(const Name name,
+                          ndn::time::milliseconds lifetime /*16_s*/) {
     Interest interest(name);
-    interest.setInterestLifetime(16_s);
+    interest.setInterestLifetime(lifetime);
     interest.setMustBeFresh(true);
     return interest;
 }
@@ -251,7 +253,7 @@ int Consumer::Fstat(struct stat *buff, std::string path) {
     this->flush();
 
     Interest fstatInterest = this->composeInterest(
-        xrdndn::Utils::interestName(xrdndn::SystemCalls::fstat, path));
+        xrdndn::Utils::interestName(xrdndn::SystemCalls::fstat, path), 128_s);
     this->expressInterest(fstatInterest, xrdndn::SystemCalls::fstat);
 
     NDN_LOG_TRACE("Sending fstat interest: " << fstatInterest);

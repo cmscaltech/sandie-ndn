@@ -35,10 +35,10 @@
 namespace xrdndnconsumer {
 static const uint8_t MAX_RETRIES = 32;
 
-static const ndn::time::milliseconds DUPLICATE_BACKOFF = ndn::time::seconds(1);
+static const ndn::time::milliseconds DUPLICATE_BACKOFF = ndn::time::seconds(8);
 static const ndn::time::milliseconds CONGESTION_BACKOFF =
-    ndn::time::seconds(10);
-static const ndn::time::milliseconds TIMEOUT_BACKOFF = ndn::time::seconds(2);
+    ndn::time::seconds(16);
+static const ndn::time::milliseconds TIMEOUT_BACKOFF = ndn::time::seconds(8);
 
 class Consumer : xrdndn::FileHandlerInterface {
   public:
@@ -72,7 +72,9 @@ class Consumer : xrdndn::FileHandlerInterface {
     int m_retFstat;
     int m_retRead;
 
-    const ndn::Interest composeInterest(const ndn::Name name);
+    const ndn::Interest
+    composeInterest(const ndn::Name name,
+                    ndn::time::milliseconds lifetime = ndn::time::seconds(16));
     void expressInterest(const ndn::Interest &interest,
                          const xrdndn::SystemCalls call);
     int processEvents();

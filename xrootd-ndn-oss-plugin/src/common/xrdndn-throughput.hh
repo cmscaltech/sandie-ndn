@@ -41,7 +41,7 @@ class ThroughputComputation {
 
         double throughput = (8 * nBytesReceived * 1000) / timeElapsed.count();
 
-        std::cout << "All segments have been received for file: " << fileName
+        std::cout << "Transfer for file: " << fileName << " over NDN completed."
                   << "\nTime elapsed: " << timeElapsed
                   << "\nTotal # of segments received:" << nSegmentsReceived
                   << "\nTotal size: "

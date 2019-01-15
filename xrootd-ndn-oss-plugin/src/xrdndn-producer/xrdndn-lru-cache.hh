@@ -108,6 +108,8 @@ template <typename K, typename V> class LRUCache {
         return m_Cache[key].first;
     }
 
+    void resize(size_t cache_size) { m_cacheSz = cache_size; }
+
   private:
     // Remove Least Recently Used Cache line
     void evict() {

@@ -112,6 +112,15 @@ static void usage(std::ostream &os, const std::string &programName,
        << desc;
 }
 
+static void info(uint64_t bufferSz, std::string dirPath, std::string filePath) {
+    NDN_LOG_INFO(
+        "\nThe NDN Consumer used for the NDN based filesystem plugin for "
+        "XRootD.\nDeveloped by Caltech@CMS.\n\nSelected Options: Read buffer "
+        "size: "
+        << bufferSz << "B, Path to directory: " << dirPath
+        << ", Path to file: " << filePath << "\n");
+}
+
 int main(int argc, char **argv) {
     std::string programName = argv[0];
 
@@ -166,6 +175,7 @@ int main(int argc, char **argv) {
         return 2;
     }
 
+    info(bufferSize, dirPath, filePath);
     return runTest(dirPath, filePath);
 }
 } // namespace xrdndnconsumer

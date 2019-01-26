@@ -185,7 +185,7 @@ void FileHandler::cacheEntireFile(off_t fileSize, std::string path) {
     auto newCacheSize = fileSize / XRDNDN_MAX_NDN_PACKET_SIZE + CACHE_LINE_SZ;
     m_LRUCache->resize(newCacheSize);
 
-    for (auto i = 0; i < newCacheSize; i += CACHE_LINE_SZ) {
+    for (unsigned i = 0; i < newCacheSize; i += CACHE_LINE_SZ) {
         insertEmptyCacheLine(i);
         readCacheLine(i);
     }

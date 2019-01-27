@@ -77,3 +77,7 @@ endif()
 install(TARGETS xrdndn-producer
         RUNTIME DESTINATION ${BIN_INSTALL_DIR}
         OPTIONAL)
+
+install(TARGETS xrdndn-consumer
+        RUNTIME DESTINATION ${BIN_INSTALL_DIR}
+        OPTIONAL)

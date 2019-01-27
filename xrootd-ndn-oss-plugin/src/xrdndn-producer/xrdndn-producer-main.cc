@@ -72,8 +72,8 @@ int run(const Options &opts) {
 
 static void usage(std::ostream &os, const std::string &programName,
                   const boost::program_options::options_description &desc) {
-    os << "Usage: " << programName
-       << " [options]\n Note: This application can be run without "
+    os << "Usage: export NDN_LOG=\"xrdndnproducer*=INFO\" && " << programName
+       << " [options]\nNote: This application can be run without "
           "arguments.\n\n"
        << desc;
 }

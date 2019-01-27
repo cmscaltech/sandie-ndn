@@ -92,14 +92,17 @@ int runTest(std::string dirPath, std::string filePath) {
 
     // TODO: For the moment this will work only for local directories
     // as we don't offer support for directory operations over NDN yet.
-    if (boost::filesystem::is_directory(dirPath)) {
-        for (auto &entry : boost::make_iterator_range(
-                 boost::filesystem::directory_iterator(dirPath), {}))
-            startCopyFileOverNDN(entry.path());
-    } else {
-        NDN_LOG_INFO(dirPath
-                     << " is not a local directory. For the moment this option "
-                        "works only for local directories.");
+    if (!dirPath.empty()) {
+        if (boost::filesystem::is_directory(dirPath)) {
+            for (auto &entry : boost::make_iterator_range(
+                     boost::filesystem::directory_iterator(dirPath), {}))
+                startCopyFileOverNDN(entry.path());
+        } else {
+            NDN_LOG_INFO(
+                dirPath
+                << " is not a local directory. For the moment this option "
+                   "works only for local directories.");
+        }
     }
 
     if (boost::filesystem::exists(boost::filesystem::path(filePath)))
@@ -118,6 +121,12 @@ static void usage(std::ostream &os, const std::string &programName,
 }
 
 static void info(uint64_t bufferSz, std::string dirPath, std::string filePath) {
+    if (dirPath.empty())
+        dirPath = "N/A";
+
+    if (filePath.empty())
+        filePath = "N/A";
+
     NDN_LOG_INFO(
         "\nThe NDN Consumer used in the NDN based filesystem plugin for "
         "XRootD.\nDeveloped by Caltech@CMS.\n\nSelected Options: Read buffer "
@@ -129,8 +138,8 @@ static void info(uint64_t bufferSz, std::string dirPath, std::string filePath) {
 int main(int argc, char **argv) {
     std::string programName = argv[0];
 
-    std::string filePath("N/A");
-    std::string dirPath("N/A");
+    std::string filePath;
+    std::string dirPath;
 
     boost::program_options::options_description description("Options");
     description.add_options()(
@@ -167,9 +176,9 @@ int main(int argc, char **argv) {
     }
 
     if ((vm.count("file") == 0) && (vm.count("dir") == 0)) {
+        usage(std::cerr, programName, description);
         NDN_LOG_ERROR("Specify path to a file or a directory if files to "
                       "be copied over NDN.");
-        usage(std::cerr, programName, description);
         return 2;
     }
 

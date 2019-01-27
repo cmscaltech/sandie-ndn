@@ -33,7 +33,6 @@ make xrdndn-consumer VERBOSE=1
 %install
 cd %{SrcDir}/build
 make xrdndn-consumer install DESTDIR=$RPM_BUILD_ROOT
-mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/
 
 %files
 %{_bindir}/xrdndn-consumer

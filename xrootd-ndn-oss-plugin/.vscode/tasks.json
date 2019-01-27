@@ -31,7 +31,7 @@
             "label": "gdbserver-xrdndn-consumer",
             "dependsOn": "build-remote-xrdndn-consumer",
             "type": "shell",
-            "command": "ssh -L9091:localhost:9091 root@192.168.56.101 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9091 ./xrootd-ndn-oss-plugin/build/xrdndn-consumer'\"",
+            "command": "ssh -L9091:localhost:9091 root@192.168.56.101 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9091 ./xrootd-ndn-oss-plugin/build/xrdndn-consumer -f /root/test/path/for/ndn/xrd/1mb_file'\"",
             "isBackground": true
         },
         {

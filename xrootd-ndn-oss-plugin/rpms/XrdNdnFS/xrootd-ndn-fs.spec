@@ -50,7 +50,7 @@ cp ../rpms/XrdNdnFS/xrootd.sample.ndnfd.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
 - More verbose on the NACK and Timeout scenarios.
 - Small bug fixes.
 
-* Thu Sep 21 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.2
+* Fri Sep 21 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.2
 - Handle Consumer runtime errors gracefully.
 - Close return value from Producer is not be considered as NDN is stateless.
 

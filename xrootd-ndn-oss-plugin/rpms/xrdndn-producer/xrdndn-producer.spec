@@ -78,7 +78,7 @@ systemctl start xrdndn-producer.service
 - There are 32 threads processing request on the ndn::Face.
 - In addition, a FileHandler object has been introduced, which is processing one file using two threads.
 
-* Thu Sep 21 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.2
+* Fri Sep 21 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.2
 - On close interest a task is scheduled to close the file in 180s.
 - Install NDN producer as a systemd service in CentOS 7 / RHEL.
 - Resolved "corrupted data error" on XRootD Server.

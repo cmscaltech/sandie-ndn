@@ -41,12 +41,14 @@ class ThroughputComputation {
 
         double throughput = (8 * nBytesReceived * 1000) / timeElapsed.count();
 
-        std::cout << "Transfer for file: " << fileName << " over NDN completed."
-                  << "\nTime elapsed: " << timeElapsed
-                  << "\nTotal # of segments received:" << nSegmentsReceived
-                  << "\nTotal size: "
-                  << static_cast<double>(nBytesReceived) / 1000 << " kB"
-                  << "\nThroughput: " << formatThroughput(throughput) << "\n\n";
+        NDN_LOG_INFO("Transfer for file: "
+                     << fileName << " over NDN completed."
+                     << "\nTime elapsed: " << timeElapsed
+                     << "\nTotal # of segments received:" << nSegmentsReceived
+                     << "\nTotal size: "
+                     << static_cast<double>(nBytesReceived) / 1000 << " kB"
+                     << "\nThroughput: " << formatThroughput(throughput)
+                     << "\n");
     }
 
   private:

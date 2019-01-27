@@ -34,11 +34,9 @@ make xrdndn-consumer VERBOSE=1
 cd %{SrcDir}/build
 make xrdndn-consumer install DESTDIR=$RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/
-cp ../rpms/xrdndn-consumer/xrdndn-consumer-environment $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/xrdndn-consumer
 
 %files
 %{_bindir}/xrdndn-consumer
-%{_sysconfdir}/sysconfig/xrdndn-consumer
 
 %changelog
 * Sun Jan 27 2019 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.4

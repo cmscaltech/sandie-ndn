@@ -112,7 +112,7 @@ int runTest(std::string dirPath, std::string filePath) {
 
 static void usage(std::ostream &os, const std::string &programName,
                   const boost::program_options::options_description &desc) {
-    os << "Usage: " << programName
+    os << "Usage: export NDN_LOG=\"xrdndnconsumer*=INFO\" && " << programName
        << " [options]\nYou must specify one of dir/file parameters. \n\n"
        << desc;
 }

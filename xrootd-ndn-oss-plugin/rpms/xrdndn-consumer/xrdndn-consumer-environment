@@ -1,1 +1,0 @@
-NDN_LOG="xrdndnconsumer*=INFO:$NDN_LOG"

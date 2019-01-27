@@ -1,7 +1,7 @@
 Name:    xrdndn-producer
-Version: 0.1.3
+Version: 0.1.4
 Release: 1%{?dist}
-Summary: Named Data Networking (NDN) Producer for xrootd plugin
+Summary: Named Data Networking (NDN) Producer for XRootD plugin
 Group:   System Environment/Development
 License: GPLv3+
 URL:     https://github.com/cmscaltech/sandie-ndn.git
@@ -16,7 +16,7 @@ BuildRequires: xrootd-server-devel >= 4.8.0
 BuildRequires: systemd
 
 %description
-This is an NDN producer who compliments the NDN based File System XRootD Server plugin.
+This is the NDN Producer who compliments the NDN based File System XRootD Server plugin.
 
 %define RepoName sandie-ndn
 %define SrcDir %{RepoName}/xrootd-ndn-oss-plugin
@@ -68,12 +68,17 @@ systemctl start xrdndn-producer.service
 %{_sysconfdir}/rsyslog.d/xrdndn-producer-rsyslog.conf
 
 %changelog
+* Sun Jan 27 2019 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.4
+- Added command line options for the application.
+- To see the available command line options and how to use them run "xrdndn-producer -h".
+- Minor bugs have been solved.
+
 * Wed Oct 24 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.3
 - Performance improvements.
 - There are 32 threads processing request on the ndn::Face.
 - In addition, a FileHandler object has been introduced, which is processing one file using two threads.
 
-* Thu Sep 21 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.2
+* Fri Sep 21 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.2
 - On close interest a task is scheduled to close the file in 180s.
 - Install NDN producer as a systemd service in CentOS 7 / RHEL.
 - Resolved "corrupted data error" on XRootD Server.

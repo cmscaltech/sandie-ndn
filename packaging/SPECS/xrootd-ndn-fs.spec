@@ -1,7 +1,7 @@
 Name:    xrootd-ndn-fs
-Version: 0.1.3
+Version: 0.1.4
 Release: 1%{?dist}
-Summary: Named Data Networking (NDN) based Open Storage System plugin for xrootd
+Summary: Named Data Networking (NDN) based Open Storage System plugin for XRootD
 Group:   System Environment/Development
 License: GPLv3+
 URL:     https://github.com/cmscaltech/sandie-ndn.git
@@ -14,7 +14,7 @@ BuildRequires: xrootd-devel >= 4.8.0
 BuildRequires: xrootd-server-devel >= 4.8.0
 
 %description
-This is a plugin for xrootd. It implements an Named Data Networking (NDN) based
+This is a plugin for XRootD. It implements an Named Data Networking (NDN) based
 File System. Currently it offers support for: open, fstat, close and read file system calls.
 
 %define RepoName sandie-ndn
@@ -43,11 +43,14 @@ cp ../rpms/XrdNdnFS/xrootd.sample.ndnfd.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
 %{_sysconfdir}/xrootd/xrootd.sample.ndnfd.cfg
 
 %changelog
+* Sun Jan 27 2019 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.4
+- Minor bugs have been solved.
+
 * Wed Oct 24 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.3
 - More verbose on the NACK and Timeout scenarios.
 - Small bug fixes.
 
-* Thu Sep 21 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.2
+* Fri Sep 21 2018 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.2
 - Handle Consumer runtime errors gracefully.
 - Close return value from Producer is not be considered as NDN is stateless.
 

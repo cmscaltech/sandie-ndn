@@ -1,1 +1,1 @@
-NDN_LOG="xrdndnproducer*=INFO:$NDN_LOG"
+NDN_LOG="xrdndnproducer*=INFO"

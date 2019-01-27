@@ -39,16 +39,14 @@ int copyFileOverNDN(std::string filePath) {
     try {
         int retOpen = consumer.Open(filePath);
         if (retOpen) {
-            std::cerr << "ERROR: Unable to open file: " << filePath
-                      << std::endl;
+            NDN_LOG_ERROR("Unable to open file: " << filePath);
             return -1;
         }
 
         struct stat info;
         int retFstat = consumer.Fstat(&info, filePath);
         if (retFstat) {
-            std::cerr << "ERROR: Unable to get fstat for file: " << filePath
-                      << std::endl;
+            NDN_LOG_ERROR("Unable to get fstat for file: " << filePath);
             return -1;
         }
 
@@ -71,7 +69,7 @@ int copyFileOverNDN(std::string filePath) {
                                             consumer.getDataSizeReceived(),
                                             filePath);
     } catch (const std::exception &e) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
+        NDN_LOG_ERROR(e.what());
     }
 
     return 0;
@@ -80,27 +78,34 @@ int copyFileOverNDN(std::string filePath) {
 int runTest(std::string dirPath, std::string filePath) {
     int ret = 1;
 
+    auto startCopyFileOverNDN = [&](boost::filesystem::path filePath) {
+        try {
+            auto absolutePath = boost::filesystem::canonical(
+                                    filePath, boost::filesystem::current_path())
+                                    .string();
+            ret &= copyFileOverNDN(absolutePath);
+        } catch (const boost::filesystem::filesystem_error &e) {
+            NDN_LOG_ERROR(e.what());
+            ret &= 2;
+        }
+    };
+
+    // TODO: For the moment this will work only for local directories
+    // as we don't offer support for directory operations over NDN yet.
     if (boost::filesystem::is_directory(dirPath)) {
         for (auto &entry : boost::make_iterator_range(
-                 boost::filesystem::directory_iterator(dirPath), {})) {
-            auto absolutePath =
-                boost::filesystem::canonical(entry.path(),
-                                             boost::filesystem::current_path())
-                    .string();
-            ret &= copyFileOverNDN(absolutePath);
-        }
+                 boost::filesystem::directory_iterator(dirPath), {}))
+            startCopyFileOverNDN(entry.path());
+    } else {
+        NDN_LOG_INFO(dirPath
+                     << " is not a local directory. For the moment this option "
+                        "works only for local directories.");
     }
 
-    try {
-        auto absolutePath =
-            boost::filesystem::canonical(boost::filesystem::path(filePath),
-                                         boost::filesystem::current_path())
-                .string();
-        ret &= copyFileOverNDN(absolutePath);
-    } catch (const boost::filesystem::filesystem_error &e) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
-        return 2;
-    }
+    if (boost::filesystem::exists(boost::filesystem::path(filePath)))
+        startCopyFileOverNDN(boost::filesystem::path(filePath));
+    else
+        ret &= copyFileOverNDN(filePath);
 
     return ret;
 }
@@ -114,7 +119,7 @@ static void usage(std::ostream &os, const std::string &programName,
 
 static void info(uint64_t bufferSz, std::string dirPath, std::string filePath) {
     NDN_LOG_INFO(
-        "\nThe NDN Consumer used for the NDN based filesystem plugin for "
+        "\nThe NDN Consumer used in the NDN based filesystem plugin for "
         "XRootD.\nDeveloped by Caltech@CMS.\n\nSelected Options: Read buffer "
         "size: "
         << bufferSz << "B, Path to directory: " << dirPath
@@ -124,8 +129,8 @@ static void info(uint64_t bufferSz, std::string dirPath, std::string filePath) {
 int main(int argc, char **argv) {
     std::string programName = argv[0];
 
-    std::string filePath;
-    std::string dirPath;
+    std::string filePath("N/A");
+    std::string dirPath("N/A");
 
     boost::program_options::options_description description("Options");
     description.add_options()(
@@ -135,7 +140,7 @@ int main(int argc, char **argv) {
         "Maximum size of the read buffer. The default is 262144. Specify any "
         "value between 8KB and 1GB in bytes.")(
         "dir,d", boost::program_options::value<std::string>(&dirPath),
-        "Path to a directory of files to be copied via NDN.")(
+        "Path to a local directory of files to be copied via NDN.")(
         "file,f", boost::program_options::value<std::string>(&filePath),
         "Path to the file to be copied via NDN.")(
         "help,h", "Print this help message and exit");
@@ -149,10 +154,10 @@ int main(int argc, char **argv) {
             vm);
         boost::program_options::notify(vm);
     } catch (const boost::program_options::error &e) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
+        NDN_LOG_ERROR(e.what());
         return 2;
     } catch (const boost::bad_any_cast &e) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
+        NDN_LOG_ERROR(e.what());
         return 2;
     }
 
@@ -162,16 +167,14 @@ int main(int argc, char **argv) {
     }
 
     if ((vm.count("file") == 0) && (vm.count("dir") == 0)) {
-        std::cerr << "ERROR: Specify path to a file or a directory if files to "
-                     "be copied over NDN."
-                  << std::endl;
+        NDN_LOG_ERROR("Specify path to a file or a directory if files to "
+                      "be copied over NDN.");
         usage(std::cerr, programName, description);
         return 2;
     }
 
     if (bufferSize < 8192 || bufferSize > 1073741824) {
-        std::cerr << "ERROR: Buffer size must be between 8KB and 1GB."
-                  << std::endl;
+        NDN_LOG_ERROR("Buffer size must be between 8KB and 1GB.");
         return 2;
     }
 

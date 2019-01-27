@@ -140,7 +140,7 @@ root@cms:~# export NDN_LOG="xrdndnproducer*=INFO"
 
 As stated in the introduction of this file, the NDN base File System plugin for XRootD uses an NDN Consumer that is able to translate different system calls into NDN Interest packets and send them over the network to the [NDN Producer](#the-ndn-producer).
 
-For testing purposes only, the NDN Consumer has been extracted as a standalone application. It accepts command line arguments and requires at least one in order to function properly. For more information on how to use it, see [usage and testing section](#usage-and-testing).
+For testing purposes only, the NDN Consumer has been extracted as a standalone application. It accepts command line arguments and requires at least one in order to function properly. For more information on how to use it, see [usage and testing section](#usage-and-testing-2).
 
 ### Build and install from sources
 

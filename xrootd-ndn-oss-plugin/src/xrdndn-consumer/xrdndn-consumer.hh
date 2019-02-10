@@ -64,13 +64,14 @@ class Consumer : xrdndn::FileHandlerInterface {
     int64_t m_segmentsReceived;
     int64_t m_dataSizeReceived;
 
-    std::map<uint64_t, std::shared_ptr<const ndn::Data>> m_bufferedData;
-    off_t m_buffOffset;
+    std::map<uint64_t, std::shared_ptr<const ndn::Data>> m_dataStore;
 
     int m_retOpen;
     int m_retClose;
     int m_retFstat;
     int m_retRead;
+
+    struct stat m_fileInfo;
 
     const ndn::Interest
     composeInterest(const ndn::Name name,
@@ -88,7 +89,7 @@ class Consumer : xrdndn::FileHandlerInterface {
     void onFstatData(const ndn::Interest &interest, const ndn::Data &data);
     void onReadData(const ndn::Interest &interest, const ndn::Data &data);
 
-    void saveDataInOrder(void *buff, off_t offset, size_t blen);
+    off_t saveDataInOrder(void *buff, off_t offset, size_t blen);
 
   private:
     void flush();

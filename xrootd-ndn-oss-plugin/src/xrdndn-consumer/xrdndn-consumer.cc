@@ -31,10 +31,11 @@ namespace xrdndnconsumer {
 Consumer::Consumer()
     : m_scheduler(m_face.getIoService()),
       m_validator(security::v2::getAcceptAllValidator()), m_nTimeouts(0),
-      m_nNacks(0), m_segmentsReceived(0), m_buffOffset(XRDNDN_ESUCCESS),
-      m_retOpen(XRDNDN_EFAILURE), m_retClose(XRDNDN_EFAILURE),
-      m_retFstat(XRDNDN_EFAILURE), m_retRead(XRDNDN_ESUCCESS) {
-    m_bufferedData.clear();
+      m_nNacks(0), m_segmentsReceived(0), m_retOpen(XRDNDN_EFAILURE),
+      m_retClose(XRDNDN_EFAILURE), m_retFstat(XRDNDN_EFAILURE),
+      m_retRead(XRDNDN_ESUCCESS) {
+
+    m_dataStore.clear();
     m_dataSizeReceived = 0;
 }
 
@@ -48,14 +49,13 @@ Consumer::~Consumer() {
 
 // Reset all class members.
 void Consumer::flush() {
-    m_bufferedData.clear();
+    m_dataStore.clear();
     m_retOpen = XRDNDN_EFAILURE;
     m_retClose = XRDNDN_EFAILURE;
     m_retFstat = XRDNDN_EFAILURE;
     m_retRead = XRDNDN_ESUCCESS;
     m_nTimeouts = 0;
     m_nNacks = 0;
-    m_buffOffset = XRDNDN_ESUCCESS;
 }
 
 // Return an interest for the given name.
@@ -96,6 +96,8 @@ void Consumer::expressInterest(const Interest &interest,
 
 // Process any data to receive and exit gracefully
 int Consumer::processEvents() {
+    m_dataStore.clear();
+
     try {
         m_face.processEvents();
     } catch (const std::exception &e) {
@@ -240,7 +242,7 @@ void Consumer::onFstatData(const ndn::Interest &interest,
                 m_face.shutdown();
             } else {
                 m_retFstat = XRDNDN_ESUCCESS;
-                m_bufferedData[0] = dataPtr;
+                m_dataStore[0] = dataPtr;
             }
         },
         [](const Data &, const security::v2::ValidationError &error) {
@@ -250,8 +252,6 @@ void Consumer::onFstatData(const ndn::Interest &interest,
 }
 
 int Consumer::Fstat(struct stat *buff, std::string path) {
-    this->flush();
-
     Interest fstatInterest = this->composeInterest(
         xrdndn::Utils::interestName(xrdndn::SystemCalls::fstat, path), 128_s);
     this->expressInterest(fstatInterest, xrdndn::SystemCalls::fstat);
@@ -262,6 +262,7 @@ int Consumer::Fstat(struct stat *buff, std::string path) {
     }
 
     this->saveDataInOrder(buff, 0, sizeof(struct stat));
+    memcpy(&m_fileInfo, buff, sizeof(struct stat));
     return m_retFstat;
 }
 
@@ -279,7 +280,7 @@ void Consumer::onReadData(const ndn::Interest &interest,
                 m_retRead = XRDNDN_EFAILURE;
                 m_face.shutdown();
             } else {
-                m_bufferedData[xrdndn::Utils::getSegmentFromPacket(data)] =
+                m_dataStore[xrdndn::Utils::getSegmentFromPacket(data)] =
                     dataPtr;
             }
         },
@@ -291,7 +292,12 @@ void Consumer::onReadData(const ndn::Interest &interest,
 
 ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
                        std::string path) {
-    this->flush();
+    if (offset >= m_fileInfo.st_size)
+        return XRDNDN_ESUCCESS;
+
+    if (offset + blen > m_fileInfo.st_size)
+        blen = m_fileInfo.st_size - offset;
+
     uint64_t firstSegment = offset / XRDNDN_MAX_NDN_PACKET_SIZE;
 
     int noSegments = blen / XRDNDN_MAX_NDN_PACKET_SIZE;
@@ -314,38 +320,42 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
         return XRDNDN_EFAILURE;
     }
 
-    this->saveDataInOrder(buff, offset, blen);
-    return m_retRead == XRDNDN_ESUCCESS ? m_buffOffset : XRDNDN_EFAILURE;
+    return m_retRead == XRDNDN_ESUCCESS
+               ? this->saveDataInOrder(buff, offset, blen)
+               : XRDNDN_EFAILURE;
 }
 
 // Store data received from producer.
-void Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {
+off_t Consumer::saveDataInOrder(void *buff, off_t offset, size_t blen) {
     size_t leftToSave = blen;
+    off_t res = 0;
+
     auto storeInBuff = [&](const Block &content, off_t contentOffset) {
         size_t len = content.value_size() - contentOffset;
         len = len < leftToSave ? len : leftToSave;
         leftToSave -= len;
 
-        memcpy((uint8_t *)buff + m_buffOffset, content.value() + contentOffset,
-               len);
-        m_buffOffset += len;
+        memcpy((uint8_t *)buff + res, content.value() + contentOffset, len);
+        res += len;
         ++m_segmentsReceived;
         m_dataSizeReceived += len;
     };
 
-    for (auto it = m_bufferedData.begin(); it != m_bufferedData.end();
-         it = m_bufferedData.erase(it)) {
+    for (auto it = m_dataStore.begin(); it != m_dataStore.end();
+         it = m_dataStore.erase(it)) {
         const Block &content = it->second->getContent();
 
-        if (m_buffOffset == 0) { // Store first chunk
+        if (res == 0) { // Store first chunk
             size_t contentOffset = offset % XRDNDN_MAX_NDN_PACKET_SIZE;
             if (contentOffset >= content.value_size())
-                return;
+                break;
             storeInBuff(content, contentOffset);
         } else {
             storeInBuff(content, 0);
         }
     }
+
+    return res;
 }
 
 int64_t Consumer::getNoSegmentsReceived() { return m_segmentsReceived; }

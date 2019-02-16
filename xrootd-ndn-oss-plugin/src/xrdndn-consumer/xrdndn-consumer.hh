@@ -22,84 +22,192 @@
 #define XRDNDN_CONSUMER_HH
 
 #include <map>
+
 #include <ndn-cxx/face.hpp>
 #include <ndn-cxx/security/v2/validation-error.hpp>
 #include <ndn-cxx/security/v2/validator.hpp>
 #include <ndn-cxx/security/validator-null.hpp>
-#include <ndn-cxx/util/scheduler.hpp>
 #include <ndn-cxx/util/time.hpp>
 
 #include "../common/xrdndn-common.hh"
 #include "../common/xrdndn-dfh-interface.hh"
+#include "xrdndn-pipeline.hh"
 
 namespace xrdndnconsumer {
-static const uint8_t MAX_RETRIES = 32;
+/**
+ * @brief Struct to keep interest stats of the file beeing processed by this
+ * Consumer
+ *
+ */
+struct FileStat {
+    uint8_t retOpen = -1;  // Return value of open system call
+    uint8_t retClose = -1; // Return value of close system call
+    uint8_t retFstat = -1; // Return value of fstat system call
 
-static const ndn::time::milliseconds DUPLICATE_BACKOFF = ndn::time::seconds(8);
-static const ndn::time::milliseconds CONGESTION_BACKOFF =
-    ndn::time::seconds(16);
-static const ndn::time::milliseconds TIMEOUT_BACKOFF = ndn::time::seconds(8);
+    off_t retRead = 0;  // Return value of read system call
+    off_t fileSize = 0; // Size of file beeing processed
+};
 
+/**
+ * @brief This class implements an NDN Consumer for XRootD NDN OSS plug-in. It
+ * translates file system calls into Interest packets and expresess them over
+ * the network. It takes care of each individual Interest and will return
+ * specific data of each system call
+ *
+ */
 class Consumer : xrdndn::FileHandlerInterface {
+    /**
+     * @brief The default lifetime of an Interest packet expressed by Consumer
+     *
+     */
+    static const ndn::time::milliseconds DEFAULT_INTEREST_LIFETIME;
+
   public:
+    /**
+     * @brief Construct a new Consumer object
+     *
+     */
     Consumer();
+
+    /**
+     * @brief Destroy the Consumer object
+     *
+     */
     ~Consumer();
 
+    // Description of these functions can be found FileHandlerInterface class
     virtual int Open(std::string path) override;
     virtual int Close(std::string path) override;
     virtual int Fstat(struct stat *buff, std::string path) override;
     virtual ssize_t Read(void *buff, off_t offset, size_t blen,
                          std::string path) override;
 
-    int64_t getNoSegmentsReceived();
-    int64_t getDataSizeReceived();
-
   private:
-    ndn::Face m_face;
-    ndn::util::Scheduler m_scheduler;
-    ndn::security::v2::Validator &m_validator;
-    int m_nTimeouts;
-    int m_nNacks;
+    /**
+     * @brief Process Interests
+     *
+     * @return true No exception occurred while processing Interest packets
+     * @return false Exception occurred while processing the Interest packets
+     */
+    bool processEvents();
 
-    int64_t m_segmentsReceived;
-    int64_t m_dataSizeReceived;
-
-    std::map<uint64_t, std::shared_ptr<const ndn::Data>> m_dataStore;
-
-    int m_retOpen;
-    int m_retClose;
-    int m_retFstat;
-    int m_retRead;
-
-    struct stat m_fileInfo;
-
+    /**
+     * @brief Create Interest packet
+     *
+     * @param sc System call for which an Interest packet has to be composed
+     * @param path Path to file
+     * @param segmentNo Segment number of Interest packet
+     * @param lifetime Lifetime of Interest packet
+     * @return const ndn::Interest The resulting Interest packet
+     */
     const ndn::Interest
-    composeInterest(const ndn::Name name,
-                    ndn::time::milliseconds lifetime = ndn::time::seconds(16));
-    void expressInterest(const ndn::Interest &interest,
-                         const xrdndn::SystemCalls call);
-    int processEvents();
+    getInterest(xrdndn::SystemCalls sc, std::string path,
+                uint64_t segmentNo = 0,
+                ndn::time::milliseconds lifetime = DEFAULT_INTEREST_LIFETIME);
 
-    void onNack(const ndn::Interest &interest, const ndn::lp::Nack &nack,
-                const xrdndn::SystemCalls call);
-    void onTimeout(const ndn::Interest &interest,
-                   const xrdndn::SystemCalls call);
+    /**
+     * @brief Callback function on receiving Data for open Interest
+     *
+     * @param interest The Interest
+     * @param data The Data for the Interest
+     */
     void onOpenData(const ndn::Interest &interest, const ndn::Data &data);
+
+    /**
+     * @brief Callback function on failure while processing Interest for open
+     * file system call
+     *
+     * @param interest The Interest packet on which failure occured
+     * @param reason The reason for which the failure occured
+     */
+    void onOpenFailure(const ndn::Interest &interest,
+                       const std::string &reason);
+
+    /**
+     * @brief Callback function on receiving Data for close Interest
+     *
+     * @param interest The Interest
+     * @param data The Data for the Interest
+     */
     void onCloseData(const ndn::Interest &interest, const ndn::Data &data);
+
+    /**
+     * @brief Callback function on failure while processing Interest for close
+     * file system call
+     *
+     * @param interest The Interest packet on which failure occured
+     * @param reason The reason for which the failure occured
+     */
+    void onCloseFailure(const ndn::Interest &interest,
+                        const std::string &reason);
+
+    /**
+     * @brief Callback function on receiving Data for fstat Interest
+     *
+     * @param interest The Interest
+     * @param data The Data for the Interest
+     */
     void onFstatData(const ndn::Interest &interest, const ndn::Data &data);
+
+    /**
+     * @brief Callback function on failure while processing Interest for fstat
+     * file system call
+     *
+     * @param interest The Interest packet on which failure occured
+     * @param reason The reason for which the failure occured
+     */
+    void onFstatFailure(const ndn::Interest &interest,
+                        const std::string &reason);
+
+    /**
+     * @brief Callback function on receiving Data for read Interest
+     *
+     * @param interest The Interest
+     * @param data The Data for the Interest
+     */
     void onReadData(const ndn::Interest &interest, const ndn::Data &data);
 
-    off_t saveDataInOrder(void *buff, off_t offset, size_t blen);
+    /**
+     * @brief Callback function on failure while processing Interest for read
+     * file system call
+     *
+     * @param interest The Interest packet on which failure occured
+     * @param reason The reason for which the failure occured
+     */
+    void onReadFailure(const ndn::Interest &interest,
+                       const std::string &reason);
+
+    /**
+     * @brief Put data in the provided buffer by the owner of this Consumer
+     * instance
+     *
+     * @param buff The buffer
+     * @param offset The offset in content where blen bytes were requested
+     * @param blen The buffer size
+     * @return off_t The actual number of bytes that have been put in the buffer
+     */
+    size_t returnData(void *buff, off_t offset, size_t blen);
 
   private:
-    void flush();
-
-    // Get non/negative integer from Package.
+    /**
+     * @brief Get the Integer From Data object
+     *
+     * @param data The Data
+     * @return int The Integer stored in the Data
+     */
     static int getIntegerFromData(const ndn::Data &data) {
         int value = readNonNegativeInteger(data.getContent());
         return data.getContentType() == xrdndn::tlv::negativeInteger ? -value
                                                                      : value;
     }
+
+  private:
+    ndn::Face m_face;
+    ndn::security::v2::Validator &m_validator;
+
+    struct FileStat m_FileStat;
+    std::map<uint64_t, std::shared_ptr<const ndn::Data>> m_dataStore;
+    std::shared_ptr<Pipeline> m_pipeline;
 };
 } // namespace xrdndnconsumer
 

@@ -37,8 +37,14 @@ class Utils {
     }
     // Given a file path and a SystemCall, it returns the Interest/Data Name
     // prefix for it
-    static ndn::Name interestName(SystemCalls sc, std::string path) noexcept {
-        return interestPrefix(sc).append(path);
+    static ndn::Name interestName(SystemCalls sc, std::string path,
+                                  uint64_t segmentNo = 0) noexcept {
+        auto name = interestPrefix(sc).append(path);
+
+        if (sc == xrdndn::SystemCalls::read) {
+            name.appendSegment(segmentNo);
+        }
+        return name;
     }
 
     // Returns file path from the ndn::Name for a SystemCall

@@ -197,19 +197,6 @@ class Consumer : xrdndn::FileHandlerInterface {
     size_t returnData(void *buff, off_t offset, size_t blen);
 
   private:
-    /**
-     * @brief Get the Integer From Data object
-     *
-     * @param data The Data
-     * @return int The Integer stored in the Data
-     */
-    static int getIntegerFromData(const ndn::Data &data) {
-        int value = readNonNegativeInteger(data.getContent());
-        return data.getContentType() == xrdndn::tlv::negativeInteger ? -value
-                                                                     : value;
-    }
-
-  private:
     ndn::Face m_face;
     ndn::security::v2::Validator &m_validator;
 

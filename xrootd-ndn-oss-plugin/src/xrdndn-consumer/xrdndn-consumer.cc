@@ -84,7 +84,12 @@ void Consumer::onOpenData(const Interest &interest, const Data &data) {
     m_validator.validate(
         data,
         [this, interest](const Data &data) {
-            m_FileStat.retOpen = this->getIntegerFromData(data);
+            if (data.getContentType() == ndn::tlv::ContentType_Nack) {
+                m_FileStat.retOpen = XRDNDN_EFAILURE;
+            } else {
+                m_FileStat.retOpen = XRDNDN_ESUCCESS;
+            }
+
             NDN_LOG_TRACE("Open file with Interest: " << interest
                                                       << " with error code: "
                                                       << m_FileStat.retOpen);
@@ -126,7 +131,12 @@ void Consumer::onCloseData(const Interest &interest, const Data &data) {
     m_validator.validate(
         data,
         [this, interest](const Data &data) {
-            m_FileStat.retClose = this->getIntegerFromData(data);
+            if (data.getContentType() == ndn::tlv::ContentType_Nack) {
+                m_FileStat.retClose = XRDNDN_EFAILURE;
+            } else {
+                m_FileStat.retClose = XRDNDN_ESUCCESS;
+            }
+
             NDN_LOG_TRACE("Close file with Interest: " << interest
                                                        << " with error code: "
                                                        << m_FileStat.retClose);
@@ -174,7 +184,7 @@ void Consumer::onFstatData(const ndn::Interest &interest,
     m_validator.validate(
         data,
         [this, dataPtr, interest](const Data &data) {
-            if (data.getContentType() == xrdndn::tlv::negativeInteger) {
+            if (data.getContentType() == ndn::tlv::ContentType_Nack) {
                 m_FileStat.retFstat = XRDNDN_EFAILURE;
             } else {
                 m_FileStat.retFstat = XRDNDN_ESUCCESS;
@@ -226,7 +236,7 @@ void Consumer::onReadData(const ndn::Interest &interest,
     m_validator.validate(
         data,
         [this, dataPtr](const Data &data) {
-            if (data.getContentType() == xrdndn::tlv::negativeInteger) {
+            if (data.getContentType() == ndn::tlv::ContentType_Nack) {
                 m_FileStat.retRead = XRDNDN_EFAILURE;
             } else {
                 m_dataStore[xrdndn::Utils::getSegmentNo(data)] = dataPtr;

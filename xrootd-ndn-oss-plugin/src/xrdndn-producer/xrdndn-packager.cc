@@ -41,14 +41,15 @@ void Packager::digest(std::shared_ptr<ndn::Data> &data) {
 
 // Prepare Data containing an non/negative integer
 std::shared_ptr<Data> Packager::getPackage(const ndn::Name &name, int value) {
-    int type = value < 0 ? xrdndn::tlv::negativeInteger
-                         : xrdndn::tlv::nonNegativeInteger;
     const Block content =
         makeNonNegativeIntegerBlock(ndn::tlv::Content, fabs(value));
 
     std::shared_ptr<Data> data = std::make_shared<Data>(name);
     data->setContent(content);
-    data->setContentType(type);
+
+    if (value < 0) {
+        data->setContentType(ndn::tlv::ContentType_Nack);
+    }
 
     boost::unique_lock<boost::shared_mutex> lock(m_mutex);
     digest(data);

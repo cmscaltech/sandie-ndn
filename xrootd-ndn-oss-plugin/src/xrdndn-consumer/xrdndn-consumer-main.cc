@@ -40,14 +40,14 @@ int copyFileOverNDN(std::string filePath) {
 
     try {
         int retOpen = consumer->Open(filePath);
-        if (retOpen) {
+        if (retOpen != XRDNDN_ESUCCESS) {
             NDN_LOG_ERROR("Unable to open file: " << filePath);
             return -1;
         }
 
         struct stat info;
         int retFstat = consumer->Fstat(&info, filePath);
-        if (retFstat) {
+        if (retFstat != XRDNDN_ESUCCESS) {
             NDN_LOG_ERROR("Unable to get fstat for file: " << filePath);
             return -1;
         }
@@ -62,7 +62,7 @@ int copyFileOverNDN(std::string filePath) {
         }
 
         int retClose = consumer->Close(filePath);
-        if (retClose) {
+        if (retClose != XRDNDN_ESUCCESS) {
             NDN_LOG_WARN("Unable to close file: " << filePath);
         }
     } catch (const std::exception &e) {

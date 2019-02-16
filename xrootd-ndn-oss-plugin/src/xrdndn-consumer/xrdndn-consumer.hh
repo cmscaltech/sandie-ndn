@@ -110,8 +110,7 @@ class Consumer : xrdndn::FileHandlerInterface {
      * @return const ndn::Interest The resulting Interest packet
      */
     const ndn::Interest
-    getInterest(xrdndn::SystemCalls sc, std::string path,
-                uint64_t segmentNo = 0,
+    getInterest(ndn::Name prefix, std::string path, uint64_t segmentNo = 0,
                 ndn::time::milliseconds lifetime = DEFAULT_INTEREST_LIFETIME);
 
     /**

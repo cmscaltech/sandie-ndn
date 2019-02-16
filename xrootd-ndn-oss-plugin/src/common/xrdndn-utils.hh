@@ -21,53 +21,49 @@
 #ifndef XRDNDN_UTILS_HH
 #define XRDNDN_UTILS_HH
 
-#include <cstring>
-#include <ndn-cxx/face.hpp>
-#include <ndn-cxx/util/logger.hpp>
+#include <ndn-cxx/name.hpp>
 
 #include "xrdndn-dfh-interface.hh"
-#include "xrdndn-namespaces.hh"
 
 namespace xrdndn {
 class Utils {
   public:
-    // Given a SystemCall, it returns the Interest/Data Name prefix for it
-    static ndn::Name interestPrefix(SystemCalls sc) noexcept {
-        return ndn::Name(PLUGIN_INTEREST_PREFIX_URI).append(enumToString(sc));
-    }
-    // Given a file path and a SystemCall, it returns the Interest/Data Name
-    // prefix for it
-    static ndn::Name interestName(SystemCalls sc, std::string path,
-                                  uint64_t segmentNo = 0) noexcept {
-        auto name = interestPrefix(sc).append(path);
-
-        if (sc == xrdndn::SystemCalls::read) {
-            name.appendSegment(segmentNo);
-        }
-        return name;
-    }
-
-    // Returns file path from the ndn::Name for a SystemCall
-    static std::string getFilePathFromName(ndn::Name name,
-                                           SystemCalls sc) noexcept {
-        auto subNameToUri = [name](ssize_t iStartComponent,
-                                   size_t nComponents) {
-            return name.getSubName(iStartComponent, nComponents).toUri();
-        };
-
-        auto prefixSz = interestPrefix(sc).size();
-        auto nComponents = ndn::Name::npos;
-
-        if (sc == SystemCalls::read) {
-            nComponents = name.size() - prefixSz - 1;
-        }
-
-        return subNameToUri(prefixSz, nComponents);
+    /**
+     * @brief Get the Name object for a prefix, a file name and a segment number
+     *
+     * @param prefix The prefix of the Name
+     * @param path The file path
+     * @param segmentNo The segment number
+     * @return ndn::Name The resulting NDN Name
+     */
+    static ndn::Name getName(ndn::Name prefix, std::string path,
+                             uint64_t segmentNo = 0) noexcept {
+        return prefix == SYS_CALL_READ_PREFIX_URI
+                   ? prefix.append(path).appendSegment(segmentNo)
+                   : prefix.append(path);
     }
 
-    // Returns segment number for read file system call specific request
+    /**
+     * @brief Get the file name from an Interest Name
+     *
+     * @param name The Name
+     * @return std::string The file name as a std::string
+     */
+    static std::string getPath(ndn::Name name) noexcept {
+        return name.at(-1).isSegment()
+                   ? name.getSubName(3).getPrefix(-1).toUri()
+                   : name.getSubName(3).toUri();
+    }
+
+    /**
+     * @brief Get the Segment No
+     *
+     * @tparam Packet Name/Interest
+     * @param packet The Name or Interest
+     * @return uint64_t The segment number
+     */
     template <typename Packet>
-    static uint64_t getSegmentFromPacket(const Packet &packet) noexcept {
+    static uint64_t getSegmentNo(const Packet &packet) noexcept {
         ndn::Name name = packet.getName();
 
         if (name.at(-1).isSegment())

@@ -66,10 +66,10 @@ bool Consumer::processEvents() {
     return true;
 }
 
-const Interest Consumer::getInterest(xrdndn::SystemCalls sc, std::string path,
+const Interest Consumer::getInterest(ndn::Name prefix, std::string path,
                                      uint64_t segmentNo,
                                      ndn::time::milliseconds lifetime) {
-    auto name = xrdndn::Utils::interestName(sc, path, segmentNo);
+    auto name = xrdndn::Utils::getName(prefix, path, segmentNo);
 
     Interest interest(name);
     interest.setInterestLifetime(lifetime);
@@ -102,7 +102,8 @@ void Consumer::onOpenFailure(const Interest &interest,
 }
 
 int Consumer::Open(std::string path) {
-    auto openInterest = this->getInterest(xrdndn::SystemCalls::open, path);
+    auto openInterest =
+        this->getInterest(xrdndn::SYS_CALL_OPEN_PREFIX_URI, path);
 
     m_pipeline->insert(openInterest);
     NDN_LOG_INFO("Opening file: " << path
@@ -143,7 +144,8 @@ void Consumer::onCloseFailure(const Interest &interest,
 }
 
 int Consumer::Close(std::string path) {
-    auto closeInterest = this->getInterest(xrdndn::SystemCalls::close, path);
+    auto closeInterest =
+        this->getInterest(xrdndn::SYS_CALL_CLOSE_PREFIX_URI, path);
 
     m_pipeline->insert(closeInterest);
     NDN_LOG_INFO("Closing file: " << path
@@ -193,7 +195,7 @@ void Consumer::onFstatFailure(const Interest &interest,
 
 int Consumer::Fstat(struct stat *buff, std::string path) {
     auto fstatInterest =
-        this->getInterest(xrdndn::SystemCalls::fstat, path, 0, 16_s);
+        this->getInterest(xrdndn::SYS_CALL_FSTAT_PREFIX_URI, path, 0, 16_s);
 
     m_pipeline->insert(fstatInterest);
     NDN_LOG_INFO("Fstat for file: " << path
@@ -227,8 +229,7 @@ void Consumer::onReadData(const ndn::Interest &interest,
             if (data.getContentType() == xrdndn::tlv::negativeInteger) {
                 m_FileStat.retRead = XRDNDN_EFAILURE;
             } else {
-                m_dataStore[xrdndn::Utils::getSegmentFromPacket(data)] =
-                    dataPtr;
+                m_dataStore[xrdndn::Utils::getSegmentNo(data)] = dataPtr;
             }
         },
         [](const Data &, const security::v2::ValidationError &error) {
@@ -264,7 +265,7 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
 
     for (off_t i = startSegment; i <= startSegment + noSegments; ++i) {
         m_pipeline->insert(
-            this->getInterest(xrdndn::SystemCalls::read, path, i));
+            this->getInterest(xrdndn::SYS_CALL_READ_PREFIX_URI, path, i));
     }
 
     NDN_LOG_TRACE("Sending " << noSegments << " read Interest packets");

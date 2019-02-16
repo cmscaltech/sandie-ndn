@@ -71,7 +71,7 @@ void Producer::registerPrefix() {
 
     // For nfd
     m_xrdndnPrefixId = m_face.registerPrefix(
-        Name(PLUGIN_INTEREST_PREFIX_URI),
+        SYS_CALLS_PREFIX_URI,
         [](const Name &name) {
             NDN_LOG_INFO("Successfully registered prefix for: " << name);
         },
@@ -82,46 +82,46 @@ void Producer::registerPrefix() {
 
     // Filter for open system call
     m_OpenFilterId =
-        m_face.setInterestFilter(Utils::interestPrefix(SystemCalls::open),
+        m_face.setInterestFilter(xrdndn::SYS_CALL_OPEN_PREFIX_URI,
                                  bind(&Producer::onOpenInterest, this, _1, _2));
     if (!m_OpenFilterId) {
         NDN_LOG_FATAL("Could not set interest filter for open systemcall.");
     } else {
         NDN_LOG_INFO("Successfully registered prefix for: "
-                     << Utils::interestPrefix(SystemCalls::open));
+                     << xrdndn::SYS_CALL_OPEN_PREFIX_URI);
     }
 
     // Filter for close system call
     m_CloseFilterId = m_face.setInterestFilter(
-        Utils::interestPrefix(SystemCalls::close),
+        xrdndn::SYS_CALL_CLOSE_PREFIX_URI,
         bind(&Producer::onCloseInterest, this, _1, _2));
     if (!m_CloseFilterId) {
         NDN_LOG_FATAL("Could not set interest filter for close systemcall.");
     } else {
         NDN_LOG_INFO("Successfully registered prefix for: "
-                     << Utils::interestPrefix(SystemCalls::close));
+                     << xrdndn::SYS_CALL_CLOSE_PREFIX_URI);
     }
 
     // Filter for fstat system call
     m_FstatFilterId = m_face.setInterestFilter(
-        Utils::interestPrefix(SystemCalls::fstat),
+        xrdndn::SYS_CALL_FSTAT_PREFIX_URI,
         bind(&Producer::onFstatInterest, this, _1, _2));
     if (!m_FstatFilterId) {
         NDN_LOG_FATAL("Could not set interest filter for fstat systemcall.");
     } else {
         NDN_LOG_INFO("Successfully registered prefix for: "
-                     << Utils::interestPrefix(SystemCalls::fstat));
+                     << xrdndn::SYS_CALL_FSTAT_PREFIX_URI);
     }
 
     // Filter for read system call
     m_ReadFilterId =
-        m_face.setInterestFilter(Utils::interestPrefix(SystemCalls::read),
+        m_face.setInterestFilter(xrdndn::SYS_CALL_READ_PREFIX_URI,
                                  bind(&Producer::onReadInterest, this, _1, _2));
     if (!m_CloseFilterId) {
         NDN_LOG_FATAL("Could not set interest filter for read systemcall.");
     } else {
         NDN_LOG_INFO("Successfully registered prefix for: "
-                     << Utils::interestPrefix(SystemCalls::read));
+                     << xrdndn::SYS_CALL_READ_PREFIX_URI);
     }
 }
 
@@ -166,8 +166,7 @@ void Producer::onOpenInterest(const InterestFilter &,
         NDN_LOG_TRACE("onOpenInterest: " << interest);
 
         Name name(interest.getName());
-        std::string path =
-            xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::open);
+        std::string path = xrdndn::Utils::getPath(name);
 
         std::shared_ptr<Data> data;
         if (!setFileHandler(path)) {
@@ -186,8 +185,7 @@ void Producer::onCloseInterest(const InterestFilter &,
     m_face.getIoService().post([&] {
         NDN_LOG_TRACE("onCloseInterest: " << interest);
         Name name(interest.getName());
-        std::string path = xrdndn::Utils::getFilePathFromName(
-            name, xrdndn::SystemCalls::close);
+        std::string path = xrdndn::Utils::getPath(name);
 
         std::shared_ptr<Data> data;
         if (m_FileHandlers.hasKey(path)) {
@@ -206,8 +204,7 @@ void Producer::onFstatInterest(const ndn::InterestFilter &,
     m_face.getIoService().post([&] {
         NDN_LOG_TRACE("onFstatInterest: " << interest);
         Name name(interest.getName());
-        std::string path = xrdndn::Utils::getFilePathFromName(
-            name, xrdndn::SystemCalls::fstat);
+        std::string path = xrdndn::Utils::getPath(name);
 
         std::shared_ptr<Data> data;
         if (!setFileHandler(path)) {
@@ -226,15 +223,14 @@ void Producer::onReadInterest(const InterestFilter &,
     m_face.getIoService().post([&] {
         NDN_LOG_TRACE("onReadInterest: " << interest);
         Name name(interest.getName());
-        std::string path =
-            xrdndn::Utils::getFilePathFromName(name, xrdndn::SystemCalls::read);
+        std::string path = xrdndn::Utils::getPath(name);
 
         std::shared_ptr<Data> data;
         if (!setFileHandler(path)) {
             data = m_packager->getPackage(name, XRDNDN_EFAILURE);
         } else {
             data = m_FileHandlers.at(path)->getReadData(
-                xrdndn::Utils::getSegmentFromPacket(interest), name, path);
+                xrdndn::Utils::getSegmentNo(interest), name, path);
         }
 
         NDN_LOG_TRACE("Sending: " << *data);

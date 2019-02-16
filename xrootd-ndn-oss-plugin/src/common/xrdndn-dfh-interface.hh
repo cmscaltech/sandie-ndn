@@ -25,35 +25,98 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "xrdndn-namespaces.hh"
+#include <ndn-cxx/name.hpp>
 
 namespace xrdndn {
 
-// System calls enumeration.
-DEFINE_ENUM_WITH_STRING_CONVERSIONS(SystemCalls, (open)(read)(fstat)(close))
+/**
+ * @brief Name prefix for all Interest packets expressed by Consumer
+ *
+ */
+static const ndn::Name SYS_CALLS_PREFIX_URI("/ndn/xrootd/");
+/**
+ * @brief Name filter for open system call Interest packet
+ *
+ */
+static const ndn::Name SYS_CALL_OPEN_PREFIX_URI("/ndn/xrootd/open/");
+/**
+ * @brief Name filter for close system call Interest packet
+ *
+ */
+static const ndn::Name SYS_CALL_CLOSE_PREFIX_URI("/ndn/xrootd/close/");
+/**
+ * @brief Name filter for fstat system call Interest packet
+ *
+ */
+static const ndn::Name SYS_CALL_FSTAT_PREFIX_URI("/ndn/xrootd/fstat/");
+/**
+ * @brief Name filter for read system call Interest packet
+ *
+ */
+static const ndn::Name SYS_CALL_READ_PREFIX_URI("/ndn/xrootd/read/");
 
 class FileHandlerInterface {
+    /**
+     * @brief This is the abstract class of file handler system calls
+     * implemented by Consumer and Producer
+     *
+     */
+
   public:
+    /**
+     * @brief Destroy the File Handler Interface object
+     *
+     */
     virtual ~FileHandlerInterface() {}
 
-  public:
-    // File oriented methods
-
-    /* Over NDN the file will be opened for reading only. On success returns 0;
-     * on fail -1.*/
+    /**
+     * @brief Open file function over NDN. On the Consumer side, translation to
+     * a corresponding Interest packet will take place. On the Producer side,
+     * the file will be opened
+     *
+     * @param path The file name
+     * @return int The return value of open POSIX system call on the Producer
+     * side. 0 (success) / -1 (error)
+     */
     virtual int Open(std::string path) = 0;
 
-    /* Over NDN the name of the file to be close need to be passed. On success
-     * returns 0; on fail -1.*/
+    /**
+     * @brief Close file function over NDN. On the Consumer side, translation to
+     * a corresponding Interest packet will take place. On the Producer side,
+     * the file will be closed
+     *
+     * @param path The file name
+     * @return int The return value of close POSIX system call on the Producer
+     * side. 0 (success) / -1 (error)
+     */
     virtual int Close(std::string path) = 0;
 
-    /* Over NDN the name of the files has to be passed. It returns 0 on success
-     * and -1 on error. It fills buff with fstat result on file at path.*/
+    /**
+     * @brief Fstat file function over NDN. On the Consumer side, translation to
+     * a corresponding Interest packet will take place. On the Producer side,
+     * fstat will be called for file
+     *
+     * @param buff If fstat is possible, the POSIX struct stat of file will be
+     * put in
+     * @param path The file name
+     * @return int The return value of fstat POSIX system call on the Producer
+     * side. 0 (success and buff will have data) / -1 (error)
+     */
     virtual int Fstat(struct stat *buff, std::string path) = 0;
 
-    /* It returns the number of bytes read from the file at path. Over NDN only
-     * the actual data will be send and the return value will be computed on the
-     * consumer side.*/
+    /**
+     * @brief Read blen bytes from file over NDN. On the Consumer side, the
+     * request will be translated into a number of Interest packets. On the
+     * Producer side, chunks of file will be read and Data will be sent in
+     * return
+     *
+     * @param buff The address where data will be stored
+     * @param offset Offset in file were the read will begin
+     * @param blen The number of bytes to be read by Producer
+     * @param path The file name
+     * @return ssize_t The actual number of bytes read on the Producer side. The
+     * value read POSIX system call will return
+     */
     virtual ssize_t Read(void *buff, off_t offset, size_t blen,
                          std::string path) = 0;
 };

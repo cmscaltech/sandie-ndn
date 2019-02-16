@@ -229,8 +229,8 @@ void FileHandler::readCacheLine(off_t offset) {
         len = Read(&blockFromFile, XRDNDN_MAX_NDN_PACKET_SIZE,
                    i * XRDNDN_MAX_NDN_PACKET_SIZE);
 
-        auto name = xrdndn::Utils::interestName(xrdndn::SystemCalls::read,
-                                                m_filePath, i);
+        auto name = xrdndn::Utils::getName(xrdndn::SYS_CALL_READ_PREFIX_URI,
+                                           m_filePath, i);
         name.appendVersion();
 
         std::shared_ptr<ndn::Data> data;

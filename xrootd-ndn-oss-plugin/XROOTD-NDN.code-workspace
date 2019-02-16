@@ -66,10 +66,28 @@
 			"stack": "cpp",
 			"unordered_set": "cpp",
 			"thread": "cpp",
-			"variant": "cpp"
+			"variant": "cpp",
+			"__debug": "cpp",
+			"__threading_support": "cpp",
+			"cctype": "cpp",
+			"cmath": "cpp",
+			"codecvt": "cpp",
+			"condition_variable": "cpp",
+			"csignal": "cpp",
+			"cstdarg": "cpp",
+			"cstdint": "cpp",
+			"cstdio": "cpp",
+			"cstdlib": "cpp",
+			"ctime": "cpp",
+			"cwchar": "cpp",
+			"cwctype": "cpp",
+			"iomanip": "cpp",
+			"streambuf": "cpp",
+			"strstream": "cpp",
+			"queue": "cpp"
 		},
-		"workbench.colorTheme": "Default Dark+",
-		"window.zoomLevel": 0,
+		"workbench.colorTheme": "Default Light+",
+		"window.zoomLevel": -1,
 		"fileHeaderComment.parameter":{
 			"*":{
 				"commentbegin": "/******************************************************************************",
@@ -108,6 +126,6 @@
 				""
 			]
 		},
-		"python.pythonPath": "/usr/bin/python"
+		"python.pythonPath": "/usr/local/bin/python"
 	}
 }

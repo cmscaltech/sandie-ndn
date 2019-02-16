@@ -51,14 +51,16 @@ class Utils {
      */
     static std::string getPath(ndn::Name name) noexcept {
         return name.at(-1).isSegment()
-                   ? name.getSubName(3).getPrefix(-1).toUri()
-                   : name.getSubName(3).toUri();
+                   ? name.getSubName(xrdndn::SYS_CALLS_PREFIX_LEN)
+                         .getPrefix(-1)
+                         .toUri()
+                   : name.getSubName(xrdndn::SYS_CALLS_PREFIX_LEN).toUri();
     }
 
     /**
-     * @brief Get the Segment No
+     * @brief Get segment number from Data or Interest
      *
-     * @tparam Packet Name/Interest
+     * @tparam Packet Data/Interest
      * @param packet The Name or Interest
      * @return uint64_t The segment number
      */

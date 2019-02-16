@@ -35,6 +35,12 @@ namespace xrdndn {
  */
 static const ndn::Name SYS_CALLS_PREFIX_URI("/ndn/xrootd/");
 /**
+ * @brief Keep the number of components in each prefix
+ *
+ */
+static const uint8_t SYS_CALLS_PREFIX_LEN = SYS_CALLS_PREFIX_URI.size() + 1;
+
+/**
  * @brief Name filter for open system call Interest packet
  *
  */

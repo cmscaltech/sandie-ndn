@@ -221,8 +221,6 @@ void FileHandler::insertEmptyCacheLine(off_t offset) {
 // Populate a empty cache line with ndn::Data packages containng chunks form
 // file
 void FileHandler::readCacheLine(off_t offset) {
-    ndn::Name readPrefix =
-        xrdndn::Utils::interestName(xrdndn::SystemCalls::read, m_filePath);
     off_t cacheLineEndOffset = offset + CACHE_LINE_SZ;
     ssize_t len = 0;
 
@@ -231,8 +229,8 @@ void FileHandler::readCacheLine(off_t offset) {
         len = Read(&blockFromFile, XRDNDN_MAX_NDN_PACKET_SIZE,
                    i * XRDNDN_MAX_NDN_PACKET_SIZE);
 
-        ndn::Name name = readPrefix;
-        name.appendSegment(i);
+        auto name = xrdndn::Utils::interestName(xrdndn::SystemCalls::read,
+                                                m_filePath, i);
         name.appendVersion();
 
         std::shared_ptr<ndn::Data> data;

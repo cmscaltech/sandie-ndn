@@ -27,7 +27,6 @@
 #include <boost/program_options/variables_map.hpp>
 
 #include "../common/xrdndn-logger.hh"
-#include "../common/xrdndn-throughput.hh"
 #include "xrdndn-consumer.hh"
 
 namespace xrdndnconsumer {
@@ -53,21 +52,16 @@ int copyFileOverNDN(std::string filePath) {
         off_t offset = 0;
         std::string buff(bufferSize, '\0');
 
-        xrdndnconsumer::ThroughputComputation pThroughputComputation;
-        pThroughputComputation.start();
-
         int retRead = consumer.Read(&buff[0], offset, bufferSize, filePath);
         while (retRead > 0) {
             offset += retRead;
             retRead = consumer.Read(&buff[0], offset, bufferSize, filePath);
         }
 
-        pThroughputComputation.stop();
-        consumer.Close(filePath);
-
-        pThroughputComputation.printSummary(consumer.getNoSegmentsReceived(),
-                                            consumer.getDataSizeReceived(),
-                                            filePath);
+        int retClose = consumer.Close(filePath);
+        if (retClose) {
+            NDN_LOG_WARN("Unable to close file: " << filePath);
+        }
     } catch (const std::exception &e) {
         NDN_LOG_ERROR(e.what());
     }

@@ -120,12 +120,11 @@ void Pipeline::printStatistics(std::string path) {
 
     double throughput = (8 * m_nBytesReceived / 1000.0) / timeElapsed.count();
 
-    std::cerr << "Transfer for file: "
-                 << path << " over NDN completed."
-                 << "\nTime elapsed: " << timeElapsed
-                 << "\nTotal # of segments received: " << m_nSegmentsReceived
-                 << "\nTotal size: "
-                 << static_cast<double>(m_nBytesReceived) / 1000000 << " MB"
-                 << "\nThroughput: " << throughput << " Mbit/s\n";
+    std::cerr << "Transfer for file: " << path << " over NDN completed."
+              << "\nTime elapsed: " << timeElapsed
+              << "\nTotal # of segments received: " << m_nSegmentsReceived
+              << "\nTotal size: "
+              << static_cast<double>(m_nBytesReceived) / 1000000 << " MB"
+              << "\nThroughput: " << throughput << " Mbit/s\n";
 }
 } // namespace xrdndnconsumer

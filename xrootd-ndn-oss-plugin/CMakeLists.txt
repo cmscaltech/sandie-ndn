@@ -24,39 +24,43 @@ add_compile_options(-g -Wall -Wextra -Wpedantic -O0)
 add_definitions(-DBOOST_LOG_DYN_LINK)
 
 # Compile libXrdNdnFS.so
-add_library(XrdNdnFS MODULE 
-    src/xrootd-ndn-fs/xrdndnfs.cc 
-    src/xrdndn-consumer/xrdndn-consumer.cc)
+add_library(XrdNdnFS MODULE
+    src/xrootd-ndn-fs/xrdndnfs.cc
+    src/xrdndn-consumer/xrdndn-consumer.cc
+    src/xrdndn-consumer/xrdndn-data-fetcher.cc
+    src/xrdndn-consumer/xrdndn-pipeline.cc)
 
-target_link_libraries(XrdNdnFS 
-    Boost::system Boost::log 
-    ${NDN_CXX_LIB} 
-    ${CMAKE_THREAD_LIBS_INIT} 
+target_link_libraries(XrdNdnFS
+    Boost::system Boost::log
+    ${NDN_CXX_LIB}
+    ${CMAKE_THREAD_LIBS_INIT}
     ${XROOTD_UTILS})
 
 target_include_directories(XrdNdnFS SYSTEM PUBLIC ${XROOTD_INCLUDES})
 
 # Compile xrdndn-consumer application
-add_executable(xrdndn-consumer 
+add_executable(xrdndn-consumer
     src/xrdndn-consumer/xrdndn-consumer-main.cc
-    src/xrdndn-consumer/xrdndn-consumer.cc)
+    src/xrdndn-consumer/xrdndn-consumer.cc
+    src/xrdndn-consumer/xrdndn-data-fetcher.cc
+    src/xrdndn-consumer/xrdndn-pipeline.cc)
 
-target_link_libraries(xrdndn-consumer 
-    Boost::system Boost::log 
+target_link_libraries(xrdndn-consumer
+    Boost::system Boost::log
     ${Boost_LIBRARIES}
-    ${NDN_CXX_LIB} 
+    ${NDN_CXX_LIB}
     ${CMAKE_THREAD_LIBS_INIT})
 
 # Compile xrdndn-producer application
-add_executable(xrdndn-producer 
+add_executable(xrdndn-producer
     src/xrdndn-producer/xrdndn-producer-main.cc
     src/xrdndn-producer/xrdndn-packager.cc
     src/xrdndn-producer/xrdndn-file-handler.cc
     src/xrdndn-producer/xrdndn-producer.cc)
 
-target_link_libraries(xrdndn-producer 
-    ${Boost_LIBRARIES} 
-    ${NDN_CXX_LIB} 
+target_link_libraries(xrdndn-producer
+    ${Boost_LIBRARIES}
+    ${NDN_CXX_LIB}
     ${CMAKE_THREAD_LIBS_INIT})
 
 # Install

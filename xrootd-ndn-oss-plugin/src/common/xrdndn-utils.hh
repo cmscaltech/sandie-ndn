@@ -64,10 +64,13 @@ class Utils {
     static uint64_t getSegmentFromPacket(const Packet &packet) noexcept {
         ndn::Name name = packet.getName();
 
-        if (name.at(-1).isVersion()) {
+        if (name.at(-1).isSegment())
+            return name.at(-1).toSegment();
+
+        if (name.at(-1).isVersion())
             return name.at(-2).toSegment();
-        }
-        return name.at(-1).toSegment();
+
+        return 0;
     }
 };
 } // namespace xrdndn

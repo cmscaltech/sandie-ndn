@@ -30,12 +30,27 @@ namespace xrdndnconsumer {
 const ndn::time::milliseconds Consumer::DEFAULT_INTEREST_LIFETIME =
     ndn::time::seconds(4);
 
-Consumer::Consumer() : m_validator(security::v2::getAcceptAllValidator()) {
+std::shared_ptr<Consumer> Consumer::getXrdNdnConsumerInstance() {
+    auto consumer = std::shared_ptr<Consumer>(new Consumer());
+
+    if (!consumer->m_nfdConnected)
+        return nullptr;
+
+    return consumer;
+}
+
+Consumer::Consumer()
+    : m_validator(security::v2::getAcceptAllValidator()),
+      m_nfdConnected(false) {
     m_pipeline = std::make_shared<Pipeline>(m_face);
+
+    if (this->processEvents())
+        m_nfdConnected = true;
 }
 
 Consumer::~Consumer() {
     m_dataStore.clear();
+    m_pipeline->clear();
 
     m_face.removeAllPendingInterests();
     m_face.shutdown();

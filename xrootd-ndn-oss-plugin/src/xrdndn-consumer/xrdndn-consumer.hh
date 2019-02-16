@@ -64,6 +64,15 @@ class Consumer : xrdndn::FileHandlerInterface {
 
   public:
     /**
+     * @brief Returns a pointer to a Consumer object instance.
+     *
+     * @return std::shared_ptr<Consumer> If the Consumer is not able to connect
+     * to local forwarder it will return nullptr, else the Consumer instance
+     * will be returned
+     */
+    static std::shared_ptr<Consumer> getXrdNdnConsumerInstance();
+
+    /**
      * @brief Construct a new Consumer object
      *
      */
@@ -204,6 +213,8 @@ class Consumer : xrdndn::FileHandlerInterface {
   private:
     ndn::Face m_face;
     ndn::security::v2::Validator &m_validator;
+
+    bool m_nfdConnected;
 
     struct FileStat m_FileStat;
     std::map<uint64_t, std::shared_ptr<const ndn::Data>> m_dataStore;

@@ -34,16 +34,19 @@ namespace xrdndnconsumer {
 uint64_t bufferSize(262144);
 
 int copyFileOverNDN(std::string filePath) {
-    Consumer consumer;
+    auto consumer = Consumer::getXrdNdnConsumerInstance();
+    if (!consumer)
+        return -1;
+
     try {
-        int retOpen = consumer.Open(filePath);
+        int retOpen = consumer->Open(filePath);
         if (retOpen) {
             NDN_LOG_ERROR("Unable to open file: " << filePath);
             return -1;
         }
 
         struct stat info;
-        int retFstat = consumer.Fstat(&info, filePath);
+        int retFstat = consumer->Fstat(&info, filePath);
         if (retFstat) {
             NDN_LOG_ERROR("Unable to get fstat for file: " << filePath);
             return -1;
@@ -52,13 +55,13 @@ int copyFileOverNDN(std::string filePath) {
         off_t offset = 0;
         std::string buff(bufferSize, '\0');
 
-        int retRead = consumer.Read(&buff[0], offset, bufferSize, filePath);
+        int retRead = consumer->Read(&buff[0], offset, bufferSize, filePath);
         while (retRead > 0) {
             offset += retRead;
-            retRead = consumer.Read(&buff[0], offset, bufferSize, filePath);
+            retRead = consumer->Read(&buff[0], offset, bufferSize, filePath);
         }
 
-        int retClose = consumer.Close(filePath);
+        int retClose = consumer->Close(filePath);
         if (retClose) {
             NDN_LOG_WARN("Unable to close file: " << filePath);
         }

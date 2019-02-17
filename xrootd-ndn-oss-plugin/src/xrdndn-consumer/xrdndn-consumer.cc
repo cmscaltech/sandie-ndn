@@ -84,12 +84,7 @@ void Consumer::onOpenData(const Interest &interest, const Data &data) {
     m_validator.validate(
         data,
         [this, interest](const Data &data) {
-            if (data.getContentType() == ndn::tlv::ContentType_Nack) {
-                m_FileStat.retOpen = XRDNDN_EFAILURE;
-            } else {
-                m_FileStat.retOpen = XRDNDN_ESUCCESS;
-            }
-
+            m_FileStat.retOpen = -readNonNegativeInteger(data.getContent());
             NDN_LOG_TRACE("Open file with Interest: " << interest
                                                       << " with error code: "
                                                       << m_FileStat.retOpen);
@@ -103,7 +98,7 @@ void Consumer::onOpenData(const Interest &interest, const Data &data) {
 void Consumer::onOpenFailure(const Interest &interest,
                              const std::string &reason) {
     NDN_LOG_ERROR(reason << " for Interest: " << interest);
-    m_FileStat.retOpen = XRDNDN_EFAILURE;
+    m_FileStat.retOpen = -ENETDOWN;
 }
 
 int Consumer::Open(std::string path) {
@@ -118,7 +113,7 @@ int Consumer::Open(std::string path) {
                     std::bind(&Consumer::onOpenFailure, this, _1, _2));
 
     if (!this->processEvents()) {
-        return XRDNDN_EFAILURE;
+        return -EMSGSIZE;
     }
 
     return m_FileStat.retOpen;
@@ -131,12 +126,7 @@ void Consumer::onCloseData(const Interest &interest, const Data &data) {
     m_validator.validate(
         data,
         [this, interest](const Data &data) {
-            if (data.getContentType() == ndn::tlv::ContentType_Nack) {
-                m_FileStat.retClose = XRDNDN_EFAILURE;
-            } else {
-                m_FileStat.retClose = XRDNDN_ESUCCESS;
-            }
-
+            m_FileStat.retClose = -readNonNegativeInteger(data.getContent());
             NDN_LOG_TRACE("Close file with Interest: " << interest
                                                        << " with error code: "
                                                        << m_FileStat.retClose);
@@ -150,7 +140,7 @@ void Consumer::onCloseData(const Interest &interest, const Data &data) {
 void Consumer::onCloseFailure(const Interest &interest,
                               const std::string &reason) {
     NDN_LOG_ERROR(reason << " for Interest: " << interest);
-    m_FileStat.retOpen = XRDNDN_EFAILURE;
+    m_FileStat.retOpen = -ENETDOWN;
 }
 
 int Consumer::Close(std::string path) {
@@ -165,7 +155,7 @@ int Consumer::Close(std::string path) {
                     std::bind(&Consumer::onCloseFailure, this, _1, _2));
 
     if (!this->processEvents()) {
-        return XRDNDN_EFAILURE;
+        return -EMSGSIZE;
     }
 
     m_pipeline->printStatistics(path);
@@ -185,7 +175,8 @@ void Consumer::onFstatData(const ndn::Interest &interest,
         data,
         [this, dataPtr, interest](const Data &data) {
             if (data.getContentType() == ndn::tlv::ContentType_Nack) {
-                m_FileStat.retFstat = XRDNDN_EFAILURE;
+                m_FileStat.retFstat =
+                    -readNonNegativeInteger(data.getContent());
             } else {
                 m_FileStat.retFstat = XRDNDN_ESUCCESS;
                 m_dataStore[0] = dataPtr;
@@ -200,7 +191,7 @@ void Consumer::onFstatData(const ndn::Interest &interest,
 void Consumer::onFstatFailure(const Interest &interest,
                               const std::string &reason) {
     NDN_LOG_ERROR(reason << " for Interest: " << interest);
-    m_FileStat.retOpen = XRDNDN_EFAILURE;
+    m_FileStat.retOpen = -ENETDOWN;
 }
 
 int Consumer::Fstat(struct stat *buff, std::string path) {
@@ -215,7 +206,7 @@ int Consumer::Fstat(struct stat *buff, std::string path) {
                     std::bind(&Consumer::onFstatFailure, this, _1, _2));
 
     if (!this->processEvents()) {
-        return XRDNDN_EFAILURE;
+        return -EMSGSIZE;
     }
 
     if (m_FileStat.retFstat == XRDNDN_ESUCCESS) {
@@ -237,7 +228,7 @@ void Consumer::onReadData(const ndn::Interest &interest,
         data,
         [this, dataPtr](const Data &data) {
             if (data.getContentType() == ndn::tlv::ContentType_Nack) {
-                m_FileStat.retRead = XRDNDN_EFAILURE;
+                m_FileStat.retRead = -readNonNegativeInteger(data.getContent());
             } else {
                 m_dataStore[xrdndn::Utils::getSegmentNo(data)] = dataPtr;
             }
@@ -251,7 +242,7 @@ void Consumer::onReadData(const ndn::Interest &interest,
 void Consumer::onReadFailure(const ndn::Interest &interest,
                              const std::string &reason) {
     NDN_LOG_ERROR(reason << " for Interest: " << interest);
-    m_FileStat.retRead = XRDNDN_EFAILURE;
+    m_FileStat.retRead = -ENETDOWN;
 }
 
 ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
@@ -283,12 +274,12 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
                     std::bind(&Consumer::onReadFailure, this, _1, _2));
 
     if (!this->processEvents()) {
-        return XRDNDN_EFAILURE;
+        return -EMSGSIZE;
     }
 
     return m_FileStat.retRead == XRDNDN_ESUCCESS
                ? this->returnData(buff, offset, blen)
-               : XRDNDN_EFAILURE;
+               : m_FileStat.retRead;
 }
 
 inline size_t Consumer::returnData(void *buff, off_t offset, size_t blen) {

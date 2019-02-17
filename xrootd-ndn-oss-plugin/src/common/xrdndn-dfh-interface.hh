@@ -82,7 +82,7 @@ class FileHandlerInterface {
      *
      * @param path The file name
      * @return int The return value of open POSIX system call on the Producer
-     * side. 0 (success) / -1 (error)
+     * side. 0 (success) / -errno (error)
      */
     virtual int Open(std::string path) = 0;
 
@@ -93,7 +93,7 @@ class FileHandlerInterface {
      *
      * @param path The file name
      * @return int The return value of close POSIX system call on the Producer
-     * side. 0 (success) / -1 (error)
+     * side. 0 (success) / -errno (error)
      */
     virtual int Close(std::string path) = 0;
 
@@ -106,7 +106,7 @@ class FileHandlerInterface {
      * put in
      * @param path The file name
      * @return int The return value of fstat POSIX system call on the Producer
-     * side. 0 (success and buff will have data) / -1 (error)
+     * side. 0 (success and buff will have data) / -errno (error)
      */
     virtual int Fstat(struct stat *buff, std::string path) = 0;
 
@@ -120,8 +120,8 @@ class FileHandlerInterface {
      * @param offset Offset in file were the read will begin
      * @param blen The number of bytes to be read by Producer
      * @param path The file name
-     * @return ssize_t The actual number of bytes read on the Producer side. The
-     * value read POSIX system call will return
+     * @return ssize_t On Success the actual number of bytes read on the
+     * Producer side. On failure -errno
      */
     virtual ssize_t Read(void *buff, off_t offset, size_t blen,
                          std::string path) = 0;

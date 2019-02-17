@@ -40,11 +40,11 @@ namespace xrdndnconsumer {
  *
  */
 struct FileStat {
-    uint8_t retOpen = -1;  // Return value of open system call
-    uint8_t retClose = -1; // Return value of close system call
-    uint8_t retFstat = -1; // Return value of fstat system call
+    int64_t retOpen = -1;  // Return value of open system call
+    int64_t retClose = -1; // Return value of close system call
+    int64_t retFstat = -1; // Return value of fstat system call
+    int64_t retRead = 0;   // Return value of read system call
 
-    off_t retRead = 0;  // Return value of read system call
     off_t fileSize = 0; // Size of file beeing processed
 };
 

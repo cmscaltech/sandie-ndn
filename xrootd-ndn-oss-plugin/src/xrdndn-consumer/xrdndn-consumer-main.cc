@@ -18,6 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
+#include <fstream>
 #include <iostream>
 #include <stdlib.h>
 
@@ -31,14 +32,24 @@
 
 namespace xrdndnconsumer {
 
-uint64_t bufferSize(262144);
+struct Opts {
+    std::string filepath;
+    std::string dirpath;
+    std::string outputpath;
+};
 
-int copyFileOverNDN(std::string filePath) {
+struct Opts opts;
+uint64_t bufferSize(262144);
+static const std::string defaultOutputFileName = std::string("ndnfile.out");
+
+int readFile(std::string filePath, std::string outputPath) {
     auto consumer = Consumer::getXrdNdnConsumerInstance();
     if (!consumer)
         return -1;
 
     try {
+        std::map<uint64_t, std::pair<std::string, uint64_t>> contentStore;
+
         int retOpen = consumer->Open(filePath);
         if (retOpen != XRDNDN_ESUCCESS) {
             NDN_LOG_ERROR("Unable to open file: " << filePath);
@@ -57,6 +68,7 @@ int copyFileOverNDN(std::string filePath) {
 
         int retRead = consumer->Read(&buff[0], offset, bufferSize, filePath);
         while (retRead > 0) {
+            contentStore[offset] = std::make_pair(std::string(buff), retRead);
             offset += retRead;
             retRead = consumer->Read(&buff[0], offset, bufferSize, filePath);
         }
@@ -65,6 +77,17 @@ int copyFileOverNDN(std::string filePath) {
         if (retClose != XRDNDN_ESUCCESS) {
             NDN_LOG_WARN("Unable to close file: " << filePath);
         }
+
+        if (!outputPath.empty()) {
+            std::ofstream ostream(outputPath, std::ofstream::binary);
+            for (auto it = contentStore.begin(); it != contentStore.end();
+                 it = contentStore.erase(it)) {
+                ostream.write(it->second.first.data(), it->second.second);
+            }
+            ostream.close();
+        }
+
+        contentStore.clear();
     } catch (const std::exception &e) {
         NDN_LOG_ERROR(e.what());
     }
@@ -72,15 +95,15 @@ int copyFileOverNDN(std::string filePath) {
     return 0;
 }
 
-int runTest(std::string dirPath, std::string filePath) {
+int run() {
     int ret = 1;
 
-    auto startCopyFileOverNDN = [&](boost::filesystem::path filePath) {
+    auto beginReadFile = [&](boost::filesystem::path path) {
         try {
             auto absolutePath = boost::filesystem::canonical(
-                                    filePath, boost::filesystem::current_path())
+                                    path, boost::filesystem::current_path())
                                     .string();
-            ret &= copyFileOverNDN(absolutePath);
+            ret &= readFile(absolutePath, opts.outputpath);
         } catch (const boost::filesystem::filesystem_error &e) {
             NDN_LOG_ERROR(e.what());
             ret &= 2;
@@ -89,23 +112,22 @@ int runTest(std::string dirPath, std::string filePath) {
 
     // TODO: For the moment this will work only for local directories
     // as we don't offer support for directory operations over NDN yet.
-    if (!dirPath.empty()) {
-        if (boost::filesystem::is_directory(dirPath)) {
+    if (!opts.dirpath.empty()) {
+        if (boost::filesystem::is_directory(opts.dirpath)) {
             for (auto &entry : boost::make_iterator_range(
-                     boost::filesystem::directory_iterator(dirPath), {}))
-                startCopyFileOverNDN(entry.path());
+                     boost::filesystem::directory_iterator(opts.dirpath), {}))
+                beginReadFile(entry.path());
         } else {
             NDN_LOG_INFO(
-                dirPath
+                opts.dirpath
                 << " is not a local directory. For the moment this option "
                    "works only for local directories.");
         }
     }
 
-    if (boost::filesystem::exists(boost::filesystem::path(filePath)))
-        startCopyFileOverNDN(boost::filesystem::path(filePath));
-    else
-        ret &= copyFileOverNDN(filePath);
+    if (!opts.filepath.empty()) {
+        ret &= readFile(opts.filepath, opts.outputpath);
+    }
 
     return ret;
 }
@@ -117,26 +139,26 @@ static void usage(std::ostream &os, const std::string &programName,
        << desc;
 }
 
-static void info(uint64_t bufferSz, std::string dirPath, std::string filePath) {
-    if (dirPath.empty())
-        dirPath = "N/A";
+static void info(std::string dir, std::string file, std::string out) {
+    if (dir.empty())
+        dir = "N/A";
 
-    if (filePath.empty())
-        filePath = "N/A";
+    if (file.empty())
+        file = "N/A";
+
+    if (out.empty())
+        out = "N/A";
 
     NDN_LOG_INFO(
         "\nThe NDN Consumer used in the NDN based filesystem plugin for "
         "XRootD.\nDeveloped by Caltech@CMS.\n\nSelected Options: Read buffer "
         "size: "
-        << bufferSz << "B, Path to directory: " << dirPath
-        << ", Path to file: " << filePath << "\n");
+        << bufferSize << "B, Path to directory: " << dir << ", Path to file: "
+        << file << ", Path to output file: " << out << "\n");
 }
 
 int main(int argc, char **argv) {
     std::string programName = argv[0];
-
-    std::string filePath;
-    std::string dirPath;
 
     boost::program_options::options_description description("Options");
     description.add_options()(
@@ -145,11 +167,15 @@ int main(int argc, char **argv) {
             ->default_value(bufferSize),
         "Maximum size of the read buffer. The default is 262144. Specify any "
         "value between 8KB and 1GB in bytes.")(
-        "dir,d", boost::program_options::value<std::string>(&dirPath),
-        "Path to a local directory of files to be copied via NDN.")(
-        "file,f", boost::program_options::value<std::string>(&filePath),
-        "Path to the file to be copied via NDN.")(
-        "help,h", "Print this help message and exit");
+        "dir,d", boost::program_options::value<std::string>(&opts.dirpath),
+        "Experimental. Path to a local directory of files to be copied via "
+        "NDN.")("file,f",
+                boost::program_options::value<std::string>(&opts.filepath),
+                "Path to the file to be copied via NDN.")(
+        "help,h", "Print this help message and exit.")(
+        "output-file,o",
+        boost::program_options::value<std::string>(&opts.outputpath),
+        "Output path.");
 
     boost::program_options::variables_map vm;
     try {
@@ -177,6 +203,12 @@ int main(int argc, char **argv) {
         NDN_LOG_ERROR("Specify path to a file or a directory if files to "
                       "be copied over NDN.");
         return 2;
+    } else if (vm.count("file") != 0) {
+        if (boost::filesystem::exists(boost::filesystem::path(opts.filepath)))
+            opts.filepath =
+                boost::filesystem::canonical(opts.filepath,
+                                             boost::filesystem::current_path())
+                    .string();
     }
 
     if (bufferSize < 8192 || bufferSize > 1073741824) {
@@ -184,8 +216,19 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    info(bufferSize, dirPath, filePath);
-    return runTest(dirPath, filePath);
+    if (vm.count("output-file") != 0) {
+        if (opts.outputpath.empty()) {
+            opts.outputpath =
+                boost::filesystem::path(defaultOutputFileName).string();
+        } else if (boost::filesystem::is_directory(opts.outputpath)) {
+            opts.outputpath = (boost::filesystem::path(opts.outputpath) /
+                               boost::filesystem::path(defaultOutputFileName))
+                                  .string();
+        }
+    }
+
+    info(opts.dirpath, opts.filepath, opts.outputpath);
+    return run();
 }
 } // namespace xrdndnconsumer
 

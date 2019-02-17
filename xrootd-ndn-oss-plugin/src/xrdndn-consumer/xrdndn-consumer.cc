@@ -95,12 +95,6 @@ void Consumer::onOpenData(const Interest &interest, const Data &data) {
         });
 }
 
-void Consumer::onOpenFailure(const Interest &interest,
-                             const std::string &reason) {
-    NDN_LOG_ERROR(reason << " for Interest: " << interest);
-    m_FileStat.retOpen = -ENETDOWN;
-}
-
 int Consumer::Open(std::string path) {
     auto openInterest =
         this->getInterest(xrdndn::SYS_CALL_OPEN_PREFIX_URI, path);
@@ -109,8 +103,9 @@ int Consumer::Open(std::string path) {
     NDN_LOG_INFO("Opening file: " << path
                                   << " with Interest: " << openInterest);
 
-    m_pipeline->run(std::bind(&Consumer::onOpenData, this, _1, _2),
-                    std::bind(&Consumer::onOpenFailure, this, _1, _2));
+    m_pipeline->run(
+        std::bind(&Consumer::onOpenData, this, _1, _2),
+        [this](const int &errcode) { m_FileStat.retOpen = errcode; });
 
     if (!this->processEvents()) {
         return -EMSGSIZE;
@@ -137,12 +132,6 @@ void Consumer::onCloseData(const Interest &interest, const Data &data) {
         });
 }
 
-void Consumer::onCloseFailure(const Interest &interest,
-                              const std::string &reason) {
-    NDN_LOG_ERROR(reason << " for Interest: " << interest);
-    m_FileStat.retOpen = -ENETDOWN;
-}
-
 int Consumer::Close(std::string path) {
     auto closeInterest =
         this->getInterest(xrdndn::SYS_CALL_CLOSE_PREFIX_URI, path);
@@ -151,8 +140,9 @@ int Consumer::Close(std::string path) {
     NDN_LOG_INFO("Closing file: " << path
                                   << " with Interest: " << closeInterest);
 
-    m_pipeline->run(std::bind(&Consumer::onCloseData, this, _1, _2),
-                    std::bind(&Consumer::onCloseFailure, this, _1, _2));
+    m_pipeline->run(
+        std::bind(&Consumer::onCloseData, this, _1, _2),
+        [this](const int &errcode) { m_FileStat.retClose = errcode; });
 
     if (!this->processEvents()) {
         return -EMSGSIZE;
@@ -188,12 +178,6 @@ void Consumer::onFstatData(const ndn::Interest &interest,
         });
 }
 
-void Consumer::onFstatFailure(const Interest &interest,
-                              const std::string &reason) {
-    NDN_LOG_ERROR(reason << " for Interest: " << interest);
-    m_FileStat.retOpen = -ENETDOWN;
-}
-
 int Consumer::Fstat(struct stat *buff, std::string path) {
     auto fstatInterest =
         this->getInterest(xrdndn::SYS_CALL_FSTAT_PREFIX_URI, path, 0, 16_s);
@@ -202,8 +186,9 @@ int Consumer::Fstat(struct stat *buff, std::string path) {
     NDN_LOG_INFO("Fstat for file: " << path
                                     << " with Interest: " << fstatInterest);
 
-    m_pipeline->run(std::bind(&Consumer::onFstatData, this, _1, _2),
-                    std::bind(&Consumer::onFstatFailure, this, _1, _2));
+    m_pipeline->run(
+        std::bind(&Consumer::onFstatData, this, _1, _2),
+        [this](const int &errcode) { m_FileStat.retFstat = errcode; });
 
     if (!this->processEvents()) {
         return -EMSGSIZE;
@@ -239,12 +224,6 @@ void Consumer::onReadData(const ndn::Interest &interest,
         });
 }
 
-void Consumer::onReadFailure(const ndn::Interest &interest,
-                             const std::string &reason) {
-    NDN_LOG_ERROR(reason << " for Interest: " << interest);
-    m_FileStat.retRead = -ENETDOWN;
-}
-
 ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
                        std::string path) {
     // This should be uncommented once we offer multi-threading support
@@ -270,8 +249,9 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
     }
 
     NDN_LOG_TRACE("Sending " << noSegments << " read Interest packets");
-    m_pipeline->run(std::bind(&Consumer::onReadData, this, _1, _2),
-                    std::bind(&Consumer::onReadFailure, this, _1, _2));
+    m_pipeline->run(
+        std::bind(&Consumer::onReadData, this, _1, _2),
+        [this](const int &errcode) { m_FileStat.retRead = errcode; });
 
     if (!this->processEvents()) {
         return -EMSGSIZE;

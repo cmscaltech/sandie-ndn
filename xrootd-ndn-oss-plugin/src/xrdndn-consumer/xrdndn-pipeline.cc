@@ -94,7 +94,7 @@ bool Pipeline::fetchNextData(size_t pipeNo) {
     auto fetcher = DataFetcher::fetch(
         m_face, interest,
         std::bind(&Pipeline::handleData, this, _1, _2, pipeNo),
-        std::bind(&Pipeline::handleFailure, this, _1, _2));
+        std::bind(&Pipeline::handleFailure, this, _1));
 
     m_pipeline[pipeNo] = fetcher;
     return true;
@@ -109,10 +109,7 @@ void Pipeline::handleData(const ndn::Interest &interest, const ndn::Data &data,
     fetchNextData(pipeNo);
 }
 
-void Pipeline::handleFailure(const ndn::Interest &interest,
-                             const std::string &reason) {
-    m_onFailure(interest, reason);
-}
+void Pipeline::handleFailure(const int &errcode) { m_onFailure(errcode); }
 
 void Pipeline::printStatistics(std::string path) {
     ndn::time::duration<double, ndn::time::milliseconds::period> timeElapsed =

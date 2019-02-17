@@ -42,8 +42,7 @@ class Pipeline {
      */
     static const uint8_t DEFAULT_PIPELINE_SIZE;
 
-    using FailureCallback = std::function<void(const ndn::Interest &interest,
-                                               const std::string &reason)>;
+    using FailureCallback = std::function<void(const int &)>;
 
   public:
     /**
@@ -115,11 +114,9 @@ class Pipeline {
     /**
      * @brief Callback function when DataFetcher has a failure
      *
-     * @param interest The Interest that is presenting a failure
-     * @param reason The reason of failure
+     * @param errcode The error value
      */
-    void handleFailure(const ndn::Interest &interest,
-                       const std::string &reason);
+    void handleFailure(const int &errcode);
 
   private:
     ndn::Face &m_face;

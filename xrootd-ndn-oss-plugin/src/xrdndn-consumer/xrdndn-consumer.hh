@@ -122,32 +122,12 @@ class Consumer : xrdndn::FileHandlerInterface {
     void onOpenData(const ndn::Interest &interest, const ndn::Data &data);
 
     /**
-     * @brief Callback function on failure while processing Interest for open
-     * file system call
-     *
-     * @param interest The Interest packet on which failure occured
-     * @param reason The reason for which the failure occured
-     */
-    void onOpenFailure(const ndn::Interest &interest,
-                       const std::string &reason);
-
-    /**
      * @brief Callback function on receiving Data for close Interest
      *
      * @param interest The Interest
      * @param data The Data for the Interest
      */
     void onCloseData(const ndn::Interest &interest, const ndn::Data &data);
-
-    /**
-     * @brief Callback function on failure while processing Interest for close
-     * file system call
-     *
-     * @param interest The Interest packet on which failure occured
-     * @param reason The reason for which the failure occured
-     */
-    void onCloseFailure(const ndn::Interest &interest,
-                        const std::string &reason);
 
     /**
      * @brief Callback function on receiving Data for fstat Interest
@@ -158,32 +138,12 @@ class Consumer : xrdndn::FileHandlerInterface {
     void onFstatData(const ndn::Interest &interest, const ndn::Data &data);
 
     /**
-     * @brief Callback function on failure while processing Interest for fstat
-     * file system call
-     *
-     * @param interest The Interest packet on which failure occured
-     * @param reason The reason for which the failure occured
-     */
-    void onFstatFailure(const ndn::Interest &interest,
-                        const std::string &reason);
-
-    /**
      * @brief Callback function on receiving Data for read Interest
      *
      * @param interest The Interest
      * @param data The Data for the Interest
      */
     void onReadData(const ndn::Interest &interest, const ndn::Data &data);
-
-    /**
-     * @brief Callback function on failure while processing Interest for read
-     * file system call
-     *
-     * @param interest The Interest packet on which failure occured
-     * @param reason The reason for which the failure occured
-     */
-    void onReadFailure(const ndn::Interest &interest,
-                       const std::string &reason);
 
     /**
      * @brief Put data in the provided buffer by the owner of this Consumer

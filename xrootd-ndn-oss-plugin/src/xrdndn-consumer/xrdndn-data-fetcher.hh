@@ -53,8 +53,7 @@ class DataFetcher {
      */
     static const ndn::time::milliseconds MAX_CONGESTION_BACKOFF_TIME;
 
-    using FailureCallback = std::function<void(const ndn::Interest &interest,
-                                               const std::string &reason)>;
+    using FailureCallback = std::function<void(const int &)>;
 
   public:
     /**
@@ -111,7 +110,8 @@ class DataFetcher {
     void handleData(const ndn::Interest &interest, const ndn::Data &data);
 
     /**
-     * @brief Method called when receiving NACK for Interest packet
+     * @brief Method called when receiving NACK for Interest packet. Sends
+     * -ENETUNREACH on failure
      *
      * @param interest The Interest packet
      * @param nack  Nack object for the Interest packet
@@ -119,7 +119,8 @@ class DataFetcher {
     void handleNack(const ndn::Interest &interest, const ndn::lp::Nack &nack);
 
     /**
-     * @brief Method called when receiving Timeut for Interest packet
+     * @brief Method called when receiving Timeut for Interest packet. Sends
+     * -ETIMEDOUT on failure
      *
      * @param interest The Interest packet
      */

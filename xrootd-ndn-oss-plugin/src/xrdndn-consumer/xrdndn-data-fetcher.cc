@@ -45,9 +45,11 @@ std::shared_ptr<DataFetcher> DataFetcher::fetch(Face &face,
 
 DataFetcher::DataFetcher(Face &face, DataCallback onData,
                          FailureCallback onFailure)
-    : m_onData(std::move(onData)), m_onFailure(onFailure), m_face(face),
-      m_scheduler(face.getIoService()), m_nNacks(0), m_nCongestionRetries(0),
-      m_nTimeouts(0), m_error(false), m_stop(false) {}
+    : m_face(face), m_scheduler(face.getIoService()), m_nNacks(0),
+      m_nCongestionRetries(0), m_nTimeouts(0), m_error(false), m_stop(false) {
+    m_onData = std::move(onData);
+    m_onFailure = std::move(onFailure);
+}
 
 bool DataFetcher::isFetching() { return !m_stop && !m_error; }
 
@@ -72,9 +74,10 @@ void DataFetcher::handleNack(const Interest &interest, const lp::Nack &nack) {
                   << nack.getReason() << "\" for Interest " << interest);
 
     if (m_nNacks >= MAX_RETRIES_NACK) {
+        NDN_LOG_ERROR("Reached the maximum number of NACK retries: "
+                      << m_nNacks << " for Interest: " << interest);
         m_error = true;
-        m_onFailure(interest, "Reached the maximum number of NACK retries: " +
-                                  boost::lexical_cast<std::string>(m_nNacks));
+        m_onFailure(-ENETUNREACH);
         return;
     } else {
         ++m_nNacks;
@@ -103,11 +106,10 @@ void DataFetcher::handleNack(const Interest &interest, const lp::Nack &nack) {
         break;
     }
     default:
+        NDN_LOG_ERROR("NACK with reason " << nack.getReason()
+                                          << " does not trigger a retry");
         m_error = true;
-        m_onFailure(interest,
-                    "NACK with reason: \"" +
-                        boost::lexical_cast<std::string>(nack.getReason()) +
-                        "\" does not trigger a retry");
+        m_onFailure(-ENETUNREACH);
         break;
     }
 }
@@ -116,10 +118,10 @@ void DataFetcher::handleTimeout(const Interest &interest) {
     NDN_LOG_TRACE("Received TIMEOUT for Interest: " << interest);
 
     if (m_nTimeouts >= MAX_RETRIES_TIMEOUT) {
+        NDN_LOG_ERROR("Reached the maximum number of timeout retries: "
+                      << m_nTimeouts << " for Interest: " << interest);
         m_error = true;
-        m_onFailure(interest,
-                    "Reached the maximum number of timeout retries: " +
-                        boost::lexical_cast<std::string>(m_nTimeouts));
+        m_onFailure(-ETIMEDOUT);
         return;
     } else {
         ++m_nTimeouts;

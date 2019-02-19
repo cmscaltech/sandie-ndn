@@ -81,13 +81,11 @@ const Interest Consumer::getInterest(ndn::Name prefix, std::string path,
 /*                                  O p e n                                  */
 /*****************************************************************************/
 void Consumer::onOpenData(const Interest &interest, const Data &data) {
+    NDN_LOG_TRACE("Received Data for open with Interest: " << interest);
     m_validator.validate(
         data,
-        [this, interest](const Data &data) {
+        [this](const Data &data) {
             m_FileStat.retOpen = -readNonNegativeInteger(data.getContent());
-            NDN_LOG_TRACE("Open file with Interest: " << interest
-                                                      << " with error code: "
-                                                      << m_FileStat.retOpen);
         },
         [](const Data &, const security::v2::ValidationError &error) {
             NDN_LOG_ERROR(
@@ -99,10 +97,10 @@ int Consumer::Open(std::string path) {
     auto openInterest =
         this->getInterest(xrdndn::SYS_CALL_OPEN_PREFIX_URI, path);
 
-    m_pipeline->insert(openInterest);
-    NDN_LOG_INFO("Opening file: " << path
-                                  << " with Interest: " << openInterest);
+    NDN_LOG_INFO("Request open file: " << path
+                                       << " with Interest: " << openInterest);
 
+    m_pipeline->insert(openInterest);
     m_pipeline->run(
         std::bind(&Consumer::onOpenData, this, _1, _2),
         [this](const int &errcode) { m_FileStat.retOpen = errcode; });
@@ -111,6 +109,8 @@ int Consumer::Open(std::string path) {
         return -EMSGSIZE;
     }
 
+    NDN_LOG_INFO("Received open Data for file: " << path << " with error code: "
+                                                 << m_FileStat.retOpen);
     return m_FileStat.retOpen;
 }
 
@@ -118,13 +118,11 @@ int Consumer::Open(std::string path) {
 /*                                 C l o s e                                 */
 /*****************************************************************************/
 void Consumer::onCloseData(const Interest &interest, const Data &data) {
+    NDN_LOG_TRACE("Received Data for close with Interest: " << interest);
     m_validator.validate(
         data,
-        [this, interest](const Data &data) {
+        [this](const Data &data) {
             m_FileStat.retClose = -readNonNegativeInteger(data.getContent());
-            NDN_LOG_TRACE("Close file with Interest: " << interest
-                                                       << " with error code: "
-                                                       << m_FileStat.retClose);
         },
         [](const Data &, const security::v2::ValidationError &error) {
             NDN_LOG_ERROR(
@@ -136,10 +134,10 @@ int Consumer::Close(std::string path) {
     auto closeInterest =
         this->getInterest(xrdndn::SYS_CALL_CLOSE_PREFIX_URI, path);
 
-    m_pipeline->insert(closeInterest);
-    NDN_LOG_INFO("Closing file: " << path
-                                  << " with Interest: " << closeInterest);
+    NDN_LOG_INFO("Request close file: " << path
+                                        << " with Interest: " << closeInterest);
 
+    m_pipeline->insert(closeInterest);
     m_pipeline->run(
         std::bind(&Consumer::onCloseData, this, _1, _2),
         [this](const int &errcode) { m_FileStat.retClose = errcode; });
@@ -150,6 +148,8 @@ int Consumer::Close(std::string path) {
 
     m_pipeline->printStatistics(path);
 
+    NDN_LOG_INFO("Received close Data for file: "
+                 << path << " with error code: " << m_FileStat.retClose);
     return m_FileStat.retClose;
 }
 
@@ -158,7 +158,7 @@ int Consumer::Close(std::string path) {
 /*****************************************************************************/
 void Consumer::onFstatData(const ndn::Interest &interest,
                            const ndn::Data &data) {
-    NDN_LOG_TRACE("Received data for fstat with Interest: " << interest);
+    NDN_LOG_TRACE("Received Data for fstat with Interest: " << interest);
 
     auto dataPtr = data.shared_from_this();
     m_validator.validate(
@@ -182,10 +182,10 @@ int Consumer::Fstat(struct stat *buff, std::string path) {
     auto fstatInterest =
         this->getInterest(xrdndn::SYS_CALL_FSTAT_PREFIX_URI, path, 0, 16_s);
 
-    m_pipeline->insert(fstatInterest);
-    NDN_LOG_INFO("Fstat for file: " << path
-                                    << " with Interest: " << fstatInterest);
+    NDN_LOG_INFO("Request fstat for file: " << path << " with Interest: "
+                                            << fstatInterest);
 
+    m_pipeline->insert(fstatInterest);
     m_pipeline->run(
         std::bind(&Consumer::onFstatData, this, _1, _2),
         [this](const int &errcode) { m_FileStat.retFstat = errcode; });
@@ -199,6 +199,8 @@ int Consumer::Fstat(struct stat *buff, std::string path) {
         m_FileStat.fileSize = buff->st_size;
     }
 
+    NDN_LOG_INFO("Received fstat Data for file: "
+                 << path << " with error code: " << m_FileStat.retFstat);
     return m_FileStat.retFstat;
 }
 
@@ -208,6 +210,7 @@ int Consumer::Fstat(struct stat *buff, std::string path) {
 void Consumer::onReadData(const ndn::Interest &interest,
                           const ndn::Data &data) {
     NDN_LOG_TRACE("Received Data for read with Interest: " << interest);
+
     auto dataPtr = data.shared_from_this();
     m_validator.validate(
         data,
@@ -215,6 +218,7 @@ void Consumer::onReadData(const ndn::Interest &interest,
             if (data.getContentType() == ndn::tlv::ContentType_Nack) {
                 m_FileStat.retRead = -readNonNegativeInteger(data.getContent());
             } else {
+                m_FileStat.retRead = XRDNDN_ESUCCESS;
                 m_dataStore[xrdndn::Utils::getSegmentNo(data)] = dataPtr;
             }
         },
@@ -248,7 +252,6 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
             this->getInterest(xrdndn::SYS_CALL_READ_PREFIX_URI, path, i));
     }
 
-    NDN_LOG_TRACE("Sending " << noSegments << " read Interest packets");
     m_pipeline->run(
         std::bind(&Consumer::onReadData, this, _1, _2),
         [this](const int &errcode) { m_FileStat.retRead = errcode; });
@@ -257,9 +260,15 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen,
         return -EMSGSIZE;
     }
 
-    return m_FileStat.retRead == XRDNDN_ESUCCESS
-               ? this->returnData(buff, offset, blen)
-               : m_FileStat.retRead;
+    if (m_FileStat.retRead == XRDNDN_ESUCCESS) {
+        m_FileStat.retRead = this->returnData(buff, offset, blen);
+    }
+
+    NDN_LOG_TRACE("Received read Data for "
+                  << blen << " bytes @" << offset << " from file: " << path
+                  << " with ret: " << m_FileStat.retRead);
+
+    return m_FileStat.retRead;
 }
 
 inline size_t Consumer::returnData(void *buff, off_t offset, size_t blen) {

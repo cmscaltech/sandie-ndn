@@ -86,7 +86,7 @@
 			"strstream": "cpp",
 			"queue": "cpp"
 		},
-		"workbench.colorTheme": "Default Light+",
+		"workbench.colorTheme": "Material Theme Darker High Contrast",
 		"window.zoomLevel": -1,
 		"fileHeaderComment.parameter":{
 			"*":{

@@ -193,18 +193,18 @@ face_system
   {
     ; Ethernet unicast settings.
     listen yes ; set to 'no' to disable Ethernet listener, default 'yes'
-  
+
     ; Time (in seconds) before closing an idle Ethernet unicast face.
     ; The actual timeout will occur anytime between idle_timeout and 2*idle_timeout.
     ; The default is 600 (10 minutes).
     idle_timeout 600
-  
+
     ; Ethernet multicast settings.
     ; By default, NFD creates one Ethernet multicast face per NIC.
     mcast yes ; set to 'no' to disable Ethernet multicast, default 'yes'
     mcast_group 01:00:5E:00:17:AA ; Ethernet multicast group
     mcast_ad_hoc no ; set to 'yes' to make all Ethernet multicast faces "ad hoc", default 'no'
-  
+
     ; Whitelist and blacklist can contain, in no particular order:
     ; - interface names, including wildcard patterns (e.g., 'ifname eth0', 'ifname en*', 'ifname wlp?s0')
     ; - MAC addresses (e.g., 'ether 85:3b:4d:d3:5f:c2')

@@ -87,12 +87,12 @@
 			"queue": "cpp"
 		},
 		"workbench.colorTheme": "Material Theme Darker High Contrast",
-		"window.zoomLevel": -1,
+		"window.zoomLevel": 0,
 		"fileHeaderComment.parameter":{
 			"*":{
 				"commentbegin": "/******************************************************************************",
 				"commentprefix": " *",
-				"commentend":[" *****************************************************************************/" 
+				"commentend":[" *****************************************************************************/"
 				],
 				"author": "Catalin Iordache",
 				"email": "catalin.iordache@cern.ch",

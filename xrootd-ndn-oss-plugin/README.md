@@ -196,7 +196,7 @@ root@cms:~# export NDN_LOG="xrdndnconsumer*=INFO"
 
 
 ## Logging using ndn-log
-By default, only **FATAL** errors will be printed to stdout. Follow [ndn-log](https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html) to read about the different levels of logging and how to enable them. 
+By default, only **FATAL** errors will be printed to stdout. Follow [ndn-log](https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html) to read about the different levels of logging and how to enable them.
 
 All the logging module names are defined in [xrdndn-logger.hh](./src/common/xrdndn-logger.hh) source file. For the moment there are only two modules defined: **xrdndnconsumer** (for NDN based filesystem XRootD plugin) and **xrdndnproducer** (for the NDN producer).
 

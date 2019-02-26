@@ -160,16 +160,16 @@ void Consumer::onFstatData(const ndn::Interest &interest,
                            const ndn::Data &data) {
     NDN_LOG_TRACE("Received Data for fstat with Interest: " << interest);
 
-    auto dataPtr = data.shared_from_this();
     m_validator.validate(
         data,
-        [this, dataPtr, interest](const Data &data) {
+        [this](const Data &data) {
             if (data.getContentType() == ndn::tlv::ContentType_Nack) {
                 m_FileStat.retFstat =
                     -readNonNegativeInteger(data.getContent());
             } else {
                 m_FileStat.retFstat = XRDNDN_ESUCCESS;
-                m_dataStore[0] = dataPtr;
+                m_dataStore.insert(
+                    std::pair<uint64_t, const Block>(0, data.getContent()));
             }
         },
         [](const Data &, const security::v2::ValidationError &error) {
@@ -211,15 +211,15 @@ void Consumer::onReadData(const ndn::Interest &interest,
                           const ndn::Data &data) {
     NDN_LOG_TRACE("Received Data for read with Interest: " << interest);
 
-    auto dataPtr = data.shared_from_this();
     m_validator.validate(
         data,
-        [this, dataPtr](const Data &data) {
+        [this](const Data &data) {
             if (data.getContentType() == ndn::tlv::ContentType_Nack) {
                 m_FileStat.retRead = -readNonNegativeInteger(data.getContent());
             } else {
                 m_FileStat.retRead = XRDNDN_ESUCCESS;
-                m_dataStore[xrdndn::Utils::getSegmentNo(data)] = dataPtr;
+                m_dataStore.insert(std::pair<uint64_t, const Block>(
+                    xrdndn::Utils::getSegmentNo(data), data.getContent()));
             }
         },
         [](const Data &, const security::v2::ValidationError &error) {
@@ -283,12 +283,12 @@ inline size_t Consumer::returnData(void *buff, off_t offset, size_t blen) {
 
     auto it = m_dataStore.begin();
     // Store first bytes in buffer from offset
-    putData(it->second->getContent(), offset % XRDNDN_MAX_NDN_PACKET_SIZE);
+    putData(it->second, offset % XRDNDN_MAX_NDN_PACKET_SIZE);
     it = m_dataStore.erase(it);
 
     // Store rest of bytes until end
     for (; it != m_dataStore.end(); it = m_dataStore.erase(it)) {
-        putData(it->second->getContent(), 0);
+        putData(it->second, 0);
     }
 
     return nBytes;

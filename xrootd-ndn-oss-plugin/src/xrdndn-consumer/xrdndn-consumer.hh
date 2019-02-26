@@ -163,7 +163,7 @@ class Consumer : xrdndn::FileHandlerInterface {
     bool m_nfdConnected;
 
     struct FileStat m_FileStat;
-    std::map<uint64_t, std::shared_ptr<const ndn::Data>> m_dataStore;
+    std::map<uint64_t, const ndn::Block> m_dataStore;
     std::shared_ptr<Pipeline> m_pipeline;
 };
 } // namespace xrdndnconsumer

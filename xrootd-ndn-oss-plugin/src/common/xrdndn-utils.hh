@@ -50,11 +50,14 @@ class Utils {
      * @return std::string The file name as a std::string
      */
     static std::string getPath(ndn::Name name) noexcept {
-        return name.at(-1).isSegment()
-                   ? name.getSubName(xrdndn::SYS_CALLS_PREFIX_LEN)
-                         .getPrefix(-1)
-                         .toUri()
-                   : name.getSubName(xrdndn::SYS_CALLS_PREFIX_LEN).toUri();
+        try {
+            if (name.at(-1).isSegment())
+                return name.getSubName(xrdndn::SYS_CALLS_PREFIX_LEN)
+                    .getPrefix(-1)
+                    .toUri();
+        } catch (ndn::Name::Error &error) {
+        }
+        return name.getSubName(xrdndn::SYS_CALLS_PREFIX_LEN).toUri();
     }
 
     /**
@@ -67,12 +70,13 @@ class Utils {
     template <typename Packet>
     static uint64_t getSegmentNo(const Packet &packet) noexcept {
         ndn::Name name = packet.getName();
-
-        if (name.at(-1).isSegment())
-            return name.at(-1).toSegment();
-
-        if (name.at(-1).isVersion())
-            return name.at(-2).toSegment();
+        try {
+            if (name.at(-1).isSegment())
+                return name.at(-1).toSegment();
+            else if (name.at(-1).isVersion())
+                return name.at(-2).toSegment();
+        } catch (ndn::Name::Error &error) {
+        }
 
         return 0;
     }

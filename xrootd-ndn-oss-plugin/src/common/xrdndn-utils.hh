@@ -23,7 +23,7 @@
 
 #include <ndn-cxx/name.hpp>
 
-#include "xrdndn-dfh-interface.hh"
+#include "xrdndn-namespace.hh"
 
 namespace xrdndn {
 class Utils {

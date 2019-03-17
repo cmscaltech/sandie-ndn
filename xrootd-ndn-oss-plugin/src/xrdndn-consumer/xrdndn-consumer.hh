@@ -22,6 +22,7 @@
 #define XRDNDN_CONSUMER_HH
 
 #include <map>
+#include <sys/stat.h>
 
 #include <ndn-cxx/face.hpp>
 #include <ndn-cxx/security/v2/validation-error.hpp>
@@ -29,8 +30,7 @@
 #include <ndn-cxx/security/validator-null.hpp>
 #include <ndn-cxx/util/time.hpp>
 
-#include "../common/xrdndn-common.hh"
-#include "../common/xrdndn-dfh-interface.hh"
+#include "../common/xrdndn-namespace.hh"
 #include "xrdndn-pipeline.hh"
 
 namespace xrdndnconsumer {
@@ -55,7 +55,7 @@ struct FileStat {
  * specific data of each system call
  *
  */
-class Consumer : xrdndn::FileHandlerInterface {
+class Consumer {
     /**
      * @brief The default lifetime of an Interest packet expressed by Consumer
      *
@@ -84,12 +84,50 @@ class Consumer : xrdndn::FileHandlerInterface {
      */
     ~Consumer();
 
-    // Description of these functions can be found FileHandlerInterface class
-    virtual int Open(std::string path) override;
-    virtual int Close(std::string path) override;
-    virtual int Fstat(struct stat *buff, std::string path) override;
-    virtual ssize_t Read(void *buff, off_t offset, size_t blen,
-                         std::string path) override;
+    /**
+     * @brief Open file function over NDN. Convert to a corresponding Interest
+     * packet
+     *
+     * @param path The file name
+     * @return int The return value of open POSIX system call on the Producer
+     * side. 0 (success) / -errno (error)
+     */
+    int Open(std::string path);
+
+    /**
+     * @brief Close file function over NDN. Convert to a corresponding Interest
+     * packet
+     *
+     * @param path The file name
+     * @return int The return value of close POSIX system call on the Producer
+     * side. 0 (success) / -errno (error)
+     */
+    int Close(std::string path);
+
+    /**
+     * @brief Fstat file function over NDN. Convert to a corresponding Interest
+     * packet
+     *
+     * @param buff If fstat is possible, the POSIX struct stat of file will be
+     * put in
+     * @param path The file name
+     * @return int The return value of fstat POSIX system call on the Producer
+     * side. 0 (success and buff will have data) / -errno (error)
+     */
+    int Fstat(struct stat *buff, std::string path);
+
+    /**
+     * @brief Read blen bytes from file over NDN. The
+     * request will be translated into a number of Interest packets
+     *
+     * @param buff The address where data will be stored
+     * @param offset Offset in file were the read will begin
+     * @param blen The number of bytes to be read by Producer
+     * @param path The file name
+     * @return ssize_t On Success the actual number of bytes read on the
+     * Producer side. On failure -errno
+     */
+    ssize_t Read(void *buff, off_t offset, size_t blen, std::string path);
 
   private:
     /**

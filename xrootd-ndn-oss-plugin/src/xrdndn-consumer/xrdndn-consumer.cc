@@ -51,7 +51,7 @@ Consumer::Consumer()
         NDN_LOG_ERROR("Unable to get Pipeline instance");
     }
 
-    if (this->processEvents())
+    if (!this->processEvents())
         m_error = true;
 }
 

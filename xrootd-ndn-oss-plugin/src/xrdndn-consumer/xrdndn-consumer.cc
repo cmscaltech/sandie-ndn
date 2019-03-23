@@ -33,19 +33,26 @@ const ndn::time::milliseconds Consumer::DEFAULT_INTEREST_LIFETIME =
 std::shared_ptr<Consumer> Consumer::getXrdNdnConsumerInstance() {
     auto consumer = std::make_shared<Consumer>();
 
-    if (!consumer->m_nfdConnected)
+    if (!consumer || consumer->m_error) {
+        NDN_LOG_FATAL("Unable to get XRootD NDN Consumer instance");
         return nullptr;
+    }
 
     return consumer;
 }
 
 Consumer::Consumer()
-    : m_validator(security::v2::getAcceptAllValidator()),
-      m_nfdConnected(false) {
+    : m_validator(security::v2::getAcceptAllValidator()), m_error(false) {
+    NDN_LOG_TRACE("Alloc XRootD NDN Consumer");
+
     m_pipeline = std::make_shared<Pipeline>(m_face);
+    if (!m_pipeline) {
+        m_error = true;
+        NDN_LOG_ERROR("Unable to get Pipeline instance");
+    }
 
     if (this->processEvents())
-        m_nfdConnected = true;
+        m_error = true;
 }
 
 Consumer::~Consumer() {

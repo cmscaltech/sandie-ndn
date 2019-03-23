@@ -201,7 +201,7 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
     ndn::Face m_face;
     ndn::security::v2::Validator &m_validator;
 
-    bool m_nfdConnected;
+    bool m_error;
 
     struct FileStat m_FileStat;
     std::map<uint64_t, const ndn::Block> m_dataStore;

@@ -49,7 +49,7 @@ class Utils {
      * @param name The Name
      * @return std::string The file name as a std::string
      */
-    static std::string getPath(ndn::Name name) noexcept {
+    static std::string getPath(const ndn::Name &name) noexcept {
         try {
             if (name.at(-1).isSegment())
                 return name.getSubName(xrdndn::SYS_CALLS_PREFIX_LEN)
@@ -61,15 +61,12 @@ class Utils {
     }
 
     /**
-     * @brief Get segment number from Data or Interest
+     * @brief Get segment number from Name
      *
-     * @tparam Packet Data/Interest
-     * @param packet The Name or Interest
-     * @return uint64_t The segment number
+     * @param name Name
+     * @return uint64_t Segment number
      */
-    template <typename Packet>
-    static uint64_t getSegmentNo(const Packet &packet) noexcept {
-        ndn::Name name = packet.getName();
+    static uint64_t getSegmentNo(const ndn::Name &name) noexcept {
         try {
             if (name.at(-1).isSegment())
                 return name.at(-1).toSegment();

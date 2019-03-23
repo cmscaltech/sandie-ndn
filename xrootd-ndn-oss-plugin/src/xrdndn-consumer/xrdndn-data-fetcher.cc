@@ -36,8 +36,8 @@ std::shared_ptr<DataFetcher> DataFetcher::fetch(Face &face,
                                                 const Interest &interest,
                                                 DataCallback onData,
                                                 FailureCallback onFailure) {
-    auto dataFetcher = std::shared_ptr<DataFetcher>(
-        new DataFetcher(face, std::move(onData), std::move(onFailure)));
+    auto dataFetcher = std::make_shared<DataFetcher>(face, std::move(onData),
+                                                     std::move(onFailure));
 
     dataFetcher->expressInterest(interest);
     return dataFetcher;

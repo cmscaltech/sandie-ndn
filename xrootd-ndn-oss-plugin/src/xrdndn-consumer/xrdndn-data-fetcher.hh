@@ -33,7 +33,7 @@ namespace xrdndnconsumer {
  * Interest packet and handles Nack, Timeout or Data for the Interest packet
  *
  */
-class DataFetcher {
+class DataFetcher : public std::enable_shared_from_this<DataFetcher> {
     /**
      * @brief Maximum no. of retries on receiving Nack Duplicate/Congestion
      * before setting error
@@ -73,6 +73,18 @@ class DataFetcher {
                                               const ndn::Interest &interest,
                                               ndn::DataCallback onData,
                                               FailureCallback onFailure);
+
+    /**
+     * @brief Construct a new Data Fetcher object
+     *
+     * @param face Reference to NDN Face which provides a communication channel
+     * with local or remote NDN forwarder
+     * @param onData Callback on receiving Data
+     * @param onFailure Callback to handle error
+     */
+    DataFetcher(ndn::Face &face, ndn::DataCallback onData,
+                FailureCallback onFailure);
+
     /**
      * @brief Checks if the Interest packet is processed
      *
@@ -90,17 +102,6 @@ class DataFetcher {
     void stop();
 
   private:
-    /**
-     * @brief Construct a new Data Fetcher object
-     *
-     * @param face Reference to NDN Face which provides a communication channel
-     * with local or remote NDN forwarder
-     * @param onData Callback on receiving Data
-     * @param onFailure Callback to handle error
-     */
-    DataFetcher(ndn::Face &face, ndn::DataCallback onData,
-                FailureCallback onFailure);
-
     /**
      * @brief Method called when receiving Data for Interest packet
      *

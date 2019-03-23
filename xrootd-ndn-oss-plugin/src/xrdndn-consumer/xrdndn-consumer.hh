@@ -30,6 +30,8 @@
 #include <ndn-cxx/security/validator-null.hpp>
 #include <ndn-cxx/util/time.hpp>
 
+#include <boost/noncopyable.hpp>
+
 #include "../common/xrdndn-namespace.hh"
 #include "xrdndn-pipeline.hh"
 
@@ -55,7 +57,8 @@ struct FileStat {
  * specific data of each system call
  *
  */
-class Consumer {
+class Consumer : public std::enable_shared_from_this<Consumer>,
+                 private boost::noncopyable {
     /**
      * @brief The default lifetime of an Interest packet expressed by Consumer
      *

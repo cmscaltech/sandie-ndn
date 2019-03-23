@@ -31,7 +31,7 @@ const ndn::time::milliseconds Consumer::DEFAULT_INTEREST_LIFETIME =
     ndn::time::seconds(4);
 
 std::shared_ptr<Consumer> Consumer::getXrdNdnConsumerInstance() {
-    auto consumer = std::shared_ptr<Consumer>(new Consumer());
+    auto consumer = std::make_shared<Consumer>();
 
     if (!consumer->m_nfdConnected)
         return nullptr;
@@ -219,7 +219,8 @@ void Consumer::onReadData(const ndn::Interest &interest,
             } else {
                 m_FileStat.retRead = XRDNDN_ESUCCESS;
                 m_dataStore.insert(std::pair<uint64_t, const Block>(
-                    xrdndn::Utils::getSegmentNo(data), data.getContent()));
+                    xrdndn::Utils::getSegmentNo(data.getName()),
+                    data.getContent()));
             }
         },
         [](const Data &, const security::v2::ValidationError &error) {

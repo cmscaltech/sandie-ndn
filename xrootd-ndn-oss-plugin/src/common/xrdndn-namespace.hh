@@ -40,7 +40,7 @@ namespace xrdndn {
  * @brief Default Data packet size in XRootD NDN based file system plugin
  *
  */
-#define XRDNDN_MAX_NDN_PACKET_SIZE 7168 // Data package size
+#define XRDNDN_MAX_NDN_PACKET_SIZE 7168
 
 /**
  * @brief Name prefix for all Interest packets expressed by Consumer

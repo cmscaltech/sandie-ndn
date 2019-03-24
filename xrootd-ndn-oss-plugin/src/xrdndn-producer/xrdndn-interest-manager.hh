@@ -18,13 +18,57 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#ifndef XRDNDN_PRODUCER_OPTIONS_HH
-#define XRDNDN_PRODUCER_OPTIONS_HH
+#ifndef XRDNDN_INTEREST_MANAGER_HH
+#define XRDNDN_INTEREST_MANAGER_HH
+
+#include <unordered_map>
+
+#include <ndn-cxx/face.hpp>
+
+#include <boost/asio/io_service.hpp>
+#include <boost/asio/system_timer.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/thread/condition.hpp>
+#include <boost/thread/thread.hpp>
+
+#include "xrdndn-file-handler.hh"
 
 namespace xrdndnproducer {
-struct Options {
-    bool precacheFile = false;
+
+class InterestManager {
+    static const size_t NUM_TH_INTEREST_HANDLER;
+    static const std::chrono::seconds GARBAGE_COLLECTOR_TIMER;
+    static const int64_t GARBAGE_COLLECTOR_TIME_DURATION;
+
+    using onDataCallback = std::function<void(const ndn::Data &data)>;
+
+  public:
+    InterestManager(onDataCallback dataCallback);
+    ~InterestManager();
+
+    void openInterest(const ndn::Interest &interest);
+    void closeInterest(const ndn::Interest &interest);
+    void fstatInterest(const ndn::Interest &interest);
+    void readInterest(const ndn::Interest &interest);
+
+  private:
+    std::shared_ptr<FileHandler> getFileHandler(std::string path);
+    void onGarbageCollector();
+
+  private:
+    onDataCallback m_onDataCallback;
+
+    boost::asio::io_service m_ioService;
+    boost::asio::io_service::work m_ioServiceWork;
+    boost::thread_group m_threads;
+
+    std::shared_ptr<Packager> m_packager;
+    std::shared_ptr<boost::asio::system_timer> m_garbageCollectorTimer;
+
+    std::unordered_map<std::string, std::shared_ptr<FileHandler>>
+        m_FileHandlers;
+    mutable boost::shared_mutex m_FileHandlersMtx;
 };
 } // namespace xrdndnproducer
 
-#endif // XRDNDN_PRODUCER_OPTIONS_HH
+#endif // XRDNDN_INTEREST_MANAGER_HH

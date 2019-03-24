@@ -54,9 +54,10 @@ target_link_libraries(xrdndn-consumer
 # Compile xrdndn-producer application
 add_executable(xrdndn-producer
     src/xrdndn-producer/xrdndn-producer-main.cc
-    src/xrdndn-producer/xrdndn-packager.cc
+    src/xrdndn-producer/xrdndn-producer.cc
+    src/xrdndn-producer/xrdndn-interest-manager.cc
     src/xrdndn-producer/xrdndn-file-handler.cc
-    src/xrdndn-producer/xrdndn-producer.cc)
+    src/xrdndn-producer/xrdndn-packager.cc)
 
 target_link_libraries(xrdndn-producer
     ${Boost_LIBRARIES}

@@ -21,27 +21,26 @@
 #ifndef XRDNDN_PRODUCER_HH
 #define XRDNDN_PRODUCER_HH
 
-#include <boost/asio/basic_waitable_timer.hpp>
-#include <boost/noncopyable.hpp>
-#include <chrono>
 #include <ndn-cxx/face.hpp>
 
-#include "../common/xrdndn-thread-safe-umap.hh"
-#include "xrdndn-file-handler.hh"
+#include <boost/noncopyable.hpp>
+
+#include "xrdndn-interest-manager.hh"
 #include "xrdndn-producer-options.hh"
 
-using boost::noncopyable;
-
 namespace xrdndnproducer {
-class Producer : noncopyable {
-    using SystemTimer =
-        boost::asio::basic_waitable_timer<std::chrono::system_clock>;
-
+class Producer : boost::noncopyable {
   public:
+    static std::shared_ptr<Producer>
+    getXrdNdnProducerInstance(ndn::Face &face, const Options &opts);
+
     Producer(ndn::Face &face, const Options &opts);
     ~Producer();
 
   private:
+    void registerPrefix();
+    void onData(const ndn::Data &data);
+
     void onOpenInterest(const ndn::InterestFilter &,
                         const ndn::Interest &interest);
 
@@ -54,16 +53,11 @@ class Producer : noncopyable {
     void onReadInterest(const ndn::InterestFilter &,
                         const ndn::Interest &interest);
 
-    void onGarbageCollector();
-
   private:
     ndn::Face &m_face;
     const Options m_options;
 
-    xrdndn::ThreadSafeUMap<std::string, std::shared_ptr<FileHandler>>
-        m_FileHandlers;
-    std::shared_ptr<Packager> m_packager;
-    std::shared_ptr<SystemTimer> m_GarbageCollectorTimer;
+    bool m_error;
 
     const ndn::RegisteredPrefixId *m_xrdndnPrefixId;
     const ndn::InterestFilterId *m_OpenFilterId;
@@ -71,8 +65,7 @@ class Producer : noncopyable {
     const ndn::InterestFilterId *m_FstatFilterId;
     const ndn::InterestFilterId *m_ReadFilterId;
 
-    void registerPrefix();
-    bool setFileHandler(std::string path);
+    std::shared_ptr<InterestManager> m_interestManager;
 };
 
 } // namespace xrdndnproducer

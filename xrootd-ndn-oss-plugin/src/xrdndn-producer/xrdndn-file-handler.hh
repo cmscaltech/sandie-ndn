@@ -22,82 +22,46 @@
 #define XRDNDN_FILE_HANDLER
 
 #include <ndn-cxx/face.hpp>
-#include <ndn-cxx/util/scheduler.hpp>
-#include <ndn-cxx/util/time.hpp>
 
-#include <boost/asio/io_service.hpp>
-#include <boost/thread/condition.hpp>
-#include <boost/thread/thread.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
-#include "../common/xrdndn-dfh-interface.hh"
-#include "xrdndn-lru-cache.hh"
 #include "xrdndn-packager.hh"
-#include "xrdndn-producer-options.hh"
-
-using namespace ndn;
 
 namespace xrdndnproducer {
-static const ndn::time::milliseconds CLOSING_FILE_DELAY =
-    ndn::time::seconds(180);
 
-class FileDescriptor {
-  public:
-    FileDescriptor(const char *filePath);
-    ~FileDescriptor();
+class FileHandler : public std::enable_shared_from_this<FileHandler> {
 
-    int get();
-    bool isOpened();
-    void closeFD();
-
-  private:
-    int m_fd;
-};
-
-class FileHandler : xrdndn::FileHandlerInterface {
-    const size_t NUM_THREADS_PER_FILEHANDLER = 2;
-    const size_t CACHE_SZ = 9472;     // 66304 KB
-    const size_t CACHE_LINE_SZ = 148; // 1036 KB
+    using onDataCallback = std::function<void(const ndn::Data &data)>;
 
   public:
-    FileHandler(const Options &opts);
+    static std::shared_ptr<FileHandler>
+    getFileHandler(const std::string path,
+                   const std::shared_ptr<Packager> &packager);
+
+    FileHandler(const std::string path,
+                const std::shared_ptr<Packager> &packager);
     ~FileHandler();
 
-    std::shared_ptr<Data> getOpenData(ndn::Name &name, const std::string path);
-    std::shared_ptr<Data> getCloseData(ndn::Name &name, const std::string path);
-    std::shared_ptr<Data> getFStatData(ndn::Name &name, const std::string path);
-    std::shared_ptr<Data> getReadData(const off_t segmentNo, ndn::Name &name,
-                                      const std::string path);
+    const ndn::Data getOpenData(ndn::Name &name);
+    const ndn::Data getCloseData(ndn::Name &name);
+    const ndn::Data getFstatData(ndn::Name &name);
+    const ndn::Data getReadData(ndn::Name &name);
 
-  public:
-    size_t refCount;
+    bool isOpened();
+    boost::posix_time::ptime getAccessTime();
 
   private:
-    virtual int Open(std::string path) override;
-    virtual int Close(std::string path) override;
-    virtual int Fstat(struct stat *buff, std::string path) override;
-    ssize_t Read(void *, off_t, size_t, std::string) override { return 0; }
+    int Open();
+    int Close();
+    int Fstat(void *buff);
     ssize_t Read(void *buff, size_t count, off_t offset);
-    void readCacheLine(off_t offset);
-    void insertEmptyCacheLine(off_t offset);
-    void waitForPackage(off_t segmentNo);
-    void cacheEntireFile(off_t fileSize, std::string path);
 
   private:
-    boost::asio::io_service m_ioService;
-    boost::asio::io_service::work m_ioServiceWork;
-    boost::thread_group m_threads;
+    boost::posix_time::ptime accessTime;
 
-    ndn::util::Scheduler m_scheduler;
-    ndn::util::scheduler::EventId m_fileClosingEvent;
-
-    std::string m_filePath;
-    std::shared_ptr<Packager> m_packager;
-    std::shared_ptr<FileDescriptor> m_fileDescriptor;
-    std::shared_ptr<LRUCache<uint64_t, ndn::Data>> m_LRUCache;
-    boost::mutex mtx_fileReader;
-
-    const Options m_options;
-    bool m_fileIsPrecached;
+    int m_fd;
+    const std::string m_path;
+    const std::shared_ptr<Packager> m_packager;
 };
 } // namespace xrdndnproducer
 

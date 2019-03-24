@@ -45,22 +45,24 @@ static const std::string defaultOutputFileName = std::string("ndnfile.out");
 int readFile(std::string filePath, std::string outputPath) {
     auto consumer = Consumer::getXrdNdnConsumerInstance();
     if (!consumer)
-        return -1;
+        return 2;
 
     try {
         std::map<uint64_t, std::pair<std::string, uint64_t>> contentStore;
 
         int retOpen = consumer->Open(filePath);
         if (retOpen != XRDNDN_ESUCCESS) {
-            NDN_LOG_ERROR("Unable to open file: " << filePath);
-            return -1;
+            NDN_LOG_ERROR("Unable to open file: " << filePath << ". "
+                                                  << strerror(abs(retOpen)));
+            return 2;
         }
 
         struct stat info;
         int retFstat = consumer->Fstat(&info, filePath);
         if (retFstat != XRDNDN_ESUCCESS) {
-            NDN_LOG_ERROR("Unable to get fstat for file: " << filePath);
-            return -1;
+            NDN_LOG_ERROR("Unable to get fstat for file: "
+                          << filePath << ". " << strerror(abs(retFstat)));
+            return 2;
         }
 
         off_t offset = 0;
@@ -73,9 +75,14 @@ int readFile(std::string filePath, std::string outputPath) {
             retRead = consumer->Read(&buff[0], offset, bufferSize, filePath);
         }
 
+        if (retRead < 0)
+            NDN_LOG_WARN("Unable to read file: " << filePath << ". "
+                                                 << strerror(abs(retRead)));
+
         int retClose = consumer->Close(filePath);
         if (retClose != XRDNDN_ESUCCESS) {
-            NDN_LOG_WARN("Unable to close file: " << filePath);
+            NDN_LOG_WARN("Unable to close file: " << filePath << ". "
+                                                  << strerror(abs(retClose)));
         }
 
         if (!outputPath.empty()) {

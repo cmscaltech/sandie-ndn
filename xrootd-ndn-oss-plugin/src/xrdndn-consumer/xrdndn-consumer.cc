@@ -34,7 +34,7 @@ std::shared_ptr<Consumer> Consumer::getXrdNdnConsumerInstance() {
     auto consumer = std::make_shared<Consumer>();
 
     if (!consumer || consumer->m_error) {
-        NDN_LOG_FATAL("Unable to get XRootD NDN Consumer instance");
+        NDN_LOG_FATAL("Unable to get XRootD NDN Consumer object instance");
         return nullptr;
     }
 
@@ -48,7 +48,7 @@ Consumer::Consumer()
     m_pipeline = std::make_shared<Pipeline>(m_face);
     if (!m_pipeline) {
         m_error = true;
-        NDN_LOG_ERROR("Unable to get Pipeline instance");
+        NDN_LOG_ERROR("Unable to get Pipeline object instance");
     }
 
     if (!this->processEvents())

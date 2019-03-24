@@ -86,8 +86,8 @@
 			"strstream": "cpp",
 			"queue": "cpp"
 		},
-		"workbench.colorTheme": "Material Theme Darker High Contrast",
-		"window.zoomLevel": 0,
+		"workbench.colorTheme": "Material Theme Ocean High Contrast",
+		"window.zoomLevel": -1,
 		"fileHeaderComment.parameter":{
 			"*":{
 				"commentbegin": "/******************************************************************************",

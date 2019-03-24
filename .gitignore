@@ -1,3 +1,4 @@
 *.DS_Store
 xrootd-ndn-oss-plugin/src/main.cpp
 xrootd-ndn-oss-plugin/build/*
+xrootd-ndn-oss-plugin/.vscode/ipch

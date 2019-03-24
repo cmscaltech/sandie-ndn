@@ -18,51 +18,51 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include <math.h>
+#include <cstdlib>
 
-#include "../common/xrdndn-common.hh"
 #include "../common/xrdndn-logger.hh"
+#include "../common/xrdndn-namespace.hh"
 #include "xrdndn-packager.hh"
 
 using namespace ndn;
 
 namespace xrdndnproducer {
-Packager::Packager(uint32_t signerType) {
-    m_signerType =
-        static_cast<ndn::security::SigningInfo::SignerType>(signerType);
-}
+const time::milliseconds Packager::FRESHNESS_PERIOD = time::milliseconds(16000);
+
+const security::SigningInfo Packager::signingInfo =
+    static_cast<security::SigningInfo>(
+        security::SigningInfo::SignerType::SIGNER_TYPE_SHA256);
+
+const std::shared_ptr<ndn::KeyChain> Packager::keyChain =
+    std::make_shared<KeyChain>();
+
+Packager::Packager() {}
+
 Packager::~Packager() {}
 
-void Packager::digest(std::shared_ptr<ndn::Data> &data) {
-    data->setFreshnessPeriod(DEFAULT_FRESHNESS_PERIOD);
-    security::SigningInfo signingInfo(m_signerType);
-    m_keyChain.sign(*data, signingInfo);
+void Packager::digest(Data &data) {
+    data.setFreshnessPeriod(FRESHNESS_PERIOD);
+    keyChain->sign(data, signingInfo);
 }
 
-// Prepare Data containing an non/negative integer
-std::shared_ptr<Data> Packager::getPackage(const ndn::Name &name, int value) {
-    const Block content =
-        makeNonNegativeIntegerBlock(ndn::tlv::Content, fabs(value));
+const Data Packager::getPackage(Name &name, const int contentValue) {
+    Data data(name.appendVersion());
 
-    std::shared_ptr<Data> data = std::make_shared<Data>(name);
-    data->setContent(content);
-
-    if (value < 0) {
-        data->setContentType(ndn::tlv::ContentType_Nack);
+    data.setContent(
+        makeNonNegativeIntegerBlock(ndn::tlv::Content, abs(contentValue)));
+    if (contentValue < 0) {
+        data.setContentType(tlv::ContentTypeValue::ContentType_Nack);
     }
 
-    boost::unique_lock<boost::shared_mutex> lock(m_mutex);
     digest(data);
     return data;
 }
 
-// Prepare Data as bytes
-std::shared_ptr<Data> Packager::getPackage(ndn::Name &name,
-                                           const uint8_t *value, ssize_t size) {
-    std::shared_ptr<Data> data = std::make_shared<Data>(name);
-    data->setContent(value, size);
+const Data Packager::getPackage(Name &name, const uint8_t *value,
+                                ssize_t size) {
+    Data data(name.appendVersion());
 
-    boost::unique_lock<boost::shared_mutex> lock(m_mutex);
+    data.setContent(value, size);
     digest(data);
     return data;
 }

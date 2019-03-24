@@ -21,26 +21,24 @@
 #ifndef XRDNDN_PACKAGER
 #define XRDNDN_PACKAGER
 
-#include <boost/thread/shared_mutex.hpp>
 #include <ndn-cxx/face.hpp>
 
 namespace xrdndnproducer {
-class Packager {
+class Packager : public std::enable_shared_from_this<Packager> {
+    static const ndn::time::milliseconds FRESHNESS_PERIOD;
+    static const ndn::security::SigningInfo signingInfo;
+    static const std::shared_ptr<ndn::KeyChain> keyChain;
+
   public:
-    Packager(uint32_t signerType);
+    Packager();
     ~Packager();
 
-    std::shared_ptr<ndn::Data> getPackage(const ndn::Name &name, int value);
-    std::shared_ptr<ndn::Data> getPackage(ndn::Name &name, const uint8_t *value,
-                                          ssize_t size);
+    const ndn::Data getPackage(ndn::Name &name, const int contentValue);
+    const ndn::Data getPackage(ndn::Name &name, const uint8_t *value,
+                               ssize_t size);
 
   private:
-    void digest(std::shared_ptr<ndn::Data> &data);
-
-  private:
-    ndn::KeyChain m_keyChain;
-    ndn::security::SigningInfo::SignerType m_signerType;
-    mutable boost::shared_mutex m_mutex;
+    void digest(ndn::Data &data);
 };
 } // namespace xrdndnproducer
 

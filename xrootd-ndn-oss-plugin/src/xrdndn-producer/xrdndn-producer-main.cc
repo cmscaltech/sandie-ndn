@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
         "Time period in seconds when files that have reached their maximum "
         "time without being accessed will be closed and memory will be "
         "cleaned")("garbage-collector-lifetime",
-                   boost::program_options::value<uint32_t>(&opts.gbFileLifeTime)
+                   boost::program_options::value<int64_t>(&opts.gbFileLifeTime)
                        ->default_value(opts.gbFileLifeTime)
                        ->implicit_value(opts.gbFileLifeTime),
                    "Maximum time in seconds that a file will be left opened "
@@ -132,6 +132,15 @@ int main(int argc, char **argv) {
     if (vm.count("help") > 0) {
         usage(std::cout, programName, description);
         return 0;
+    }
+
+    if (vm.count("garbage-collector-lifetime") > 0) {
+        if (opts.gbFileLifeTime < 0) {
+            std::cerr << "ERROR: Opened file lifetime for garbage collector "
+                         "must be a positive number"
+                      << std::endl;
+            return 2;
+        }
     }
 
     info(opts);

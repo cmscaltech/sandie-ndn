@@ -63,7 +63,7 @@ struct Options {
      * closed and the memory freed
      *
      */
-    uint32_t gbFileLifeTime = 60;
+    int64_t gbFileLifeTime = 60;
 
     /**
      * @brief Pre-cache an entire file before read operations on it will be

@@ -25,12 +25,11 @@
 
 namespace xrdndnproducer {
 class Packager : public std::enable_shared_from_this<Packager> {
-    static const ndn::time::milliseconds FRESHNESS_PERIOD;
     static const ndn::security::SigningInfo signingInfo;
     static const std::shared_ptr<ndn::KeyChain> keyChain;
 
   public:
-    Packager();
+    Packager(uint64_t freshnessPeriod);
     ~Packager();
 
     const ndn::Data getPackage(ndn::Name &name, const int contentValue);
@@ -39,6 +38,9 @@ class Packager : public std::enable_shared_from_this<Packager> {
 
   private:
     void digest(ndn::Data &data);
+
+  private:
+    const ndn::time::milliseconds m_freshnessPeriod;
 };
 } // namespace xrdndnproducer
 

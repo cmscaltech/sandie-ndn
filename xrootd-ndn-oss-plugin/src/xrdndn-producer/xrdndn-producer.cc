@@ -37,7 +37,7 @@ Producer::getXrdNdnProducerInstance(Face &face, const Options &opts) {
 }
 
 Producer::Producer(Face &face, const Options &opts)
-    : m_face(face), m_options(opts), m_error(false), m_OpenFilterId(nullptr),
+    : m_face(face), m_error(false), m_OpenFilterId(nullptr),
       m_CloseFilterId(nullptr), m_ReadFilterId(nullptr) {
 
     NDN_LOG_TRACE("Alloc XRootD NDN Producer");
@@ -50,7 +50,7 @@ Producer::Producer(Face &face, const Options &opts)
     }
 
     m_interestManager = std::make_shared<InterestManager>(
-        std::bind(&Producer::onData, this, _1));
+        opts, std::bind(&Producer::onData, this, _1));
     if (!m_interestManager) {
         NDN_LOG_ERROR("Unable to get Interest Manager object instance");
         m_error = true;

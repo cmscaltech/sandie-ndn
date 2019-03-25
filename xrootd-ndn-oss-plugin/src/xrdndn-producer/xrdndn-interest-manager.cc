@@ -27,17 +27,13 @@
 using namespace ndn;
 
 namespace xrdndnproducer {
-const size_t InterestManager::NUM_TH_INTEREST_HANDLER = 16;
-const std::chrono::seconds InterestManager::GARBAGE_COLLECTOR_TIMER =
-    std::chrono::seconds(100);                                        // 10 min
-const int64_t InterestManager::GARBAGE_COLLECTOR_TIME_DURATION = 300; // 5 min
-
-InterestManager::InterestManager(onDataCallback dataCallback)
-    : m_ioServiceWork(m_ioService) {
+InterestManager::InterestManager(const Options &opts,
+                                 onDataCallback dataCallback)
+    : m_ioServiceWork(m_ioService), m_options(opts) {
     m_onDataCallback = std::move(dataCallback);
-    m_packager = std::make_shared<Packager>();
+    m_packager = std::make_shared<Packager>(m_options.freshnessPeriod);
 
-    for (size_t i = 0; i < NUM_TH_INTEREST_HANDLER; ++i) {
+    for (size_t i = 0; i < m_options.threads; ++i) {
         m_threads.create_thread(
             std::bind(static_cast<size_t (boost::asio::io_service::*)()>(
                           &boost::asio::io_service::run),
@@ -46,7 +42,7 @@ InterestManager::InterestManager(onDataCallback dataCallback)
 
     m_garbageCollectorTimer =
         std::make_shared<boost::asio::system_timer>(m_ioService);
-    m_garbageCollectorTimer->expires_from_now(GARBAGE_COLLECTOR_TIMER);
+    m_garbageCollectorTimer->expires_from_now(m_options.gbTimer);
     m_garbageCollectorTimer->async_wait(
         std::bind(&InterestManager::onGarbageCollector, this));
 }
@@ -86,7 +82,7 @@ void InterestManager::onGarbageCollector() {
     for (auto it = m_FileHandlers.begin(); it != m_FileHandlers.end();) {
         auto tdiff = (gbt - it->second->getAccessTime()).total_seconds();
 
-        if (tdiff > GARBAGE_COLLECTOR_TIME_DURATION) {
+        if (tdiff > m_options.gbFileLifeTime) {
             NDN_LOG_INFO("Garbage collector will erase map entry for file: "
                          << it->first);
             it = m_FileHandlers.erase(it);
@@ -94,7 +90,7 @@ void InterestManager::onGarbageCollector() {
             ++it;
     }
 
-    m_garbageCollectorTimer->expires_from_now(GARBAGE_COLLECTOR_TIMER);
+    m_garbageCollectorTimer->expires_from_now(m_options.gbTimer);
     m_garbageCollectorTimer->async_wait(
         std::bind(&InterestManager::onGarbageCollector, this));
 }

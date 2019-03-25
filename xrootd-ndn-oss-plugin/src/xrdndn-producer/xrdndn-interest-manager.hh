@@ -32,18 +32,15 @@
 #include <boost/thread/thread.hpp>
 
 #include "xrdndn-file-handler.hh"
+#include "xrdndn-producer-options.hh"
 
 namespace xrdndnproducer {
 
 class InterestManager {
-    static const size_t NUM_TH_INTEREST_HANDLER;
-    static const std::chrono::seconds GARBAGE_COLLECTOR_TIMER;
-    static const int64_t GARBAGE_COLLECTOR_TIME_DURATION;
-
     using onDataCallback = std::function<void(const ndn::Data &data)>;
 
   public:
-    InterestManager(onDataCallback dataCallback);
+    InterestManager(const Options &opts, onDataCallback dataCallback);
     ~InterestManager();
 
     void openInterest(const ndn::Interest &interest);
@@ -64,6 +61,7 @@ class InterestManager {
 
     std::shared_ptr<Packager> m_packager;
     std::shared_ptr<boost::asio::system_timer> m_garbageCollectorTimer;
+    const Options m_options;
 
     std::unordered_map<std::string, std::shared_ptr<FileHandler>>
         m_FileHandlers;

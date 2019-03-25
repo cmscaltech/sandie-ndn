@@ -27,8 +27,6 @@
 using namespace ndn;
 
 namespace xrdndnproducer {
-const time::milliseconds Packager::FRESHNESS_PERIOD = time::milliseconds(16000);
-
 const security::SigningInfo Packager::signingInfo =
     static_cast<security::SigningInfo>(
         security::SigningInfo::SignerType::SIGNER_TYPE_SHA256);
@@ -36,12 +34,13 @@ const security::SigningInfo Packager::signingInfo =
 const std::shared_ptr<ndn::KeyChain> Packager::keyChain =
     std::make_shared<KeyChain>();
 
-Packager::Packager() {}
+Packager::Packager(uint64_t freshnessPeriod)
+    : m_freshnessPeriod(freshnessPeriod) {}
 
 Packager::~Packager() {}
 
 void Packager::digest(Data &data) {
-    data.setFreshnessPeriod(FRESHNESS_PERIOD);
+    data.setFreshnessPeriod(m_freshnessPeriod);
     keyChain->sign(data, signingInfo);
 }
 

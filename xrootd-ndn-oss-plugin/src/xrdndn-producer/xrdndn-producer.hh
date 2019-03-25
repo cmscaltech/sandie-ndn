@@ -55,8 +55,6 @@ class Producer : boost::noncopyable {
 
   private:
     ndn::Face &m_face;
-    const Options m_options;
-
     bool m_error;
 
     const ndn::RegisteredPrefixId *m_xrdndnPrefixId;

@@ -59,28 +59,56 @@ static void usage(std::ostream &os, const std::string &programName,
 static void info(const Options &opts) {
     NDN_LOG_INFO(
         "\nThe suitable NDN Producer for the NDN based filesystem plugin for "
-        "XRootD.\nDeveloped by Caltech@CMS.\n\nSelected Options: Pre-cache "
-        "files: "
+        "XRootD.\nDeveloped by Caltech@CMS.\n\nSelected Options: "
+        "Freshness period: "
+        << opts.freshnessPeriod
+        << "msec, "
+           "Garbage collector timer: "
+        << opts.gbTimePeriod
+        << "sec, "
+           "Garbage collector lifetime: "
+        << opts.gbFileLifeTime
+        << "sec, "
+           "Number of threads: "
+        << opts.threads
+        << ", "
+           "Pre-cache files: "
         << opts.precacheFile << "\n");
 }
 
 int main(int argc, char **argv) {
     Options opts;
 
-    // TODO: Add more options :
-    // - FRESHNESS_PERIOD
-    // - NUM_TH_INTEREST_HANDLER
-    // - GARBAGE_COLLECTOR_TIMER
-    // - GARBAGE_COLLECTOR_TIME_DURATION
-
     boost::program_options::options_description description("Options");
-    description.add_options()("help,h", "Print this help message and exit")(
+    description.add_options()(
+        "freshness-period,fp",
+        boost::program_options::value<uint64_t>(&opts.freshnessPeriod)
+            ->default_value(opts.freshnessPeriod)
+            ->implicit_value(opts.freshnessPeriod),
+        "Interest packets freshness period in seconds")(
+        "garbage-collector-timer",
+        boost::program_options::value<uint32_t>(&opts.gbTimePeriod)
+            ->default_value(opts.gbTimePeriod)
+            ->implicit_value(opts.gbTimePeriod),
+        "Time period in seconds when files that have reached their maximum "
+        "time without being accessed will be closed and memory will be "
+        "cleaned")("garbage-collector-lifetime",
+                   boost::program_options::value<uint32_t>(&opts.gbFileLifeTime)
+                       ->default_value(opts.gbFileLifeTime)
+                       ->implicit_value(opts.gbFileLifeTime),
+                   "Maximum time in seconds that a file will be left opened "
+                   "without being accessed")(
+        "help,h", "Print this help message and exit")(
+        "threads,t",
+        boost::program_options::value<uint16_t>(&opts.threads)
+            ->default_value(opts.threads)
+            ->implicit_value(opts.threads),
+        "Number of threads to handle Interest packets in parallel")(
         "precache-files,P",
         boost::program_options::bool_switch(&opts.precacheFile),
         "Precache files in memory before responding to read interests");
 
     boost::program_options::variables_map vm;
-
     try {
         boost::program_options::store(
             boost::program_options::command_line_parser(argc, argv)
@@ -95,6 +123,9 @@ int main(int argc, char **argv) {
         std::cerr << "ERROR: " << e.what() << std::endl;
         return 2;
     }
+
+    opts.gbTimer = std::chrono::seconds(opts.gbTimePeriod);
+    opts.freshnessPeriod *= 1000;
 
     std::string programName = argv[0];
 

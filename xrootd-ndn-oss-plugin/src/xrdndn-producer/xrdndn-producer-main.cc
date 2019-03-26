@@ -19,6 +19,7 @@
  *****************************************************************************/
 
 #include <iostream>
+
 #include <ndn-cxx/version.hpp>
 
 #include <boost/config.hpp>
@@ -52,9 +53,8 @@ int run(const Options &opts) {
 
 static void usage(std::ostream &os, const std::string &programName,
                   const boost::program_options::options_description &desc) {
-    os << "Usage: export NDN_LOG=\"xrdndnproducer*=INFO\" && " << programName
-       << " [options]\nNote: This application can be run without "
-          "arguments.\n\n"
+    os << "Usage: " << programName
+       << " [options]\nNote: This application can be run without arguments.\n\n"
        << desc;
 }
 
@@ -66,6 +66,7 @@ static void info() {
 
 int main(int argc, char **argv) {
     Options opts;
+    std::string logLevel("INFO");
 
     boost::program_options::options_description description("Options", 120);
     description.add_options()(
@@ -78,23 +79,32 @@ int main(int argc, char **argv) {
         boost::program_options::value<uint32_t>(&opts.gbTimePeriod)
             ->default_value(opts.gbTimePeriod)
             ->implicit_value(opts.gbTimePeriod),
-        "Time period in seconds when files that have reached their maximum "
-        "time without being accessed will be closed and memory will be "
-        "cleaned")("garbage-collector-lifetime",
-                   boost::program_options::value<int64_t>(&opts.gbFileLifeTime)
-                       ->default_value(opts.gbFileLifeTime)
-                       ->implicit_value(opts.gbFileLifeTime),
-                   "Maximum time in seconds that a file will be left opened "
-                   "without being accessed")(
-        "help,h", "Print this help message and exit")(
+        "Recurrent time period in seconds when files that have reached their "
+        "maximum "
+        "life time without being accessed will be closed and memory freed")(
+        "garbage-collector-lifetime",
+        boost::program_options::value<int64_t>(&opts.gbFileLifeTime)
+            ->default_value(opts.gbFileLifeTime)
+            ->implicit_value(opts.gbFileLifeTime),
+        "Life time in seconds that a file will be left opened "
+        "without being accessed. Once the limit is reached and "
+        "garbage-collector-timer triggers, the file will be closed and memory "
+        "freed")("help,h", "Print this help message and exit")(
+        "log-level",
+        boost::program_options::value<std::string>(&logLevel)
+            ->default_value(logLevel)
+            ->implicit_value("NONE"),
+        "Log level. Available options: TRACE, DEBUG, INFO, WARN, ERROR, FATAL. "
+        "More information can be found at "
+        "https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html")(
         "threads,t",
         boost::program_options::value<uint16_t>(&opts.threads)
             ->default_value(opts.threads)
             ->implicit_value(opts.threads),
-        "Number of threads to handle Interest packets in parallel")(
+        "Number of threads to handle Interest packets concurrently")(
         "precache-files,P",
         boost::program_options::bool_switch(&opts.precacheFile),
-        "Precache files in memory before responding to read interests")(
+        "Precache files in memory before responding to read Interests")(
         "version,V", "Show version information and exit");
 
     boost::program_options::variables_map vm;
@@ -135,6 +145,14 @@ int main(int argc, char **argv) {
     if (vm.count("version") > 0) {
         std::cout << XRDNDN_PRODUCER_VERSION_STRING << std::endl;
         return 0;
+    }
+
+    try {
+        ndn::util::Logging::setLevel(PRODUCER_LOGGER_PREFIX "=" + logLevel);
+    } catch (const std::invalid_argument &e) {
+        std::cerr << "ERROR: " << e.what() << std::endl;
+        usage(std::cerr, programName, description);
+        return 2;
     }
 
     info();

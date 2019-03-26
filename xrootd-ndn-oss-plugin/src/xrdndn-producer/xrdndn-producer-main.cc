@@ -38,8 +38,9 @@ int run(const Options &opts) {
     ndn::Face face(ioService);
 
     auto producer = Producer::getXrdNdnProducerInstance(face, opts);
-    if (!producer)
+    if (!producer) {
         return 2;
+    }
 
     try {
         face.processEvents();
@@ -171,7 +172,7 @@ int main(int argc, char **argv) {
         NDN_LOG_INFO(
             "xrdndn-producer build " XRDNDN_PRODUCER_VERSION_BUILD_STRING
             " built with " BOOST_COMPILER ", with " BOOST_STDLIB ", with "
-            << boostBuildInfo << ", " << ndnCxxInfo);
+            << boostBuildInfo << ", with " << ndnCxxInfo);
         NDN_LOG_INFO("Selected Options: Freshness period: "
                      << opts.freshnessPeriod
                      << "msec, Garbage collector timer: " << opts.gbTimePeriod

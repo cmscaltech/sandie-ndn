@@ -19,14 +19,16 @@
  *****************************************************************************/
 
 #include <iostream>
-#include <ndn-cxx/face.hpp>
+#include <ndn-cxx/version.hpp>
 
-#include <boost/asio/io_service.hpp>
+#include <boost/config.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
+#include <boost/version.hpp>
 
 #include "../common/xrdndn-logger.hh"
+#include "xrdndn-producer-version.hh"
 #include "xrdndn-producer.hh"
 
 namespace xrdndnproducer {
@@ -56,30 +58,16 @@ static void usage(std::ostream &os, const std::string &programName,
        << desc;
 }
 
-static void info(const Options &opts) {
+static void info() {
     NDN_LOG_INFO(
         "\nThe suitable NDN Producer for the NDN based filesystem plugin for "
-        "XRootD.\nDeveloped by Caltech@CMS.\n\nSelected Options: "
-        "Freshness period: "
-        << opts.freshnessPeriod
-        << "msec, "
-           "Garbage collector timer: "
-        << opts.gbTimePeriod
-        << "sec, "
-           "Garbage collector lifetime: "
-        << opts.gbFileLifeTime
-        << "sec, "
-           "Number of threads: "
-        << opts.threads
-        << ", "
-           "Pre-cache files: "
-        << opts.precacheFile << "\n");
+        "XRootD.\nDeveloped by Caltech@CMS.\n");
 }
 
 int main(int argc, char **argv) {
     Options opts;
 
-    boost::program_options::options_description description("Options");
+    boost::program_options::options_description description("Options", 120);
     description.add_options()(
         "freshness-period,fp",
         boost::program_options::value<uint64_t>(&opts.freshnessPeriod)
@@ -106,7 +94,8 @@ int main(int argc, char **argv) {
         "Number of threads to handle Interest packets in parallel")(
         "precache-files,P",
         boost::program_options::bool_switch(&opts.precacheFile),
-        "Precache files in memory before responding to read interests");
+        "Precache files in memory before responding to read interests")(
+        "version,V", "Show version information and exit");
 
     boost::program_options::variables_map vm;
     try {
@@ -143,7 +132,37 @@ int main(int argc, char **argv) {
         }
     }
 
-    info(opts);
+    if (vm.count("version") > 0) {
+        std::cout << XRDNDN_PRODUCER_VERSION_STRING << std::endl;
+        return 0;
+    }
+
+    info();
+
+    NDN_LOG_INFO("XRootD NDN Producer version " XRDNDN_PRODUCER_VERSION_STRING
+                 " starting");
+    {
+        const std::string boostBuildInfo =
+            "Boost version " + std::to_string(BOOST_VERSION / 100000) + "." +
+            std::to_string(BOOST_VERSION / 100 % 1000) + "." +
+            std::to_string(BOOST_VERSION % 100);
+
+        const std::string ndnCxxInfo =
+            "ndn-cxx version " NDN_CXX_VERSION_STRING;
+
+        NDN_LOG_INFO(
+            "xrdndn-producer build " XRDNDN_PRODUCER_VERSION_BUILD_STRING
+            " built with " BOOST_COMPILER ", with " BOOST_STDLIB ", with "
+            << boostBuildInfo << ", " << ndnCxxInfo);
+        NDN_LOG_INFO("Selected Options: Freshness period: "
+                     << opts.freshnessPeriod
+                     << "msec, Garbage collector timer: " << opts.gbTimePeriod
+                     << "sec, Garbage collector lifetime: "
+                     << opts.gbFileLifeTime
+                     << "sec, Number of threads: " << opts.threads
+                     << ", Pre-cache files: " << opts.precacheFile);
+    }
+
     return run(opts);
 }
 } // namespace xrdndnproducer

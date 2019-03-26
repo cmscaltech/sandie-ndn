@@ -31,6 +31,10 @@ set(XRDNDN_PRODUCER_VERSION_MAJOR 0)
 set(XRDNDN_PRODUCER_VERSION_MINOR 1)
 set(XRDNDN_PRODUCER_VERSION_PATCH 4)
 
+set(XRDNDN_CONSUMER_VERSION_MAJOR 0)
+set(XRDNDN_CONSUMER_VERSION_MINOR 1)
+set(XRDNDN_CONSUMER_VERSION_PATCH 4)
+
 # Compile libXrdNdnFS.so
 add_library(XrdNdnFS
             MODULE
@@ -48,7 +52,34 @@ target_link_libraries(XrdNdnFS
 
 target_include_directories(XrdNdnFS SYSTEM PUBLIC ${XROOTD_INCLUDES})
 
+execute_process(COMMAND git describe --abbrev=8 --always
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+                OUTPUT_VARIABLE GIT_VERSION
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 # Compile xrdndn-consumer application
+math(
+  EXPR XRDNDN_CONSUMER_VERSION
+  ${XRDNDN_CONSUMER_VERSION_MAJOR}*1000000+${XRDNDN_CONSUMER_VERSION_MINOR}*1000+${XRDNDN_CONSUMER_VERSION_PATCH}
+  )
+set(
+  XRDNDN_CONSUMER_VERSION_STRING
+  "${XRDNDN_CONSUMER_VERSION_MAJOR}.${XRDNDN_CONSUMER_VERSION_MINOR}.${XRDNDN_CONSUMER_VERSION_PATCH}"
+  )
+
+if(GIT_VERSION STREQUAL "")
+  set(XRDNDN_CONSUMER_VERSION_BUILD_STRING "${XRDNDN_CONSUMER_VERSION_STRING}")
+else()
+  set(XRDNDN_CONSUMER_VERSION_BUILD_STRING
+      "${XRDNDN_CONSUMER_VERSION_STRING}-${GIT_VERSION}")
+endif()
+
+configure_file(
+  "${PROJECT_SOURCE_DIR}/src/xrdndn-consumer/xrdndn-consumer-version.hh.in"
+  "${PROJECT_BINARY_DIR}/include/xrdndn-consumer-version.hh")
+
+include_directories("${PROJECT_BINARY_DIR}/include/")
+
 add_executable(xrdndn-consumer
                src/xrdndn-consumer/xrdndn-consumer-main.cc
                src/xrdndn-consumer/xrdndn-consumer.cc
@@ -71,11 +102,6 @@ set(
   XRDNDN_PRODUCER_VERSION_STRING
   "${XRDNDN_PRODUCER_VERSION_MAJOR}.${XRDNDN_PRODUCER_VERSION_MINOR}.${XRDNDN_PRODUCER_VERSION_PATCH}"
   )
-
-execute_process(COMMAND git describe --abbrev=8 --always
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-                OUTPUT_VARIABLE GIT_VERSION
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 if(GIT_VERSION STREQUAL "")
   set(XRDNDN_PRODUCER_VERSION_BUILD_STRING "${XRDNDN_PRODUCER_VERSION_STRING}")

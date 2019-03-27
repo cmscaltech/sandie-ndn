@@ -68,7 +68,6 @@ int readFile() {
             return 2;
         }
 
-        // TODO: use array here
         off_t offset = 0;
         std::string buff(bufferSize, '\0');
 
@@ -80,8 +79,8 @@ int readFile() {
         }
 
         if (retRead < 0)
-            NDN_LOG_WARN("Unable to read file: " << opts.infile << ". "
-                                                 << strerror(abs(retRead)));
+            NDN_LOG_ERROR("Unable to read file: " << opts.infile << ". "
+                                                  << strerror(abs(retRead)));
 
         int retClose = consumer->Close(opts.infile);
         if (retClose != XRDNDN_ESUCCESS) {
@@ -106,15 +105,12 @@ int readFile() {
     return 0;
 }
 
-int run() {
-    return readFile();
-    ;
-}
+int run() { return readFile(); }
 
 static void usage(std::ostream &os, const std::string &programName,
                   const boost::program_options::options_description &desc) {
-    os << "Usage: export NDN_LOG=\"xrdndnconsumer*=INFO\" && " << programName
-       << " [options]\nNote: This application needs input file parameter to be "
+    os << "Usage: " << programName
+       << " [options]\nNote: This application needs --input-file argument "
           "specified. \n\n"
        << desc;
 }
@@ -127,23 +123,33 @@ static void info() {
 
 int main(int argc, char **argv) {
     std::string programName = argv[0];
+    std::string logLevel("INFO");
 
     boost::program_options::options_description description("Options", 120);
     description.add_options()(
-        "bsize,b",
+        "bsize",
         boost::program_options::value<uint64_t>(&bufferSize)
             ->default_value(bufferSize)
             ->implicit_value(bufferSize),
         "Read buffer in bytes. Specify any value between 8KB and 1GB in bytes")(
-        "input-file", boost::program_options::value<std::string>(&opts.infile),
-        "Path to file to be copied over Name Data Networking")(
         "help,h", "Print this help message and exit")(
-        "output-file",
-        boost::program_options::value<std::string>(&opts.outfile)
-            ->default_value("")
-            ->implicit_value("./ndnfile.out"),
-        "Path to output file copied over Name Data Networking")(
-        "version,V", "Show version information and exit");
+        "input-file", boost::program_options::value<std::string>(&opts.infile),
+        "Path to file to be copied over Name Data Networking")
+
+        ("log-level",
+         boost::program_options::value<std::string>(&logLevel)
+             ->default_value(logLevel)
+             ->implicit_value("NONE"),
+         "Log level. Available options: TRACE, DEBUG, INFO, WARN, ERROR, "
+         "FATAL. "
+         "More information can be found at "
+         "https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html")(
+            "output-file",
+            boost::program_options::value<std::string>(&opts.outfile)
+                ->default_value("")
+                ->implicit_value("./ndnfile.out"),
+            "Path to output file copied over Name Data Networking")(
+            "version,V", "Show version information and exit");
 
     boost::program_options::variables_map vm;
     try {
@@ -171,25 +177,36 @@ int main(int argc, char **argv) {
         return 0;
     }
 
+    if (vm.count("bsize") > 0) {
+        if (bufferSize < 1024 || bufferSize > 1073741824) {
+            std::cerr << "Buffer size must be between 8KB and 1GB."
+                      << std::endl;
+            return 2;
+        }
+    }
+
     if (vm.count("input-file") == 0) {
         std::cerr << "ERROR: Specify file to be copied over NDN" << std::endl;
         usage(std::cerr, programName, description);
         return 2;
     }
 
-    if (boost::filesystem::exists(boost::filesystem::path(opts.outfile))) {
-        opts.outfile = boost::filesystem::canonical(
-                           opts.outfile, boost::filesystem::current_path())
-                           .string();
+    if (boost::filesystem::exists(boost::filesystem::path(opts.infile))) {
+        opts.infile = boost::filesystem::canonical(
+                          opts.infile, boost::filesystem::current_path())
+                          .string();
+    }
+
+    try {
+        ndn::util::Logging::setLevel(CONSUMER_LOGGER_PREFIX "=" + logLevel);
+    } catch (const std::invalid_argument &e) {
+        std::cerr << "ERROR: " << e.what() << std::endl;
+        usage(std::cerr, programName, description);
+        return 2;
     }
 
     if (!opts.outfile.empty())
         opts.outfile = boost::filesystem::path(opts.outfile).string();
-
-    if (bufferSize < 8192 || bufferSize > 1073741824) {
-        std::cerr << "Buffer size must be between 8KB and 1GB." << std::endl;
-        return 2;
-    }
 
     info();
 
@@ -211,7 +228,8 @@ int main(int argc, char **argv) {
 
         NDN_LOG_INFO("Selected Options: Read buffer size: "
                      << bufferSize << "B, Input file: " << opts.infile
-                     << ", Output file: " << opts.outfile << "\n");
+                     << ", Output file: "
+                     << (opts.outfile.empty() ? "N/D" : opts.outfile));
     }
 
     return run();

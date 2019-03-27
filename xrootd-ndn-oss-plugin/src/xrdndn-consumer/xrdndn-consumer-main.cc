@@ -134,22 +134,21 @@ int main(int argc, char **argv) {
         "Read buffer in bytes. Specify any value between 8KB and 1GB in bytes")(
         "help,h", "Print this help message and exit")(
         "input-file", boost::program_options::value<std::string>(&opts.infile),
-        "Path to file to be copied over Name Data Networking")
-
-        ("log-level",
-         boost::program_options::value<std::string>(&logLevel)
-             ->default_value(logLevel)
-             ->implicit_value("NONE"),
-         "Log level. Available options: TRACE, DEBUG, INFO, WARN, ERROR, "
-         "FATAL. "
-         "More information can be found at "
-         "https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html")(
-            "output-file",
-            boost::program_options::value<std::string>(&opts.outfile)
-                ->default_value("")
-                ->implicit_value("./ndnfile.out"),
-            "Path to output file copied over Name Data Networking")(
-            "version,V", "Show version information and exit");
+        "Path to file to be copied over Name Data Networking")(
+        "log-level",
+        boost::program_options::value<std::string>(&logLevel)
+            ->default_value(logLevel)
+            ->implicit_value("NONE"),
+        "Log level. Available options: TRACE, DEBUG, INFO, WARN, ERROR, "
+        "FATAL. "
+        "More information can be found at "
+        "https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html")(
+        "output-file",
+        boost::program_options::value<std::string>(&opts.outfile)
+            ->default_value("")
+            ->implicit_value("./ndnfile.out"),
+        "Path to output file copied over Name Data Networking")(
+        "version,V", "Show version information and exit");
 
     boost::program_options::variables_map vm;
     try {

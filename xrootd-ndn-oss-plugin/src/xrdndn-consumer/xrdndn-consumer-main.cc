@@ -140,8 +140,7 @@ int main(int argc, char **argv) {
             ->default_value(logLevel)
             ->implicit_value("NONE"),
         "Log level. Available options: TRACE, DEBUG, INFO, WARN, ERROR, "
-        "FATAL. "
-        "More information can be found at "
+        "FATAL. More information can be found at "
         "https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html")(
         "output-file",
         boost::program_options::value<std::string>(&opts.outfile)

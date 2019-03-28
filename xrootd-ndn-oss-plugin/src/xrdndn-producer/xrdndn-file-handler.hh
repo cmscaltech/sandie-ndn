@@ -43,7 +43,6 @@ class FileHandler : public std::enable_shared_from_this<FileHandler> {
     ~FileHandler();
 
     const ndn::Data getOpenData(ndn::Name &name);
-    const ndn::Data getCloseData(ndn::Name &name);
     const ndn::Data getFstatData(ndn::Name &name);
     const ndn::Data getReadData(ndn::Name &name);
 
@@ -52,7 +51,6 @@ class FileHandler : public std::enable_shared_from_this<FileHandler> {
 
   private:
     int Open();
-    int Close();
     int Fstat(void *buff);
     ssize_t Read(void *buff, size_t count, off_t offset);
 

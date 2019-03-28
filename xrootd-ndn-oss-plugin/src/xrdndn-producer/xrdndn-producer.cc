@@ -38,7 +38,7 @@ Producer::getXrdNdnProducerInstance(Face &face, const Options &opts) {
 
 Producer::Producer(Face &face, const Options &opts)
     : m_face(face), m_error(false), m_OpenFilterId(nullptr),
-      m_CloseFilterId(nullptr), m_ReadFilterId(nullptr) {
+      m_ReadFilterId(nullptr) {
 
     NDN_LOG_TRACE("Alloc XRootD NDN Producer");
 
@@ -66,9 +66,6 @@ Producer::~Producer() {
     }
     if (m_OpenFilterId != nullptr) {
         m_face.unsetInterestFilter(m_OpenFilterId);
-    }
-    if (m_CloseFilterId != nullptr) {
-        m_face.unsetInterestFilter(m_CloseFilterId);
     }
     if (m_FstatFilterId != nullptr) {
         m_face.unsetInterestFilter(m_FstatFilterId);
@@ -109,18 +106,6 @@ void Producer::registerPrefix() {
                      << xrdndn::SYS_CALL_OPEN_PREFIX_URI);
     }
 
-    // Filter for close system call
-    m_CloseFilterId = m_face.setInterestFilter(
-        xrdndn::SYS_CALL_CLOSE_PREFIX_URI,
-        bind(&Producer::onCloseInterest, this, _1, _2));
-    if (!m_CloseFilterId) {
-        m_error = true;
-        NDN_LOG_ERROR("Could not set Interest filter for close systemcall.");
-    } else {
-        NDN_LOG_INFO("Successfully set Interest filter: "
-                     << xrdndn::SYS_CALL_CLOSE_PREFIX_URI);
-    }
-
     // Filter for fstat system call
     m_FstatFilterId = m_face.setInterestFilter(
         xrdndn::SYS_CALL_FSTAT_PREFIX_URI,
@@ -155,12 +140,6 @@ void Producer::onOpenInterest(const InterestFilter &,
                               const Interest &interest) {
     NDN_LOG_TRACE("onOpenInterest: " << interest);
     m_interestManager->openInterest(interest);
-}
-
-void Producer::onCloseInterest(const InterestFilter &,
-                               const Interest &interest) {
-    NDN_LOG_TRACE("onCloseInterest: " << interest);
-    m_interestManager->closeInterest(interest);
 }
 
 void Producer::onFstatInterest(const ndn::InterestFilter &,

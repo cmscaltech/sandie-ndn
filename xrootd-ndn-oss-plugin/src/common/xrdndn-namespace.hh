@@ -59,11 +59,6 @@ static const uint8_t SYS_CALLS_PREFIX_LEN = SYS_CALLS_PREFIX_URI.size() + 1;
  */
 static const ndn::Name SYS_CALL_OPEN_PREFIX_URI("/ndn/xrootd/open/");
 /**
- * @brief Name filter for close system call Interest packet
- *
- */
-static const ndn::Name SYS_CALL_CLOSE_PREFIX_URI("/ndn/xrootd/close/");
-/**
  * @brief Name filter for fstat system call Interest packet
  *
  */

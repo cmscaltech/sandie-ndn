@@ -51,7 +51,7 @@ FileHandler::~FileHandler() {
     NDN_LOG_INFO("Dealloc FileHandler object for file: " << m_path);
 
     if (m_fd != XRDNDN_EFAILURE) {
-        Close();
+        close(m_fd);
     }
 }
 
@@ -85,28 +85,6 @@ int FileHandler::Open() {
 }
 
 bool FileHandler::isOpened() { return m_fd == XRDNDN_EFAILURE ? false : true; }
-
-/*****************************************************************************/
-/*                                 C l o s e                                 */
-/*****************************************************************************/
-const ndn::Data FileHandler::getCloseData(ndn::Name &name) {
-    accessTime = boost::posix_time::second_clock::local_time();
-
-    return m_packager->getPackage(name, XRDNDN_ESUCCESS);
-}
-
-int FileHandler::Close() {
-    NDN_LOG_INFO("Close file: " << m_path);
-
-    if (close(m_fd) == XRDNDN_EFAILURE) {
-        NDN_LOG_WARN("Failed to close file:" << m_path << ": "
-                                             << strerror(errno));
-        return -errno;
-    }
-
-    m_fd = XRDNDN_EFAILURE;
-    return XRDNDN_ESUCCESS;
-}
 
 /*****************************************************************************/
 /*                                F s t a t                                  */

@@ -109,19 +109,6 @@ void InterestManager::openInterest(const Interest &interest) {
     });
 }
 
-void InterestManager::closeInterest(const Interest &interest) {
-    m_ioService.post([&] {
-        Name name = interest.getName();
-        ndn::Data data;
-
-        auto fh = getFileHandler(xrdndn::Utils::getPath(name));
-        data = fh ? fh->getCloseData(name)
-                  : m_packager->getPackage(name, XRDNDN_EFAILURE);
-
-        m_onDataCallback(data);
-    });
-}
-
 void InterestManager::fstatInterest(const Interest &interest) {
     m_ioService.post([&] {
         Name name = interest.getName();

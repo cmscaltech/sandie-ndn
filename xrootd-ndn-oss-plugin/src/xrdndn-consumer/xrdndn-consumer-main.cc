@@ -82,11 +82,7 @@ int readFile() {
             NDN_LOG_ERROR("Unable to read file: " << opts.infile << ". "
                                                   << strerror(abs(retRead)));
 
-        int retClose = consumer->Close(opts.infile);
-        if (retClose != XRDNDN_ESUCCESS) {
-            NDN_LOG_WARN("Unable to close file: " << opts.infile << ". "
-                                                  << strerror(abs(retClose)));
-        }
+        consumer->Close(opts.infile);
 
         if (!opts.outfile.empty()) {
             std::ofstream ostream(opts.outfile, std::ofstream::binary);
@@ -111,7 +107,7 @@ static void usage(std::ostream &os, const std::string &programName,
                   const boost::program_options::options_description &desc) {
     os << "Usage: " << programName
        << " [options]\nNote: This application needs --input-file argument "
-          "specified. \n\n"
+          "specified\n\n"
        << desc;
 }
 
@@ -131,8 +127,8 @@ int main(int argc, char **argv) {
         boost::program_options::value<uint64_t>(&bufferSize)
             ->default_value(bufferSize)
             ->implicit_value(bufferSize),
-        "Read buffer in bytes. Specify any value between 8KB and 1GB in bytes")(
-        "help,h", "Print this help message and exit")(
+        "Read buffer size in bytes. Specify any value between 8KB and 1GB in "
+        "bytes")("help,h", "Print this help message and exit")(
         "input-file", boost::program_options::value<std::string>(&opts.infile),
         "Path to file to be copied over Name Data Networking")(
         "log-level",

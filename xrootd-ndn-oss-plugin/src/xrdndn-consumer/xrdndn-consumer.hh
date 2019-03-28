@@ -43,7 +43,6 @@ namespace xrdndnconsumer {
  */
 struct FileStat {
     int64_t retOpen = -1;  // Return value of open system call
-    int64_t retClose = -1; // Return value of close system call
     int64_t retFstat = -1; // Return value of fstat system call
     int64_t retRead = 0;   // Return value of read system call
 
@@ -98,12 +97,10 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
     int Open(std::string path);
 
     /**
-     * @brief Close file function over NDN. Convert to a corresponding Interest
-     * packet
+     * @brief Dummy close function. The files are handled on the Producer
      *
      * @param path The file name
-     * @return int The return value of close POSIX system call on the Producer
-     * side. 0 (success) / -errno (error)
+     * @return int 0 (success)
      */
     int Close(std::string path);
 
@@ -161,14 +158,6 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
      * @param data The Data for the Interest
      */
     void onOpenData(const ndn::Interest &interest, const ndn::Data &data);
-
-    /**
-     * @brief Callback function on receiving Data for close Interest
-     *
-     * @param interest The Interest
-     * @param data The Data for the Interest
-     */
-    void onCloseData(const ndn::Interest &interest, const ndn::Data &data);
 
     /**
      * @brief Callback function on receiving Data for fstat Interest

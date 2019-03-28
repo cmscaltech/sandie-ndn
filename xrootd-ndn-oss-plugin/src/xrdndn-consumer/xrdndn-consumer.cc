@@ -124,40 +124,9 @@ int Consumer::Open(std::string path) {
 /*****************************************************************************/
 /*                                 C l o s e                                 */
 /*****************************************************************************/
-void Consumer::onCloseData(const Interest &interest, const Data &data) {
-    NDN_LOG_TRACE("Received Data for close with Interest: " << interest);
-    m_validator.validate(
-        data,
-        [this](const Data &data) {
-            m_FileStat.retClose = -readNonNegativeInteger(data.getContent());
-        },
-        [](const Data &, const security::v2::ValidationError &error) {
-            NDN_LOG_ERROR(
-                "Error while validating Data for close: " << error.getInfo());
-        });
-}
-
 int Consumer::Close(std::string path) {
-    auto closeInterest =
-        this->getInterest(xrdndn::SYS_CALL_CLOSE_PREFIX_URI, path);
-
-    NDN_LOG_INFO("Request close file: " << path
-                                        << " with Interest: " << closeInterest);
-
-    m_pipeline->insert(closeInterest);
-    m_pipeline->run(
-        std::bind(&Consumer::onCloseData, this, _1, _2),
-        [this](const int &errcode) { m_FileStat.retClose = errcode; });
-
-    if (!this->processEvents()) {
-        return -EMSGSIZE;
-    }
-
     m_pipeline->printStatistics(path);
-
-    NDN_LOG_INFO("Received close Data for file: "
-                 << path << " with error code: " << m_FileStat.retClose);
-    return m_FileStat.retClose;
+    return XRDNDN_ESUCCESS;
 }
 
 /*****************************************************************************/

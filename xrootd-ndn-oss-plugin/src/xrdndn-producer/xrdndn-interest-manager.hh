@@ -44,7 +44,6 @@ class InterestManager {
     ~InterestManager();
 
     void openInterest(const ndn::Interest &interest);
-    void closeInterest(const ndn::Interest &interest);
     void fstatInterest(const ndn::Interest &interest);
     void readInterest(const ndn::Interest &interest);
 

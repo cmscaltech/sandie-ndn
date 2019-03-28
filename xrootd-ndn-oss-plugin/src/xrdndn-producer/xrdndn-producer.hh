@@ -44,9 +44,6 @@ class Producer : boost::noncopyable {
     void onOpenInterest(const ndn::InterestFilter &,
                         const ndn::Interest &interest);
 
-    void onCloseInterest(const ndn::InterestFilter &,
-                         const ndn::Interest &interest);
-
     void onFstatInterest(const ndn::InterestFilter &,
                          const ndn::Interest &interest);
 
@@ -59,7 +56,6 @@ class Producer : boost::noncopyable {
 
     const ndn::RegisteredPrefixId *m_xrdndnPrefixId;
     const ndn::InterestFilterId *m_OpenFilterId;
-    const ndn::InterestFilterId *m_CloseFilterId;
     const ndn::InterestFilterId *m_FstatFilterId;
     const ndn::InterestFilterId *m_ReadFilterId;
 

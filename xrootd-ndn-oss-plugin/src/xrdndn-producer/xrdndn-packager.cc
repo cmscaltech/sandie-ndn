@@ -34,14 +34,26 @@ const security::SigningInfo Packager::signingInfo =
 const std::shared_ptr<ndn::KeyChain> Packager::keyChain =
     std::make_shared<KeyChain>();
 
-Packager::Packager(uint64_t freshnessPeriod)
-    : m_freshnessPeriod(freshnessPeriod) {}
+Packager::Packager(uint64_t freshnessPeriod, bool disableSignature)
+    : m_freshnessPeriod(freshnessPeriod), m_disableSigning(disableSignature) {
+    if (disableSignature) {
+        SignatureInfo sigInfo =
+            SignatureInfo(static_cast<ndn::tlv::SignatureTypeValue>(255));
+        m_fakeSignature.setInfo(sigInfo);
+        m_fakeSignature.setValue(makeEmptyBlock(ndn::tlv::SignatureValue));
+    }
+}
 
 Packager::~Packager() {}
 
 void Packager::digest(Data &data) {
     data.setFreshnessPeriod(m_freshnessPeriod);
-    keyChain->sign(data, signingInfo);
+
+    if (!m_disableSigning) {
+        keyChain->sign(data, signingInfo);
+    } else {
+        data.setSignature(m_fakeSignature);
+    }
 }
 
 const Data Packager::getPackage(Name &name, const int contentValue) {

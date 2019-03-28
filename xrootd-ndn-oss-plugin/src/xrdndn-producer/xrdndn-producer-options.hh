@@ -32,7 +32,7 @@ struct Options {
      * on private IO Service Interest Manager's class member
      *
      */
-    uint16_t threads = 32;
+    uint16_t nthreads = 8;
 
     /**
      * @brief Freshness period in seconds of all Interest packets composed by
@@ -46,7 +46,7 @@ struct Options {
      * boost system timer from Interest Manager will be executed
      *
      */
-    uint32_t gbTimePeriod = 60;
+    uint32_t gbTimePeriod = 256;
 
     /**
      * @brief The time period in seconds as std::chrono::seconds when Garbage
@@ -64,6 +64,13 @@ struct Options {
      *
      */
     int64_t gbFileLifeTime = 60;
+
+    /**
+     * @brief Disable SHA-256 Data signing and replace it with a fake siganture.
+     * Increases the performance but also the risk of corrupted Data
+     *
+     */
+    bool disableSigning = false;
 
     /**
      * @brief Pre-cache an entire file before read operations on it will be

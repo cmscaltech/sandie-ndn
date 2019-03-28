@@ -29,7 +29,7 @@ class Packager : public std::enable_shared_from_this<Packager> {
     static const std::shared_ptr<ndn::KeyChain> keyChain;
 
   public:
-    Packager(uint64_t freshnessPeriod);
+    Packager(uint64_t freshnessPeriod, bool disableSignature = false);
     ~Packager();
 
     const ndn::Data getPackage(ndn::Name &name, const int contentValue);
@@ -41,6 +41,9 @@ class Packager : public std::enable_shared_from_this<Packager> {
 
   private:
     const ndn::time::milliseconds m_freshnessPeriod;
+
+    bool m_disableSigning;
+    ndn::Signature m_fakeSignature;
 };
 } // namespace xrdndnproducer
 

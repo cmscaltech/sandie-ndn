@@ -31,9 +31,10 @@ InterestManager::InterestManager(const Options &opts,
                                  onDataCallback dataCallback)
     : m_ioServiceWork(m_ioService), m_options(opts) {
     m_onDataCallback = std::move(dataCallback);
-    m_packager = std::make_shared<Packager>(m_options.freshnessPeriod);
+    m_packager = std::make_shared<Packager>(m_options.freshnessPeriod,
+                                            m_options.disableSigning);
 
-    for (size_t i = 0; i < m_options.threads; ++i) {
+    for (size_t i = 0; i < m_options.nthreads; ++i) {
         m_threads.create_thread(
             std::bind(static_cast<size_t (boost::asio::io_service::*)()>(
                           &boost::asio::io_service::run),

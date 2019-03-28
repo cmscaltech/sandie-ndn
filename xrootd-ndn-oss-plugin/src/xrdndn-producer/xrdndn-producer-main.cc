@@ -55,7 +55,7 @@ int run(const Options &opts) {
 static void usage(std::ostream &os, const std::string &programName,
                   const boost::program_options::options_description &desc) {
     os << "Usage: " << programName
-       << " [options]\nNote: This application can be run without arguments.\n\n"
+       << " [options]\nNote: This application can run without arguments\n\n"
        << desc;
 }
 
@@ -71,7 +71,13 @@ int main(int argc, char **argv) {
 
     boost::program_options::options_description description("Options", 120);
     description.add_options()(
-        "freshness-period,fp",
+        "disable-signing",
+        boost::program_options::bool_switch(&opts.disableSigning),
+        "Eliminate signing among authorized partners. By default Data is "
+        "singed using SHA-256. By using this argument, the data will be signed "
+        "with a fake signature, thus increasing the performance but also the "
+        "risk of data being corrupted")(
+        "freshness-period",
         boost::program_options::value<uint64_t>(&opts.freshnessPeriod)
             ->default_value(opts.freshnessPeriod)
             ->implicit_value(opts.freshnessPeriod),
@@ -80,33 +86,33 @@ int main(int argc, char **argv) {
         boost::program_options::value<uint32_t>(&opts.gbTimePeriod)
             ->default_value(opts.gbTimePeriod)
             ->implicit_value(opts.gbTimePeriod),
-        "Recurrent time period in seconds when files that have reached their "
-        "maximum "
-        "life time without being accessed will be closed and memory freed")(
+        "Recurrent time in seconds when files that have reached their "
+        "life time without being accessed will be closed")(
         "garbage-collector-lifetime",
         boost::program_options::value<int64_t>(&opts.gbFileLifeTime)
             ->default_value(opts.gbFileLifeTime)
             ->implicit_value(opts.gbFileLifeTime),
-        "Life time in seconds that a file will be left opened "
-        "without being accessed. Once the limit is reached and "
-        "garbage-collector-timer triggers, the file will be closed and memory "
-        "freed")("help,h", "Print this help message and exit")(
+        "Life time in seconds that a file will be left open without being "
+        "accessed. Once the limit is reached and garbage-collector-timer "
+        "triggers, the file will be closed")(
+        "help,h", "Print this help message and exit")(
         "log-level",
         boost::program_options::value<std::string>(&logLevel)
             ->default_value(logLevel)
             ->implicit_value("NONE"),
-        "Log level. Available options: TRACE, DEBUG, INFO, WARN, ERROR, FATAL. "
-        "More information can be found at "
+        "Log level: TRACE, DEBUG, INFO, WARN, ERROR, FATAL. More information "
+        "can be found at "
         "https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html")(
-        "threads,t",
-        boost::program_options::value<uint16_t>(&opts.threads)
-            ->default_value(opts.threads)
-            ->implicit_value(opts.threads),
+        "nthreads",
+        boost::program_options::value<uint16_t>(&opts.nthreads)
+            ->default_value(opts.nthreads)
+            ->implicit_value(opts.nthreads),
         "Number of threads to handle Interest packets concurrently")(
-        "precache-files,P",
+        "precache-files",
         boost::program_options::bool_switch(&opts.precacheFile),
-        "Precache files in memory before responding to read Interests")(
-        "version,V", "Show version information and exit");
+        "Precache files in memory before responding to read Interests. For "
+        "performance testing only")("version,V",
+                                    "Show version information and exit");
 
     boost::program_options::variables_map vm;
     try {
@@ -178,8 +184,9 @@ int main(int argc, char **argv) {
                      << "msec, Garbage collector timer: " << opts.gbTimePeriod
                      << "sec, Garbage collector lifetime: "
                      << opts.gbFileLifeTime
-                     << "sec, Number of threads: " << opts.threads
-                     << ", Pre-cache files: " << opts.precacheFile);
+                     << "sec, Number of threads: " << opts.nthreads
+                     << ", Pre-cache files: " << opts.precacheFile
+                     << ", Disable SHA-256 signing: " << opts.disableSigning);
     }
 
     return run(opts);

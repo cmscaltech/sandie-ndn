@@ -136,9 +136,13 @@ void DataFetcher::expressInterest(const Interest &interest) {
     NDN_LOG_TRACE("Express Interest: " << interest);
 
     m_nCongestionRetries = 0;
-    m_interestId = m_face.expressInterest(
-        interest, std::bind(&DataFetcher::handleData, this, _1, _2),
-        std::bind(&DataFetcher::handleNack, this, _1, _2),
-        std::bind(&DataFetcher::handleTimeout, this, _1));
+    try {
+        m_interestId = m_face.expressInterest(
+            interest, std::bind(&DataFetcher::handleData, this, _1, _2),
+            std::bind(&DataFetcher::handleNack, this, _1, _2),
+            std::bind(&DataFetcher::handleTimeout, this, _1));
+    } catch (const std::exception &e) {
+        NDN_LOG_ERROR(e.what());
+    }
 }
 } // namespace xrdndnconsumer

@@ -99,11 +99,14 @@ void InterestManager::onGarbageCollector() {
 void InterestManager::openInterest(const Interest &interest) {
     m_ioService.post([&] {
         Name name = interest.getName();
-        ndn::Data data;
 
-        auto fh = getFileHandler(xrdndn::Utils::getPath(name));
-        data = fh ? fh->getOpenData(name)
-                  : m_packager->getPackage(name, XRDNDN_EFAILURE);
+        std::string path = xrdndn::Utils::getPath(name);
+        if (path.empty())
+            return;
+
+        auto fh = getFileHandler(path);
+        auto data = fh ? fh->getOpenData(name)
+                       : m_packager->getPackage(name, XRDNDN_EFAILURE);
 
         m_onDataCallback(data);
     });
@@ -112,11 +115,14 @@ void InterestManager::openInterest(const Interest &interest) {
 void InterestManager::fstatInterest(const Interest &interest) {
     m_ioService.post([&] {
         Name name = interest.getName();
-        ndn::Data data;
 
-        auto fh = getFileHandler(xrdndn::Utils::getPath(name));
-        data = fh ? fh->getFstatData(name)
-                  : m_packager->getPackage(name, XRDNDN_EFAILURE);
+        std::string path = xrdndn::Utils::getPath(name);
+        if (path.empty())
+            return;
+
+        auto fh = getFileHandler(path);
+        auto data = fh ? fh->getFstatData(name)
+                       : m_packager->getPackage(name, XRDNDN_EFAILURE);
 
         m_onDataCallback(data);
     });
@@ -125,11 +131,14 @@ void InterestManager::fstatInterest(const Interest &interest) {
 void InterestManager::readInterest(const Interest &interest) {
     m_ioService.post([&] {
         Name name = interest.getName();
-        ndn::Data data;
 
-        auto fh = getFileHandler(xrdndn::Utils::getPath(name));
-        data = fh ? fh->getReadData(name)
-                  : m_packager->getPackage(name, XRDNDN_EFAILURE);
+        std::string path = xrdndn::Utils::getPath(name);
+        if (path.empty())
+            return;
+
+        auto fh = getFileHandler(path);
+        auto data = fh ? fh->getReadData(name)
+                       : m_packager->getPackage(name, XRDNDN_EFAILURE);
 
         m_onDataCallback(data);
     });

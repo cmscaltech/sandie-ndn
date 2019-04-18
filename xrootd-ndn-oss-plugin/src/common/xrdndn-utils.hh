@@ -21,6 +21,8 @@
 #ifndef XRDNDN_UTILS_HH
 #define XRDNDN_UTILS_HH
 
+#include <iostream>
+
 #include <ndn-cxx/name.hpp>
 
 #include "xrdndn-namespace.hh"
@@ -56,6 +58,9 @@ class Utils {
                     .getPrefix(-1)
                     .toUri();
         } catch (ndn::Name::Error &error) {
+            std::cerr << "Unable to get file path from Name: " << name
+                      << std::endl;
+            return std::string();
         }
         return name.getSubName(xrdndn::SYS_CALLS_PREFIX_LEN).toUri();
     }
@@ -73,6 +78,8 @@ class Utils {
             else if (name.at(-1).isVersion())
                 return name.at(-2).toSegment();
         } catch (ndn::Name::Error &error) {
+            std::cerr << "Unable to get segment number from name: " << name
+                      << std::endl;
         }
 
         return 0;

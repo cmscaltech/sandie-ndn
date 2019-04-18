@@ -20,8 +20,6 @@
 
 #include <cmath>
 
-#include <boost/lexical_cast.hpp>
-
 #include "xrdndn-data-fetcher.hh"
 
 using namespace ndn;
@@ -32,41 +30,60 @@ const uint8_t DataFetcher::MAX_RETRIES_TIMEOUT = 32;
 const ndn::time::milliseconds DataFetcher::MAX_CONGESTION_BACKOFF_TIME =
     ndn::time::seconds(8);
 
-std::shared_ptr<DataFetcher> DataFetcher::fetch(Face &face,
-                                                const Interest &interest,
-                                                DataCallback onData,
-                                                FailureCallback onFailure) {
-    auto dataFetcher = std::make_shared<DataFetcher>(face, std::move(onData),
-                                                     std::move(onFailure));
-
-    dataFetcher->expressInterest(interest);
+std::shared_ptr<DataFetcher>
+DataFetcher::getDataFetcher(Face &face, const Interest &interest,
+                            NotifyTaskCompleteSuccess onSuccess,
+                            NotifyTaskCompleteFailure onFailure) {
+    auto dataFetcher =
+        std::make_shared<DataFetcher>(face, interest, onSuccess, onFailure);
     return dataFetcher;
 }
 
-DataFetcher::DataFetcher(Face &face, DataCallback onData,
-                         FailureCallback onFailure)
-    : m_face(face), m_scheduler(face.getIoService()), m_nNacks(0),
-      m_nCongestionRetries(0), m_nTimeouts(0), m_error(false), m_stop(false) {
-    m_onData = std::move(onData);
+DataFetcher::DataFetcher(ndn::Face &face, const ndn::Interest &interest,
+                         NotifyTaskCompleteSuccess onSuccess,
+                         NotifyTaskCompleteFailure onFailure)
+    : m_face(face), m_scheduler(face.getIoService()), m_interest(interest),
+      m_nNacks(0), m_nCongestionRetries(0), m_nTimeouts(0), m_error(false),
+      m_stop(false) {
+    m_onSuccess = std::move(onSuccess);
     m_onFailure = std::move(onFailure);
-}
 
-bool DataFetcher::isFetching() { return !m_stop && !m_error; }
+    m_task =
+        TaskType(std::bind(&DataFetcher::onFutureCallback, this, _1, _2, _3));
+}
 
 void DataFetcher::stop() {
     if (this->isFetching()) {
         m_stop = true;
         m_face.removePendingInterest(m_interestId);
         m_scheduler.cancelAllEvents();
+        m_task(-ECANCELED, m_interest, ndn::Data());
     }
+}
+
+void DataFetcher::fetch() { expressInterest(m_interest); }
+
+bool DataFetcher::isFetching() { return !m_stop && !m_error; }
+
+DataFetcher::FutureType DataFetcher::get_future() {
+    return m_task.get_future();
+}
+
+DataFetcher::DataTypeTuple
+DataFetcher::onFutureCallback(int errcode, const ndn::Interest &interest,
+                              const ndn::Data &data) {
+    return std::make_tuple(errcode, interest, data);
 }
 
 void DataFetcher::handleData(const Interest &interest, const Data &data) {
     if (!this->isFetching())
         return;
 
+    NDN_LOG_TRACE("DataFetcher received Data for Interest: " << interest);
+
     m_stop = true;
-    m_onData(interest, data);
+    m_task(0, interest, data);
+    m_onSuccess(data);
 }
 
 void DataFetcher::handleNack(const Interest &interest, const lp::Nack &nack) {
@@ -77,7 +94,8 @@ void DataFetcher::handleNack(const Interest &interest, const lp::Nack &nack) {
         NDN_LOG_ERROR("Reached the maximum number of NACK retries: "
                       << m_nNacks << " for Interest: " << interest);
         m_error = true;
-        m_onFailure(-ENETUNREACH);
+        m_task(-ENETUNREACH, interest, ndn::Data());
+        m_onFailure();
         return;
     } else {
         ++m_nNacks;
@@ -109,7 +127,8 @@ void DataFetcher::handleNack(const Interest &interest, const lp::Nack &nack) {
         NDN_LOG_ERROR("NACK with reason " << nack.getReason()
                                           << " does not trigger a retry");
         m_error = true;
-        m_onFailure(-ENETUNREACH);
+        m_task(-ENETUNREACH, interest, ndn::Data());
+        m_onFailure();
         break;
     }
 }
@@ -121,7 +140,8 @@ void DataFetcher::handleTimeout(const Interest &interest) {
         NDN_LOG_ERROR("Reached the maximum number of timeout retries: "
                       << m_nTimeouts << " for Interest: " << interest);
         m_error = true;
-        m_onFailure(-ETIMEDOUT);
+        m_task(-ETIMEDOUT, interest, ndn::Data());
+        m_onFailure();
         return;
     } else {
         ++m_nTimeouts;
@@ -142,7 +162,8 @@ void DataFetcher::expressInterest(const Interest &interest) {
             std::bind(&DataFetcher::handleNack, this, _1, _2),
             std::bind(&DataFetcher::handleTimeout, this, _1));
     } catch (const std::exception &e) {
-        NDN_LOG_ERROR(e.what());
+        NDN_LOG_ERROR("Catch exception: " << e.what()
+                                          << " while expressing Interest");
     }
 }
 } // namespace xrdndnconsumer

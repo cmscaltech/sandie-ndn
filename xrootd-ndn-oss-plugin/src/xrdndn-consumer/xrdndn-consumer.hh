@@ -21,6 +21,7 @@
 #ifndef XRDNDN_CONSUMER_HH
 #define XRDNDN_CONSUMER_HH
 
+#include <atomic>
 #include <map>
 #include <sys/stat.h>
 
@@ -37,19 +38,6 @@
 
 namespace xrdndnconsumer {
 /**
- * @brief Struct to keep interest stats of the file beeing processed by this
- * Consumer
- *
- */
-struct FileStat {
-    int64_t retOpen = -1;  // Return value of open system call
-    int64_t retFstat = -1; // Return value of fstat system call
-    int64_t retRead = 0;   // Return value of read system call
-
-    off_t fileSize = 0; // Size of file beeing processed
-};
-
-/**
  * @brief This class implements an NDN Consumer for XRootD NDN OSS plug-in. It
  * translates file system calls into Interest packets and expresess them over
  * the network. It takes care of each individual Interest and will return
@@ -63,6 +51,9 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
      *
      */
     static const ndn::time::milliseconds DEFAULT_INTEREST_LIFETIME;
+
+    using DataTypeTuple = std::tuple<int, ndn::Interest, ndn::Data>;
+    using FutureType = std::future<DataTypeTuple>;
 
   public:
     /**
@@ -133,10 +124,11 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
     /**
      * @brief Process Interests
      *
-     * @return true No exception occurred while processing Interest packets
-     * @return false Exception occurred while processing the Interest packets
+     * @param keepThread  Keep thread in a blocked state (in event processing),
+     * even when there are no outstanding events (e.g., no Interest/Data is
+     * expected)
      */
-    bool processEvents();
+    void processEvents(bool keepThread = true);
 
     /**
      * @brief Create Interest packet
@@ -152,48 +144,40 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
                 ndn::time::milliseconds lifetime = DEFAULT_INTEREST_LIFETIME);
 
     /**
-     * @brief Callback function on receiving Data for open Interest
+     * @brief If errcode is success 0, means Data was acquired for Interest.
+     * Validates Data. In case of success it returns errorcode set by Producer
      *
-     * @param interest The Interest
-     * @param data The Data for the Interest
+     * @param errcode The result of fetching Data set by DataFetcher
+     * @param interest The Interest packet
+     * @param data Data for the Interest packet. If errcode is not 0, this is
+     * empty
+     * @return int If errcode is not 0 (success), it returns the errcode (the
+     * results of expressing Interest by DataFetcher). -1 If Data is not valid.
+     * The errorcode set by Producer for the specific Interest operation
      */
-    void onOpenData(const ndn::Interest &interest, const ndn::Data &data);
+    int validateData(const int errcode, const ndn::Interest &interest,
+                     const ndn::Data &data);
 
     /**
-     * @brief Callback function on receiving Data for fstat Interest
-     *
-     * @param interest The Interest
-     * @param data The Data for the Interest
-     */
-    void onFstatData(const ndn::Interest &interest, const ndn::Data &data);
-
-    /**
-     * @brief Callback function on receiving Data for read Interest
-     *
-     * @param interest The Interest
-     * @param data The Data for the Interest
-     */
-    void onReadData(const ndn::Interest &interest, const ndn::Data &data);
-
-    /**
-     * @brief Put data in the provided buffer by the owner of this Consumer
-     * instance
+     * @brief Put data in the provided buffer from dataStore
      *
      * @param buff The buffer
      * @param offset The offset in content where blen bytes were requested
      * @param blen The buffer size
+     * @param dataStore Ordered map of all Data received for a read request
      * @return off_t The actual number of bytes that have been put in the buffer
      */
-    size_t returnData(void *buff, off_t offset, size_t blen);
+
+    size_t returnData(void *buff, off_t offset, size_t blen,
+                      std::map<uint64_t, const ndn::Block> &dataStore);
 
   private:
     ndn::Face m_face;
     ndn::security::v2::Validator &m_validator;
 
-    bool m_error;
+    boost::thread faceProcessEventsThread;
 
-    struct FileStat m_FileStat;
-    std::map<uint64_t, const ndn::Block> m_dataStore;
+    std::atomic<bool> m_error;
     std::shared_ptr<Pipeline> m_pipeline;
 };
 } // namespace xrdndnconsumer

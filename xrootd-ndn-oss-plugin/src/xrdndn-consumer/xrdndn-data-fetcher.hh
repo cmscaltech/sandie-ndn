@@ -21,6 +21,11 @@
 #ifndef XRDNDN_DATA_FETCHER_HH
 #define XRDNDN_DATA_FETCHER_HH
 
+#define BOOST_THREAD_PROVIDES_FUTURE
+
+#include <future>
+#include <tuple>
+
 #include <ndn-cxx/face.hpp>
 #include <ndn-cxx/util/scheduler.hpp>
 #include <ndn-cxx/util/time.hpp>
@@ -40,6 +45,7 @@ class DataFetcher : public std::enable_shared_from_this<DataFetcher> {
      *
      */
     static const uint8_t MAX_RETRIES_NACK;
+
     /**
      * @brief Maximum no. of retries on receiving Timeout before setting error
      *
@@ -53,37 +59,56 @@ class DataFetcher : public std::enable_shared_from_this<DataFetcher> {
      */
     static const ndn::time::milliseconds MAX_CONGESTION_BACKOFF_TIME;
 
-    using FailureCallback = std::function<void(const int &)>;
+    using NotifyTaskCompleteSuccess = std::function<void(const ndn::Data &)>;
+    using NotifyTaskCompleteFailure = std::function<void()>;
+
+    using DataTypeTuple = std::tuple<int, ndn::Interest, ndn::Data>;
+    using FutureType = std::future<DataTypeTuple>;
+    using TaskType = std::packaged_task<DataTypeTuple(
+        int errcode, const ndn::Interest &interest, const ndn::Data &data)>;
 
   public:
     /**
-     * @brief Returns a pointer to DataFetcher object for an Interest packet and
-     * expresses the Interest
+     * @brief Get the Data Fetcher object
      *
-     * @param face Reference to NDN Face which provides a communication channel
-     * with local or remote NDN forwarder
+     * @param face face Reference to NDN Face which provides a communication
+     * channel with local or remote NDN forwarder
      * @param interest The Interest to be handled by this object
-     * @param onData Callback function on received Data for Interest packet
-     * @param onFailure Callback function when DataFetcher fails (no. of
-     * maximum Nacks or Timeouts is reached)
+     * @param onSuccess Pipeline callback called on receiving Data
+     * @param onFailure Pipeline callback called on failing expressing Interest
      * @return std::shared_ptr<DataFetcher> Pointer to a new DataFetcher object
      * for a specific Interest packet
      */
-    static std::shared_ptr<DataFetcher> fetch(ndn::Face &face,
-                                              const ndn::Interest &interest,
-                                              ndn::DataCallback onData,
-                                              FailureCallback onFailure);
+    static std::shared_ptr<DataFetcher>
+    getDataFetcher(ndn::Face &face, const ndn::Interest &interest,
+                   NotifyTaskCompleteSuccess onSuccess,
+                   NotifyTaskCompleteFailure onFailure);
 
     /**
      * @brief Construct a new Data Fetcher object
      *
-     * @param face Reference to NDN Face which provides a communication channel
-     * with local or remote NDN forwarder
-     * @param onData Callback on receiving Data
-     * @param onFailure Callback to handle error
+     * @param face face Reference to NDN Face which provides a communication
+     * channel with local or remote NDN forwarder
+     * @param interest The Interest to be handled by this object
+     * @param onSuccess Pipeline callback called on receiving Data
+     * @param onFailure Pipeline callback called on failing expressing Interest
      */
-    DataFetcher(ndn::Face &face, ndn::DataCallback onData,
-                FailureCallback onFailure);
+    DataFetcher(ndn::Face &face, const ndn::Interest &interest,
+                NotifyTaskCompleteSuccess onSuccess,
+                NotifyTaskCompleteFailure onFailure);
+
+    /**
+     * @brief Will cancel the pending Interest packet and free all allocated
+     * resources
+     *
+     */
+    void stop();
+
+    /**
+     * @brief Start processing the Interest
+     *
+     */
+    void fetch();
 
     /**
      * @brief Checks if the Interest packet is processed
@@ -95,13 +120,28 @@ class DataFetcher : public std::enable_shared_from_this<DataFetcher> {
     bool isFetching();
 
     /**
-     * @brief Will cancel the pending Interest packet and free all allocated
-     * resources
+     * @brief Get the future object
      *
+     * @return FutureType Future set for Consumer. Synchronization of external
+     * requests on asynchronous processing
      */
-    void stop();
+    FutureType get_future();
 
   private:
+    /**
+     * @brief Called to notify Consumer Data is available or failure occured
+     *
+     * @param errcode The errcode resulted while processing the Interest. 0 on
+     * success, -ECANCELED on stop, -ENETUNREACH on Nack, -ETIMEDOUT on timeout
+     * @param interest Processed Interest
+     * @param data On success Data for Interest. On failure, empty object with
+     * corresponding errcode
+     * @return DataTypeTuple A tuple combining errcode, Interest and Data for
+     * Consumer to process
+     */
+    DataTypeTuple onFutureCallback(int errcode, const ndn::Interest &interest,
+                                   const ndn::Data &data);
+
     /**
      * @brief Method called when receiving Data for Interest packet
      *
@@ -135,11 +175,12 @@ class DataFetcher : public std::enable_shared_from_this<DataFetcher> {
     void expressInterest(const ndn::Interest &interest);
 
   private:
-    ndn::DataCallback m_onData;
-    FailureCallback m_onFailure;
+    NotifyTaskCompleteSuccess m_onSuccess;
+    NotifyTaskCompleteFailure m_onFailure;
 
     ndn::Face &m_face;
     ndn::util::Scheduler m_scheduler;
+    const ndn::Interest m_interest;
     const ndn::PendingInterestId *m_interestId;
 
     uint8_t m_nNacks;
@@ -148,6 +189,8 @@ class DataFetcher : public std::enable_shared_from_this<DataFetcher> {
 
     bool m_error;
     bool m_stop;
+
+    TaskType m_task;
 };
 } // namespace xrdndnconsumer
 

@@ -18,8 +18,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include <iostream>
-
 #include <ndn-cxx/util/time.hpp>
 
 #include "../common/xrdndn-utils.hh"
@@ -31,94 +29,98 @@ namespace xrdndnconsumer {
 const uint8_t Pipeline::DEFAULT_PIPELINE_SIZE = 64;
 
 Pipeline::Pipeline(Face &face, size_t size)
-    : m_face(face), m_pipelineSz(size), m_nSegmentsReceived(0),
-      m_nBytesReceived(0) {
-    m_pipeline.resize(m_pipelineSz);
+    : m_face(face), m_size(size), m_stop(false), m_nSegmentsReceived(0),
+      m_nBytesReceived(0), m_pipeNo(0), m_duration(0) {
+    NDN_LOG_TRACE("Alloc fixed window size " << m_size << " pipeline");
     m_startTime = ndn::time::steady_clock::now();
 }
 
-Pipeline::~Pipeline() { this->clear(); }
-
-void Pipeline::clear() {
-    for (auto &fetcher : m_pipeline) {
-        if (fetcher != nullptr)
-            fetcher->stop();
-    }
-    m_pipeline.clear();
-
-    while (!m_pipelineQueue.empty()) {
-        m_pipelineQueue.pop();
-    }
-
-    m_nSegmentsReceived = 0;
-    m_nBytesReceived = 0;
+Pipeline::~Pipeline() {
+    stop();
+    m_window.clear();
 }
 
-void Pipeline::insert(const Interest &interest) {
-    m_pipelineQueue.push(interest);
+void Pipeline::stop() {
+    m_stop = true;
+    m_duration += ndn::time::steady_clock::now() - m_startTime;
+
+    {
+        boost::unique_lock<boost::mutex> lock(m_mtxWindow);
+        for (auto it = m_window.begin(); it != m_window.end(); ++it) {
+            if (it->second->isFetching())
+                it->second->stop();
+        }
+    }
+    m_cvWindow.notify_all();
 }
 
-void Pipeline::run(ndn::DataCallback onData, FailureCallback onFailure) {
-    if (m_pipelineQueue.empty()) {
-        NDN_LOG_WARN("There are no Interest packets in Pipeline's queue.");
-        return;
+Pipeline::FutureType Pipeline::insert(const ndn::Interest &interest) {
+    boost::unique_lock<boost::mutex> lock(m_mtxWindow);
+    m_cvWindow.wait(lock,
+                    [&]() { return (m_window.size() < m_size) || m_stop; });
+
+    if (m_stop) {
+        NDN_LOG_TRACE("Pipeline will stop. Interest: "
+                      << interest << " will not be processed");
+        return FutureType();
     }
 
-    m_onData = std::move(onData);
-    m_onFailure = std::move(onFailure);
-
-    NDN_LOG_TRACE("Start processing the pipeline.");
-
-    for (size_t i = 0; i < m_pipelineSz; ++i) {
-        if (!fetchNextData(i))
-            break;
-    }
-}
-
-bool Pipeline::fetchNextData(size_t pipeNo) {
-    if (m_pipelineQueue.empty()) {
-        return false;
-    }
-
-    if (m_pipeline[pipeNo] && m_pipeline[pipeNo]->isFetching()) {
-        NDN_LOG_ERROR(
-            "Trying to replace an in-progress Interest from pipeline.");
-        return false;
-    }
-
-    auto interest = m_pipelineQueue.front();
-    m_pipelineQueue.pop();
-
-    NDN_LOG_TRACE("Fetching Interest: " << interest);
-
-    auto fetcher = DataFetcher::fetch(
+    uint64_t pipeNo = m_pipeNo++;
+    auto fetcher = DataFetcher::getDataFetcher(
         m_face, interest,
-        std::bind(&Pipeline::handleData, this, _1, _2, pipeNo),
-        std::bind(&Pipeline::handleFailure, this, _1));
+        std::bind(&Pipeline::onTaskCompleteSuccess, this, _1, pipeNo),
+        std::bind(&Pipeline::onTaskCompleteFailure, this));
 
-    m_pipeline[pipeNo] = fetcher;
-    return true;
+    if (!fetcher) {
+        NDN_LOG_ERROR(
+            "Could not get DataFetcher object for Interest: " << interest);
+        return FutureType();
+    }
+
+    NDN_LOG_TRACE("Processing Interest: " << interest);
+    m_window.emplace(
+        std::pair<uint64_t, std::shared_ptr<DataFetcher>>(pipeNo, fetcher));
+    auto future = m_window[pipeNo]->get_future();
+    m_window[pipeNo]->fetch();
+
+    return future;
 }
 
-void Pipeline::handleData(const ndn::Interest &interest, const ndn::Data &data,
-                          size_t pipeNo) {
+void Pipeline::onTaskCompleteSuccess(const ndn::Data &data,
+                                     const uint64_t &pipeNo) {
     m_nSegmentsReceived++;
     m_nBytesReceived += data.getContent().value_size();
 
-    m_onData(interest, data);
-    fetchNextData(pipeNo);
+    if (m_stop)
+        return;
+
+    {
+        boost::unique_lock<boost::mutex> lock(m_mtxWindow);
+        m_window.erase(pipeNo);
+
+        if (m_window.empty()) {
+            m_duration += ndn::time::steady_clock::now() - m_startTime;
+            m_startTime = ndn::time::steady_clock::now();
+        }
+    }
+    m_cvWindow.notify_one();
 }
 
-void Pipeline::handleFailure(const int &errcode) { m_onFailure(errcode); }
+void Pipeline::onTaskCompleteFailure() {
+    if (m_stop) {
+        return;
+    }
 
-void Pipeline::printStatistics(std::string path) {
-    ndn::time::duration<double, ndn::time::milliseconds::period> timeElapsed =
-        ndn::time::steady_clock::now() - m_startTime;
+    NDN_LOG_ERROR("Pipeline task failed. New Interests will not be processed");
+    m_stop = true;
+    m_cvWindow.notify_all();
+}
 
-    double throughput = (8 * m_nBytesReceived / 1000.0) / timeElapsed.count();
+void Pipeline::getStatistics(std::string path) {
+    double throughput = (8 * m_nBytesReceived / 1000.0) / m_duration.count();
 
-    std::cerr << "Transfer for file: " << path << " over NDN completed."
-              << "\nTime elapsed: " << timeElapsed
+    std::cout << "Transfer over NDN for file: " << path << " completed"
+              << "\nTime elapsed: " << m_duration
               << "\nTotal # of segments received: " << m_nSegmentsReceived
               << "\nTotal size: "
               << static_cast<double>(m_nBytesReceived) / 1000000 << " MB"

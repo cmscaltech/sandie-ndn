@@ -21,7 +21,8 @@
 #ifndef XRDNDN_PIPELINE_HH
 #define XRDNDN_PIPELINE_HH
 
-#include <queue>
+#include <atomic>
+#include <unordered_map>
 
 #include <ndn-cxx/face.hpp>
 
@@ -37,12 +38,16 @@ namespace xrdndnconsumer {
 class Pipeline {
     /**
      * @brief Default fixed window size of pipeline. The maximum concurrent
-     * Interest packets that are beeing expressed at a time in Pipeline
+     * Interest packets that are being expressed at a time in Pipeline
      *
      */
     static const uint8_t DEFAULT_PIPELINE_SIZE;
 
-    using FailureCallback = std::function<void(const int &)>;
+    using NotifyTaskCompleteSuccess = std::function<void(const ndn::Data &)>;
+    using NotifyTaskCompleteFailure = std::function<void()>;
+
+    using DataTypeTuple = std::tuple<int, ndn::Interest, ndn::Data>;
+    using FutureType = std::future<DataTypeTuple>;
 
   public:
     /**
@@ -50,7 +55,7 @@ class Pipeline {
      *
      * @param face Reference to NDN Face which provides a communication channel
      * with local or remote NDN forwarder
-     * @param size Pipeline size if default size is not desired
+     * @param size Pipeline size
      */
     Pipeline(ndn::Face &face, size_t size = DEFAULT_PIPELINE_SIZE);
 
@@ -61,77 +66,67 @@ class Pipeline {
     ~Pipeline();
 
     /**
-     * @brief Queue an Interest packet to be processed in pipeline
+     * @brief Stops Pipeline execution. All expressed Interests are canceled
      *
-     * @param interest The Interest to be queued
      */
-    void insert(const ndn::Interest &interest);
+    void stop();
 
     /**
-     * @brief Start process the current queue of Interest packets
+     * @brief Insert a new Interest in Pipeline to be processed. When a slot is
+     * available, the Interest will be expressed
      *
-     * @param onData Callback on receiving Data
-     * @param onFailure Callback when an error occured while processing an
-     * Interest packet
+     * @param interest The Interest to be expressed
+     * @return FutureType Tasks (DataFetcher) in Pipeline are asynchronous, but
+     * the read of chunk from a file needs to be synchronous, thus the
+     * syncronization is done by using std::futures. When the Data is available
+     * for an expressed Interest, the Consumer will be notified and a slot will
+     * become available in Pipeline
      */
-    void run(ndn::DataCallback onData, FailureCallback onFailure);
+    FutureType insert(const ndn::Interest &interest);
 
     /**
-     * @brief Clear all members of Pipeline object
+     * @brief Print throughput information
      *
+     * @param path File processed while using this Pipeline instance object
      */
-    void clear();
-
-    /**
-     * @brief Print throughput information acquired while processing a number of
-     * Interest packets in a period of time by Pipeline object
-     *
-     * @param path File processed while using a Pipeline instance object
-     */
-    void printStatistics(std::string path = "");
+    void getStatistics(std::string path = "N/A");
 
   private:
     /**
-     * @brief Process one Interest packet from queue
+     * @brief Callback function for when task in Pipeline - DataFetcher has Data
+     * for Interest. When this is called, the Consumer already has the Data. The
+     * DataFetcher object can be destroyed a new Interest can be processed in
+     * Pipeline
      *
-     * @param pipeNo The available spot in pipeline for next Interest packet
-     * @return true Interest packet has successfully been expressed
-     * @return false Error occured while trying to retrieve Data for Interest
+     * @param data Data for expressed Interest
+     * @param pipeNo Task number in Pipeline. Used to keep track of it until
+     * destruction
      */
-    bool fetchNextData(size_t pipeNo);
+    void onTaskCompleteSuccess(const ndn::Data &data, const uint64_t &pipeNo);
 
     /**
-     * @brief Callback function when DataFetcher has aquired Data for Interest
+     * @brief Callback function when DataFetcher has a failure. The Pipeline
+     * will stop processing new requests. The taks in Pipeline will be
+     * completed, but the Consumer will exit with corresponding error code
      *
-     * @param interest The Interest packet that was processed
-     * @param data Data for the processed Interest
-     * @param pipeNo The pipeline spot where the Interest was processed and
-     * which just got available for next Interest in queue
      */
-    void handleData(const ndn::Interest &interest, const ndn::Data &data,
-                    size_t pipeNo);
-
-    /**
-     * @brief Callback function when DataFetcher has a failure
-     *
-     * @param errcode The error value
-     */
-    void handleFailure(const int &errcode);
+    void onTaskCompleteFailure();
 
   private:
     ndn::Face &m_face;
-    ndn::DataCallback m_onData;
-    FailureCallback m_onFailure;
+    size_t m_size;
 
-    std::queue<ndn::Interest> m_pipelineQueue;
-    std::vector<std::shared_ptr<DataFetcher>> m_pipeline;
+    std::unordered_map<uint64_t, std::shared_ptr<DataFetcher>> m_window;
+    boost::condition_variable m_cvWindow;
+    boost::mutex m_mtxWindow;
 
-    size_t m_pipelineSz;
+    std::atomic<bool> m_stop;
+    std::atomic<uint64_t> m_pipeNo;
+    std::atomic<uint64_t> m_nSegmentsReceived;
+    std::atomic<uint64_t> m_nBytesReceived;
 
     ndn::time::steady_clock::TimePoint m_startTime;
-
-    uint64_t m_nSegmentsReceived;
-    uint64_t m_nBytesReceived;
+    ndn::time::duration<double, ndn::time::milliseconds::period> m_duration;
 };
 } // namespace xrdndnconsumer
 

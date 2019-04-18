@@ -39,69 +39,97 @@ namespace xrdndnconsumer {
 struct Opts {
     std::string infile;
     std::string outfile;
+
+    uint64_t bsize = 262144;
+    uint16_t nthreads = 1;
+    uint8_t pipelinesz = 64;
+};
+
+class SynchronizedWrite {
+  public:
+    SynchronizedWrite(std::string path)
+        : ostream(path, std::ofstream::binary) {}
+    ~SynchronizedWrite() { ostream.close(); }
+
+    void write(off_t offset, const char *buf, off_t len) {
+        boost::lock_guard<boost::mutex> lock(mutex_);
+        ostream.seekp(offset);
+        ostream.write(buf, len);
+    }
+
+  private:
+    std::ofstream ostream;
+    boost::mutex mutex_;
 };
 
 struct Opts opts;
-uint64_t bufferSize(262144);
+std::shared_ptr<SynchronizedWrite> syncWrite;
+std::shared_ptr<Consumer> consumer;
 
-int readFile() {
-    auto consumer = Consumer::getXrdNdnConsumerInstance();
-    if (!consumer) {
+void read(off_t fileSize, off_t off, int threadID) {
+    std::string buff(opts.bsize, '\0');
+    off_t blen, offset;
+    ssize_t retRead = 0;
+    std::map<uint64_t, std::pair<std::string, uint64_t>> contentStore;
+    offset = off;
+    do {
+        if (offset >= fileSize) {
+            break;
+        }
+
+        if (offset + static_cast<off_t>(opts.bsize) > fileSize)
+            blen = fileSize - offset;
+        else
+            blen = opts.bsize;
+
+        NDN_LOG_TRACE("[Thread " << threadID << "] Reading " << blen << "@"
+                                 << offset);
+
+        retRead = consumer->Read(&buff[0], offset, blen, opts.infile);
+        contentStore[offset] = std::make_pair(std::string(buff), retRead);
+
+        offset += opts.bsize * opts.nthreads;
+    } while (retRead > 0);
+
+    if (!opts.outfile.empty()) {
+        for (auto it = contentStore.begin(); it != contentStore.end();
+             it = contentStore.erase(it))
+            syncWrite->write(it->first, it->second.first.data(),
+                             it->second.second);
+    }
+}
+
+int copyFile() {
+    int ret = consumer->Open(opts.infile);
+    if (ret != XRDNDN_ESUCCESS) {
+        NDN_LOG_ERROR("Unable to open file: " << opts.infile << ". "
+                                              << strerror(abs(ret)));
         return 2;
     }
 
-    try {
-        std::map<uint64_t, std::pair<std::string, uint64_t>> contentStore;
-
-        int retOpen = consumer->Open(opts.infile);
-        if (retOpen != XRDNDN_ESUCCESS) {
-            NDN_LOG_ERROR("Unable to open file: " << opts.infile << ". "
-                                                  << strerror(abs(retOpen)));
-            return 2;
-        }
-
-        struct stat info;
-        int retFstat = consumer->Fstat(&info, opts.infile);
-        if (retFstat != XRDNDN_ESUCCESS) {
-            NDN_LOG_ERROR("Unable to get fstat for file: "
-                          << opts.infile << ". " << strerror(abs(retFstat)));
-            return 2;
-        }
-
-        off_t offset = 0;
-        std::string buff(bufferSize, '\0');
-
-        int retRead = consumer->Read(&buff[0], offset, bufferSize, opts.infile);
-        while (retRead > 0) {
-            contentStore[offset] = std::make_pair(std::string(buff), retRead);
-            offset += retRead;
-            retRead = consumer->Read(&buff[0], offset, bufferSize, opts.infile);
-        }
-
-        if (retRead < 0)
-            NDN_LOG_ERROR("Unable to read file: " << opts.infile << ". "
-                                                  << strerror(abs(retRead)));
-
-        consumer->Close(opts.infile);
-
-        if (!opts.outfile.empty()) {
-            std::ofstream ostream(opts.outfile, std::ofstream::binary);
-            for (auto it = contentStore.begin(); it != contentStore.end();
-                 it = contentStore.erase(it)) {
-                ostream.write(it->second.first.data(), it->second.second);
-            }
-            ostream.close();
-        }
-
-        contentStore.clear();
-    } catch (const std::exception &e) {
-        NDN_LOG_ERROR(e.what());
+    struct stat info;
+    ret = consumer->Fstat(&info, opts.infile);
+    if (ret != XRDNDN_ESUCCESS) {
+        NDN_LOG_ERROR("Unable to get fstat for file: " << opts.infile << ". "
+                                                       << strerror(abs(ret)));
+        return 2;
     }
 
+    if (!opts.outfile.empty()) {
+        syncWrite = std::make_shared<SynchronizedWrite>(opts.outfile);
+    }
+    boost::thread_group threads;
+
+    for (auto i = 0; i < opts.nthreads; ++i) {
+        threads.create_thread(std::bind(read, info.st_size, opts.bsize * i, i));
+    }
+
+    threads.join_all();
+    consumer->Close(opts.infile);
     return 0;
 }
 
-int run() { return readFile(); }
+int run() { return copyFile(); }
 
 static void usage(std::ostream &os, const std::string &programName,
                   const boost::program_options::options_description &desc) {
@@ -124,9 +152,9 @@ int main(int argc, char **argv) {
     boost::program_options::options_description description("Options", 120);
     description.add_options()(
         "bsize",
-        boost::program_options::value<uint64_t>(&bufferSize)
-            ->default_value(bufferSize)
-            ->implicit_value(bufferSize),
+        boost::program_options::value<uint64_t>(&opts.bsize)
+            ->default_value(opts.bsize)
+            ->implicit_value(opts.bsize),
         "Read buffer size in bytes. Specify any value between 8KB and 1GB in "
         "bytes")("help,h", "Print this help message and exit")(
         "input-file", boost::program_options::value<std::string>(&opts.infile),
@@ -138,6 +166,11 @@ int main(int argc, char **argv) {
         "Log level. Available options: TRACE, DEBUG, INFO, WARN, ERROR, "
         "FATAL. More information can be found at "
         "https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html")(
+        "nthreads",
+        boost::program_options::value<uint16_t>(&opts.nthreads)
+            ->default_value(opts.nthreads)
+            ->implicit_value(opts.nthreads),
+        "Number of threads to read the file concurrently")(
         "output-file",
         boost::program_options::value<std::string>(&opts.outfile)
             ->default_value("")
@@ -172,7 +205,7 @@ int main(int argc, char **argv) {
     }
 
     if (vm.count("bsize") > 0) {
-        if (bufferSize < 1024 || bufferSize > 1073741824) {
+        if (opts.bsize < 1024 || opts.bsize > 1073741824) {
             std::cerr << "Buffer size must be between 8KB and 1GB."
                       << std::endl;
             return 2;
@@ -221,11 +254,18 @@ int main(int argc, char **argv) {
             << boostBuildInfo << ", with " << ndnCxxInfo);
 
         NDN_LOG_INFO("Selected Options: Read buffer size: "
-                     << bufferSize << "B, Input file: " << opts.infile
+                     << opts.bsize << "B, Input file: " << opts.infile
                      << ", Output file: "
                      << (opts.outfile.empty() ? "N/D" : opts.outfile));
     }
 
+    consumer = Consumer::getXrdNdnConsumerInstance();
+    if (!consumer) {
+        NDN_LOG_ERROR(
+            "Could not get xrdndnd consumer instance"); // TODO: prettify use
+                                                        // std::cout
+        return 2;
+    }
     return run();
 }
 } // namespace xrdndnconsumer

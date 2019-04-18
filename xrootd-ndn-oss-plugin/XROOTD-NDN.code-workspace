@@ -84,9 +84,14 @@
 			"iomanip": "cpp",
 			"streambuf": "cpp",
 			"strstream": "cpp",
-			"queue": "cpp"
+			"queue": "cpp",
+			"__errc": "cpp",
+			"__node_handle": "cpp",
+			"future": "cpp",
+			"numeric": "cpp",
+			"random": "cpp"
 		},
-		"workbench.colorTheme": "Material Theme Ocean High Contrast",
+		"workbench.colorTheme": "Material Theme Darker High Contrast",
 		"window.zoomLevel": -1,
 		"fileHeaderComment.parameter":{
 			"*":{

@@ -31,13 +31,13 @@
 #include <boost/version.hpp>
 
 #include "../common/xrdndn-logger.hh"
+#include "xrdndn-consumer-options.hh"
 #include "xrdndn-consumer-version.hh"
 #include "xrdndn-consumer.hh"
 
 namespace xrdndnconsumer {
 
-struct Opts {
-    std::string infile;
+struct CommandLineOptions {
     std::string outfile;
 
     uint64_t bsize = 262144;
@@ -62,12 +62,14 @@ class SynchronizedWrite {
     boost::mutex mutex_;
 };
 
-struct Opts opts;
+struct CommandLineOptions commandLineOptions;
+struct Options consumerOptions;
+
 std::shared_ptr<SynchronizedWrite> syncWrite;
 std::shared_ptr<Consumer> consumer;
 
 void read(off_t fileSize, off_t off, int threadID) {
-    std::string buff(opts.bsize, '\0');
+    std::string buff(commandLineOptions.bsize, '\0');
     off_t blen, offset;
     ssize_t retRead = 0;
     std::map<uint64_t, std::pair<std::string, uint64_t>> contentStore;
@@ -77,21 +79,21 @@ void read(off_t fileSize, off_t off, int threadID) {
             break;
         }
 
-        if (offset + static_cast<off_t>(opts.bsize) > fileSize)
+        if (offset + static_cast<off_t>(commandLineOptions.bsize) > fileSize)
             blen = fileSize - offset;
         else
-            blen = opts.bsize;
+            blen = commandLineOptions.bsize;
 
         NDN_LOG_TRACE("[Thread " << threadID << "] Reading " << blen << "@"
                                  << offset);
 
-        retRead = consumer->Read(&buff[0], offset, blen, opts.infile);
+        retRead = consumer->Read(&buff[0], offset, blen);
         contentStore[offset] = std::make_pair(std::string(buff), retRead);
 
-        offset += opts.bsize * opts.nthreads;
+        offset += commandLineOptions.bsize * commandLineOptions.nthreads;
     } while (retRead > 0);
 
-    if (!opts.outfile.empty()) {
+    if (!commandLineOptions.outfile.empty()) {
         for (auto it = contentStore.begin(); it != contentStore.end();
              it = contentStore.erase(it))
             syncWrite->write(it->first, it->second.first.data(),
@@ -100,32 +102,34 @@ void read(off_t fileSize, off_t off, int threadID) {
 }
 
 int copyFile() {
-    int ret = consumer->Open(opts.infile);
+    int ret = consumer->Open();
     if (ret != XRDNDN_ESUCCESS) {
-        NDN_LOG_ERROR("Unable to open file: " << opts.infile << ". "
+        NDN_LOG_ERROR("Unable to open file: " << consumerOptions.path << ". "
                                               << strerror(abs(ret)));
         return 2;
     }
 
     struct stat info;
-    ret = consumer->Fstat(&info, opts.infile);
+    ret = consumer->Fstat(&info);
     if (ret != XRDNDN_ESUCCESS) {
-        NDN_LOG_ERROR("Unable to get fstat for file: " << opts.infile << ". "
-                                                       << strerror(abs(ret)));
+        NDN_LOG_ERROR("Unable to get fstat for file: "
+                      << consumerOptions.path << ". " << strerror(abs(ret)));
         return 2;
     }
 
-    if (!opts.outfile.empty()) {
-        syncWrite = std::make_shared<SynchronizedWrite>(opts.outfile);
+    if (!commandLineOptions.outfile.empty()) {
+        syncWrite =
+            std::make_shared<SynchronizedWrite>(commandLineOptions.outfile);
     }
     boost::thread_group threads;
 
-    for (auto i = 0; i < opts.nthreads; ++i) {
-        threads.create_thread(std::bind(read, info.st_size, opts.bsize * i, i));
+    for (auto i = 0; i < commandLineOptions.nthreads; ++i) {
+        threads.create_thread(
+            std::bind(read, info.st_size, commandLineOptions.bsize * i, i));
     }
 
     threads.join_all();
-    consumer->Close(opts.infile);
+    consumer->Close();
     return 0;
 }
 
@@ -152,12 +156,13 @@ int main(int argc, char **argv) {
     boost::program_options::options_description description("Options", 120);
     description.add_options()(
         "bsize",
-        boost::program_options::value<uint64_t>(&opts.bsize)
-            ->default_value(opts.bsize)
-            ->implicit_value(opts.bsize),
+        boost::program_options::value<uint64_t>(&commandLineOptions.bsize)
+            ->default_value(commandLineOptions.bsize)
+            ->implicit_value(commandLineOptions.bsize),
         "Read buffer size in bytes. Specify any value between 8KB and 1GB in "
         "bytes")("help,h", "Print this help message and exit")(
-        "input-file", boost::program_options::value<std::string>(&opts.infile),
+        "input-file",
+        boost::program_options::value<std::string>(&consumerOptions.path),
         "Path to file to be copied over Name Data Networking")(
         "log-level",
         boost::program_options::value<std::string>(&logLevel)
@@ -167,12 +172,12 @@ int main(int argc, char **argv) {
         "FATAL. More information can be found at "
         "https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html")(
         "nthreads",
-        boost::program_options::value<uint16_t>(&opts.nthreads)
-            ->default_value(opts.nthreads)
-            ->implicit_value(opts.nthreads),
+        boost::program_options::value<uint16_t>(&commandLineOptions.nthreads)
+            ->default_value(commandLineOptions.nthreads)
+            ->implicit_value(commandLineOptions.nthreads),
         "Number of threads to read the file concurrently")(
         "output-file",
-        boost::program_options::value<std::string>(&opts.outfile)
+        boost::program_options::value<std::string>(&commandLineOptions.outfile)
             ->default_value("")
             ->implicit_value("./ndnfile.out"),
         "Path to output file copied over Name Data Networking")(
@@ -205,7 +210,8 @@ int main(int argc, char **argv) {
     }
 
     if (vm.count("bsize") > 0) {
-        if (opts.bsize < 1024 || opts.bsize > 1073741824) {
+        if (commandLineOptions.bsize < 1024 ||
+            commandLineOptions.bsize > 1073741824) {
             std::cerr << "Buffer size must be between 8KB and 1GB."
                       << std::endl;
             return 2;
@@ -218,10 +224,12 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    if (boost::filesystem::exists(boost::filesystem::path(opts.infile))) {
-        opts.infile = boost::filesystem::canonical(
-                          opts.infile, boost::filesystem::current_path())
-                          .string();
+    if (boost::filesystem::exists(
+            boost::filesystem::path(consumerOptions.path))) {
+        consumerOptions.path =
+            boost::filesystem::canonical(consumerOptions.path,
+                                         boost::filesystem::current_path())
+                .string();
     }
 
     try {
@@ -232,8 +240,9 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    if (!opts.outfile.empty())
-        opts.outfile = boost::filesystem::path(opts.outfile).string();
+    if (!commandLineOptions.outfile.empty())
+        commandLineOptions.outfile =
+            boost::filesystem::path(commandLineOptions.outfile).string();
 
     info();
 
@@ -254,12 +263,14 @@ int main(int argc, char **argv) {
             << boostBuildInfo << ", with " << ndnCxxInfo);
 
         NDN_LOG_INFO("Selected Options: Read buffer size: "
-                     << opts.bsize << "B, Input file: " << opts.infile
-                     << ", Output file: "
-                     << (opts.outfile.empty() ? "N/D" : opts.outfile));
+                     << commandLineOptions.bsize << "B, Input file: "
+                     << consumerOptions.path << ", Output file: "
+                     << (commandLineOptions.outfile.empty()
+                             ? "N/D"
+                             : commandLineOptions.outfile));
     }
 
-    consumer = Consumer::getXrdNdnConsumerInstance();
+    consumer = Consumer::getXrdNdnConsumerInstance(consumerOptions);
     if (!consumer) {
         NDN_LOG_ERROR(
             "Could not get xrdndnd consumer instance"); // TODO: prettify use

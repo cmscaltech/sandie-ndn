@@ -34,14 +34,17 @@
 #include <boost/noncopyable.hpp>
 
 #include "../common/xrdndn-namespace.hh"
+#include "xrdndn-consumer-options.hh"
 #include "xrdndn-pipeline.hh"
 
 namespace xrdndnconsumer {
 /**
- * @brief This class implements an NDN Consumer for XRootD NDN OSS plug-in. It
- * translates file system calls into Interest packets and expresess them over
- * the network. It takes care of each individual Interest and will return
- * specific data of each system call
+ * @brief This is the multi-threaded NDN Consumer for XRootD NDN OSS plug-in.
+ * One instance per file.
+ *
+ * It translates file system calls into Interest packets and expresess them over
+ * the NDN network. It takes care of each individual Interest and will return
+ * specific Data for each system call
  *
  */
 class Consumer : public std::enable_shared_from_this<Consumer>,
@@ -59,17 +62,21 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
     /**
      * @brief Returns a pointer to a Consumer object instance.
      *
+     * @param opts Consumer instance options
      * @return std::shared_ptr<Consumer> If the Consumer is not able to connect
      * to local forwarder it will return nullptr, else the Consumer instance
      * will be returned
      */
-    static std::shared_ptr<Consumer> getXrdNdnConsumerInstance();
+
+    static std::shared_ptr<Consumer>
+    getXrdNdnConsumerInstance(const Options &opts);
 
     /**
      * @brief Construct a new Consumer object
      *
+     * @param opts Consumer instance options
      */
-    Consumer();
+    Consumer(const Options &opts);
 
     /**
      * @brief Destroy the Consumer object
@@ -81,50 +88,46 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
      * @brief Open file function over NDN. Convert to a corresponding Interest
      * packet
      *
-     * @param path The file name
      * @return int The return value of open POSIX system call on the Producer
      * side. 0 (success) / -errno (error)
      */
-    int Open(std::string path);
+    int Open();
 
     /**
-     * @brief Dummy close function. The files are handled on the Producer
+     * @brief Dummy close function. File closing is handled on Producer
      *
-     * @param path The file name
      * @return int 0 (success)
      */
-    int Close(std::string path);
+    int Close();
 
     /**
      * @brief Fstat file function over NDN. Convert to a corresponding Interest
      * packet
      *
      * @param buff If fstat is possible, the POSIX struct stat of file will be
-     * put in
-     * @param path The file name
+     * put in it
      * @return int The return value of fstat POSIX system call on the Producer
      * side. 0 (success and buff will have data) / -errno (error)
      */
-    int Fstat(struct stat *buff, std::string path);
+    int Fstat(struct stat *buff);
 
     /**
-     * @brief Read blen bytes from file over NDN. The
-     * request will be translated into a number of Interest packets
+     * @brief Read blen bytes from file over NDN. The request will be translated
+     * into a number of Interest packets
      *
      * @param buff The address where data will be stored
      * @param offset Offset in file were the read will begin
      * @param blen The number of bytes to be read by Producer
-     * @param path The file name
      * @return ssize_t On Success the actual number of bytes read on the
      * Producer side. On failure -errno
      */
-    ssize_t Read(void *buff, off_t offset, size_t blen, std::string path);
+    ssize_t Read(void *buff, off_t offset, size_t blen);
 
   private:
     /**
      * @brief Process Interests
      *
-     * @param keepThread  Keep thread in a blocked state (in event processing),
+     * @param keepThread Keep thread in a blocked state (in event processing),
      * even when there are no outstanding events (e.g., no Interest/Data is
      * expected)
      */
@@ -133,14 +136,13 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
     /**
      * @brief Create Interest packet
      *
-     * @param sc System call for which an Interest packet has to be composed
-     * @param path Path to file
+     * @param prefix ndn::Name prefix of Interest Name
      * @param segmentNo Segment number of Interest packet
      * @param lifetime Lifetime of Interest packet
      * @return const ndn::Interest The resulting Interest packet
      */
     const ndn::Interest
-    getInterest(ndn::Name prefix, std::string path, uint64_t segmentNo = 0,
+    getInterest(ndn::Name prefix, uint64_t segmentNo = 0,
                 ndn::time::milliseconds lifetime = DEFAULT_INTEREST_LIFETIME);
 
     /**
@@ -172,6 +174,8 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
                       std::map<uint64_t, const ndn::Block> &dataStore);
 
   private:
+    const Options m_options;
+
     ndn::Face m_face;
     ndn::security::v2::Validator &m_validator;
 

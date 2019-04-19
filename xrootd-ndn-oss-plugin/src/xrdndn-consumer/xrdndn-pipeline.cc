@@ -26,8 +26,6 @@
 using namespace ndn;
 
 namespace xrdndnconsumer {
-const uint8_t Pipeline::DEFAULT_PIPELINE_SIZE = 64;
-
 Pipeline::Pipeline(Face &face, size_t size)
     : m_face(face), m_size(size), m_stop(false), m_nSegmentsReceived(0),
       m_nBytesReceived(0), m_pipeNo(0), m_duration(0) {

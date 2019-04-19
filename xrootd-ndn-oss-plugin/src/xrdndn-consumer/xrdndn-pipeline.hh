@@ -36,13 +36,6 @@ namespace xrdndnconsumer {
  *
  */
 class Pipeline {
-    /**
-     * @brief Default fixed window size of pipeline. The maximum concurrent
-     * Interest packets that are being expressed at a time in Pipeline
-     *
-     */
-    static const uint8_t DEFAULT_PIPELINE_SIZE;
-
     using NotifyTaskCompleteSuccess = std::function<void(const ndn::Data &)>;
     using NotifyTaskCompleteFailure = std::function<void()>;
 
@@ -55,9 +48,10 @@ class Pipeline {
      *
      * @param face Reference to NDN Face which provides a communication channel
      * with local or remote NDN forwarder
-     * @param size Pipeline size
+     * @param size Fixed window size of Pipeline. The maximum concurrent
+     * Interest packets expressed at one time
      */
-    Pipeline(ndn::Face &face, size_t size = DEFAULT_PIPELINE_SIZE);
+    Pipeline(ndn::Face &face, size_t size);
 
     /**
      * @brief Destroy the Pipeline object

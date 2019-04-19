@@ -34,6 +34,13 @@ struct Options {
      */
     std::string path = "";
 
+    /**
+     * @brief The number of concurrent Interest packets expressed at one time in
+     * the fixed window size Pipeline
+     *
+     */
+    size_t pipelineSize = 64;
+
     // TOOD: Log level
     // TODO: Interest life time in seconds
     // TODO: Pipeline size

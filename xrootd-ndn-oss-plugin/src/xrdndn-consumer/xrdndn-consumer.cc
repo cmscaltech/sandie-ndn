@@ -52,7 +52,7 @@ Consumer::Consumer(const Options &opts)
       m_error(false) {
     NDN_LOG_TRACE("Alloc XRootD NDN Consumer");
 
-    m_pipeline = std::make_shared<Pipeline>(m_face);
+    m_pipeline = std::make_shared<Pipeline>(m_face, m_options.pipelineSize);
     if (!m_pipeline) {
         m_error = true;
         NDN_LOG_ERROR("Unable to get Pipeline object instance");

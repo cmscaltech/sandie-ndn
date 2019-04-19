@@ -42,7 +42,6 @@ struct CommandLineOptions {
 
     uint64_t bsize = 262144;
     uint16_t nthreads = 1;
-    uint8_t pipelinesz = 64;
 };
 
 class SynchronizedWrite {
@@ -62,14 +61,14 @@ class SynchronizedWrite {
     boost::mutex mutex_;
 };
 
-struct CommandLineOptions commandLineOptions;
-struct Options consumerOptions;
+struct CommandLineOptions cmdLineOpts;
+struct Options consumerOpts;
 
 std::shared_ptr<SynchronizedWrite> syncWrite;
 std::shared_ptr<Consumer> consumer;
 
 void read(off_t fileSize, off_t off, int threadID) {
-    std::string buff(commandLineOptions.bsize, '\0');
+    std::string buff(cmdLineOpts.bsize, '\0');
     off_t blen, offset;
     ssize_t retRead = 0;
     std::map<uint64_t, std::pair<std::string, uint64_t>> contentStore;
@@ -79,10 +78,10 @@ void read(off_t fileSize, off_t off, int threadID) {
             break;
         }
 
-        if (offset + static_cast<off_t>(commandLineOptions.bsize) > fileSize)
+        if (offset + static_cast<off_t>(cmdLineOpts.bsize) > fileSize)
             blen = fileSize - offset;
         else
-            blen = commandLineOptions.bsize;
+            blen = cmdLineOpts.bsize;
 
         NDN_LOG_TRACE("[Thread " << threadID << "] Reading " << blen << "@"
                                  << offset);
@@ -90,10 +89,10 @@ void read(off_t fileSize, off_t off, int threadID) {
         retRead = consumer->Read(&buff[0], offset, blen);
         contentStore[offset] = std::make_pair(std::string(buff), retRead);
 
-        offset += commandLineOptions.bsize * commandLineOptions.nthreads;
+        offset += cmdLineOpts.bsize * cmdLineOpts.nthreads;
     } while (retRead > 0);
 
-    if (!commandLineOptions.outfile.empty()) {
+    if (!cmdLineOpts.outfile.empty()) {
         for (auto it = contentStore.begin(); it != contentStore.end();
              it = contentStore.erase(it))
             syncWrite->write(it->first, it->second.first.data(),
@@ -104,7 +103,7 @@ void read(off_t fileSize, off_t off, int threadID) {
 int copyFile() {
     int ret = consumer->Open();
     if (ret != XRDNDN_ESUCCESS) {
-        NDN_LOG_ERROR("Unable to open file: " << consumerOptions.path << ". "
+        NDN_LOG_ERROR("Unable to open file: " << consumerOpts.path << ". "
                                               << strerror(abs(ret)));
         return 2;
     }
@@ -113,19 +112,18 @@ int copyFile() {
     ret = consumer->Fstat(&info);
     if (ret != XRDNDN_ESUCCESS) {
         NDN_LOG_ERROR("Unable to get fstat for file: "
-                      << consumerOptions.path << ". " << strerror(abs(ret)));
+                      << consumerOpts.path << ". " << strerror(abs(ret)));
         return 2;
     }
 
-    if (!commandLineOptions.outfile.empty()) {
-        syncWrite =
-            std::make_shared<SynchronizedWrite>(commandLineOptions.outfile);
+    if (!cmdLineOpts.outfile.empty()) {
+        syncWrite = std::make_shared<SynchronizedWrite>(cmdLineOpts.outfile);
     }
     boost::thread_group threads;
 
-    for (auto i = 0; i < commandLineOptions.nthreads; ++i) {
+    for (auto i = 0; i < cmdLineOpts.nthreads; ++i) {
         threads.create_thread(
-            std::bind(read, info.st_size, commandLineOptions.bsize * i, i));
+            std::bind(read, info.st_size, cmdLineOpts.bsize * i, i));
     }
 
     threads.join_all();
@@ -156,13 +154,13 @@ int main(int argc, char **argv) {
     boost::program_options::options_description description("Options", 120);
     description.add_options()(
         "bsize",
-        boost::program_options::value<uint64_t>(&commandLineOptions.bsize)
-            ->default_value(commandLineOptions.bsize)
-            ->implicit_value(commandLineOptions.bsize),
+        boost::program_options::value<uint64_t>(&cmdLineOpts.bsize)
+            ->default_value(cmdLineOpts.bsize)
+            ->implicit_value(cmdLineOpts.bsize),
         "Read buffer size in bytes. Specify any value between 8KB and 1GB in "
         "bytes")("help,h", "Print this help message and exit")(
         "input-file",
-        boost::program_options::value<std::string>(&consumerOptions.path),
+        boost::program_options::value<std::string>(&consumerOpts.path),
         "Path to file to be copied over Name Data Networking")(
         "log-level",
         boost::program_options::value<std::string>(&logLevel)
@@ -172,15 +170,21 @@ int main(int argc, char **argv) {
         "FATAL. More information can be found at "
         "https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html")(
         "nthreads",
-        boost::program_options::value<uint16_t>(&commandLineOptions.nthreads)
-            ->default_value(commandLineOptions.nthreads)
-            ->implicit_value(commandLineOptions.nthreads),
+        boost::program_options::value<uint16_t>(&cmdLineOpts.nthreads)
+            ->default_value(cmdLineOpts.nthreads)
+            ->implicit_value(cmdLineOpts.nthreads),
         "Number of threads to read the file concurrently")(
         "output-file",
-        boost::program_options::value<std::string>(&commandLineOptions.outfile)
+        boost::program_options::value<std::string>(&cmdLineOpts.outfile)
             ->default_value("")
             ->implicit_value("./ndnfile.out"),
         "Path to output file copied over Name Data Networking")(
+        "pipeline-size",
+        boost::program_options::value<size_t>(&consumerOpts.pipelineSize)
+            ->default_value(consumerOpts.pipelineSize)
+            ->implicit_value(consumerOpts.pipelineSize),
+        "The number of concurrent Interest packets expressed at one time in "
+        "the fixed window size Pipeline. Specify any value between 1 and 512")(
         "version,V", "Show version information and exit");
 
     boost::program_options::variables_map vm;
@@ -210,8 +214,7 @@ int main(int argc, char **argv) {
     }
 
     if (vm.count("bsize") > 0) {
-        if (commandLineOptions.bsize < 1024 ||
-            commandLineOptions.bsize > 1073741824) {
+        if (cmdLineOpts.bsize < 1024 || cmdLineOpts.bsize > 1073741824) {
             std::cerr << "Buffer size must be between 8KB and 1GB."
                       << std::endl;
             return 2;
@@ -224,10 +227,17 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    if (boost::filesystem::exists(
-            boost::filesystem::path(consumerOptions.path))) {
-        consumerOptions.path =
-            boost::filesystem::canonical(consumerOptions.path,
+    if (vm.count("pipeline-size") > 0) {
+        if (consumerOpts.pipelineSize < 1 || consumerOpts.pipelineSize > 512) {
+            std::cerr << "ERROR: Pipeline size must be between 1 and 512"
+                      << std::endl;
+            return 2;
+        }
+    }
+
+    if (boost::filesystem::exists(boost::filesystem::path(consumerOpts.path))) {
+        consumerOpts.path =
+            boost::filesystem::canonical(consumerOpts.path,
                                          boost::filesystem::current_path())
                 .string();
     }
@@ -240,9 +250,9 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    if (!commandLineOptions.outfile.empty())
-        commandLineOptions.outfile =
-            boost::filesystem::path(commandLineOptions.outfile).string();
+    if (!cmdLineOpts.outfile.empty())
+        cmdLineOpts.outfile =
+            boost::filesystem::path(cmdLineOpts.outfile).string();
 
     info();
 
@@ -262,15 +272,16 @@ int main(int argc, char **argv) {
             " built with " BOOST_COMPILER ", with " BOOST_STDLIB ", with "
             << boostBuildInfo << ", with " << ndnCxxInfo);
 
-        NDN_LOG_INFO("Selected Options: Read buffer size: "
-                     << commandLineOptions.bsize << "B, Input file: "
-                     << consumerOptions.path << ", Output file: "
-                     << (commandLineOptions.outfile.empty()
-                             ? "N/D"
-                             : commandLineOptions.outfile));
+        NDN_LOG_INFO(
+            "Selected Options: Read buffer size: "
+            << cmdLineOpts.bsize
+            << "B, Pipeline Size: " << consumerOpts.pipelineSize
+            << "Interests, Input file: " << consumerOpts.path
+            << ", Output file: "
+            << (cmdLineOpts.outfile.empty() ? "N/D" : cmdLineOpts.outfile));
     }
 
-    consumer = Consumer::getXrdNdnConsumerInstance(consumerOptions);
+    consumer = Consumer::getXrdNdnConsumerInstance(consumerOpts);
     if (!consumer) {
         NDN_LOG_ERROR(
             "Could not get xrdndnd consumer instance"); // TODO: prettify use

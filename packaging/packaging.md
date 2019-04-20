@@ -26,7 +26,12 @@ caltech@cms:~# yum install  yum-utils \
                             dos2unix.x86_64 \
                             expat-devel.x86_64 \
                             libicu-devel.x86_64 \
-                            python-devel.x86_64
+                            python-devel.x86_64 \
+                            autoconf213.noarch \
+                            docbook-utils.noarch \
+                            docbook-utils-pdf.noarch \
+                            docbook-style-xsl.noarch \
+                            texlive-latex.noarch
 
 caltech@cms:~# curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py" && chmod a+x get-pip.py && ./get-pip.py
 ```

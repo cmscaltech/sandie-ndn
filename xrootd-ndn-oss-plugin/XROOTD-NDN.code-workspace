@@ -92,7 +92,7 @@
 			"random": "cpp"
 		},
 		"workbench.colorTheme": "Material Theme Darker High Contrast",
-		"window.zoomLevel": -1,
+		"window.zoomLevel": 0,
 		"fileHeaderComment.parameter":{
 			"*":{
 				"commentbegin": "/******************************************************************************",
@@ -102,9 +102,9 @@
 				"author": "Catalin Iordache",
 				"email": "catalin.iordache@cern.ch",
 				"company": "California Institute of Technology",
-				"license_gnu":[
+				"license_caltech_gnu":[
 					"Named Data Networking plugin for xrootd                                    *",
-					" Copyright © ${year} ${company}                        *",
+					" Copyright © 2018-${year} ${company}                   *",
 					"                                                                            *",
 					" Author: ${author} <${email}>                        *",
 					"                                                                            *",
@@ -126,7 +126,7 @@
 		"fileHeaderComment.template":{
 			"gnu":[
 				"${commentbegin}",
-				"${commentprefix} ${license_gnu}",
+				"${commentprefix} ${license_caltech_gnu}",
 				"${commentend}",
 				""
 			]

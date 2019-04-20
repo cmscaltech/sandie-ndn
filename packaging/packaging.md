@@ -147,7 +147,7 @@ In the end you can see the content of the rpm file:
 caltech@cms:~# rpm -qpl rpmbuild/RPMS/<arch>/<rpm-name>.rpm
 ```
 
-In this repository you can find both rpms and specs for: [boost 1.69.0](SPECS/libboost.spec), [ndn-cxx 0.6.2](SPECS/libndn-cxx.spec), [NFD 0.6.2](SPECS/nfd.spec) and [ndn-tools 0.6.1](SPECS/ndn-tools.spec).
+In this repository you can find both rpms and specs for: [boost 1.58.0](SPECS/boost-1.58.0.spec), [boost 1.69.0](SPECS/boost-1.69.0.spec), [ndn-cxx 0.6.2](SPECS/libndn-cxx.spec), [NFD 0.6.2](SPECS/nfd.spec) and [ndn-tools 0.6.1](SPECS/ndn-tools.spec).
 
 ## xrootd
 

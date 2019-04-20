@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -162,12 +162,17 @@ int main(int argc, char **argv) {
         "input-file",
         boost::program_options::value<std::string>(&consumerOpts.path),
         "Path to file to be copied over Name Data Networking")(
+        "interest-lifetime",
+        boost::program_options::value<size_t>(&consumerOpts.interestLifetime)
+            ->default_value(consumerOpts.interestLifetime)
+            ->implicit_value(consumerOpts.interestLifetime),
+        "Interest packet lifetime in seconds. Specify a non-negative integer")(
         "log-level",
         boost::program_options::value<std::string>(&logLevel)
             ->default_value(logLevel)
             ->implicit_value("NONE"),
         "Log level. Available options: TRACE, DEBUG, INFO, WARN, ERROR, "
-        "FATAL. More information can be found at "
+        "FATAL. More information can be found at:\n"
         "https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html")(
         "nthreads",
         boost::program_options::value<uint16_t>(&cmdLineOpts.nthreads)
@@ -276,8 +281,8 @@ int main(int argc, char **argv) {
             "Selected Options: Read buffer size: "
             << cmdLineOpts.bsize
             << "B, Pipeline Size: " << consumerOpts.pipelineSize
-            << "Interests, Input file: " << consumerOpts.path
-            << ", Output file: "
+            << ", Interest lifetime: " << consumerOpts.interestLifetime
+            << "s, Input file: " << consumerOpts.path << ", Output file: "
             << (cmdLineOpts.outfile.empty() ? "N/D" : cmdLineOpts.outfile));
     }
 

@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -28,22 +28,26 @@ namespace xrdndnconsumer {
  */
 struct Options {
     /**
-     * @brief Path to file to be retrieved over NDN network. One Consumer
-     * instance object per file
-     *
-     */
-    std::string path = "";
-
-    /**
      * @brief The number of concurrent Interest packets expressed at one time in
      * the fixed window size Pipeline
      *
      */
     size_t pipelineSize = 64;
 
+    /**
+     * @brief The Interest life time expressed in seconds
+     *
+     */
+    size_t interestLifetime = 256;
+
     // TOOD: Log level
-    // TODO: Interest life time in seconds
-    // TODO: Pipeline size
+
+    /**
+     * @brief Path to file to be retrieved over NDN network. One Consumer
+     * instance object per file
+     *
+     */
+    std::string path = "";
 };
 } // namespace xrdndnconsumer
 

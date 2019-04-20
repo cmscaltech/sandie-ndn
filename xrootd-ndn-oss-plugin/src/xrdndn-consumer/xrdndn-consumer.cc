@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -27,9 +27,6 @@
 using namespace ndn;
 
 namespace xrdndnconsumer {
-const ndn::time::milliseconds Consumer::DEFAULT_INTEREST_LIFETIME =
-    ndn::time::seconds(4);
-
 std::shared_ptr<Consumer>
 Consumer::getXrdNdnConsumerInstance(const Options &opts) {
     if (opts.path.empty()) {
@@ -48,8 +45,8 @@ Consumer::getXrdNdnConsumerInstance(const Options &opts) {
 }
 
 Consumer::Consumer(const Options &opts)
-    : m_options(opts), m_validator(security::v2::getAcceptAllValidator()),
-      m_error(false) {
+    : m_options(opts), m_interestLifetime(opts.interestLifetime),
+      m_validator(security::v2::getAcceptAllValidator()), m_error(false) {
     NDN_LOG_TRACE("Alloc XRootD NDN Consumer");
 
     m_pipeline = std::make_shared<Pipeline>(m_face, m_options.pipelineSize);
@@ -84,12 +81,11 @@ void Consumer::processEvents(bool keepThread) {
     }
 }
 
-const Interest Consumer::getInterest(ndn::Name prefix, uint64_t segmentNo,
-                                     ndn::time::milliseconds lifetime) {
+const Interest Consumer::getInterest(ndn::Name prefix, uint64_t segmentNo) {
     auto name = xrdndn::Utils::getName(prefix, m_options.path, segmentNo);
 
     Interest interest(name);
-    interest.setInterestLifetime(lifetime);
+    interest.setInterestLifetime(m_interestLifetime);
     interest.setMustBeFresh(true);
     return interest;
 }

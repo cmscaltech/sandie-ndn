@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -49,12 +49,6 @@ namespace xrdndnconsumer {
  */
 class Consumer : public std::enable_shared_from_this<Consumer>,
                  private boost::noncopyable {
-    /**
-     * @brief The default lifetime of an Interest packet expressed by Consumer
-     *
-     */
-    static const ndn::time::milliseconds DEFAULT_INTEREST_LIFETIME;
-
     using DataTypeTuple = std::tuple<int, ndn::Interest, ndn::Data>;
     using FutureType = std::future<DataTypeTuple>;
 
@@ -69,7 +63,7 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
      */
 
     static std::shared_ptr<Consumer>
-    getXrdNdnConsumerInstance(const Options &opts);
+    getXrdNdnConsumerInstance(const Options &opts = Options());
 
     /**
      * @brief Construct a new Consumer object
@@ -138,12 +132,9 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
      *
      * @param prefix ndn::Name prefix of Interest Name
      * @param segmentNo Segment number of Interest packet
-     * @param lifetime Lifetime of Interest packet
      * @return const ndn::Interest The resulting Interest packet
      */
-    const ndn::Interest
-    getInterest(ndn::Name prefix, uint64_t segmentNo = 0,
-                ndn::time::milliseconds lifetime = DEFAULT_INTEREST_LIFETIME);
+    const ndn::Interest getInterest(ndn::Name prefix, uint64_t segmentNo = 0);
 
     /**
      * @brief If errcode is success 0, means Data was acquired for Interest.
@@ -175,6 +166,7 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
 
   private:
     const Options m_options;
+    ndn::time::seconds m_interestLifetime;
 
     ndn::Face m_face;
     ndn::security::v2::Validator &m_validator;

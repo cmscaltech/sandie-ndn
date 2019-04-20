@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -55,7 +55,7 @@ DataFetcher::DataFetcher(ndn::Face &face, const ndn::Interest &interest,
 void DataFetcher::stop() {
     if (this->isFetching()) {
         m_stop = true;
-        m_face.removePendingInterest(m_interestId);
+        m_interestId.cancel();
         m_scheduler.cancelAllEvents();
         m_task(-ECANCELED, m_interest, ndn::Data());
     }
@@ -118,9 +118,8 @@ void DataFetcher::handleNack(const Interest &interest, const lp::Nack &nack) {
         else
             ++m_nCongestionRetries;
 
-        m_scheduler.scheduleEvent(
-            backOffTime,
-            bind(&DataFetcher::expressInterest, this, newInterest));
+        m_scheduler.schedule(backOffTime, bind(&DataFetcher::expressInterest,
+                                               this, newInterest));
         break;
     }
     default:

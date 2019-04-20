@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -37,9 +37,7 @@ Producer::getXrdNdnProducerInstance(Face &face, const Options &opts) {
 }
 
 Producer::Producer(Face &face, const Options &opts)
-    : m_face(face), m_error(false), m_OpenFilterId(nullptr),
-      m_ReadFilterId(nullptr) {
-
+    : m_face(face), m_error(false) {
     NDN_LOG_TRACE("Alloc XRootD NDN Producer");
 
     try {
@@ -47,88 +45,63 @@ Producer::Producer(Face &face, const Options &opts)
     } catch (const std::exception &e) {
         m_error = true;
         NDN_LOG_ERROR(e.what());
+        return;
     }
 
     m_interestManager = std::make_shared<InterestManager>(
         opts, std::bind(&Producer::onData, this, _1));
+
     if (!m_interestManager) {
-        NDN_LOG_ERROR("Unable to get Interest Manager object instance");
+        NDN_LOG_FATAL("Unable to get Interest Manager object instance");
         m_error = true;
+        return;
     }
 
-    if (!m_error)
-        this->registerPrefix();
+    this->registerPrefix();
 }
 
 Producer::~Producer() {
-    if (m_xrdndnPrefixId != nullptr) {
-        m_face.unsetInterestFilter(m_xrdndnPrefixId);
-    }
-    if (m_OpenFilterId != nullptr) {
-        m_face.unsetInterestFilter(m_OpenFilterId);
-    }
-    if (m_FstatFilterId != nullptr) {
-        m_face.unsetInterestFilter(m_FstatFilterId);
-    }
-    if (m_ReadFilterId != nullptr) {
-        m_face.unsetInterestFilter(m_ReadFilterId);
-    }
-
+    m_xrdndnPrefixHandle.cancel();
+    m_openFilterHandle.cancel();
+    m_fstatFilterHandle.cancel();
+    m_readFilterHandle.cancel();
     m_face.shutdown();
 }
 
 // Register all interest filters that this producer will answer to
 void Producer::registerPrefix() {
-    NDN_LOG_TRACE("Register prefixes.");
-
-    // For nfd
-    m_xrdndnPrefixId = m_face.registerPrefix(
+    m_xrdndnPrefixHandle = m_face.registerPrefix(
         xrdndn::SYS_CALLS_PREFIX_URI,
         [](const Name &name) {
-            NDN_LOG_INFO("Successfully registered Interest prefix: " << name);
+            NDN_LOG_INFO("Successfully registered Interest prefix: "
+                         << name << " with connected NDN forwarder");
         },
-        [](const Name &name, const std::string &msg) {
-            NDN_LOG_ERROR("Could not register " << name
-                                                << " prefix for nfd: " << msg);
+        [this](const Name &name, const std::string &msg) {
+            m_error = true;
+            NDN_LOG_FATAL("Could not register Interest prefix: "
+                          << name << " with connected NDN forwarder: " << msg);
         });
-    if (!m_xrdndnPrefixId)
-        m_error = true;
+
+    if (m_error)
+        return;
 
     // Filter for open system call
-    m_OpenFilterId =
+    m_openFilterHandle =
         m_face.setInterestFilter(xrdndn::SYS_CALL_OPEN_PREFIX_URI,
                                  bind(&Producer::onOpenInterest, this, _1, _2));
-    if (!m_OpenFilterId) {
-        m_error = true;
-        NDN_LOG_ERROR("Could not set Interest filter for open systemcall.");
-    } else {
-        NDN_LOG_INFO("Successfully set Interest filter: "
-                     << xrdndn::SYS_CALL_OPEN_PREFIX_URI);
-    }
+    NDN_LOG_INFO("Set Interest filter: " << xrdndn::SYS_CALL_OPEN_PREFIX_URI);
 
     // Filter for fstat system call
-    m_FstatFilterId = m_face.setInterestFilter(
+    m_fstatFilterHandle = m_face.setInterestFilter(
         xrdndn::SYS_CALL_FSTAT_PREFIX_URI,
         bind(&Producer::onFstatInterest, this, _1, _2));
-    if (!m_FstatFilterId) {
-        m_error = true;
-        NDN_LOG_ERROR("Could not set Interest filter for fstat systemcall.");
-    } else {
-        NDN_LOG_INFO("Successfully set Interest filter: "
-                     << xrdndn::SYS_CALL_FSTAT_PREFIX_URI);
-    }
+    NDN_LOG_INFO("Set Interest filter: " << xrdndn::SYS_CALL_FSTAT_PREFIX_URI);
 
     // Filter for read system call
-    m_ReadFilterId =
+    m_readFilterHandle =
         m_face.setInterestFilter(xrdndn::SYS_CALL_READ_PREFIX_URI,
                                  bind(&Producer::onReadInterest, this, _1, _2));
-    if (!m_ReadFilterId) {
-        m_error = true;
-        NDN_LOG_ERROR("CCould not set Interest filter for read systemcall.");
-    } else {
-        NDN_LOG_INFO("Successfully set Interest filter: "
-                     << xrdndn::SYS_CALL_READ_PREFIX_URI);
-    }
+    NDN_LOG_INFO("Set Interest filter: " << xrdndn::SYS_CALL_READ_PREFIX_URI);
 }
 
 void Producer::onData(const ndn::Data &data) {

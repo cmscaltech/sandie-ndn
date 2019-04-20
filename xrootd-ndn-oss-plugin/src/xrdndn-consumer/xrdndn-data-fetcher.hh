@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -179,9 +179,9 @@ class DataFetcher : public std::enable_shared_from_this<DataFetcher> {
     NotifyTaskCompleteFailure m_onFailure;
 
     ndn::Face &m_face;
-    ndn::util::Scheduler m_scheduler;
+    ndn::util::scheduler::Scheduler m_scheduler;
     const ndn::Interest m_interest;
-    const ndn::PendingInterestId *m_interestId;
+    ndn::PendingInterestHandle m_interestId;
 
     uint8_t m_nNacks;
     uint8_t m_nCongestionRetries;

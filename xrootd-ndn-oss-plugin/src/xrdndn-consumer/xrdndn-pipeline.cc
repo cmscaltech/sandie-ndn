@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -27,8 +27,8 @@ using namespace ndn;
 
 namespace xrdndnconsumer {
 Pipeline::Pipeline(Face &face, size_t size)
-    : m_face(face), m_size(size), m_stop(false), m_nSegmentsReceived(0),
-      m_nBytesReceived(0), m_pipeNo(0), m_duration(0) {
+    : m_face(face), m_size(size), m_stop(false), m_pipeNo(0),
+      m_nSegmentsReceived(0), m_nBytesReceived(0), m_duration(0) {
     NDN_LOG_TRACE("Alloc fixed window size " << m_size << " pipeline");
     m_startTime = ndn::time::steady_clock::now();
 }

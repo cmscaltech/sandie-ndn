@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 # CMake should use the current exported location of g++
 add_definitions(-DCMAKE_CXX_COMPILER=g++)
+add_definitions(-D_GNU_SOURCE)
 
 # The sources are compiled with at least GCC 5.3.0
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.3.0)
@@ -21,8 +22,8 @@ find_package(ndn-cxx 0.6.2 REQUIRED)
 find_package(Threads)
 find_package(xrootd-utils)
 
-# Use C++11 to compile
-set(CMAKE_CXX_STANDARD 11)
+# Use C++14 to compile
+set(CMAKE_CXX_STANDARD 14)
 
 add_compile_options(-g -Wall -Wextra -Wpedantic -O0)
 add_definitions(-DBOOST_LOG_DYN_LINK)
@@ -87,8 +88,6 @@ add_executable(xrdndn-consumer
                src/xrdndn-consumer/xrdndn-pipeline.cc)
 
 target_link_libraries(xrdndn-consumer
-                      Boost::system
-                      Boost::log
                       ${Boost_LIBRARIES}
                       ${NDN_CXX_LIB}
                       ${CMAKE_THREAD_LIBS_INIT})

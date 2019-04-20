@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -54,10 +54,10 @@ class Producer : boost::noncopyable {
     ndn::Face &m_face;
     bool m_error;
 
-    const ndn::RegisteredPrefixId *m_xrdndnPrefixId;
-    const ndn::InterestFilterId *m_OpenFilterId;
-    const ndn::InterestFilterId *m_FstatFilterId;
-    const ndn::InterestFilterId *m_ReadFilterId;
+    ndn::RegisteredPrefixHandle m_xrdndnPrefixHandle;
+    ndn::InterestFilterHandle m_openFilterHandle;
+    ndn::InterestFilterHandle m_fstatFilterHandle;
+    ndn::InterestFilterHandle m_readFilterHandle;
 
     std::shared_ptr<InterestManager> m_interestManager;
 };

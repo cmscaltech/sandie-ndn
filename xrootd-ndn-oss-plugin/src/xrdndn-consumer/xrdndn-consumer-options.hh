@@ -40,7 +40,13 @@ struct Options {
      */
     size_t interestLifetime = 256;
 
-    // TOOD: Log level
+    /**
+     * @brief Log level: TRACE DEBUG INFO WARN ERROR FATAL. More information is
+     * available at:
+     * https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html
+     *
+     */
+    std::string logLevel = "INFO";
 
     /**
      * @brief Path to file to be retrieved over NDN network. One Consumer

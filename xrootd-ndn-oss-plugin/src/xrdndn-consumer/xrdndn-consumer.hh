@@ -119,6 +119,12 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
 
   private:
     /**
+     * @brief Set the Log Level object
+     *
+     */
+    void setLogLevel();
+
+    /**
      * @brief Process Interests
      *
      * @param keepThread Keep thread in a blocked state (in event processing),

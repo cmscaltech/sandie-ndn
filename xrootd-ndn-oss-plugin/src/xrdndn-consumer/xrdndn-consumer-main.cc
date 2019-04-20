@@ -142,14 +142,14 @@ static void usage(std::ostream &os, const std::string &programName,
 }
 
 static void info() {
-    NDN_LOG_INFO(
-        "\nThe NDN Consumer used in the NDN based filesystem plugin for "
-        "XRootD.\nDeveloped by Caltech@CMS.\n");
+    std::cout
+        << "\nThe NDN Consumer used in the NDN based filesystem plugin for "
+           "XRootD.\nDeveloped by Caltech@CMS.\n"
+        << std::endl;
 }
 
 int main(int argc, char **argv) {
     std::string programName = argv[0];
-    std::string logLevel("INFO");
 
     boost::program_options::options_description description("Options", 120);
     description.add_options()(
@@ -168,8 +168,8 @@ int main(int argc, char **argv) {
             ->implicit_value(consumerOpts.interestLifetime),
         "Interest packet lifetime in seconds. Specify a non-negative integer")(
         "log-level",
-        boost::program_options::value<std::string>(&logLevel)
-            ->default_value(logLevel)
+        boost::program_options::value<std::string>(&consumerOpts.logLevel)
+            ->default_value(consumerOpts.logLevel)
             ->implicit_value("NONE"),
         "Log level. Available options: TRACE, DEBUG, INFO, WARN, ERROR, "
         "FATAL. More information can be found at:\n"
@@ -247,22 +247,15 @@ int main(int argc, char **argv) {
                 .string();
     }
 
-    try {
-        ndn::util::Logging::setLevel(CONSUMER_LOGGER_PREFIX "=" + logLevel);
-    } catch (const std::invalid_argument &e) {
-        std::cerr << "ERROR: " << e.what() << std::endl;
-        usage(std::cerr, programName, description);
-        return 2;
-    }
-
     if (!cmdLineOpts.outfile.empty())
         cmdLineOpts.outfile =
             boost::filesystem::path(cmdLineOpts.outfile).string();
 
     info();
 
-    NDN_LOG_INFO("XRootD NDN Consumer version " XRDNDN_CONSUMER_VERSION_STRING
-                 " starting");
+    std::cout << "XRootD NDN Consumer version " XRDNDN_CONSUMER_VERSION_STRING
+                 " starting"
+              << std::endl;
     {
         const std::string boostBuildInfo =
             "Boost version " + std::to_string(BOOST_VERSION / 100000) + "." +
@@ -272,25 +265,23 @@ int main(int argc, char **argv) {
         const std::string ndnCxxInfo =
             "ndn-cxx version " NDN_CXX_VERSION_STRING;
 
-        NDN_LOG_INFO(
-            "xrdndn-consumer build " XRDNDN_CONSUMER_VERSION_BUILD_STRING
-            " built with " BOOST_COMPILER ", with " BOOST_STDLIB ", with "
-            << boostBuildInfo << ", with " << ndnCxxInfo);
+        std::cout
+            << "xrdndn-consumer build " XRDNDN_CONSUMER_VERSION_BUILD_STRING
+               " built with " BOOST_COMPILER ", with " BOOST_STDLIB ", with "
+            << boostBuildInfo << ", with " << ndnCxxInfo << std::endl;
 
-        NDN_LOG_INFO(
-            "Selected Options: Read buffer size: "
-            << cmdLineOpts.bsize
-            << "B, Pipeline Size: " << consumerOpts.pipelineSize
-            << ", Interest lifetime: " << consumerOpts.interestLifetime
-            << "s, Input file: " << consumerOpts.path << ", Output file: "
-            << (cmdLineOpts.outfile.empty() ? "N/D" : cmdLineOpts.outfile));
+        std::cout << "Selected Options: Read buffer size: " << cmdLineOpts.bsize
+                  << "B, Pipeline Size: " << consumerOpts.pipelineSize
+                  << ", Interest lifetime: " << consumerOpts.interestLifetime
+                  << "s, Input file: " << consumerOpts.path << ", Output file: "
+                  << (cmdLineOpts.outfile.empty() ? "N/D" : cmdLineOpts.outfile)
+                  << std::endl;
     }
 
     consumer = Consumer::getXrdNdnConsumerInstance(consumerOpts);
     if (!consumer) {
-        NDN_LOG_ERROR(
-            "Could not get xrdndnd consumer instance"); // TODO: prettify use
-                                                        // std::cout
+        std::cerr << "ERROR: Could not get xrdndnd consumer instance"
+                  << std::endl;
         return 2;
     }
     return run();

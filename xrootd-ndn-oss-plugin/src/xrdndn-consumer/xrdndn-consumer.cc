@@ -47,12 +47,17 @@ Consumer::getXrdNdnConsumerInstance(const Options &opts) {
 Consumer::Consumer(const Options &opts)
     : m_options(opts), m_interestLifetime(opts.interestLifetime),
       m_validator(security::v2::getAcceptAllValidator()), m_error(false) {
+    setLogLevel();
+    if (m_error)
+        return;
+
     NDN_LOG_TRACE("Alloc XRootD NDN Consumer");
 
     m_pipeline = std::make_shared<Pipeline>(m_face, m_options.pipelineSize);
     if (!m_pipeline) {
         m_error = true;
         NDN_LOG_ERROR("Unable to get Pipeline object instance");
+        return;
     }
 
     processEvents(false);
@@ -64,10 +69,22 @@ Consumer::Consumer(const Options &opts)
 }
 
 Consumer::~Consumer() {
-    m_pipeline->stop();
+    if (m_pipeline)
+        m_pipeline->stop();
+
     m_face.removeAllPendingInterests();
     m_face.shutdown();
     faceProcessEventsThread.join();
+}
+
+void Consumer::setLogLevel() {
+    try {
+        ndn::util::Logging::setLevel(CONSUMER_LOGGER_PREFIX "=" +
+                                     m_options.logLevel);
+    } catch (const std::invalid_argument &e) {
+        std::cerr << e.what() << std::endl;
+        m_error = true;
+    }
 }
 
 void Consumer::processEvents(bool keepThread) {

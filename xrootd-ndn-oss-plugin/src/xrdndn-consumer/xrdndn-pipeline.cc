@@ -34,8 +34,10 @@ Pipeline::Pipeline(Face &face, size_t size)
 }
 
 Pipeline::~Pipeline() {
-    stop();
-    m_window.clear();
+    if (!m_window.empty()) {
+        stop();
+        m_window.clear();
+    }
 }
 
 void Pipeline::stop() {

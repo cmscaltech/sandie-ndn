@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -28,6 +28,8 @@
 #include <XrdSys/XrdSysError.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysPlugin.hh>
+
+#include "../xrdndn-consumer/xrdndn-consumer.hh"
 
 // Forward declarations.
 class XrdSfsAio;
@@ -69,6 +71,7 @@ class XrdNdnFsFile : public XrdOssDF {
 
   private:
     XrdOucErrInfo error;
+    std::shared_ptr<xrdndnconsumer::Consumer> m_consumer;
     std::string filePath;
 
   public:

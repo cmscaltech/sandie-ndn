@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -18,13 +18,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include <XrdVersion.hh>
 #include <fcntl.h>
 #include <iostream>
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "../xrdndn-consumer/xrdndn-consumer.hh"
+#include <XrdOuc/XrdOucTrace.hh>
+#include <XrdVersion.hh>
+
 #include "xrdndnfs.hh"
 
 /*****************************************************************************/
@@ -39,7 +40,8 @@
 /*****************************************************************************/
 namespace xrdndnfs {
 XrdSysError OssEroute(0, "xrdndnfs_");
-static XrdNdnfsSys XrdNdnFS;
+XrdOucTrace OssTrace(&OssEroute);
+static XrdNdnfsSys XrdNdnSS;
 } // namespace xrdndnfs
 
 using namespace xrdndnfs;
@@ -50,7 +52,7 @@ using namespace xrdndnfs;
 extern "C" {
 XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
                                const char *config_fn, const char *) {
-    return (XrdNdnFS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdNdnFS);
+    return (XrdNdnSS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdNdnSS);
 }
 }
 
@@ -66,12 +68,18 @@ XrdNdnFsFile::~XrdNdnFsFile() {}
 /*****************************************************************************/
 /* Over NDN the file will be opened for reading only.*/
 int XrdNdnFsFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
-    // XrdNdnFS.Say("Open file: ", path);
+    // XrdNdnSS.Say("Open file: ", path);
+
+    if (m_consumer != nullptr) {
+        return -EINVAL;
+    }
 
     filePath = std::string(path);
+    m_consumer = xrdndnconsumer::Consumer::getXrdNdnConsumerInstance();
+    if (!m_consumer)
+        return -1;
 
-    xrdndnconsumer::Consumer consumer;
-    int retOpen = consumer.Open(filePath);
+    int retOpen = m_consumer->Open();
     return retOpen;
 }
 
@@ -79,20 +87,18 @@ int XrdNdnFsFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
 /*                                F s t a t                                  */
 /*****************************************************************************/
 int XrdNdnFsFile::Fstat(struct stat *buf) {
-    // XrdNdnFS.Say("Fstat on file: ", filePath.c_str());
+    // XrdNdnSS.Say("Fstat on file: ", filePath.c_str());
 
-    xrdndnconsumer::Consumer consumer;
-    return consumer.Fstat(buf, filePath);
+    return m_consumer->Fstat(buf);
 }
 
 /*****************************************************************************/
 /*                                  R e a d                                  */
 /*****************************************************************************/
 ssize_t XrdNdnFsFile::Read(void *buff, off_t offset, size_t blen) {
-    // XrdNdnFS.Say("Read file: ", filePath.c_str());
+    // XrdNdnSS.Say("Read file: ", filePath.c_str());
 
-    xrdndnconsumer::Consumer consumer;
-    int retRead = consumer.Read(buff, offset, blen, filePath);
+    int retRead = m_consumer->Read(buff, offset, blen);
     return retRead;
 }
 
@@ -113,7 +119,7 @@ int XrdNdnFsFile::Read(XrdSfsAio *aiop) {
 /*                                 C l o s e                                 */
 /*****************************************************************************/
 int XrdNdnFsFile::Close(long long *) {
-    // XrdNdnFS.Say("Close file: ", filePath.c_str());
+    // XrdNdnSS.Say("Close file: ", filePath.c_str());
     return 0;
 }
 
@@ -127,6 +133,7 @@ int XrdNdnfsSys::Init(XrdSysLogger *lp, const char *) {
     m_eDest->Say("Copyright © 2018 California Institute of Technology\n"
                  "Author: Catalin Iordache <catalin.iordache@cern.ch>");
     m_eDest->Say("Named Data Networking based Storage System initialized.");
+
     return 0;
 }
 

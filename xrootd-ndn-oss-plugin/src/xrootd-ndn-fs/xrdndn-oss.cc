@@ -18,6 +18,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
+#include <sstream>
+#include <vector>
+
 #include <XrdOuc/XrdOucTrace.hh>
 #include <XrdVersion.hh>
 
@@ -48,9 +51,105 @@ using namespace xrdndnfs;
 /*****************************************************************************/
 extern "C" {
 XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
-                               const char *config_fn, const char *) {
-    return (XrdNdnSS.Init(Logger, config_fn) ? 0 : (XrdOss *)&XrdNdnSS);
+                               const char *config_fn, const char *parms) {
+    if (XrdNdnSS.Init(Logger, config_fn) != 0)
+        return 0;
+
+    XrdNdnSS.m_eDest->Say(
+        "++++++ Configuring Named Data Networking Storage System. . .");
+
+    XrdNdnSS.Configure(parms);
+
+    XrdNdnSS.m_eDest->Say(
+        "       ofs NDN Consumer pipeline size: ",
+        std::to_string(XrdNdnSS.m_consumerOptions.pipelineSize).c_str());
+    XrdNdnSS.m_eDest->Say(
+        "       ofs NDN Consumer interest lifetime: ",
+        std::to_string(XrdNdnSS.m_consumerOptions.interestLifetime).c_str());
+    XrdNdnSS.m_eDest->Say("       ofs NDN Consumer log level: ",
+                          XrdNdnSS.m_consumerOptions.logLevel.c_str());
+    XrdNdnSS.m_eDest->Say(
+        "------ Named Data Networking Storage System configuration completed.");
+    return ((XrdOss *)&XrdNdnSS);
 }
+}
+
+void XrdNdnOss::Configure(const char *parms) {
+    std::string sparms(parms);
+    { // Remove comments from params line in config file
+        std::size_t foundComment = sparms.find("#");
+        if (foundComment != std::string::npos)
+            sparms = sparms.substr(0, foundComment);
+    }
+
+    if (sparms.empty())
+        return;
+
+    std::istringstream iss(sparms);
+    std::vector<std::string> vparms(std::istream_iterator<std::string>{iss},
+                                    std::istream_iterator<std::string>());
+
+    if (vparms.size() % 2 != 0) {
+        m_eDest->Emsg("Config", "the list of parameters in config file is not "
+                                "even. The costum parameters will be ignored");
+        return;
+    }
+
+    auto getIntFromParams = [&](std::string key, int &ret) {
+        for (auto it = vparms.begin(); it != vparms.end(); ++it) {
+            if (key.compare(*it) != 0)
+                continue;
+            try {
+                ret = std::stoi(*++it);
+                return true;
+            } catch (const std::exception &e) {
+                m_eDest->Emsg("Config", e.what(),
+                              "while getting int value from params list");
+                return false;
+            }
+        }
+        return false;
+    };
+
+    auto getLogLevelFromParams = [&](std::string &logLevel) {
+        std::string key("loglevel");
+        for (auto it = vparms.begin(); it != vparms.end(); ++it) {
+            if (key.compare(*it) != 0)
+                continue;
+            ++it;
+            if ((*it).compare("TRACE") != 0 && (*it).compare("DEBUG") != 0 &&
+                (*it).compare("INFO") != 0 && (*it).compare("WARN") != 0 &&
+                (*it).compare("ERROR") != 0 && (*it).compare("FATAL") != 0 &&
+                (*it).compare("NONE") != 0) {
+                return false;
+            } else {
+                logLevel = *it;
+            }
+            return true;
+        }
+        return false;
+    };
+
+    {
+        int pipesize;
+        if (getIntFromParams("pipelinesize", pipesize)) {
+            if (pipesize > 0 && pipesize <= 512)
+                m_consumerOptions.pipelineSize = pipesize;
+        }
+    }
+
+    {
+        int interestLifetime;
+        if (getIntFromParams("interestlifetime", interestLifetime))
+            m_consumerOptions.interestLifetime = interestLifetime;
+    }
+
+    {
+        std::string logLevel;
+        if (getLogLevelFromParams(logLevel)) {
+            m_consumerOptions.logLevel = logLevel;
+        }
+    }
 }
 
 /*****************************************************************************/

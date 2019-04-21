@@ -38,7 +38,8 @@ int XrdNdnOssFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
         return -EINVAL;
     }
 
-    m_consumer = xrdndnconsumer::Consumer::getXrdNdnConsumerInstance();
+    m_consumer = xrdndnconsumer::Consumer::getXrdNdnConsumerInstance(
+        m_xrdndnoss->m_consumerOptions);
     if (!m_consumer)
         return -1;
 
@@ -75,7 +76,10 @@ int XrdNdnOssFile::Read(XrdSfsAio *aiop) {
 /*****************************************************************************/
 /*                                 C l o s e                                 */
 /*****************************************************************************/
-int XrdNdnOssFile::Close(long long *) { return 0; }
+int XrdNdnOssFile::Close(long long *) {
+    m_consumer->Close();
+    return 0;
+}
 
 int XrdNdnOssFile::Fchmod(mode_t mode) {
     (void)mode;

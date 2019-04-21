@@ -21,6 +21,8 @@
 #ifndef XRDNDN_CONSUMER_OPTIONS_HH
 #define XRDNDN_CONSUMER_OPTIONS_HH
 
+#include <string>
+
 namespace xrdndnconsumer {
 /**
  * @brief XRootD NDN Consumer instance options

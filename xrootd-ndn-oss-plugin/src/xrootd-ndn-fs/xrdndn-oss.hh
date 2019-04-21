@@ -29,6 +29,8 @@
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysPlugin.hh>
 
+#include "../xrdndn-consumer/xrdndn-consumer-options.hh"
+
 class XrdSysLogger;
 
 class XrdNdnOss : public XrdOss {
@@ -36,13 +38,12 @@ class XrdNdnOss : public XrdOss {
     XrdNdnOss() : XrdOss() {}
     ~XrdNdnOss() {}
 
-  public:
+    void Configure(const char *parms);
     static int Emsg(const char *, XrdOucErrInfo &, int, const char *x,
                     const char *y = "");
     void Say(const char *, const char *x = "", const char *y = "",
              const char *z = "");
 
-  public:
     XrdOssDF *newDir(const char *tident);
     XrdOssDF *newFile(const char *tident);
     int Chmod(const char *, mode_t, XrdOucEnv *);
@@ -55,7 +56,9 @@ class XrdNdnOss : public XrdOss {
     int Truncate(const char *, unsigned long long, XrdOucEnv *);
     int Unlink(const char *, int, XrdOucEnv *);
 
+  public:
     XrdSysError *m_eDest;
+    struct xrdndnconsumer::Options m_consumerOptions;
 };
 
 #endif // XRDNDN_OSS_HH

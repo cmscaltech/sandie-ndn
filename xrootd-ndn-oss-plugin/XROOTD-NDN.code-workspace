@@ -92,7 +92,7 @@
 			"random": "cpp"
 		},
 		"workbench.colorTheme": "Material Theme Darker High Contrast",
-		"window.zoomLevel": 0,
+		"window.zoomLevel": -1,
 		"fileHeaderComment.parameter":{
 			"*":{
 				"commentbegin": "/******************************************************************************",

@@ -18,15 +18,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include <fcntl.h>
-#include <iostream>
-#include <sys/stat.h>
-#include <sys/types.h>
-
 #include <XrdOuc/XrdOucTrace.hh>
 #include <XrdVersion.hh>
 
-#include "xrdndnfs.hh"
+#include "xrdndn-oss-dir.hh"
+#include "xrdndn-oss-file.hh"
+#include "xrdndn-oss.hh"
 
 /*****************************************************************************/
 /*       O S   D i r e c t o r y   H a n d l i n g   I n t e r f a c e       */
@@ -41,7 +38,7 @@
 namespace xrdndnfs {
 XrdSysError OssEroute(0, "xrdndnfs_");
 XrdOucTrace OssTrace(&OssEroute);
-static XrdNdnfsSys XrdNdnSS;
+static XrdNdnOss XrdNdnSS;
 } // namespace xrdndnfs
 
 using namespace xrdndnfs;
@@ -57,76 +54,9 @@ XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
 }
 
 /*****************************************************************************/
-/*                F i l e   O b j e c t   I n t e r f a c e s                */
-/*****************************************************************************/
-XrdNdnFsFile::XrdNdnFsFile(const char *) {}
-
-XrdNdnFsFile::~XrdNdnFsFile() {}
-
-/*****************************************************************************/
-/*                                  O p e n                                  */
-/*****************************************************************************/
-/* Over NDN the file will be opened for reading only.*/
-int XrdNdnFsFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
-    // XrdNdnSS.Say("Open file: ", path);
-
-    if (m_consumer != nullptr) {
-        return -EINVAL;
-    }
-
-    filePath = std::string(path);
-    m_consumer = xrdndnconsumer::Consumer::getXrdNdnConsumerInstance();
-    if (!m_consumer)
-        return -1;
-
-    int retOpen = m_consumer->Open();
-    return retOpen;
-}
-
-/*****************************************************************************/
-/*                                F s t a t                                  */
-/*****************************************************************************/
-int XrdNdnFsFile::Fstat(struct stat *buf) {
-    // XrdNdnSS.Say("Fstat on file: ", filePath.c_str());
-
-    return m_consumer->Fstat(buf);
-}
-
-/*****************************************************************************/
-/*                                  R e a d                                  */
-/*****************************************************************************/
-ssize_t XrdNdnFsFile::Read(void *buff, off_t offset, size_t blen) {
-    // XrdNdnSS.Say("Read file: ", filePath.c_str());
-
-    int retRead = m_consumer->Read(buff, offset, blen);
-    return retRead;
-}
-
-ssize_t XrdNdnFsFile::Read(off_t, size_t) { return XrdOssOK; }
-
-ssize_t XrdNdnFsFile::ReadRaw(void *buff, off_t offset, size_t blen) {
-    return Read(buff, offset, blen);
-}
-
-int XrdNdnFsFile::Read(XrdSfsAio *aiop) {
-    aiop->Result = this->Read((void *)aiop->sfsAio.aio_buf,
-                              aiop->sfsAio.aio_offset, aiop->sfsAio.aio_nbytes);
-    aiop->doneRead();
-    return 0;
-}
-
-/*****************************************************************************/
-/*                                 C l o s e                                 */
-/*****************************************************************************/
-int XrdNdnFsFile::Close(long long *) {
-    // XrdNdnSS.Say("Close file: ", filePath.c_str());
-    return 0;
-}
-
-/*****************************************************************************/
 /*         F i l e   S y s t e m   O b j e c t   I n t e r f a c e s         */
 /*****************************************************************************/
-int XrdNdnfsSys::Init(XrdSysLogger *lp, const char *) {
+int XrdNdnOss::Init(XrdSysLogger *lp, const char *) {
     m_eDest = &OssEroute;
     m_eDest->logger(lp);
 
@@ -137,17 +67,17 @@ int XrdNdnfsSys::Init(XrdSysLogger *lp, const char *) {
     return 0;
 }
 
-void XrdNdnfsSys::Say(const char *msg, const char *x, const char *y,
-                      const char *z) {
+void XrdNdnOss::Say(const char *msg, const char *x, const char *y,
+                    const char *z) {
     m_eDest->Say(msg, x, y, z);
 }
 
 // Taken from https://github.com/opensciencegrid/xrootd-hdfs
-int XrdNdnfsSys::Emsg(const char *pfx,      // Message prefix value
-                      XrdOucErrInfo &einfo, // Place to put text & error code
-                      int ecode,            // The error code
-                      const char *op,       // Operation being performed
-                      const char *target)   // The target (e.g., fname)
+int XrdNdnOss::Emsg(const char *pfx,      // Message prefix value
+                    XrdOucErrInfo &einfo, // Place to put text & error code
+                    int ecode,            // The error code
+                    const char *op,       // Operation being performed
+                    const char *target)   // The target (e.g., fname)
 {
     char *etext, buffer[XrdOucEI::Max_Error_Len], unkbuff[64];
 
@@ -173,5 +103,39 @@ int XrdNdnfsSys::Emsg(const char *pfx,      // Message prefix value
         return (errno > 0) ? -errno : errno;
     return -1;
 }
+
+XrdOssDF *XrdNdnOss::newDir(const char *tident) {
+    return (XrdNdnOssDir *)new XrdNdnOssDir(tident);
+}
+
+XrdOssDF *XrdNdnOss::newFile(const char *) {
+    return (XrdNdnFsFile *)new XrdNdnFsFile(this);
+}
+
+int XrdNdnOss::Chmod(const char *, mode_t, XrdOucEnv *) { return -ENOTSUP; }
+
+int XrdNdnOss::Create(const char *, const char *, mode_t, XrdOucEnv &, int) {
+    return -ENOTSUP;
+}
+
+int XrdNdnOss::Mkdir(const char *, mode_t, int, XrdOucEnv *) {
+    return -ENOTSUP;
+}
+
+int XrdNdnOss::Remdir(const char *, int, XrdOucEnv *) { return -ENOTSUP; }
+
+int XrdNdnOss::Rename(const char *, const char *, XrdOucEnv *, XrdOucEnv *) {
+    return -ENOTSUP;
+}
+
+int XrdNdnOss::Stat(const char *, struct stat *, int, XrdOucEnv *) {
+    return -ENOTSUP;
+}
+
+int XrdNdnOss::Truncate(const char *, unsigned long long, XrdOucEnv *) {
+    return -ENOTSUP;
+}
+
+int XrdNdnOss::Unlink(const char *, int, XrdOucEnv *) { return -ENOTSUP; }
 
 XrdVERSIONINFO(XrdOssGetStorageSystem, "xrdndnfs")

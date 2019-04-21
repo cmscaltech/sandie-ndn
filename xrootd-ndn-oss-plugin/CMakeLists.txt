@@ -39,7 +39,9 @@ set(XRDNDN_CONSUMER_VERSION_PATCH 4)
 # Compile libXrdNdnFS.so
 add_library(XrdNdnFS
             MODULE
-            src/xrootd-ndn-fs/xrdndnfs.cc
+            src/xrootd-ndn-fs/xrdndn-oss.cc
+            src/xrootd-ndn-fs/xrdndn-oss-dir.cc
+            src/xrootd-ndn-fs/xrdndn-oss-file.cc
             src/xrdndn-consumer/xrdndn-consumer.cc
             src/xrdndn-consumer/xrdndn-data-fetcher.cc
             src/xrdndn-consumer/xrdndn-pipeline.cc)

@@ -1,8 +1,8 @@
 # Guidelines for installation of NDN stack on Centos 7.5
 
-We consider the NDN stack to be composed of: **boost**, **ndn-cxx**, **nfd**, **ndn-tools** and **xrootd**. I had to manually install these softwares as well as creating RPMs and bellow are a few guidelines for anyone how wants to do the same.
+We consider the NDN stack to be composed of: **boost**, **ndn-cxx**, **nfd**, **ndn-tools** and **xrootd**. Bellow are a few guidelines for anyone how wants to manually install these softwares as well as creating RPMs for them.
 
-By manually install any of these softwares you also resolve a lot of the steps which are needed to create the packages. Basically, when you have to create an rpm, you have to make the software compile and install on your machine. Consider the next sections as steps in booth installing the software and preparing your build system.
+By manually install any of these softwares you also resolve a lot of the steps which are needed to create the packages. Basically, when you have to create an RPM, you have to make the software compile and install on your machine. Consider the next sections as steps in booth installing the software and preparing your build system.
 
 ## Prerequisites
 
@@ -12,27 +12,31 @@ On a minimal installation of Centos 7, there are a lot of dependencies to instal
 caltech@cms:~# yum install  yum-utils \
                             valgrind \
                             wget \
-                            qlite-devel \
+                            sqlite-devel \
                             openssl-devel.x86_64 \
-                            libtranslit-icu-0.0.2-6.el7.x86_64 \
-                            python-devel-2.7.5-68.el7.x86_64 \
-                            bzip2-devel-1.0.6-13.el7.i686 \
+                            libtranslit-icu.x86_64 \
+                            bzip2-devel.x86_64 \
                             doxygen \
                             graphviz \
                             python-sphinx \
-                            libpcap* \
+                            libpcap-devel.x86_64 \
                             psmisc \
-                            dpkg-devel dpkg-dev \
-                            sqlite-devel
+                            dpkg-devel dpkg-dev \ 
+                            chrpath.x86_64 \
+                            dos2unix.x86_64 \
+                            expat-devel.x86_64 \
+                            libicu-devel.x86_64 \
+                            python-devel.x86_64 \
+                            autoconf213.noarch \
+                            docbook-utils.noarch \
+                            docbook-utils-pdf.noarch \
+                            docbook-style-xsl.noarch \
+                            texlive-latex.noarch
 
-caltech@cms:~# yum groupinstall 'Development Tools'
-
-caltech@cms:~# curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py" && ./get-pip.py
+caltech@cms:~# curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py" && chmod a+x get-pip.py && ./get-pip.py
 ```
 
-Some of the packages may be obsolete by the time you read this. To find out which packet to install you can use `yum whichprovides <something>` and this will return you all the packages you need to install for that something.
-
-Bzip2 packets most probably will not install the **libbz2.so** needed for boost compilation. In this case, you can manually compile and install it:
+Bzip2 packets may not install the **libbz2.so** needed for boost compilation. To manually compile and install it:
 
 ```bash
 caltech@cms:~# mkdir libbz2_TEMP && cd libbz2_TEMP
@@ -50,17 +54,17 @@ caltech@cms:~# ls -s /usr/local/lib/libbz2.so.1.0.6 /usr/local/lib/libbz2.so
 
 ## gcc
 
-For **ndn-cxx 0.6.2** at least gcc 5.3.0 is required. For our purpose, we've used **gcc 7.3.1**. You can install it from [Centos Software Collections (SCL) Repository](https://wiki.centos.org/AdditionalResources/Repositories/SCL) with the following commands:
+For **ndn-cxx 0.6.5** at least gcc 5.3.0 is required. For our purpose, we've used **gcc 8.2.1**. You can install it from [Centos Software Collections (SCL) Repository](https://wiki.centos.org/AdditionalResources/Repositories/SCL) with the following commands:
 
 ```bash
 caltech@cms:~# yum install centos-release-scl
-caltech@cms:~# yum install devtoolset-7-gcc*
-caltech@cms:~# scl enable devtoolset-7 bash // This should run every time a user logs in
+caltech@cms:~# yum install devtoolset-8-gcc*
+caltech@cms:~# scl enable devtoolset-8 bash // This should run every time a user logs in
 ```
 
 ## boost
 
-With the commands bellow, you clone the boost git repository: [Boostorg/boost](https://github.com/boostorg/boost) and bring the other dependencies. After this, you proceed building the libraries using four cores of your machine and at the end install them.
+With the commands bellow, you clone the boost git repository: [Boostorg/boost](https://github.com/boostorg/boost), build the libraries and install them.
 
 ```bash
 caltech@cms:~# git clone https://github.com/boostorg/boost.git
@@ -116,14 +120,14 @@ caltech@cms:~# ./waf
 caltech@cms:~# ./waf install
 ```
 
-## Packaging - How to create an rpm
+## Packaging - How to create an RPM
 
-In order to create an rpm from your sources you need to install the rpmdevtools. You can do this with the following command:
+In order to create an RPM from your sources you need to install the **rpmdevtools**. You can do this with the following command:
 ```bash
 caltech@cms:~# yum install rpmdevtools
 ```
 
-Once the **rpmbuild** application is installed on your machine you need to setup a directory for it at your disered location:
+Once the **rpmbuild** application is installed on your machine you need to setup a directory tree:
 ```bash
 caltech@cms:~# rpmdev-setuptree
 ```
@@ -143,8 +147,8 @@ In the end you can see the content of the rpm file:
 caltech@cms:~# rpm -qpl rpmbuild/RPMS/<arch>/<rpm-name>.rpm
 ```
 
-In this repository you can find both rpms and specs for: [boost 1.58](SPECS/libboost.spec), [ndn-cxx 0.6.2](SPECS/libndn-cxx.spec), [NFD 0.6.2](SPECS/nfd.spec) and [ndn-tools 0.6.1](SPECS/ndn-tools.spec).
+In this repository you can find both rpms and specs for: [boost 1.58.0](SPECS/boost-1.58.0.spec), [boost 1.69.0](SPECS/boost-1.69.0.spec), [ndn-cxx 0.6.2](SPECS/libndn-cxx.spec), [NFD 0.6.2](SPECS/nfd.spec) and [ndn-tools 0.6.1](SPECS/ndn-tools.spec).
 
 ## xrootd
 
-`TODO`
+To install XRootD on Centos 7.5 follow the [link](https://opensciencegrid.org/docs/data/xrootd/install-standalone/) on opensciencegrid website.

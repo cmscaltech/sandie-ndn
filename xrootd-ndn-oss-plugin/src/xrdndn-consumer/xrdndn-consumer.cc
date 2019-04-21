@@ -29,11 +29,6 @@ using namespace ndn;
 namespace xrdndnconsumer {
 std::shared_ptr<Consumer>
 Consumer::getXrdNdnConsumerInstance(const Options &opts) {
-    if (opts.path.empty()) {
-        NDN_LOG_ERROR("File path is empty. Unable to get XRootD NDN Consumer "
-                      "object instance");
-    }
-
     auto consumer = std::make_shared<Consumer>(opts);
 
     if (!consumer || consumer->m_error) {
@@ -83,7 +78,7 @@ void Consumer::setLogLevel() {
                                      m_options.logLevel);
     } catch (const std::invalid_argument &e) {
         std::cerr << e.what() << std::endl;
-        m_error = true;
+        ndn::util::Logging::setLevel(CONSUMER_LOGGER_PREFIX "=NONE");
     }
 }
 
@@ -99,7 +94,7 @@ void Consumer::processEvents(bool keepThread) {
 }
 
 const Interest Consumer::getInterest(ndn::Name prefix, uint64_t segmentNo) {
-    auto name = xrdndn::Utils::getName(prefix, m_options.path, segmentNo);
+    auto name = xrdndn::Utils::getName(prefix, m_path, segmentNo);
 
     Interest interest(name);
     interest.setInterestLifetime(m_interestLifetime);
@@ -139,10 +134,17 @@ int Consumer::validateData(const int errcode, const Interest &interest,
 /*****************************************************************************/
 /*                                  O p e n                                  */
 /*****************************************************************************/
-int Consumer::Open() {
+int Consumer::Open(std::string path) {
+    if (path.empty()) {
+        NDN_LOG_ERROR("File path is empty");
+        m_error = true;
+        return -ENOENT;
+    }
+    m_path = path;
+
     auto openInterest = this->getInterest(xrdndn::SYS_CALL_OPEN_PREFIX_URI);
 
-    NDN_LOG_INFO("Request open file: " << m_options.path
+    NDN_LOG_INFO("Request open file: " << m_path
                                        << " with Interest: " << openInterest);
 
     FutureType future = m_pipeline->insert(openInterest);
@@ -168,8 +170,7 @@ int Consumer::Open() {
         retOpen = -readNonNegativeInteger(std::get<2>(openResult).getContent());
     }
 
-    NDN_LOG_INFO("Open file: " << m_options.path
-                               << " with error code: " << retOpen);
+    NDN_LOG_INFO("Open file: " << m_path << " with error code: " << retOpen);
 
     return retOpen;
 }
@@ -178,8 +179,8 @@ int Consumer::Open() {
 /*                                 C l o s e                                 */
 /*****************************************************************************/
 int Consumer::Close() {
-    NDN_LOG_INFO("Close file: " << m_options.path << " with error code: 0");
-    m_pipeline->getStatistics(m_options.path);
+    NDN_LOG_INFO("Close file: " << m_path << " with error code: 0");
+    m_pipeline->getStatistics(m_path);
     return XRDNDN_ESUCCESS;
 }
 
@@ -189,8 +190,8 @@ int Consumer::Close() {
 int Consumer::Fstat(struct stat *buff) {
     auto fstatInterest = this->getInterest(xrdndn::SYS_CALL_FSTAT_PREFIX_URI);
 
-    NDN_LOG_INFO("Request fstat for file: "
-                 << m_options.path << " with Interest: " << fstatInterest);
+    NDN_LOG_INFO("Request fstat for file: " << m_path << " with Interest: "
+                                            << fstatInterest);
 
     FutureType future = m_pipeline->insert(fstatInterest);
     if (!future.valid()) {
@@ -217,8 +218,7 @@ int Consumer::Fstat(struct stat *buff) {
                sizeof(struct stat));
     }
 
-    NDN_LOG_INFO("Fstat file: " << m_options.path
-                                << " with error code: " << retFstat);
+    NDN_LOG_INFO("Fstat file: " << m_path << " with error code: " << retFstat);
 
     return retFstat;
 }
@@ -228,7 +228,7 @@ int Consumer::Fstat(struct stat *buff) {
 /*****************************************************************************/
 ssize_t Consumer::Read(void *buff, off_t offset, size_t blen) {
     NDN_LOG_TRACE("Reading " << blen << " bytes @" << offset
-                             << " from file: " << m_options.path);
+                             << " from file: " << m_path);
 
     off_t firstSegmentIdx = offset / XRDNDN_MAX_NDN_PACKET_SIZE;
     off_t lastSegmentIdx =
@@ -271,7 +271,7 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen) {
 
     auto retRead = this->returnData(buff, offset, blen, std::ref(dataStore));
     NDN_LOG_TRACE("Received read Data for " << blen << " bytes @" << offset
-                                            << " from file: " << m_options.path
+                                            << " from file: " << m_path
                                             << " with ret: " << retRead);
 
     return retRead;

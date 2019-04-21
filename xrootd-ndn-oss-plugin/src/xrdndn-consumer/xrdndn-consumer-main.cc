@@ -38,6 +38,7 @@
 namespace xrdndnconsumer {
 
 struct CommandLineOptions {
+    std::string infile;
     std::string outfile;
 
     uint64_t bsize = 262144;
@@ -101,9 +102,9 @@ void read(off_t fileSize, off_t off, int threadID) {
 }
 
 int copyFile() {
-    int ret = consumer->Open();
+    int ret = consumer->Open(cmdLineOpts.infile);
     if (ret != XRDNDN_ESUCCESS) {
-        NDN_LOG_ERROR("Unable to open file: " << consumerOpts.path << ". "
+        NDN_LOG_ERROR("Unable to open file: " << cmdLineOpts.infile << ". "
                                               << strerror(abs(ret)));
         return 2;
     }
@@ -112,7 +113,7 @@ int copyFile() {
     ret = consumer->Fstat(&info);
     if (ret != XRDNDN_ESUCCESS) {
         NDN_LOG_ERROR("Unable to get fstat for file: "
-                      << consumerOpts.path << ". " << strerror(abs(ret)));
+                      << cmdLineOpts.infile << ". " << strerror(abs(ret)));
         return 2;
     }
 
@@ -160,7 +161,7 @@ int main(int argc, char **argv) {
         "Read buffer size in bytes. Specify any value between 8KB and 1GB in "
         "bytes")("help,h", "Print this help message and exit")(
         "input-file",
-        boost::program_options::value<std::string>(&consumerOpts.path),
+        boost::program_options::value<std::string>(&cmdLineOpts.infile),
         "Path to file to be copied over Name Data Networking")(
         "interest-lifetime",
         boost::program_options::value<size_t>(&consumerOpts.interestLifetime)
@@ -240,9 +241,10 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (boost::filesystem::exists(boost::filesystem::path(consumerOpts.path))) {
-        consumerOpts.path =
-            boost::filesystem::canonical(consumerOpts.path,
+    if (boost::filesystem::exists(
+            boost::filesystem::path(cmdLineOpts.infile))) {
+        cmdLineOpts.infile =
+            boost::filesystem::canonical(cmdLineOpts.infile,
                                          boost::filesystem::current_path())
                 .string();
     }
@@ -273,7 +275,8 @@ int main(int argc, char **argv) {
         std::cout << "Selected Options: Read buffer size: " << cmdLineOpts.bsize
                   << "B, Pipeline Size: " << consumerOpts.pipelineSize
                   << ", Interest lifetime: " << consumerOpts.interestLifetime
-                  << "s, Input file: " << consumerOpts.path << ", Output file: "
+                  << "s, Input file: " << cmdLineOpts.infile
+                  << ", Output file: "
                   << (cmdLineOpts.outfile.empty() ? "N/D" : cmdLineOpts.outfile)
                   << std::endl;
     }

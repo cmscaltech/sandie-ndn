@@ -82,10 +82,11 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
      * @brief Open file function over NDN. Convert to a corresponding Interest
      * packet
      *
+     * @param path File path of the file to be copied over NDN network
      * @return int The return value of open POSIX system call on the Producer
      * side. 0 (success) / -errno (error)
      */
-    int Open();
+    int Open(std::string path);
 
     /**
      * @brief Dummy close function. File closing is handled on Producer
@@ -173,6 +174,7 @@ class Consumer : public std::enable_shared_from_this<Consumer>,
   private:
     const Options m_options;
     ndn::time::seconds m_interestLifetime;
+    std::string m_path;
 
     ndn::Face m_face;
     ndn::security::v2::Validator &m_validator;

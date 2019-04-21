@@ -109,7 +109,7 @@ XrdOssDF *XrdNdnOss::newDir(const char *tident) {
 }
 
 XrdOssDF *XrdNdnOss::newFile(const char *) {
-    return (XrdNdnFsFile *)new XrdNdnFsFile(this);
+    return (XrdNdnOssFile *)new XrdNdnOssFile(this);
 }
 
 int XrdNdnOss::Chmod(const char *, mode_t, XrdOucEnv *) { return -ENOTSUP; }

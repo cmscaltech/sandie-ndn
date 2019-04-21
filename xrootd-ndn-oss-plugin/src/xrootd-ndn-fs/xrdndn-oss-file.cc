@@ -42,7 +42,7 @@ int XrdNdnOssFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
     if (!m_consumer)
         return -1;
 
-    int retOpen = m_consumer->Open();
+    int retOpen = m_consumer->Open(std::string(path));
     return retOpen;
 }
 

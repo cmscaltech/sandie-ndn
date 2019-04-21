@@ -47,13 +47,6 @@ struct Options {
      *
      */
     std::string logLevel = "INFO";
-
-    /**
-     * @brief Path to file to be retrieved over NDN network. One Consumer
-     * instance object per file
-     *
-     */
-    std::string path = "";
 };
 } // namespace xrdndnconsumer
 

@@ -58,7 +58,8 @@ XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
     XrdNdnSS.m_eDest->Say(
         "++++++ Configuring Named Data Networking Storage System. . .");
 
-    XrdNdnSS.Configure(parms);
+    if (parms && strlen(parms) != 0)
+        XrdNdnSS.Configure(parms);
 
     XrdNdnSS.m_eDest->Say(
         "       ofs NDN Consumer pipeline size: ",

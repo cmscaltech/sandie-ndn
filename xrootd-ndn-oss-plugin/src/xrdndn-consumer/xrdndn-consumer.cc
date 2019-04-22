@@ -98,6 +98,7 @@ const Interest Consumer::getInterest(ndn::Name prefix, uint64_t segmentNo) {
     Interest interest(name);
     interest.setInterestLifetime(m_interestLifetime);
     interest.setMustBeFresh(true);
+    interest.setDefaultCanBePrefix(false);
     return interest;
 }
 

@@ -57,7 +57,7 @@ void Packager::digest(Data &data) {
 }
 
 const Data Packager::getPackage(Name &name, const int contentValue) {
-    Data data(name.appendVersion());
+    Data data(name);
 
     data.setContent(
         makeNonNegativeIntegerBlock(ndn::tlv::Content, abs(contentValue)));
@@ -71,7 +71,7 @@ const Data Packager::getPackage(Name &name, const int contentValue) {
 
 const Data Packager::getPackage(Name &name, const uint8_t *value,
                                 ssize_t size) {
-    Data data(name.appendVersion());
+    Data data(name);
 
     data.setContent(value, size);
     digest(data);

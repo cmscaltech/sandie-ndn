@@ -25,6 +25,37 @@
 
 namespace xrdndnconsumer {
 /**
+ * @brief Minimum Interest lifetime set from options
+ *
+ */
+#define XRDNDN_MININTEREST_LIFETIME 4 // sec
+/**
+ * @brief Default Interest lifetime
+ *
+ */
+#define XRDNDN_DEFAULT_INTEREST_LIFETIME 256 // sec
+/**
+ * @brief Maximum Interest lifetime set from options
+ *
+ */
+#define XRDNDN_MAXINTEREST_LIFETIME 1024 // sec
+/**
+ * @brief Minimum fixed window size pipeline set from options
+ *
+ */
+#define XRDNDN_MINPIPELINESZ 1 // Interests
+/**
+ * @brief Default fixed window size pipeline
+ *
+ */
+#define XRDNDN_DEFAULT_PIPELINESZ 64 // Interests
+/**
+ * @brief Maximum fixed window size pipeline set from options
+ *
+ */
+#define XRDNDN_MAXPIPELINESZ 512 // Interests
+
+/**
  * @brief XRootD NDN Consumer instance options
  *
  */
@@ -34,13 +65,13 @@ struct Options {
      * the fixed window size Pipeline
      *
      */
-    size_t pipelineSize = 64;
+    size_t pipelineSize = XRDNDN_DEFAULT_PIPELINESZ;
 
     /**
      * @brief The Interest life time expressed in seconds
      *
      */
-    size_t interestLifetime = 256;
+    size_t interestLifetime = XRDNDN_DEFAULT_INTEREST_LIFETIME;
 
     /**
      * @brief Log level: TRACE DEBUG INFO WARN ERROR FATAL. More information is

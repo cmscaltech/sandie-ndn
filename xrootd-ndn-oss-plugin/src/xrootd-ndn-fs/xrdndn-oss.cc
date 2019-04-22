@@ -117,13 +117,17 @@ void XrdNdnOss::Configure(const char *parms) {
             if (key.compare(*it) != 0)
                 continue;
             ++it;
-            if ((*it).compare("TRACE") != 0 && (*it).compare("DEBUG") != 0 &&
-                (*it).compare("INFO") != 0 && (*it).compare("WARN") != 0 &&
-                (*it).compare("ERROR") != 0 && (*it).compare("FATAL") != 0 &&
-                (*it).compare("NONE") != 0) {
+            logLevel = *it;
+            std::transform(logLevel.begin(), logLevel.end(), logLevel.begin(),
+                           ::toupper);
+            if ((logLevel).compare("TRACE") != 0 &&
+                (logLevel).compare("DEBUG") != 0 &&
+                (logLevel).compare("INFO") != 0 &&
+                (logLevel).compare("WARN") != 0 &&
+                (logLevel).compare("ERROR") != 0 &&
+                (logLevel).compare("FATAL") != 0 &&
+                (logLevel).compare("NONE") != 0) {
                 return false;
-            } else {
-                logLevel = *it;
             }
             return true;
         }
@@ -133,21 +137,50 @@ void XrdNdnOss::Configure(const char *parms) {
     {
         int pipesize;
         if (getIntFromParams("pipelinesize", pipesize)) {
-            if (pipesize > 0 && pipesize <= 512)
+            if (pipesize < XRDNDN_MINPIPELINESZ ||
+                pipesize > XRDNDN_MAXPIPELINESZ) {
+                m_eDest->Emsg(
+                    "Config",
+                    std::string(
+                        "Pipeline size must be between " +
+                        std::to_string(XRDNDN_MINPIPELINESZ) + " and " +
+                        std::to_string(XRDNDN_MAXPIPELINESZ) +
+                        ". The pipeline size will be set to default value")
+                        .c_str());
+            } else {
                 m_consumerOptions.pipelineSize = pipesize;
+            }
         }
     }
 
     {
         int interestLifetime;
-        if (getIntFromParams("interestlifetime", interestLifetime))
-            m_consumerOptions.interestLifetime = interestLifetime;
+        if (getIntFromParams("interestlifetime", interestLifetime)) {
+            if (interestLifetime < XRDNDN_MININTEREST_LIFETIME ||
+                interestLifetime > XRDNDN_MAXINTEREST_LIFETIME) {
+                m_eDest->Emsg(
+                    "Config",
+                    std::string(
+                        "Interest lifetime must be between " +
+                        std::to_string(XRDNDN_MININTEREST_LIFETIME) + " and " +
+                        std::to_string(XRDNDN_MAXINTEREST_LIFETIME) +
+                        ". The Interest lifetime will be set to default value")
+                        .c_str());
+            } else {
+                m_consumerOptions.interestLifetime = interestLifetime;
+            }
+        }
     }
 
     {
         std::string logLevel;
         if (getLogLevelFromParams(logLevel)) {
             m_consumerOptions.logLevel = logLevel;
+        } else {
+            m_eDest->Emsg("Config",
+                          "The log level must be one of: TRACE, DEBUG, INFO, "
+                          "WARN, ERROR, FATAL, NONE. The log level will be set "
+                          "to default value INFO");
         }
     }
 }
@@ -159,7 +192,7 @@ int XrdNdnOss::Init(XrdSysLogger *lp, const char *) {
     m_eDest = &OssEroute;
     m_eDest->logger(lp);
 
-    m_eDest->Say("Copyright © 2018 California Institute of Technology\n"
+    m_eDest->Say("Copyright © 2018-2019 California Institute of Technology\n"
                  "Author: Catalin Iordache <catalin.iordache@cern.ch>");
     m_eDest->Say("Named Data Networking based Storage System initialized.");
 

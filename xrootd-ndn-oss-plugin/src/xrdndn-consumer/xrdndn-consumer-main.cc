@@ -165,9 +165,13 @@ int main(int argc, char **argv) {
         "Path to file to be copied over Name Data Networking")(
         "interest-lifetime",
         boost::program_options::value<size_t>(&consumerOpts.interestLifetime)
-            ->default_value(consumerOpts.interestLifetime)
-            ->implicit_value(consumerOpts.interestLifetime),
-        "Interest packet lifetime in seconds. Specify a non-negative integer")(
+            ->default_value(XRDNDN_DEFAULT_INTEREST_LIFETIME)
+            ->implicit_value(XRDNDN_DEFAULT_INTEREST_LIFETIME),
+        std::string("Interest packet lifetime in seconds. Specify a "
+                    "non-negative integer between " +
+                    std::to_string(XRDNDN_MININTEREST_LIFETIME) + " and " +
+                    std::to_string(XRDNDN_MAXINTEREST_LIFETIME))
+            .c_str())(
         "log-level",
         boost::program_options::value<std::string>(&consumerOpts.logLevel)
             ->default_value(consumerOpts.logLevel)
@@ -187,11 +191,15 @@ int main(int argc, char **argv) {
         "Path to output file copied over Name Data Networking")(
         "pipeline-size",
         boost::program_options::value<size_t>(&consumerOpts.pipelineSize)
-            ->default_value(consumerOpts.pipelineSize)
-            ->implicit_value(consumerOpts.pipelineSize),
-        "The number of concurrent Interest packets expressed at one time in "
-        "the fixed window size Pipeline. Specify any value between 1 and 512")(
-        "version,V", "Show version information and exit");
+            ->default_value(XRDNDN_DEFAULT_PIPELINESZ)
+            ->implicit_value(XRDNDN_DEFAULT_PIPELINESZ),
+        std::string(
+            "The number of concurrent Interest packets expressed at one time "
+            "in "
+            "the fixed window size Pipeline. Specify any value between " +
+            std::to_string(XRDNDN_MINPIPELINESZ) + " and " +
+            std::to_string(XRDNDN_MAXPIPELINESZ))
+            .c_str())("version,V", "Show version information and exit");
 
     boost::program_options::variables_map vm;
     try {
@@ -221,7 +229,7 @@ int main(int argc, char **argv) {
 
     if (vm.count("bsize") > 0) {
         if (cmdLineOpts.bsize < 1024 || cmdLineOpts.bsize > 1073741824) {
-            std::cerr << "Buffer size must be between 8KB and 1GB."
+            std::cerr << "ERROR: Buffer size must be between 8KB and 1GB."
                       << std::endl;
             return 2;
         }
@@ -233,10 +241,23 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    if (vm.count("pipeline-size") > 0) {
-        if (consumerOpts.pipelineSize < 1 || consumerOpts.pipelineSize > 512) {
-            std::cerr << "ERROR: Pipeline size must be between 1 and 512"
+    if (vm.count("interest-lifetime") > 0) {
+        if (consumerOpts.interestLifetime < XRDNDN_MININTEREST_LIFETIME ||
+            consumerOpts.interestLifetime > XRDNDN_MAXINTEREST_LIFETIME) {
+            std::cerr << "ERROR: Interest lifetime must be between "
+                      << std::to_string(XRDNDN_MININTEREST_LIFETIME) << " and "
+                      << std::to_string(XRDNDN_MAXINTEREST_LIFETIME)
                       << std::endl;
+            return 2;
+        }
+    }
+
+    if (vm.count("pipeline-size") > 0) {
+        if (consumerOpts.pipelineSize < XRDNDN_MINPIPELINESZ ||
+            consumerOpts.pipelineSize > XRDNDN_MAXPIPELINESZ) {
+            std::cerr << "ERROR: Pipeline size must be between "
+                      << std::to_string(XRDNDN_MINPIPELINESZ) << " and "
+                      << std::to_string(XRDNDN_MAXPIPELINESZ) << std::endl;
             return 2;
         }
     }

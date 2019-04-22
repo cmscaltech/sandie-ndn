@@ -43,9 +43,6 @@ Consumer::Consumer(const Options &opts)
     : m_options(opts), m_interestLifetime(opts.interestLifetime),
       m_validator(security::v2::getAcceptAllValidator()), m_error(false) {
     setLogLevel();
-    if (m_error)
-        return;
-
     NDN_LOG_TRACE("Alloc XRootD NDN Consumer");
 
     m_pipeline = std::make_shared<Pipeline>(m_face, m_options.pipelineSize);
@@ -77,7 +74,9 @@ void Consumer::setLogLevel() {
         ndn::util::Logging::setLevel(CONSUMER_LOGGER_PREFIX "=" +
                                      m_options.logLevel);
     } catch (const std::invalid_argument &e) {
-        std::cerr << e.what() << std::endl;
+        std::cerr << "Catch exception: " << e.what()
+                  << ". The log level will be set to implicit value NONE"
+                  << std::endl;
         ndn::util::Logging::setLevel(CONSUMER_LOGGER_PREFIX "=NONE");
     }
 }

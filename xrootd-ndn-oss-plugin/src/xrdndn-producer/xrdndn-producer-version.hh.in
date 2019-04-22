@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -47,10 +47,11 @@ namespace xrdndnproducer {
 /**
  * @brief xrdndn-producer version string, including git commit information, if
  * xrdndn-producer is build from specific git commit If xrdndn-producer is not
- * built from git XRDNDN_PRODUCER_VERSION_BUILD_STRING equals
+ * built from git XRDNDN_PRODUCER_VERSION_BUILD_STRING equals version string
  *
- * XRDNDN_PRODUCER_VERSION_STRING MAJOR.MINOR.PATCH-(git describe --abbrev=8
- * --always)
+ * MAJOR.MINOR.PATCH(-release-candidate-tag)(-(number-of-commits-since-tag)-COMMIT-HASH)
+ *
+ * Example: 0.1.4-72-gb6cf0df3
  *
  */
 #define XRDNDN_PRODUCER_VERSION_BUILD_STRING                                   \

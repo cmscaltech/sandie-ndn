@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -46,35 +46,35 @@ Packager::Packager(uint64_t freshnessPeriod, bool disableSignature)
 
 Packager::~Packager() {}
 
-void Packager::digest(Data &data) {
-    data.setFreshnessPeriod(m_freshnessPeriod);
+void Packager::digest(std::shared_ptr<ndn::Data> data) {
+    data->setFreshnessPeriod(m_freshnessPeriod);
 
     if (!m_disableSigning) {
-        keyChain->sign(data, signingInfo);
+        keyChain->sign(*data, signingInfo);
     } else {
-        data.setSignature(m_fakeSignature);
+        data->setSignature(m_fakeSignature);
     }
 }
 
-const Data Packager::getPackage(Name &name, const int contentValue) {
-    Data data(name);
-
-    data.setContent(
+std::shared_ptr<ndn::Data> Packager::getPackage(ndn::Name &name,
+                                                const int contentValue) {
+    auto data = std::make_shared<ndn::Data>(name);
+    data->setContent(
         makeNonNegativeIntegerBlock(ndn::tlv::Content, abs(contentValue)));
     if (contentValue < 0) {
-        data.setContentType(tlv::ContentTypeValue::ContentType_Nack);
+        data->setContentType(tlv::ContentTypeValue::ContentType_Nack);
     }
 
-    digest(data);
-    return data;
+    digest(data->shared_from_this());
+    return data->shared_from_this();
 }
 
-const Data Packager::getPackage(Name &name, const uint8_t *value,
-                                ssize_t size) {
-    Data data(name);
+std::shared_ptr<ndn::Data>
+Packager::getPackage(ndn::Name &name, const uint8_t *value, ssize_t size) {
+    auto data = std::make_shared<ndn::Data>(name);
 
-    data.setContent(value, size);
-    digest(data);
-    return data;
+    data->setContent(value, size);
+    digest(data->shared_from_this());
+    return data->shared_from_this();
 }
 } // namespace xrdndnproducer

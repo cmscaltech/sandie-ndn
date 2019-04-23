@@ -104,9 +104,9 @@ void Producer::registerPrefix() {
     NDN_LOG_INFO("Set Interest filter: " << xrdndn::SYS_CALL_READ_PREFIX_URI);
 }
 
-void Producer::onData(const ndn::Data &data) {
+void Producer::onData(std::shared_ptr<ndn::Data> data) {
     NDN_LOG_TRACE("Sending Data: " << data);
-    m_face.put(data);
+    m_face.put(*data);
 }
 
 void Producer::onOpenInterest(const InterestFilter &,

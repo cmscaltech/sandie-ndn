@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -60,7 +60,7 @@ boost::posix_time::ptime FileHandler::getAccessTime() { return accessTime; }
 /*****************************************************************************/
 /*                                  O p e n                                  */
 /*****************************************************************************/
-const ndn::Data FileHandler::getOpenData(ndn::Name &name) {
+std::shared_ptr<ndn::Data> FileHandler::getOpenData(ndn::Name &name) {
     accessTime = boost::posix_time::second_clock::local_time();
 
     auto retOpen = Open();
@@ -89,7 +89,7 @@ bool FileHandler::isOpened() { return m_fd == XRDNDN_EFAILURE ? false : true; }
 /*****************************************************************************/
 /*                                F s t a t                                  */
 /*****************************************************************************/
-const ndn::Data FileHandler::getFstatData(ndn::Name &name) {
+std::shared_ptr<ndn::Data> FileHandler::getFstatData(ndn::Name &name) {
     accessTime = boost::posix_time::second_clock::local_time();
 
     std::array<uint8_t, sizeof(struct stat)> info;
@@ -118,7 +118,7 @@ int FileHandler::Fstat(void *buff) {
 /*****************************************************************************/
 /*                                  R e a d                                  */
 /*****************************************************************************/
-const ndn::Data FileHandler::getReadData(ndn::Name &name) {
+std::shared_ptr<ndn::Data> FileHandler::getReadData(ndn::Name &name) {
     accessTime = boost::posix_time::second_clock::local_time();
 
     std::array<uint8_t, XRDNDN_MAX_NDN_PACKET_SIZE> blockFromFile;

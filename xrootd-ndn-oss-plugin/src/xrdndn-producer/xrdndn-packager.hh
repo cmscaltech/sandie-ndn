@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -32,12 +32,13 @@ class Packager : public std::enable_shared_from_this<Packager> {
     Packager(uint64_t freshnessPeriod, bool disableSignature = false);
     ~Packager();
 
-    const ndn::Data getPackage(ndn::Name &name, const int contentValue);
-    const ndn::Data getPackage(ndn::Name &name, const uint8_t *value,
-                               ssize_t size);
+    std::shared_ptr<ndn::Data> getPackage(ndn::Name &name,
+                                          const int contentValue);
+    std::shared_ptr<ndn::Data> getPackage(ndn::Name &name, const uint8_t *value,
+                                          ssize_t size);
 
   private:
-    void digest(ndn::Data &data);
+    void digest(std::shared_ptr<ndn::Data> data);
 
   private:
     const ndn::time::milliseconds m_freshnessPeriod;

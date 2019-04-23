@@ -39,7 +39,7 @@ class Producer : boost::noncopyable {
 
   private:
     void registerPrefix();
-    void onData(const ndn::Data &data);
+    void onData(std::shared_ptr<ndn::Data> data);
 
     void onOpenInterest(const ndn::InterestFilter &,
                         const ndn::Interest &interest);

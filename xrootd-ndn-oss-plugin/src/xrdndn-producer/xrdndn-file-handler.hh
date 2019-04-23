@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -30,9 +30,6 @@
 namespace xrdndnproducer {
 
 class FileHandler : public std::enable_shared_from_this<FileHandler> {
-
-    using onDataCallback = std::function<void(const ndn::Data &data)>;
-
   public:
     static std::shared_ptr<FileHandler>
     getFileHandler(const std::string path,
@@ -42,9 +39,9 @@ class FileHandler : public std::enable_shared_from_this<FileHandler> {
                 const std::shared_ptr<Packager> &packager);
     ~FileHandler();
 
-    const ndn::Data getOpenData(ndn::Name &name);
-    const ndn::Data getFstatData(ndn::Name &name);
-    const ndn::Data getReadData(ndn::Name &name);
+    std::shared_ptr<ndn::Data> getOpenData(ndn::Name &name);
+    std::shared_ptr<ndn::Data> getFstatData(ndn::Name &name);
+    std::shared_ptr<ndn::Data> getReadData(ndn::Name &name);
 
     bool isOpened();
     boost::posix_time::ptime getAccessTime();

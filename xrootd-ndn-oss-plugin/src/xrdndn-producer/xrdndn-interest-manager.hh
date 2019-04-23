@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -37,7 +37,7 @@
 namespace xrdndnproducer {
 
 class InterestManager {
-    using onDataCallback = std::function<void(const ndn::Data &data)>;
+    using onDataCallback = std::function<void(std::shared_ptr<ndn::Data> data)>;
 
   public:
     InterestManager(const Options &opts, onDataCallback dataCallback);

@@ -36,7 +36,36 @@ set(XRDNDN_CONSUMER_VERSION_MAJOR 0)
 set(XRDNDN_CONSUMER_VERSION_MINOR 1)
 set(XRDNDN_CONSUMER_VERSION_PATCH 4)
 
+set(XRDNDN_FS_VERSION_MAJOR 0)
+set(XRDNDN_FS_VERSION_MINOR 1)
+set(XRDNDN_FS_VERSION_PATCH 4)
+
+execute_process(COMMAND git describe --abbrev=8 --always
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+                OUTPUT_VARIABLE GIT_VERSION
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 # Compile libXrdNdnFS.so
+math(
+  EXPR XRDNDN_FS_VERSION
+  ${XRDNDN_FS_VERSION_MAJOR}*1000000+${XRDNDN_FS_VERSION_MINOR}*1000+${XRDNDN_FS_VERSION_PATCH}
+  )
+set(
+  XRDNDN_FS_VERSION_STRING
+  "${XRDNDN_FS_VERSION_MAJOR}.${XRDNDN_FS_VERSION_MINOR}.${XRDNDN_FS_VERSION_PATCH}"
+  )
+
+if(GIT_VERSION STREQUAL "")
+  set(XRDNDN_FS_VERSION_BUILD_STRING "${XRDNDN_FS_VERSION_STRING}")
+else()
+  set(XRDNDN_FS_VERSION_BUILD_STRING "${GIT_VERSION}")
+endif()
+
+configure_file("${PROJECT_SOURCE_DIR}/src/xrootd-ndn-fs/xrdndn-fs-version.hh.in"
+               "${PROJECT_BINARY_DIR}/include/xrdndn-fs-version.hh")
+
+include_directories("${PROJECT_BINARY_DIR}/include/")
+
 add_library(XrdNdnFS
             MODULE
             src/xrootd-ndn-fs/xrdndn-oss.cc
@@ -54,11 +83,6 @@ target_link_libraries(XrdNdnFS
                       ${XROOTD_UTILS})
 
 target_include_directories(XrdNdnFS SYSTEM PUBLIC ${XROOTD_INCLUDES})
-
-execute_process(COMMAND git describe --abbrev=8 --always
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-                OUTPUT_VARIABLE GIT_VERSION
-                OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # Compile xrdndn-consumer application
 math(

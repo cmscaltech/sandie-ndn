@@ -1,0 +1,77 @@
+/******************************************************************************
+ * Named Data Networking plugin for xrootd                                    *
+ * Copyright © 2018-2019 California Institute of Technology                   *
+ *                                                                            *
+ * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
+ *                                                                            *
+ * This program is free software: you can redistribute it and/or modify       *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation, either version 3 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * This program is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
+ *****************************************************************************/
+
+#ifndef XRDNDN_FS_VERSION_HH
+#define XRDNDN_FS_VERSION_HH
+
+namespace xrdndnfs {
+/**
+ * @brief xrdndn-fs version follows Semantic Versioning 2.0.0
+ * specification https://semver.org/
+ *
+ */
+
+/**
+ * @brief xrdndn-fs version represented as an integer
+ *
+ * MAJOR*1000000 + MINOR*1000 + PATCH
+ *
+ */
+#define XRDNDN_FS_VERSION @XRDNDN_FS_VERSION@
+
+/**
+ * @brief xrdndn-fs version represented as a string
+ *
+ * MAJOR.MINOR.PATCH
+ *
+ */
+#define XRDNDN_FS_VERSION_STRING "@XRDNDN_FS_VERSION_STRING@"
+
+/**
+ * @brief xrdndn-fs version string, including git commit information, if
+ * xrdndn-fs is build from specific git commit. If xrdndn-fs is not
+ * built from git XRDNDN_FS_VERSION_BUILD_STRING equals version string
+ *
+ * MAJOR.MINOR.PATCH(-release-candidate-tag)(-(number-of-commits-since-tag)-COMMIT-HASH)
+ *
+ * Example: 0.1.4-72-gb6cf0df3
+ */
+#define XRDNDN_FS_VERSION_BUILD_STRING "@XRDNDN_FS_VERSION_BUILD_STRING@"
+
+/**
+ * @brief Major version
+ *
+ */
+#define XRDNDN_FS_VERSION_MAJOR @XRDNDN_FS_VERSION_MAJOR@
+
+/**
+ * @brief Minor version
+ *
+ */
+#define XRDNDN_FS_VERSION_MINOR @XRDNDN_FS_VERSION_MINOR@
+
+/**
+ * @brief Patch version
+ *
+ */
+#define XRDNDN_FS_VERSION_PATCH @XRDNDN_FS_VERSION_PATCH@
+} // namespace xrdndnfs
+
+#endif // XRDNDN_FS_VERSION_HH

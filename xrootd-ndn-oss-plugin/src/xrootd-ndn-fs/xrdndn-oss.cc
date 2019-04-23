@@ -24,6 +24,7 @@
 #include <XrdOuc/XrdOucTrace.hh>
 #include <XrdVersion.hh>
 
+#include "xrdndn-fs-version.hh"
 #include "xrdndn-oss-dir.hh"
 #include "xrdndn-oss-file.hh"
 #include "xrdndn-oss.hh"
@@ -195,7 +196,8 @@ int XrdNdnOss::Init(XrdSysLogger *lp, const char *) {
 
     m_eDest->Say("Copyright © 2018-2019 California Institute of Technology\n"
                  "Author: Catalin Iordache <catalin.iordache@cern.ch>");
-    m_eDest->Say("Named Data Networking based Storage System initialized.");
+    m_eDest->Say("Named Data Networking based Storage System build ",
+                 XRDNDN_FS_VERSION_BUILD_STRING, " initialized.");
 
     return 0;
 }

@@ -1,6 +1,6 @@
 Name:       libndn-cxx
-Version:    0.6.2
-Release:    3%{?dist}
+Version:    0.6.6
+Release:    24%{?dist}
 Summary:    C++ library implementing Named Data Networking primitives
 License:    LGPLv3+ and (BSD or LGPLv3+) and (GPLv3+ or LGPLv3+)
 URL:        http://named-data.net
@@ -26,14 +26,11 @@ developing applications that use %{name}.
 %setup -qn ndn-cxx-%{version}
 
 %build
-CXXFLAGS="%{optflags} -std=c++11" \
+CXXFLAGS="%{optflags} -std=c++14" \
 LINKFLAGS="-Wl,--as-needed" \
-#%{__python2} ./waf --enable-shared --disable-static --with-tests \
-# --prefix=%{_prefix} --bindir=%{_bindir} --libdir=%{_libdir} \
-# --datadir=%{_datadir} --sysconfdir=%{_sysconfdir} configure
-%{__python2} ./waf --enable-shared --disable-static \
- --prefix=%{_prefix} --bindir=%{_bindir} --libdir=%{_libdir} \
- --datadir=%{_datadir} --sysconfdir=%{_sysconfdir} configure
+%{__python2} ./waf --enable-shared --disable-static --with-tests \
+--prefix=%{_prefix} --bindir=%{_bindir} --libdir=%{_libdir} \
+--datadir=%{_datadir} --sysconfdir=%{_sysconfdir} configure
 
 %{__python2} ./waf -v %{?_smp_mflags}
 
@@ -43,7 +40,7 @@ LINKFLAGS="-Wl,--as-needed" \
 
 %check
 export LD_LIBRARY_PATH=$PWD/build
-#build/unit-tests
+build/unit-tests
 
 %post   -p /sbin/ldconfig
 %postun -p /sbin/ldconfig
@@ -63,6 +60,9 @@ export LD_LIBRARY_PATH=$PWD/build
 %{_mandir}
 
 %changelog
+* Tue Apr 30 2019 Catalin Iordache catalin.iordache@cern.ch - 0.6.6
+- Changelog: https://github.com/named-data/ndn-cxx/releases/tag/ndn-cxx-0.6.6
+
 * Thu Mar 15 2018 Iryna Shcherbina <ishcherb@redhat.com> - 0.6.1-3
 - Update Python 2 dependency declarations to new packaging standards
   (See https://fedoraproject.org/wiki/FinalizingFedoraSwitchtoPython3)

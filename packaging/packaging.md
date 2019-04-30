@@ -2,36 +2,18 @@
 
 We consider the NDN stack to be composed of: **boost**, **ndn-cxx**, **nfd**, **ndn-tools** and **xrootd**. Bellow are a few guidelines for anyone how wants to manually install these softwares as well as creating RPMs for them.
 
-By manually install any of these softwares you also resolve a lot of the steps which are needed to create the packages. Basically, when you have to create an RPM, you have to make the software compile and install on your machine. Consider the next sections as steps in booth installing the software and preparing your build system.
+By installing these softwares from sources, a lot of the steps which are needed to create the packages are also completed. Consider the next sections as steps in booth installing the software and preparing your build system.
 
 ## Prerequisites
 
-On a minimal installation of Centos 7, there are a lot of dependencies to install in order to build boost and the others, some of which are present in the commands bellow. Feel free to add more.
+On a minimal installation of Centos 7.5, there are a lot of dependencies to install in order to build boost and the others, some of which are present in the commands bellow. Feel free to add missing ones.
 
 ```bash
-caltech@cms:~# yum install  yum-utils \
-                            valgrind \
-                            wget \
-                            sqlite-devel \
-                            openssl-devel.x86_64 \
-                            libtranslit-icu.x86_64 \
-                            bzip2-devel.x86_64 \
-                            doxygen \
-                            graphviz \
-                            python-sphinx \
-                            libpcap-devel.x86_64 \
-                            psmisc \
-                            dpkg-devel dpkg-dev \ 
-                            chrpath.x86_64 \
-                            dos2unix.x86_64 \
-                            expat-devel.x86_64 \
-                            libicu-devel.x86_64 \
-                            python-devel.x86_64 \
-                            autoconf213.noarch \
-                            docbook-utils.noarch \
-                            docbook-utils-pdf.noarch \
-                            docbook-style-xsl.noarch \
-                            texlive-latex.noarch
+caltech@cms:~# yum install  yum-utils valgrind wget sqlite-devel openssl-devel.x86_64 libtranslit-icu.x86_64 \
+                            bzip2-devel.x86_64 doxygen graphviz python-sphinx libpcap-devel.x86_64 psmisc \
+                            dpkg-devel dpkg-dev chrpath.x86_64 dos2unix.x86_64 expat-devel.x86_64 \
+                            libicu-devel.x86_64 python-devel.x86_64 autoconf213.noarch docbook-utils.noarch \
+                            docbook-utils-pdf.noarch docbook-style-xsl.noarch texlive-latex.noarch
 
 caltech@cms:~# curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py" && chmod a+x get-pip.py && ./get-pip.py
 ```
@@ -54,12 +36,12 @@ caltech@cms:~# ls -s /usr/local/lib/libbz2.so.1.0.6 /usr/local/lib/libbz2.so
 
 ## gcc
 
-For **ndn-cxx 0.6.5** at least gcc 5.3.0 is required. For our purpose, we've used **gcc 8.2.1**. You can install it from [Centos Software Collections (SCL) Repository](https://wiki.centos.org/AdditionalResources/Repositories/SCL) with the following commands:
+For **ndn-cxx 0.6.6** at least gcc 5.3.0 is required. For our purpose, we are using **gcc 8.2.1**. You can install it from [Centos Software Collections (SCL) Repository](https://wiki.centos.org/AdditionalResources/Repositories/SCL) with the following commands:
 
 ```bash
 caltech@cms:~# yum install centos-release-scl
 caltech@cms:~# yum install devtoolset-8-gcc*
-caltech@cms:~# scl enable devtoolset-8 bash // This should run every time a user logs in
+caltech@cms:~# scl enable devtoolset-8 bash
 ```
 
 ## boost
@@ -139,6 +121,7 @@ The above command creates *rpmbuild* directory in the path were the command was 
 
 After you've copied your source and spec files in the required locations, you need to go back in the parent directory of *rpmbuild* and run the following command:
 ```bash
+caltech@cms:~# spectool -g -R rpmbuild/SPECS/<spec-file-name>.spec
 caltech@cms:~# rpmbuild -v -ba rpmbuild/SPECS/<spec-file-name>.spec
 ```
 
@@ -147,7 +130,7 @@ In the end you can see the content of the rpm file:
 caltech@cms:~# rpm -qpl rpmbuild/RPMS/<arch>/<rpm-name>.rpm
 ```
 
-In this repository you can find both rpms and specs for: [boost 1.58.0](SPECS/boost-1.58.0.spec), [boost 1.69.0](SPECS/boost-1.69.0.spec), [ndn-cxx 0.6.2](SPECS/libndn-cxx.spec), [NFD 0.6.2](SPECS/nfd.spec) and [ndn-tools 0.6.1](SPECS/ndn-tools.spec).
+In this repository you can find both rpms and specs for: [boost 1.58.0](SPECS/boost-1.58.0.spec), [boost 1.69.0](SPECS/boost-1.69.0.spec), [ndn-cxx 0.6.6](SPECS/libndn-cxx.spec), [NFD 0.6.6](SPECS/nfd.spec) and [ndn-tools 0.6.4](SPECS/ndn-tools.spec).
 
 ## xrootd
 

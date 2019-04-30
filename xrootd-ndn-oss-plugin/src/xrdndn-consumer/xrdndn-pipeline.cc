@@ -46,7 +46,8 @@ void Pipeline::stop() {
 
     {
         boost::unique_lock<boost::mutex> lock(m_mtxWindow);
-        for (auto it = m_window.begin(); it != m_window.end(); ++it) {
+        for (auto it = m_window.begin(); it != m_window.end();
+             it = m_window.erase(it)) {
             if (it->second->isFetching())
                 it->second->stop();
         }

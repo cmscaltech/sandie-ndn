@@ -99,6 +99,7 @@ const Interest Consumer::getInterest(ndn::Name prefix, uint64_t segmentNo) {
     interest.setInterestLifetime(m_interestLifetime);
     interest.setMustBeFresh(true);
     interest.setDefaultCanBePrefix(false);
+    interest.setCanBePrefix(false);
     return interest;
 }
 
@@ -277,7 +278,6 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen) {
     return retRead;
 }
 
-// todo: make this better, without map and shit
 inline size_t
 Consumer::returnData(void *buff, off_t offset, size_t blen,
                      std::map<uint64_t, const ndn::Block> &dataStore) {

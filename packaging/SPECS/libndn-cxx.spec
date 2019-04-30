@@ -60,7 +60,7 @@ build/unit-tests
 %{_mandir}
 
 %changelog
-* Tue Apr 30 2019 Catalin Iordache catalin.iordache@cern.ch - 0.6.6
+* Tue Apr 30 2019 Catalin Iordache <catalin.iordache@cern.ch> - 0.6.6
 - Changelog: https://github.com/named-data/ndn-cxx/releases/tag/ndn-cxx-0.6.6
 
 * Thu Mar 15 2018 Iryna Shcherbina <ishcherb@redhat.com> - 0.6.1-3

@@ -1,6 +1,6 @@
 Name:       ndn-tools
-Version:    0.6.1
-Release:    1%{?dist}
+Version:    0.6.4
+Release:    10%{?dist}
 Summary:    NDN Essential Tools
 License:    GPLv3+
 URL:        https://github.com/named-data/ndn-tools.git
@@ -25,7 +25,7 @@ find . -name \*.orig -exec rm {} +
 %build
 find . -type f -exec chmod u+w {} +
 cd %{name}
-CXXFLAGS="%{optflags} -std=c++11" \
+CXXFLAGS="%{optflags} -std=c++14" \
 %{__python2} ./waf --with-tests --prefix=%{_prefix} --bindir=%{_bindir} --libdir=%{_libdir} \
  --datadir=%{_datadir} --sysconfdir=%{_sysconfdir} configure
 
@@ -38,15 +38,18 @@ chmod a+x waf
  --bindir=%{_bindir} --datadir=%{_datadir}
 
 %check
-#build/unit-tests-core
-#build/unit-tests-daemon
-#build/unit-tests-rib
+# build/unit-tests-core
+# build/unit-tests-daemon
+# build/unit-tests-rib
 
 %files
 %{_bindir}/*
-%{_datarootdir}/* 
+%{_datarootdir}/*
 %{_mandir}
 
 %changelog
+* Tue Apr 30 2019 Catalin Iordache <catalin.iordache@cern.ch> - 0.6.4
+- Changelog: https://github.com/named-data/ndn-tools/releases/tag/ndn-tools-0.6.4
+
 * Sun Jun 17 2018 Catalin Iordache <catalinniordache at gmail dot com> - 0.6.1
 - Initial NDN Tools packaging

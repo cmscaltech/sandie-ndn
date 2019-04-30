@@ -1,6 +1,6 @@
 Name:       nfd
-Version:    0.6.2
-Release:    1%{?dist}
+Version:    0.6.6
+Release:    24%{?dist}
 Summary:    A Named Data Networking (NDN) forwarder
 License:    GPLv3+
 URL:        http://named-data.net/downloads/
@@ -18,7 +18,7 @@ NFD is a Named Data Networking (NDN) forwarder
 %setup -qn nfd-%{version}
 
 %build
-CXXFLAGS="%{optflags} -std=c++11" \
+CXXFLAGS="%{optflags} -std=c++14" \
 %{__python2} ./waf --with-tests --prefix=%{_prefix} --bindir=%{_bindir} --libdir=%{_libdir} \
  --datadir=%{_datadir} --sysconfdir=%{_sysconfdir} configure --without-websocket
 
@@ -29,9 +29,9 @@ CXXFLAGS="%{optflags} -std=c++11" \
  --bindir=%{_bindir} --datadir=%{_datadir}
 
 %check
-#build/unit-tests-core
-#build/unit-tests-daemon
-#build/unit-tests-rib
+# build/unit-tests-core
+# build/unit-tests-daemon
+# build/unit-tests-rib
 
 %files
 %dir %{_sysconfdir}/ndn
@@ -43,5 +43,8 @@ CXXFLAGS="%{optflags} -std=c++11" \
 %{_mandir}
 
 %changelog
+* Tue Apr 30 2019 Catalin Iordache <catalin.iordache@cern.ch> - 0.6.6
+- Changelog: https://github.com/named-data/NFD/releases/tag/NFD-0.6.6
+
 * Fri Nov 6 2015 Susmit Shannigrahi <susmit at cs.colostate.edu> - 0.3.4-1
 - Initial NFD packaging

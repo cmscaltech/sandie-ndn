@@ -5,9 +5,10 @@ Summary:    A Named Data Networking (NDN) forwarder
 License:    GPLv3+
 URL:        http://named-data.net/downloads/
 Source0:    http://named-data.net/downloads/nfd-%{version}.tar.bz2
-#boost-devel websocketpp-devel libndn-cxx-devel
+
 BuildRequires:  pkgconfig libpcap-devel
-BuildRequires:  python2
+#websocketpp-devel
+BuildRequires:  python2 boost-devel libndn-cxx-devel
 
 %description
 NFD is a Named Data Networking (NDN) forwarder
@@ -19,7 +20,7 @@ NFD is a Named Data Networking (NDN) forwarder
 
 %build
 CXXFLAGS="%{optflags} -std=c++14" \
-%{__python2} ./waf --with-tests --prefix=%{_prefix} --bindir=%{_bindir} --libdir=%{_libdir} \
+%{__python2} ./waf --prefix=%{_prefix} --bindir=%{_bindir} --libdir=%{_libdir} \
  --datadir=%{_datadir} --sysconfdir=%{_sysconfdir} configure --without-websocket
 
 %{__python2} ./waf -v %{?_smp_mflags}
@@ -27,11 +28,6 @@ CXXFLAGS="%{optflags} -std=c++14" \
 %install
 ./waf install --destdir=%{buildroot} --prefix=%{_prefix} \
  --bindir=%{_bindir} --datadir=%{_datadir}
-
-%check
-# build/unit-tests-core
-# build/unit-tests-daemon
-# build/unit-tests-rib
 
 %files
 %dir %{_sysconfdir}/ndn

@@ -28,7 +28,7 @@ developing applications that use %{name}.
 %build
 CXXFLAGS="%{optflags} -std=c++14" \
 LINKFLAGS="-Wl,--as-needed" \
-%{__python2} ./waf --enable-shared --disable-static --with-tests \
+%{__python2} ./waf --enable-shared --disable-static \
 --prefix=%{_prefix} --bindir=%{_bindir} --libdir=%{_libdir} \
 --datadir=%{_datadir} --sysconfdir=%{_sysconfdir} configure
 
@@ -40,7 +40,6 @@ LINKFLAGS="-Wl,--as-needed" \
 
 %check
 export LD_LIBRARY_PATH=$PWD/build
-build/unit-tests
 
 %post   -p /sbin/ldconfig
 %postun -p /sbin/ldconfig

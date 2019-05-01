@@ -26,7 +26,7 @@ find . -name \*.orig -exec rm {} +
 find . -type f -exec chmod u+w {} +
 cd %{name}
 CXXFLAGS="%{optflags} -std=c++14" \
-%{__python2} ./waf --with-tests --prefix=%{_prefix} --bindir=%{_bindir} --libdir=%{_libdir} \
+%{__python2} ./waf --prefix=%{_prefix} --bindir=%{_bindir} --libdir=%{_libdir} \
  --datadir=%{_datadir} --sysconfdir=%{_sysconfdir} configure
 
 %{__python2} ./waf -v %{?_smp_mflags}
@@ -36,11 +36,6 @@ cd %{name}
 chmod a+x waf
 ./waf install --destdir=%{buildroot} --prefix=%{_prefix} \
  --bindir=%{_bindir} --datadir=%{_datadir}
-
-%check
-# build/unit-tests-core
-# build/unit-tests-daemon
-# build/unit-tests-rib
 
 %files
 %{_bindir}/*

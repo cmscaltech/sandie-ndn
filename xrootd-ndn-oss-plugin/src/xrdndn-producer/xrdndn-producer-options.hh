@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -28,8 +28,8 @@ namespace xrdndnproducer {
  */
 struct Options {
     /**
-     * @brief Number of threads to process incoming Interest packets in parallel
-     * on private IO Service Interest Manager's class member
+     * @brief Number of threads to concurrently process Interest in Interest
+     * Manager object
      *
      */
     uint16_t nthreads = 8;
@@ -39,18 +39,18 @@ struct Options {
      * Packager class
      *
      */
-    uint64_t freshnessPeriod = 32;
+    uint64_t freshnessPeriod = 256;
 
     /**
      * @brief The time period in seconds as uint32_t when Garbage Collector
-     * boost system timer from Interest Manager will be executed
+     * boost system timer from Interest Manager class will be executed
      *
      */
     uint32_t gbTimePeriod = 256;
 
     /**
      * @brief The time period in seconds as std::chrono::seconds when Garbage
-     * Collector boost system timer from Interest Manager will be executed
+     * Collector boost system timer from Interest Manager class will be executed
      *
      */
     std::chrono::seconds gbTimer;
@@ -67,17 +67,10 @@ struct Options {
 
     /**
      * @brief Disable SHA-256 Data signing and replace it with a fake siganture.
-     * Increases the performance but also the risk of corrupted Data
+     * Increases the performance but also the risk of Data being corrupted
      *
      */
     bool disableSigning = false;
-
-    /**
-     * @brief Pre-cache an entire file before read operations on it will be
-     * handled. This option is only for performance testing
-     *
-     */
-    bool precacheFile = false;
 };
 } // namespace xrdndnproducer
 

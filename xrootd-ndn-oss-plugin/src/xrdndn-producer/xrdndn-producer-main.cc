@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for xrootd                                    *
- * Copyright © 2018 California Institute of Technology                        *
+ * Copyright © 2018-2019 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -60,9 +60,10 @@ static void usage(std::ostream &os, const std::string &programName,
 }
 
 static void info() {
-    NDN_LOG_INFO(
-        "\nThe suitable NDN Producer for the NDN based filesystem plugin for "
-        "XRootD.\nDeveloped by Caltech@CMS.\n");
+    std::cout
+        << "The suitable NDN Producer for the NDN based filesystem plugin for "
+           "XRootD.\nDeveloped by Caltech@CMS\n"
+        << std::endl;
 }
 
 int main(int argc, char **argv) {
@@ -108,11 +109,7 @@ int main(int argc, char **argv) {
             ->default_value(opts.nthreads)
             ->implicit_value(opts.nthreads),
         "Number of threads to handle Interest packets concurrently")(
-        "precache-files",
-        boost::program_options::bool_switch(&opts.precacheFile),
-        "Precache files in memory before responding to read Interests. For "
-        "performance testing only")("version,V",
-                                    "Show version information and exit");
+        "version,V", "Show version information and exit");
 
     boost::program_options::variables_map vm;
     try {
@@ -185,8 +182,7 @@ int main(int argc, char **argv) {
                      << "sec, Garbage collector lifetime: "
                      << opts.gbFileLifeTime
                      << "sec, Number of threads: " << opts.nthreads
-                     << ", Pre-cache files: " << opts.precacheFile
-                     << ", Disable SHA-256 signing: " << opts.disableSigning);
+                     << ", SHA-256 signing disabled: " << opts.disableSigning);
     }
 
     return run(opts);

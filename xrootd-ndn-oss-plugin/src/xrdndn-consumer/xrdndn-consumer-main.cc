@@ -84,8 +84,8 @@ void read(off_t fileSize, off_t off, int threadID) {
         else
             blen = cmdLineOpts.bsize;
 
-        NDN_LOG_TRACE("[Thread " << threadID << "] Reading " << blen << "@"
-                                 << offset);
+        NDN_LOG_TRACE("[main]: [Thread " << threadID << "] Reading " << blen
+                                         << "@" << offset);
 
         retRead = consumer->Read(&buff[0], offset, blen);
         contentStore[offset] = std::make_pair(std::string(buff), retRead);
@@ -104,15 +104,15 @@ void read(off_t fileSize, off_t off, int threadID) {
 int copyFile() {
     int ret = consumer->Open(cmdLineOpts.infile);
     if (ret != XRDNDN_ESUCCESS) {
-        NDN_LOG_ERROR("Unable to open file: " << cmdLineOpts.infile << ". "
-                                              << strerror(abs(ret)));
+        NDN_LOG_ERROR("[main]: Unable to open file: "
+                      << cmdLineOpts.infile << ". " << strerror(abs(ret)));
         return 2;
     }
 
     struct stat info;
     ret = consumer->Fstat(&info);
     if (ret != XRDNDN_ESUCCESS) {
-        NDN_LOG_ERROR("Unable to get fstat for file: "
+        NDN_LOG_ERROR("[main]: Unable to get fstat for file: "
                       << cmdLineOpts.infile << ". " << strerror(abs(ret)));
         return 2;
     }
@@ -143,10 +143,9 @@ static void usage(std::ostream &os, const std::string &programName,
 }
 
 static void info() {
-    std::cout
-        << "\nThe NDN Consumer used in the NDN based filesystem plugin for "
-           "XRootD.\nDeveloped by Caltech@CMS.\n"
-        << std::endl;
+    std::cout << "The NDN Consumer used in the NDN based filesystem plugin for "
+                 "XRootD.\nDeveloped by Caltech@CMS\n"
+              << std::endl;
 }
 
 int main(int argc, char **argv) {
@@ -183,7 +182,7 @@ int main(int argc, char **argv) {
         boost::program_options::value<uint16_t>(&cmdLineOpts.nthreads)
             ->default_value(cmdLineOpts.nthreads)
             ->implicit_value(cmdLineOpts.nthreads),
-        "Number of threads to read the file concurrently")(
+        "Number of threads to read the file concurrently. Must be at least 1")(
         "output-file",
         boost::program_options::value<std::string>(&cmdLineOpts.outfile)
             ->default_value("")
@@ -252,6 +251,14 @@ int main(int argc, char **argv) {
         }
     }
 
+    if (vm.count("nthreads") > 0) {
+        if (cmdLineOpts.nthreads < 1) {
+            std::cerr << "ERROR: Number of threads must be at least 1"
+                      << std::endl;
+            return 2;
+        }
+    }
+
     if (vm.count("pipeline-size") > 0) {
         if (consumerOpts.pipelineSize < XRDNDN_MINPIPELINESZ ||
             consumerOpts.pipelineSize > XRDNDN_MAXPIPELINESZ) {
@@ -304,8 +311,6 @@ int main(int argc, char **argv) {
 
     consumer = Consumer::getXrdNdnConsumerInstance(consumerOpts);
     if (!consumer) {
-        std::cerr << "ERROR: Could not get xrdndnd consumer instance"
-                  << std::endl;
         return 2;
     }
     return run();

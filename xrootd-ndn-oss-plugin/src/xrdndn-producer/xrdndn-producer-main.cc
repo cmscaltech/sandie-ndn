@@ -108,8 +108,8 @@ int main(int argc, char **argv) {
         boost::program_options::value<uint16_t>(&opts.nthreads)
             ->default_value(opts.nthreads)
             ->implicit_value(opts.nthreads),
-        "Number of threads to handle Interest packets concurrently")(
-        "version,V", "Show version information and exit");
+        "Number of threads to handle Interest packets concurrently. Must be at "
+        "least 1")("version,V", "Show version information and exit");
 
     boost::program_options::variables_map vm;
     try {
@@ -141,6 +141,14 @@ int main(int argc, char **argv) {
         if (opts.gbFileLifeTime < 0) {
             std::cerr << "ERROR: Opened file lifetime for garbage collector "
                          "must be a positive number"
+                      << std::endl;
+            return 2;
+        }
+    }
+
+    if (vm.count("nthreads") > 0) {
+        if (opts.nthreads < 1) {
+            std::cerr << "ERROR: Number of threads must be at least 1"
                       << std::endl;
             return 2;
         }

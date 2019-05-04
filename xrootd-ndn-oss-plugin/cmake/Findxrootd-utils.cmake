@@ -11,7 +11,7 @@ find_path(XROOTD_INCLUDES XrdVersion.hh
           PATHS "/opt/xrootd")
 
 if(XROOTD_INCLUDES-NOTFOUND)
-  print_message(SEND_ERROR "Looking for XrdVersion.hh - not found")
+  print_message(STATUS "Looking for XrdVersion.hh - not found")
   set(XROOTD-NOTFOUND TRUE)
 else()
   # Set XRootD version
@@ -21,7 +21,11 @@ else()
                XROOTD-VERSION
                ${xrootd-version-content})
 
-  string(REPLACE "XrdVERSION "
+  string(REPLACE "XrdVERSION"
+                 ""
+                 XROOTD-VERSION
+                 ${XROOTD-VERSION})
+  string(REPLACE " "
                  ""
                  XROOTD-VERSION
                  ${XROOTD-VERSION})
@@ -44,21 +48,15 @@ find_library(XROOTD_UTILS XrdUtils
              PATHS "/opt/xrootd")
 
 if(XROOTD_UTILS-NOTFOUND)
-  print_message(SEND_ERROR "Looking for libnXrdUtils- not found")
+  print_message(STATUS "Looking for libnXrdUtils- not found")
   set(XROOTD-NOTFOUND TRUE)
 else()
   print_message(STATUS "Looking for libXrdUtils - found: ${XROOTD_UTILS}")
   set(XROOTD-FOUND TRUE)
 endif(XROOTD_UTILS-NOTFOUND)
 
-if(XROOTD_UTILS-NOTFOUND)
-  if(xrootd-utils_FIND_REQUIRED)
-    message(SEND_ERROR "XRootD package not found")
-  else()
-    print_message(SEND_ERROR "XRootD package not found")
-  endif()
-else()
-  print_message(STATUS "XRootD version: ${XROOTD-VERSION}")
+if(xrootd-utils_FIND_REQUIRED AND XROOTD-NOTFOUND)
+  message(FATAL_ERROR "XRootD package not found")
 endif()
 
 if(xrootd-utils_FIND_VERSION_EXACT)
@@ -72,3 +70,5 @@ else()
                         ${xrootd-utils_FIND_VERSION})
   endif()
 endif()
+
+print_message(STATUS "XRootD version: ${XROOTD-VERSION}")

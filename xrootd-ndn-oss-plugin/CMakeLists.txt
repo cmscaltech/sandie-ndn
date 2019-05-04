@@ -20,7 +20,6 @@ find_package(Boost 1.69 REQUIRED
                         log
                         thread
                         program_options)
-find_package(Threads REQUIRED)
 
 # Use C++14 to compile
 set(CMAKE_CXX_STANDARD 14)
@@ -78,11 +77,7 @@ add_library(XrdNdnFS
             src/xrdndn-consumer/xrdndn-data-fetcher.cc
             src/xrdndn-consumer/xrdndn-pipeline.cc)
 
-target_link_libraries(XrdNdnFS
-                      Boost::system
-                      Boost::log
-                      ${CMAKE_THREAD_LIBS_INIT}
-                      ${XROOTD_UTILS})
+target_link_libraries(XrdNdnFS ${XROOTD_UTILS} Boost::log Boost::system)
 
 target_include_directories(XrdNdnFS SYSTEM PUBLIC ${XROOTD_INCLUDES})
 
@@ -114,8 +109,10 @@ add_executable(xrdndn-consumer
                src/xrdndn-consumer/xrdndn-data-fetcher.cc
                src/xrdndn-consumer/xrdndn-pipeline.cc)
 
-target_link_libraries(xrdndn-consumer ${Boost_LIBRARIES}
-                      ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(xrdndn-consumer
+                      Boost::log
+                      Boost::program_options
+                      Boost::system)
 
 # Compile xrdndn-producer application
 math(
@@ -145,8 +142,10 @@ add_executable(xrdndn-producer
                src/xrdndn-producer/xrdndn-file-handler.cc
                src/xrdndn-producer/xrdndn-packager.cc)
 
-target_link_libraries(xrdndn-producer ${Boost_LIBRARIES}
-                      ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(xrdndn-producer
+                      Boost::log
+                      Boost::program_options
+                      Boost::system)
 
 # Install
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)

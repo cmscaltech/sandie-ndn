@@ -4,29 +4,32 @@ cmake_minimum_required(VERSION 3.5)
 add_definitions(-DCMAKE_CXX_COMPILER=g++)
 add_definitions(-D_GNU_SOURCE)
 
-# The sources are compiled with at least GCC 5.3.0
-if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.3.0)
-  message(FATAL_ERROR "Require at least GCC 5.3.0")
+# The sources are compiled with at least GCC 8.2.1
+if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.2.1)
+  message(FATAL_ERROR "Require at least GCC 8.2.1")
 endif()
 
 # Set path to find helper files for cmake
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Search for required libraries to compile the sources
-find_package(Boost 1.58 REQUIRED
+find_package(ndn-cxx 0.6.5 REQUIRED)
+find_package(xrootd-utils 4.8.3 REQUIRED)
+find_package(Boost 1.69 REQUIRED
              COMPONENTS system
                         log
                         thread
                         program_options)
-find_package(ndn-cxx 0.6.2 REQUIRED)
-find_package(Threads)
-find_package(xrootd-utils)
+find_package(Threads REQUIRED)
 
 # Use C++14 to compile
 set(CMAKE_CXX_STANDARD 14)
 
 add_compile_options(-g -Wall -Wextra -Wpedantic -O0)
 add_definitions(-DBOOST_LOG_DYN_LINK)
+
+include_directories(SYSTEM "${NDN_CXX_INCLUDES}")
+link_libraries("${NDN_CXX_LIB}")
 
 set(XRDNDN_PRODUCER_VERSION_MAJOR 0)
 set(XRDNDN_PRODUCER_VERSION_MINOR 1)
@@ -78,7 +81,6 @@ add_library(XrdNdnFS
 target_link_libraries(XrdNdnFS
                       Boost::system
                       Boost::log
-                      ${NDN_CXX_LIB}
                       ${CMAKE_THREAD_LIBS_INIT}
                       ${XROOTD_UTILS})
 
@@ -112,9 +114,7 @@ add_executable(xrdndn-consumer
                src/xrdndn-consumer/xrdndn-data-fetcher.cc
                src/xrdndn-consumer/xrdndn-pipeline.cc)
 
-target_link_libraries(xrdndn-consumer
-                      ${Boost_LIBRARIES}
-                      ${NDN_CXX_LIB}
+target_link_libraries(xrdndn-consumer ${Boost_LIBRARIES}
                       ${CMAKE_THREAD_LIBS_INIT})
 
 # Compile xrdndn-producer application
@@ -145,9 +145,7 @@ add_executable(xrdndn-producer
                src/xrdndn-producer/xrdndn-file-handler.cc
                src/xrdndn-producer/xrdndn-packager.cc)
 
-target_link_libraries(xrdndn-producer
-                      ${Boost_LIBRARIES}
-                      ${NDN_CXX_LIB}
+target_link_libraries(xrdndn-producer ${Boost_LIBRARIES}
                       ${CMAKE_THREAD_LIBS_INIT})
 
 # Install

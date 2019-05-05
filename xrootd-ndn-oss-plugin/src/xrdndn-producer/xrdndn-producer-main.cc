@@ -74,10 +74,8 @@ int main(int argc, char **argv) {
     description.add_options()(
         "disable-signing",
         boost::program_options::bool_switch(&opts.disableSigning),
-        "Eliminate signing among authorized partners. By default Data is "
-        "singed using SHA-256. By using this argument, the data will be signed "
-        "with a fake signature, thus increasing the performance but also the "
-        "risk of data being corrupted")(
+        "Eliminate signing among authorized partners - signed Data with a fake "
+        "signature. By default Data is singed using SHA-256")(
         "freshness-period",
         boost::program_options::value<uint64_t>(&opts.freshnessPeriod)
             ->default_value(opts.freshnessPeriod)
@@ -85,10 +83,14 @@ int main(int argc, char **argv) {
         "Interest packets freshness period in seconds")(
         "garbage-collector-timer",
         boost::program_options::value<uint32_t>(&opts.gbTimePeriod)
-            ->default_value(opts.gbTimePeriod)
-            ->implicit_value(opts.gbTimePeriod),
-        "Recurrent time in seconds when files that have reached their "
-        "life time without being accessed will be closed")(
+            ->default_value(XRDNDN_GB_DEFAULT_TIMEPERIOD)
+            ->implicit_value(XRDNDN_GB_MIN_TIMEPERIOD),
+        std::string(
+            "Periodic timer that will close files that have reached their life "
+            "time (garbage-collector-lifetime arg). Specify a non-negative "
+            "integer larger than " +
+            std::to_string(XRDNDN_GB_MIN_TIMEPERIOD))
+            .c_str())(
         "garbage-collector-lifetime",
         boost::program_options::value<int64_t>(&opts.gbFileLifeTime)
             ->default_value(opts.gbFileLifeTime)
@@ -106,10 +108,10 @@ int main(int argc, char **argv) {
         "https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html")(
         "nthreads",
         boost::program_options::value<uint16_t>(&opts.nthreads)
-            ->default_value(opts.nthreads)
-            ->implicit_value(opts.nthreads),
-        "Number of threads to handle Interest packets concurrently. Must be at "
-        "least 1")("version,V", "Show version information and exit");
+            ->default_value(XRDNDN_INTERESTMANAGER_DEFAULT_NTHREADS)
+            ->implicit_value(XRDNDN_INTERESTMANAGER_MIN_NTHREADS),
+        "Number of threads to handle Interest packets concurrently")(
+        "version,V", "Show version information and exit");
 
     boost::program_options::variables_map vm;
     try {
@@ -127,9 +129,6 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    opts.gbTimer = std::chrono::seconds(opts.gbTimePeriod);
-    opts.freshnessPeriod *= 1000;
-
     std::string programName = argv[0];
 
     if (vm.count("help") > 0) {
@@ -137,19 +136,23 @@ int main(int argc, char **argv) {
         return 0;
     }
 
-    if (vm.count("garbage-collector-lifetime") > 0) {
-        if (opts.gbFileLifeTime < 0) {
-            std::cerr << "ERROR: Opened file lifetime for garbage collector "
-                         "must be a positive number"
-                      << std::endl;
+    if (vm.count("garbage-collector-timer") > 0) {
+        if (opts.gbTimePeriod < XRDNDN_GB_MIN_TIMEPERIOD) {
+            std::cerr << "ERROR: The minimum time period to trigger the "
+                         "garbage collector is "
+                      << XRDNDN_GB_MIN_TIMEPERIOD << std::endl;
             return 2;
         }
     }
 
+    opts.gbTimer = std::chrono::seconds(opts.gbTimePeriod);
+    opts.freshnessPeriod *= 1000;
+
     if (vm.count("nthreads") > 0) {
-        if (opts.nthreads < 1) {
-            std::cerr << "ERROR: Number of threads must be at least 1"
-                      << std::endl;
+        if (opts.nthreads < XRDNDN_INTERESTMANAGER_MIN_NTHREADS) {
+            std::cerr << "ERROR: The minimum number of threads for processing "
+                         "Interest packets is "
+                      << XRDNDN_INTERESTMANAGER_MIN_NTHREADS << std::endl;
             return 2;
         }
     }

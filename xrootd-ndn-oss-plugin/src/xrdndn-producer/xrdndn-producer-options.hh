@@ -23,6 +23,29 @@
 
 namespace xrdndnproducer {
 /**
+ * @brief The minimum number of threads that can be specified from command line
+ * for Interest Manager class to project Interest packets
+ *
+ */
+#define XRDNDN_INTERESTMANAGER_MIN_NTHREADS 1
+/**
+ * @brief The default number of threads that can be specified from command line
+ * for Interest Manager class to project Interest packets
+ *
+ */
+#define XRDNDN_INTERESTMANAGER_DEFAULT_NTHREADS 8
+/**
+ * @brief The minimum time period when garbage collector is triggered
+ *
+ */
+#define XRDNDN_GB_MIN_TIMEPERIOD 16
+/**
+ * @brief The default time period when garbage collector is triggered
+ *
+ */
+#define XRDNDN_GB_DEFAULT_TIMEPERIOD 256
+
+/**
  * @brief XRootD NDN Producer options from command line
  *
  */
@@ -32,7 +55,7 @@ struct Options {
      * Manager object
      *
      */
-    uint16_t nthreads = 8;
+    uint16_t nthreads = XRDNDN_INTERESTMANAGER_DEFAULT_NTHREADS;
 
     /**
      * @brief Freshness period in seconds of all Interest packets composed by
@@ -46,7 +69,7 @@ struct Options {
      * boost system timer from Interest Manager class will be executed
      *
      */
-    uint32_t gbTimePeriod = 256;
+    uint32_t gbTimePeriod = XRDNDN_GB_DEFAULT_TIMEPERIOD;
 
     /**
      * @brief The time period in seconds as std::chrono::seconds when Garbage

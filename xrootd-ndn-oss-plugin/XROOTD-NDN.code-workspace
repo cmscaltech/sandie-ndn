@@ -89,10 +89,11 @@
 			"__node_handle": "cpp",
 			"future": "cpp",
 			"numeric": "cpp",
-			"random": "cpp"
+			"random": "cpp",
+			"any": "cpp"
 		},
-		"workbench.colorTheme": "Material Theme Darker High Contrast",
-		"window.zoomLevel": -1,
+		"workbench.colorTheme": "Material Theme Palenight High Contrast",
+		"window.zoomLevel": 0,
 		"fileHeaderComment.parameter":{
 			"*":{
 				"commentbegin": "/******************************************************************************",

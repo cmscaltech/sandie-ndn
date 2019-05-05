@@ -9,36 +9,26 @@
             "type": "shell",
             "command": "ssh root@192.168.56.101 killall gdbserver"
         },
-        // building remote targets
-        {
-            "label": "build-remote-xrdndn-consumer",
-            "type": "shell",
-            "args": [
-                "xrdndn-consumer"
-            ],
-            "command": "${workspaceRoot}/.vscode/build-remote-target.sh"
-        },
-        {
-            "label": "build-remote-xrdndn-producer",
-            "type": "shell",
-            "args": [
-                "xrdndn-producer"
-            ],
-            "command": "${workspaceRoot}/.vscode/build-remote-target.sh"
-        },
         // starting remote gdbserver instances
         {
             "label": "gdbserver-xrdndn-consumer",
             "dependsOn": "build-remote-xrdndn-consumer",
             "type": "shell",
-            "command": "ssh -L9091:localhost:9091 root@192.168.56.101 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9091 ./xrootd-ndn-oss-plugin/build/xrdndn-consumer -f /root/test/path/for/ndn/xrd/1mb_file'\"",
+            "args": [
+                "root@192.168.56.101",
+                "/root/sandie-ndn/xrootd-ndn-oss-plugin"
+            ],
+            "command": "${workspaceRoot}/.vscode/build-remote-xrdndn-consumer.sh",
             "isBackground": true
         },
         {
             "label": "gdbserver-xrdndn-producer",
-            "dependsOn": "build-remote-xrdndn-producer",
             "type": "shell",
-            "command": "ssh -L9092:localhost:9092 root@192.168.56.101 \"source /opt/rh/devtoolset-7/enable && zsh -l -c 'gdbserver :9092 ./xrootd-ndn-oss-plugin/build/xrdndn-producer'\"",
+            "args": [
+                "root@192.168.56.101",
+                "/root/sandie-ndn/xrootd-ndn-oss-plugin"
+            ],
+            "command": "${workspaceRoot}/.vscode/build-remote-xrdndn-producer.sh",
             "isBackground": true
         }
     ]

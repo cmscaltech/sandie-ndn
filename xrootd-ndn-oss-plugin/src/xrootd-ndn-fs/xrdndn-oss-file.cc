@@ -41,7 +41,7 @@ int XrdNdnOssFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
     m_consumer = xrdndnconsumer::Consumer::getXrdNdnConsumerInstance(
         m_xrdndnoss->m_consumerOptions);
     if (!m_consumer)
-        return -1;
+        return -EINVAL;
 
     int retOpen = m_consumer->Open(std::string(path));
     return retOpen;

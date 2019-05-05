@@ -68,7 +68,6 @@ Producer::~Producer() {
     m_face.shutdown();
 }
 
-// Register all interest filters that this producer will answer to
 void Producer::registerPrefix() {
     m_xrdndnPrefixHandle = m_face.registerPrefix(
         xrdndn::SYS_CALLS_PREFIX_URI,
@@ -85,19 +84,16 @@ void Producer::registerPrefix() {
     if (m_error)
         return;
 
-    // Filter for open system call
     m_openFilterHandle =
         m_face.setInterestFilter(xrdndn::SYS_CALL_OPEN_PREFIX_URI,
                                  bind(&Producer::onOpenInterest, this, _1, _2));
     NDN_LOG_INFO("Set Interest filter: " << xrdndn::SYS_CALL_OPEN_PREFIX_URI);
 
-    // Filter for fstat system call
     m_fstatFilterHandle = m_face.setInterestFilter(
         xrdndn::SYS_CALL_FSTAT_PREFIX_URI,
         bind(&Producer::onFstatInterest, this, _1, _2));
     NDN_LOG_INFO("Set Interest filter: " << xrdndn::SYS_CALL_FSTAT_PREFIX_URI);
 
-    // Filter for read system call
     m_readFilterHandle =
         m_face.setInterestFilter(xrdndn::SYS_CALL_READ_PREFIX_URI,
                                  bind(&Producer::onReadInterest, this, _1, _2));

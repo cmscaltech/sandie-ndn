@@ -18,6 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
+#include <fstream>
 #include <iostream>
 
 #include <ndn-cxx/version.hpp>
@@ -69,13 +70,19 @@ static void info() {
 int main(int argc, char **argv) {
     Options opts;
     std::string logLevel("INFO");
+    std::string configFile("");
 
     boost::program_options::options_description description("Options", 120);
     description.add_options()(
+        "config-file",
+        boost::program_options::value<std::string>(&configFile)
+            ->default_value("")
+            ->implicit_value(""),
+        "Configuration file for running xrdndn-producer as a service")(
         "disable-signing",
         boost::program_options::bool_switch(&opts.disableSigning),
-        "Eliminate signing among authorized partners - signed Data with a fake "
-        "signature. By default Data is singed using SHA-256")(
+        "Eliminate signing among authorized partners by signing Data with a "
+        "dummy signature. By default Data is signed using SHA-256")(
         "freshness-period",
         boost::program_options::value<uint64_t>(&opts.freshnessPeriod)
             ->default_value(opts.freshnessPeriod)
@@ -86,7 +93,8 @@ int main(int argc, char **argv) {
             ->default_value(XRDNDN_GB_DEFAULT_TIMEPERIOD)
             ->implicit_value(XRDNDN_GB_MIN_TIMEPERIOD),
         std::string(
-            "Periodic timer that will close files that have reached their life "
+            "Periodic timer in seconds that will close files that have reached "
+            "their life "
             "time (garbage-collector-lifetime arg). Specify a non-negative "
             "integer larger than " +
             std::to_string(XRDNDN_GB_MIN_TIMEPERIOD))
@@ -113,6 +121,8 @@ int main(int argc, char **argv) {
         "Number of threads to handle Interest packets concurrently")(
         "version,V", "Show version information and exit");
 
+    info();
+
     boost::program_options::variables_map vm;
     try {
         boost::program_options::store(
@@ -121,6 +131,24 @@ int main(int argc, char **argv) {
                 .run(),
             vm);
         boost::program_options::notify(vm);
+
+        if (vm.count("config-file") > 0) {
+            std::ifstream config_file(configFile);
+            std::cout << "Reading configuration file: " << configFile
+                      << std::endl;
+            if (config_file.good()) {
+                vm = boost::program_options::variables_map();
+                boost::program_options::store(
+                    boost::program_options::parse_config_file(config_file,
+                                                              description),
+                    vm);
+                boost::program_options::notify(vm);
+            } else {
+                std::cerr << "Configuration file: " << configFile
+                          << " is not valid. Using default configuration"
+                          << std::endl;
+            }
+        }
     } catch (const boost::program_options::error &e) {
         std::cerr << "ERROR: " << e.what() << std::endl;
         return 2;
@@ -169,8 +197,6 @@ int main(int argc, char **argv) {
         usage(std::cerr, programName, description);
         return 2;
     }
-
-    info();
 
     NDN_LOG_INFO("XRootD NDN Producer version " XRDNDN_PRODUCER_VERSION_STRING
                  " starting");

@@ -1,6 +1,6 @@
 # The NDN based File System XRootD plugin component for Open Storage System and a suitable NDN producer
 
-The NDN based File System component allows [XRootD](http://xrootd.org/) server to query the [Named Data Networking](https://named-data.net/) (NDN) network via the Open Storage System (OSS) plugin layer. The plugin represents an NDN consumer that composes Interest packets for different system calls and waits for answers (Data packets). In this regard, a suitable NDN producer has been implemented which registers to the local NDN forwarder and is able to answer requests from the XRootD OSS plugin.
+The NDN based File System component allows [XRootD](http://xrootd.org/) server to query the [Named Data Networking](https://named-data.net/) (NDN) network via the [Open Storage System](http://xrootd.org/doc/dev49/ofs_config.htm) (OSS) plugin layer. The plugin represents an NDN consumer that composes Interest packets for different system calls and waits for answers (Data packets). In this regard, a suitable NDN producer has been implemented which registers to the local NDN forwarder and is able to answer requests from the XRootD OSS plugin.
 
 At the moment the following system calls are supported: **open**, **fstat**, **close** and **read**.
 
@@ -39,28 +39,28 @@ The latest release version can be found at [`xrootd-ndn-fs-<version>-<rn>.el7.x8
 
 2. [**/etc/xrootd/xrootd-ndn.cfg**](rpms/XrdNdnFS/xrootd-ndn.sample.cfg) Copy of the sample configuration file for running XRootD as a systemd service. If modified, this file will not be erased on uninstall, but saved with *.rpmsave* extension. If an existing file is in place before installing the package or updating an existing version, this file will be copied with extension *.rpmnew*.
 
-3. **/usr/lib64/libXrdNdnFS.so** This is the XRootD OSS plugin component.
+3. **/usr/lib64/libXrdNdnFS.so** The NDN based OSS plugin for XRootD.
 
 ### Install from RPM: xrootd-ndn-fs-\<version>-\<rn>.el7.x86_64.rpm
 
 The XRootD OSS plugin component package requires the following dependencies:
-* [XRootD Server 4.9.0](http://opensciencegrid.org/docs/data/install-xrootd/) or later.
+* [XRootD Server 4.9.0](https://opensciencegrid.org/docs/data/xrootd/overview/) or later.
 * [NFD 0.6.6](../packaging/RPMS/x86_64/nfd-0.6.6) or later.
 
-You can download the latest XRootD OSS plugin component package from the [delivery location](../packaging/RPMS/x86_64) and install it using the *rpm* command line tool as follows (this example is for version 0.1.2):
+You can download the latest NDN XRootD OSS plugin component package from the [delivery location](../packaging/RPMS/x86_64) and install it using the *rpm* command line tool as follows (this example is for version 0.1.2):
 ```bash
 root@cms:~# rpm -ivh xrootd-ndn-fs-0.1.2-1.el7.x86_64.rpm
 ```
 
 ### Usage and testing
 
-In order to use the NDN OSS XRootD plugin you have to add the following line to your XRootD configuration file: `ofs.osslib /usr/lib64/libXrdNdnFS.so` or use the configuration file provided by the RPM package ([*/etc/xrootd/xrootd.sample.ndnfd.cfg*](rpms/XrdNdnFS/xrootd.sample.ndnfd.cfg)). After this, you can run XRootD but you have to make sure that NFD is running and over the network is an [producer](#the-ndn-producer) that is capable to respond to XRootD requests.
+In order to use the NDN OSS XRootD plugin you have to add the following line to your XRootD configuration file: `ofs.osslib /usr/lib64/libXrdNdnFS.so` or use the configuration file provided by the RPM package ([*/etc/xrootd/xrootd.sample.ndnfd.cfg*](rpms/XrdNdnFS/xrootd-ndn.sample.cfg)). After this, you can run XRootD but you have to make sure that NFD is running and over the network is an active [producer](#the-ndn-producer) that is capable to respond to XRootD requests.
 
-The shared library accepts arguments for configuring the embedded consumer. These arguments are:
+The shared library accepts arguments, but are not mandatory, for configuring the embedded consumer. These arguments are:
 * **interestlifetime**: The lifetime of Interest packets
 * **loglevel**: The log level. Available options: [NONE, TRACE, INFO, WARN, DEBUG, ERROR, FATAL](https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html)
 * **pipelinesize**: The number of concurrent Interest packets expressed at one time in the fixed window size pipeline
-* e.g.: **ofs.osslib /usr/lib64/libXrdNdnFS.so pipelinesize 64 interestlifetime 512 loglevel INFO**
+* e.g.: `**ofs.osslib /usr/lib64/libXrdNdnFS.so pipelinesize 64 interestlifetime 512 loglevel INFO**`
 
 
 ## The NDN producer
@@ -78,8 +78,7 @@ root@cms:~# make xrdndn-producer && make install xrdndn-producer
 
 ### Packaging
 
-The NDN producer is delivered as an RPM package.\
-The latest release version can be found at [`xrdndn-producer-.<version>-<rn>.el7.x86_64.rpm`](../packaging/RPMS/x86_64). It contains the following files:
+The NDN producer is delivered as an RPM package. The latest release version can be found at [`xrdndn-producer-.<version>-<rn>.el7.x86_64.rpm`](../packaging/RPMS/x86_64). It contains the following files:
 
 1. **/usr/bin/xrdndn-producer** This is the NDN producer that is able to respond to the NDN OSS XRootD plugin Interests.
 
@@ -91,7 +90,7 @@ The latest release version can be found at [`xrdndn-producer-.<version>-<rn>.el7
 
 5. [**/etc/xrdndn-producer/xrdndn-producer.sample.cfg**](rpms/xrdndn-producer/xrdndn-producer.sample.cfg) Sample configuration file configuring xrdndn-producer systemd service.
 
-6. [**/etc/xrdndn-producer/xrdndn-producer.cfg**](rpms/xrdndn-producer/xrdndn-producer.sample.cfg) Copy of the sample configuration file. If modified, this file will not be erased on uninstall, but saved with *.rpmsave* extension. If an existing file is in place before installing the package or updating an existing version, this file will be copied with extension *.rpmnew*. If removed, xrdndn-producer systemd service will run with default parameters. For more information avout each individual parameter, please consult the actual sample configuration file.
+6. [**/etc/xrdndn-producer/xrdndn-producer.cfg**](rpms/xrdndn-producer/xrdndn-producer.sample.cfg) Copy of the sample configuration file. If modified, this file will not be erased on uninstall, but saved with *.rpmsave* extension. If an existing file is in place before installing the package or updating an existing version, this file will be copied with extension *.rpmnew*. If removed, xrdndn-producer systemd service will run with default parameters. For more information about each individual parameter, please consult the actual sample configuration file.
 
 ### Install from RPM: xrdndn-producer-.\<version>-\<rn>.el7.x86_64.rpm
 
@@ -105,7 +104,7 @@ root@cms:~# rpm -ivh xrdndn-producer-0.1.2-1.el7.x86_64.rpm
 
 ### Usage and testing
 
-The producer is installed as a systemd service. It requires a local NDN forwarder in order to connect to it and register prefixes over NDN network. You can use *sercice* command line tool to see status, start, restart or stop the service:
+The producer is installed as a systemd service. It requires a local NDN forwarder in order to connect to it and register prefixes over NDN network. You can use *service* command line tool to see status, start, restart or stop the service:
 
 ```bash
 root@cms:~# service xrdndn-producer status
@@ -114,7 +113,7 @@ root@cms:~# service xrdndn-producer restart
 root@cms:~# service xrdndn-producer stop
 ```
 
-Consult the */etc/xrdndn-producer/xrdndn-producer.cfg* configuration file to change default parameters or the log level.
+Consult the [/etc/xrdndn-producer/xrdndn-producer.cfg](rpms/xrdndn-producer/xrdndn-producer.sample.cfg) configuration file to change default parameters or the log level.
 
 Although the producer is installed as a systemd service, it can also be used for testing purposes. Because of this, the *xrdndn-producer* binary under the */usr/bin/* directory accepts command line arguments:
 

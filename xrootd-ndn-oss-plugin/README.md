@@ -54,7 +54,7 @@ root@cms:~# rpm -ivh xrootd-ndn-fs-0.1.2-1.el7.x86_64.rpm
 
 ### Usage and testing
 
-In order to use the NDN OSS XRootD plugin you have to add the following line to your XRootD configuration file: `ofs.osslib /usr/lib64/libXrdNdnFS.so` or use the configuration file provided by the RPM package ([*/etc/xrootd/xrootd.sample.ndnfd.cfg*](rpms/XrdNdnFS/xrootd-ndn.sample.cfg)). After this, you can run XRootD but you have to make sure that NFD is running and over the network is an active [producer](#the-ndn-producer) that is capable to respond to XRootD requests.
+In order to use the NDN OSS XRootD plugin you have to add the following line to your XRootD configuration file: `ofs.osslib /usr/lib64/libXrdNdnFS.so` or use the configuration file provided by the RPM package ([/etc/xrootd/xrootd.sample.ndnfd.cfg](rpms/XrdNdnFS/xrootd-ndn.sample.cfg)). After this, you can run XRootD but you have to make sure that NFD is running and over the network is an active [producer](#the-ndn-producer) that is capable to respond to XRootD requests.
 
 The shared library accepts arguments, but are not mandatory, for configuring the embedded consumer. These arguments are:
 * **interestlifetime**: The lifetime of Interest packets

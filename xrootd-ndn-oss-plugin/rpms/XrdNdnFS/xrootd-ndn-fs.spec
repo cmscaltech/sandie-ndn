@@ -1,21 +1,22 @@
 Name:    xrootd-ndn-fs
-Version: 0.1.4
-Release: 1%{?dist}
+Version: 0.2.0
+Release: 4%{?dist}
 Summary: Named Data Networking (NDN) based Open Storage System plugin for XRootD
 Group:   System Environment/Development
 License: GPLv3+
 URL:     https://github.com/cmscaltech/sandie-ndn.git
 
-BuildRequires: cmake
+#BuildRequires: cmake
 BuildRequires: boost-devel
 BuildRequires: gcc-c++
-BuildRequires: libndn-cxx-devel >= 0.6.2
+BuildRequires: libndn-cxx-devel >= 0.6.6
 BuildRequires: xrootd-devel >= 4.8.0
 BuildRequires: xrootd-server-devel >= 4.8.0
+AutoReqProv: no
 
 %description
-This is a plugin for XRootD. It implements an Named Data Networking (NDN) based
-File System. Currently it offers support for: open, fstat, close and read file system calls.
+The Named Data Networking (NDN) based Open File System XRootD plugin component
+for Open Storage System. Supported file system calls: open, fstat, read and close.
 
 %define RepoName sandie-ndn
 %define SrcDir %{RepoName}/xrootd-ndn-oss-plugin
@@ -23,26 +24,45 @@ File System. Currently it offers support for: open, fstat, close and read file s
 %prep
 rm -rf %{RepoName}
 git clone %{url}
+cd %{SrcDir}
+git checkout tags/%{version}
 
 %build
 cd %{SrcDir}
 mkdir build
 cd build
 cmake ../
-make XrdNdnFS VERBOSE=1
+make XrdNdnFS -j2 VERBOSE=1
 
 %install
 cd %{SrcDir}/build
 make XrdNdnFS install DESTDIR=$RPM_BUILD_ROOT
 
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
-cp ../rpms/XrdNdnFS/xrootd.sample.ndnfd.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd.sample.ndnfd.cfg
+cp ../rpms/XrdNdnFS/xrootd-ndn.sample.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd-ndn.sample.cfg
+cp ../rpms/XrdNdnFS/xrootd-ndn.sample.cfg $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/xrootd-ndn.cfg
+
+%preun
+%systemd_preun xrootd@ndn.service
 
 %files
 %{_libdir}/libXrdNdnFS.so
-%{_sysconfdir}/xrootd/xrootd.sample.ndnfd.cfg
+%{_sysconfdir}/xrootd/xrootd-ndn.sample.cfg
+%config(noreplace) %{_sysconfdir}/xrootd/xrootd-ndn.cfg
 
 %changelog
+* Sat May 11 2019 Catalin Iordache <catalin.iordache@cern.ch> - 0.2.0
+- Support for multi-threading XRootD NDN Consumer. One Consumer instance per file
+- Added interest-lifetime option: Configure Interest lifetime
+- Added pipeline-size option: Control the number of Interest expressed in parallel in fixed window size pipeline
+- Added log-level option: No neeed to export any environment variables to set log level
+- Options can are configurable from /etc/xrootd/xrootd-ndn.cfg file as ofs.osslib arguments
+- Consumer options are configurable from XRootD using xrdndnconsumer::Options structure
+- Removed close Interest
+- Added support for adequate error codes for XRootD
+- Added suport for ndn-cxx 0.6.6 API
+- Bug fixing
+
 * Sun Jan 27 2019 Catalin Iordache <catalin.iordache@cern.ch> - 0.1.4
 - Minor bugs have been solved.
 

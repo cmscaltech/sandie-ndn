@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
         "bytes")("help,h", "Print this help message and exit")(
         "input-file",
         boost::program_options::value<std::string>(&cmdLineOpts.infile),
-        "Path to file to be copied over Name Data Networking")(
+        "Path to a file to be copied over the NDN network")(
         "interest-lifetime",
         boost::program_options::value<size_t>(&consumerOpts.interestLifetime)
             ->default_value(XRDNDN_DEFAULT_INTEREST_LIFETIME)
@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
         boost::program_options::value<std::string>(&cmdLineOpts.outfile)
             ->default_value("")
             ->implicit_value("./ndnfile.out"),
-        "Path to output file copied over Name Data Networking")(
+        "Path to output file copied over NDN network")(
         "pipeline-size",
         boost::program_options::value<size_t>(&consumerOpts.pipelineSize)
             ->default_value(XRDNDN_DEFAULT_PIPELINESZ)

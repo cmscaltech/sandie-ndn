@@ -122,8 +122,6 @@ root@cms:~# xrdndn-producer -h
     The suitable NDN Producer for the NDN based filesystem plugin for XRootD.
     Developed by Caltech@CMS
 
-    Reading configuration file:
-    Configuration file:  is not valid. Using default configuration
     Usage: ./xrdndn-producer [options]
     Note: This application can run without arguments
 

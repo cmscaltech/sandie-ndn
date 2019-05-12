@@ -74,10 +74,7 @@ int main(int argc, char **argv) {
 
     boost::program_options::options_description description("Options", 120);
     description.add_options()(
-        "config-file",
-        boost::program_options::value<std::string>(&configFile)
-            ->default_value("")
-            ->implicit_value(""),
+        "config-file", boost::program_options::value<std::string>(&configFile),
         "Configuration file for running xrdndn-producer as a service")(
         "disable-signing",
         boost::program_options::bool_switch(&opts.disableSigning),

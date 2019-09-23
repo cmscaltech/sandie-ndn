@@ -179,7 +179,7 @@ class DataFetcher : public std::enable_shared_from_this<DataFetcher> {
     NotifyTaskCompleteFailure m_onFailure;
 
     ndn::Face &m_face;
-    ndn::util::scheduler::Scheduler m_scheduler;
+    ndn::scheduler::Scheduler m_scheduler;
     const ndn::Interest m_interest;
     ndn::PendingInterestHandle m_interestId;
 

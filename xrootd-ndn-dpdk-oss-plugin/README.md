@@ -1,4 +1,4 @@
-# NDN-DPDK Based Consumer-Producer Application for copying files
+# NDN-DPDK Based Consumer-Producer Application For Copying Files
 
 ## Available support
 At the moment the following system calls are supported: **open**.

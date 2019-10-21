@@ -1,5 +1,8 @@
 # NDN-DPDK Based Consumer-Producer Application for copying files
 
+## Available support
+At the moment the following system calls are supported: **open**.
+
 ## Developer Guide
 
 1. Follow installation steps for [NDN-DPDK](https://github.com/usnistgov/ndn-dpdk)
@@ -28,6 +31,8 @@ go
 ## Usage
 
 ### Consumer
+Edit yaml configuration file to specify the path to the file to be copied using *filepath* argument.
+
 ```bash
 MGMT=tcp://127.0.0.1:6345 ./xrdndndpdkconsumer-cmd -w 0000:8f:00.0 -- -initcfg @init-config-client.yaml -tasks @xrdndndpdkconsumer.yaml
 

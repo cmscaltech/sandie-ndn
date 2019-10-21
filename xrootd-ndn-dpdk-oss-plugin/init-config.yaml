@@ -1,0 +1,35 @@
+---
+mempool:
+  IND:
+    capacity: 2097151
+    cachesize: 337
+  ETHRX:
+    capacity: 1048575
+    cachesize: 465
+    dataroomsize: 7368
+  NAME:
+    capacity: 65535
+    cachesize: 255
+  HDR:
+    capacity: 65535
+    cachesize: 255
+  INTG:
+    capacity: 65535
+    cachesize: 255
+  INT:
+    capacity: 65535
+    cachesize: 255
+  DATA0:  # TX Ethernet+NDNLP+Data name prefix
+    capacity: 65535
+    cachesize: 255
+  DATA1:  # TX Data name suffix and payload
+    capacity: 255
+    cachesize: 0
+    dataroomsize: 9000
+face:
+  enableeth: true
+  ethmtu: 1500 # 9000
+  ethrxqframes: 4096
+  ethtxqpkts: 256
+  ethtxqframes: 4096
+  enablesock: false

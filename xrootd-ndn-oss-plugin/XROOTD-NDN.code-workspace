@@ -2,6 +2,12 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "/Users/cataliniordache/go/src/sandie-ndn/xrootd-ndn-dpdk-oss-plugin"
+		},
+		{
+			"path": "/Users/cataliniordache/go/src/ndn-dpdk"
 		}
 	],
 	"settings": {
@@ -90,9 +96,12 @@
 			"future": "cpp",
 			"numeric": "cpp",
 			"random": "cpp",
-			"any": "cpp"
+			"any": "cpp",
+			"token.h": "c",
+			"logger.h": "c",
+			"assert.h": "c"
 		},
-		"workbench.colorTheme": "Material Theme Palenight High Contrast",
+		"workbench.colorTheme": "Material Theme",
 		"window.zoomLevel": 0,
 		"fileHeaderComment.parameter":{
 			"*":{
@@ -103,9 +112,28 @@
 				"author": "Catalin Iordache",
 				"email": "catalin.iordache@cern.ch",
 				"company": "California Institute of Technology",
-				"license_caltech_gnu":[
+				"license_caltech_gnu-ndncxx":[
 					"Named Data Networking plugin for xrootd                                    *",
 					" Copyright © 2018-${year} ${company}                   *",
+					"                                                                            *",
+					" Author: ${author} <${email}>                        *",
+					"                                                                            *",
+					" This program is free software: you can redistribute it and/or modify       *",
+					" it under the terms of the GNU General Public License as published by       *",
+					" the Free Software Foundation, either version 3 of the License, or          *",
+					" (at your option) any later version.                                        *",
+					"                                                                            *",
+					" This program is distributed in the hope that it will be useful,            *",
+					" but WITHOUT ANY WARRANTY; without even the implied warranty of             *",
+					" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *",
+					" GNU General Public License for more details.                               *",
+					"                                                                            *",
+					" You should have received a copy of the GNU General Public License          *",
+					" along with this program.  If not, see <https://www.gnu.org/licenses/>.     *"
+				],
+				"license_caltech_gnu-dpdk":[
+					"Named Data Networking plugin for XRootD                                    *",
+					" Copyright © ${year} ${company}                        *",
 					"                                                                            *",
 					" Author: ${author} <${email}>                        *",
 					"                                                                            *",
@@ -125,9 +153,15 @@
 			}
 		},
 		"fileHeaderComment.template":{
-			"gnu":[
+			"ndnxrootd-ndn-cxx":[
 				"${commentbegin}",
-				"${commentprefix} ${license_caltech_gnu}",
+				"${commentprefix} ${license_caltech_gnu-ndncxx}",
+				"${commentend}",
+				""
+			],
+			"ndnxrootd-dpdk": [
+				"${commentbegin}",
+				"${commentprefix} ${license_caltech_gnu-dpdk}",
 				"${commentend}",
 				""
 			]

@@ -1,0 +1,9 @@
+---
+- face:
+    scheme: ether
+    port: net_af_packetL
+    local: "e4:1d:2d:62:0c:66"
+    remote: "24:8a:07:55:29:cc"
+  consumer:
+    mustbefresh: true
+    filepath: /root/test.txt

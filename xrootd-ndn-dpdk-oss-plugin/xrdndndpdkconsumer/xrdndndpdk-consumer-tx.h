@@ -25,9 +25,9 @@
 #include "../../../ndn-dpdk/iface/face.h"
 #include "../../../ndn-dpdk/ndn/encode-interest.h"
 
-typedef void (*onErrorCallback)(void);
+typedef void (*onErrorCallback)(uint64_t);
 
-void onErrorCallback_Go();
+void onErrorCallback_Go(uint64_t errorCode);
 
 /**
  * @brief Consumer Tx structure
@@ -48,7 +48,7 @@ typedef struct ConsumerTx {
     onErrorCallback onError;
 } ConsumerTx;
 
-void ConsumerTx_SendOpenInterest(ConsumerTx *ct, struct LName *suffix);
+void ConsumerTx_sendInterest(ConsumerTx *ct, struct LName *suffix);
 
 static void registerTxCallbacks(ConsumerTx *ct) {
     ct->onError = onErrorCallback_Go;

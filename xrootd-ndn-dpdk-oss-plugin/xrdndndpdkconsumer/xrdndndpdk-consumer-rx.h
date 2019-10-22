@@ -26,37 +26,40 @@
 
 #include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 
-
 #define CONSUMER_RX_BURST_SIZE 64
 
-typedef void(*onDataCallback)(struct PContent*);
-typedef void(*onNonNegativeIntegerDataCallback)(uint64_t);
+typedef void (*onContentCallback)(struct PContent *);
+typedef void (*onNonNegativeIntegerDataCallback)(uint64_t);
 
-typedef void(*onErrorCallback)(void);
+void onContentCallback_Go(struct PContent *);
 
-void onOpenDataCallback_Go(uint64_t openRetCode);
-void onErrorCallback_Go();
+void onNonNegativeIntegerCallback_Go(uint64_t retCode);
+void onErrorCallback_Go(uint64_t errorCode);
 
 /**
  */
 typedef struct ConsumerRx {
-  struct rte_ring* rxQueue;
-  ThreadStopFlag stop;
+    struct rte_ring *rxQueue;
+    ThreadStopFlag stop;
 
-  uint64_t nData;
-  uint64_t nNacks;
+    // Counters
+    uint64_t nData;
+    uint64_t nNacks;
+    uint64_t nBytes;
+    uint64_t nErrors;
 
-  onDataCallback onData;
-  onNonNegativeIntegerDataCallback onOpenData;
-  onErrorCallback onError;
+    onContentCallback onContent;
+    onNonNegativeIntegerDataCallback onNonNegativeInteger;
+    onNonNegativeIntegerDataCallback onError;
 } ConsumerRx;
 
-void
-ConsumerRx_Run(ConsumerRx* cr);
+void ConsumerRx_ResetCounters(ConsumerRx *cr);
+void ConsumerRx_Run(ConsumerRx *cr);
 
-static void registerRxCallbacks(ConsumerRx* cr) {
-    //cr->onData = onDataCallback_Go;
-    cr->onOpenData = onOpenDataCallback_Go;
+static void registerRxCallbacks(ConsumerRx *cr) {
+    cr->onContent = onContentCallback_Go;
+
+    cr->onNonNegativeInteger = onNonNegativeIntegerCallback_Go;
     cr->onError = onErrorCallback_Go;
 }
 

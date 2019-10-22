@@ -1,6 +1,7 @@
 package xrdndndpdkconsumer
 
 /*
+#include <sys/stat.h>
 #include "../xrdndndpdk-common/xrdndndpdk-input.h"
 */
 import "C"
@@ -19,8 +20,8 @@ import (
 const (
 	LCoreRole_Input      = iface.LCoreRole_RxLoop
 	LCoreRole_Output     = iface.LCoreRole_TxLoop
-	LCoreRole_ConsumerRx = "CONSR"
-	LCoreRole_ConsumerTx = "CONST"
+	LCoreRole_ConsumerRx = "ConsumerRx"
+	LCoreRole_ConsumerTx = "ConsumerTx"
 )
 
 type App struct {
@@ -153,6 +154,18 @@ func (app *App) CopyFileOverNDN() (e error) {
 		app.task.Close()
 		return e
 	}
+	app.task.consumer.Tx.Stop()
+	fmt.Println("Successfully opened file: ", app.task.consumer.Tx.FilePath)
+
+	data, e := app.task.consumer.Tx.FstatFile()
+	if e != nil {
+		app.task.Close()
+		return e
+	}
+	app.task.consumer.Tx.Stop()
+
+	fileSize := (*C.struct_stat)(unsafe.Pointer(&data[0])).st_size
+	fmt.Printf("File size: %dB\n", fileSize)
 
 	app.task.Close()
 	return nil

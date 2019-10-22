@@ -30,7 +30,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
+#include "../../../ndn-dpdk/core/logger.h"
 #include "../../../ndn-dpdk/ndn/name.h"
 
 #include "xrdndndpdk-namespace.h"
@@ -42,7 +44,7 @@
 static const LName lnameStub = {.value = "", .length = 0};
 
 /**
- * @brief Structer pointing to Content in Data packet
+ * @brief Struct pointing to the Content in Data packet
  *
  */
 typedef struct PContent {
@@ -51,31 +53,35 @@ typedef struct PContent {
               // https://named-data.net/doc/NDN-packet-spec/current/data.html
     uint64_t length; // Content length
     uint16_t offset; // Content offset in Data packet
-
-    uint8_t *buff; // Content bytes of length
+    uint8_t *buff;   // Content bytes of length
 } PContent;
 
 /**
- * @brief Parsing LName structure and retrieving the file path from Name
+ * @brief Get file path from LName
  *
- * @param lname LName structure
- * @param lnameOff Offset of filepath in name. Skipping prefix and system call
- * name
- * @param hasSegmentNo Name has segment number in it
- * @return char* The file path
+ * @param lname LName struct
+ * @param lnameOff Offset of filepath in name. Skip prefix and system call name
+ * @param hasSegmentNo Packet Name contains segment number
+ * @return char* The path to the file
  */
 char *lnameGetFilePath(const LName lname, uint16_t lnameOff, bool hasSegmentNo);
 
 /**
- * @brief Get file system call id from Packet Name
+ * @brief Get file system call id from Packet Name. See SystemCallId enum
  *
  * @param name Packet Name
  * @return SystemCallId File system call id
  */
 SystemCallId lnameGetSystemCallId(const LName name);
 
+/**
+ * @brief Retrieve Content offset in Data NDN packet format v0.3
+ * https://named-data.net/doc/NDN-packet-spec/current/types.html
+ *
+ * @param packet Payload received over the NDN network
+ * @param len Length of payload
+ * @return PContent Pointer to Content in payload
+ */
 PContent packetGetContent(uint8_t *packet, uint16_t len);
-
-// TODO: lnameGetSegmentNumber()
 
 #endif // XRDNDNDPDK_UTILS_H

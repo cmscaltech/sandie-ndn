@@ -101,8 +101,8 @@
 			"logger.h": "c",
 			"assert.h": "c"
 		},
-		"workbench.colorTheme": "Material Theme",
-		"window.zoomLevel": 0,
+		"workbench.colorTheme": "Material Theme Ocean High Contrast",
+		"window.zoomLevel": -1,
 		"fileHeaderComment.parameter":{
 			"*":{
 				"commentbegin": "/******************************************************************************",

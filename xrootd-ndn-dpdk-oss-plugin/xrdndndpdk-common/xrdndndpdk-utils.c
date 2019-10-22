@@ -2,32 +2,34 @@
 
 #include <stdio.h>
 
+/**
+ * @brief TLV Name component representation
+ *
+ */
 typedef struct NameComponent {
     uint16_t type;
     uint16_t length;
     uint8_t *value;
 } NameComponent;
 
+/**
+ * @brief All Name components in Packet LName
+ *
+ */
 typedef struct NameComponents {
     NameComponent components[NAME_MAX_LENGTH];
     uint16_t size;
 } NameComponents;
 
+
 static uint64_t getLength(const uint8_t *buff, uint16_t *offset) {
     uint64_t TLV_LENGTH = 0;
 
     if (buff[*offset] <= 0xFC) { // Length value is encoded in this octet
-        // uint8_t v;
-        // rte_memcpy(&v, buff[*offset], sizeof(uint8_t));
-        // TLV_LENGTH = v;
         TLV_LENGTH |= buff[(*offset)++];
     } else if (buff[*offset] ==
                0xFD) { // Length value is encoded in the following 2 octets
         *offset += 1;
-        // rte_be16_t v;
-        // rte_memcpy(&v, buff[*offset], sizeof(uint16_t));
-        // TLV_LENGTH = rte_be_to_cpu_16(v);
-        // offset += sizeof(uint16_t);
         TLV_LENGTH |= buff[(*offset)++];
         TLV_LENGTH <<= 8;
         TLV_LENGTH |= buff[(*offset)++];
@@ -131,8 +133,6 @@ SystemCallId lnameGetSystemCallId(const LName name) {
     return SYSCALL_NOT_FOUND;
 }
 
-// Retrieve Content offset in Data NDN packet format v0.3
-// https://named-data.net/doc/NDN-packet-spec/current/types.html
 PContent packetGetContent(uint8_t *packet, uint16_t len) {
     assert(packet[0] == TT_Data);
 

@@ -37,7 +37,13 @@ type ConsumerRxThread struct {
 	c *C.ConsumerRx
 }
 
-var channelIntegerMessage chan C.uint64_t
+type Message struct {
+	isError   bool // Nack Packet, Application Level Nack
+	intValue  C.uint64_t
+	byteValue []byte
+}
+
+var channel chan Message
 
 func newConsumer(face iface.IFace, settings ConsumerSettings) (consumer *Consumer, e error) {
 	socket := face.GetNumaSocket()
@@ -63,7 +69,7 @@ func newConsumer(face iface.IFace, settings ConsumerSettings) (consumer *Consume
 		return nil, fmt.Errorf("settings: %s", e)
 	}
 
-	channelIntegerMessage = make(chan C.uint64_t)
+	channel = make(chan Message)
 
 	return consumer, nil
 }
@@ -74,7 +80,7 @@ func (consumer *Consumer) GetFace() iface.IFace {
 
 func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error) {
 	if len(settings.FilePath) == 0 {
-		e := errors.New("yaml: filepath not defined or empty string\n")
+		e := errors.New("yaml: filepath not defined or empty string")
 		return e
 	}
 
@@ -102,13 +108,14 @@ func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error)
 	C.registerRxCallbacks(consumer.Rx.c)
 	C.registerTxCallbacks(consumer.Tx.c)
 
+	C.ConsumerRx_ResetCounters(consumer.Rx.c)
+
 	return nil
 }
 
 // Launch the RX thread.
 func (rx ConsumerRxThread) Launch() error {
 	return rx.LaunchImpl(func() int {
-		fmt.Println("Rx Thread started")
 		C.ConsumerRx_Run(rx.c)
 		return 0
 	})
@@ -135,7 +142,6 @@ func (consumer *Consumer) Close() error {
 // Open file
 func (tx *ConsumerTxThread) OpenFile() (e error) {
 	e = tx.LaunchImpl(func() int {
-		fmt.Println("Sending open file system call Interest from Tx")
 		suffix, e := ndn.ParseName("/" + C.XRDNDNDPDK_SYSCALL_OPEN_URI + tx.FilePath)
 		if e != nil {
 			return -1
@@ -150,12 +156,7 @@ func (tx *ConsumerTxThread) OpenFile() (e error) {
 			return -1
 		}
 
-		C.ConsumerTx_SendOpenInterest(tx.c, &lname) /******************************************************************************
-		 * Created on Mon Oct 21 2019
-		 *
-		 * Copyright (c) 2019 California Institute of Technology
-		 *****************************************************************************/
-
+		C.ConsumerTx_sendInterest(tx.c, &lname)
 		return 0
 	})
 
@@ -163,37 +164,67 @@ func (tx *ConsumerTxThread) OpenFile() (e error) {
 		return e
 	}
 
-	openRetCode := <-channelIntegerMessage
-	if openRetCode != C.XRDNDNDPDK_ESUCCESS {
-		return fmt.Errorf("Unable to open file: %s\n", tx.FilePath)
-	} else {
-		fmt.Println("Successfully opened file: ", tx.FilePath)
+	m := <-channel
+
+	if m.intValue != C.XRDNDNDPDK_ESUCCESS {
+		return fmt.Errorf("Unable to open file: %s", tx.FilePath)
 	}
 
 	return nil
 }
 
-// //export onDataCallback_Go
-// func onDataCallback_Go(content *C.struct_PContent) {
-// 	fmt.Println("onDataCallback_Go")
-// 	fmt.Println("Content offset: ", content.offset, " Content length: ", content.length)
+// Fstat file
+func (tx *ConsumerTxThread) FstatFile() (data []byte, e error) {
+	e = tx.LaunchImpl(func() int {
+		suffix, e := ndn.ParseName("/" + C.XRDNDNDPDK_SYSCALL_FSTAT_URI + tx.FilePath)
+		if e != nil {
+			return -1
+		}
 
-// 	gSlice := (*[1 << 30]C.uint8_t)(unsafe.Pointer(content.buff))[:content.length]
-// 	fmt.Println(gSlice)
-// }
+		nameV := unsafe.Pointer(C.malloc(C.uint64_t(suffix.Size())))
+		defer C.free(nameV)
 
-//export onOpenDataCallback_Go
-func onOpenDataCallback_Go(openRetCode C.uint64_t) {
-	fmt.Println("Rx callback to openData")
+		var lname C.LName
+		e = suffix.CopyToLName(unsafe.Pointer(&lname), nameV, uintptr(suffix.Size()))
+		if e != nil {
+			return -1
+		}
+
+		C.ConsumerTx_sendInterest(tx.c, &lname)
+		return 0
+	})
+
+	if e != nil {
+		return nil, e
+	}
+
+	m := <-channel
+
+	if m.isError {
+		return nil, fmt.Errorf("Unable to call fstat on file: %s", tx.FilePath)
+	}
+
+	return m.byteValue, nil
+}
+
+//export onContentCallback_Go
+func onContentCallback_Go(content *C.struct_PContent) {
+	contentSlice := C.GoBytes(unsafe.Pointer(content.buff), C.int(content.length))
 	go func() {
-		channelIntegerMessage <- openRetCode
+		channel <- Message{false, C.XRDNDNDPDK_ESUCCESS, contentSlice}
+	}()
+}
+
+//export onNonNegativeIntegerCallback_Go
+func onNonNegativeIntegerCallback_Go(retCode C.uint64_t) {
+	go func() {
+		channel <- Message{false, retCode, nil}
 	}()
 }
 
 //export onErrorCallback_Go
-func onErrorCallback_Go() {
-	fmt.Println("Rx callback to error")
+func onErrorCallback_Go(errorCode C.uint64_t) {
 	go func() {
-		channelIntegerMessage <- C.uint64_t(C.XRDNDNDPDK_EFAILURE)
+		channel <- Message{true, errorCode, nil}
 	}()
 }

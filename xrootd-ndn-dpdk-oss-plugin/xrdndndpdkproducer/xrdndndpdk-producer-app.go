@@ -19,7 +19,7 @@ import (
 const (
 	LCoreRole_Input    = iface.LCoreRole_RxLoop
 	LCoreRole_Output   = iface.LCoreRole_TxLoop
-	LCoreRole_Producer = "XRDPR"
+	LCoreRole_Producer = "ProducerRx"
 )
 
 type App struct {

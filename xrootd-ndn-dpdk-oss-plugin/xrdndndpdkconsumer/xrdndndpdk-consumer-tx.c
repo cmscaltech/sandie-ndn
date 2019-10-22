@@ -20,30 +20,31 @@
 
 #include "../../../ndn-dpdk/core/logger.h"
 
+#include "../xrdndndpdk-common/xrdndndpdk-namespace.h"
 #include "xrdndndpdk-consumer-tx.h"
 
 INIT_ZF_LOG(Xrdndndpdkconsumer);
 
 /**
- * @brief Send Open Interest over NDN
+ * @brief Send one Interest packet over NDN network
  *
  * @param ct ConsumerTx struct pointer
- * @param suffix Suffix of Name
+ * @param suffix Suffix of Interest Name
  */
-void ConsumerTx_SendOpenInterest(ConsumerTx *ct, struct LName *suffix) {
-    ZF_LOGD("Sending Interest for file open systemcall");
+void ConsumerTx_sendInterest(ConsumerTx *ct, struct LName *suffix) {
+    ZF_LOGD("Send Interest packet");
 
-    struct rte_mbuf *openInterestPkt = rte_pktmbuf_alloc(ct->interestMp);
-    if (NULL == openInterestPkt) {
-        ZF_LOGE("interestMp-full");
-        ct->onError();
+    struct rte_mbuf *interestPkt = rte_pktmbuf_alloc(ct->interestMp);
+    if (NULL == interestPkt) {
+        ZF_LOGF("interestMp-full");
+        ct->onError(XRDNDNDPDK_EFAILURE);
         return;
     }
 
-    openInterestPkt->data_off = ct->interestMbufHeadroom;
-    EncodeInterest(openInterestPkt, &ct->tpl, ct->tplPrepareBuffer, *suffix,
+    interestPkt->data_off = ct->interestMbufHeadroom;
+    EncodeInterest(interestPkt, &ct->tpl, ct->tplPrepareBuffer, *suffix,
                    NonceGen_Next(&ct->nonceGen), 0, NULL);
 
-    Packet_SetL3PktType(Packet_FromMbuf(openInterestPkt), L3PktType_Interest);
-    Face_Tx(ct->face, Packet_FromMbuf(openInterestPkt));
+    Packet_SetL3PktType(Packet_FromMbuf(interestPkt), L3PktType_Interest);
+    Face_Tx(ct->face, Packet_FromMbuf(interestPkt));
 }

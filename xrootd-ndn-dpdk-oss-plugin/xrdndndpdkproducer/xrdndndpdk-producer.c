@@ -18,74 +18,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include <stdio.h>
-
-#include "../../../ndn-dpdk/core/logger.h"
-
 #include "xrdndndpdk-producer.h"
 
 INIT_ZF_LOG(Xrdndndpdkproducer);
 
 /**
- * @brief Match Producer prefix with Interest Name prefix
+ * @brief Check if Interest Name prefix is recognized by this producer
  *
- * @param name Interest Name
- * @return true Interest Name prefix matches registered prefix on Producer
- * @return false Interest Name prefix does not matche registered prefix on
- * Producer
+ * @param name Interest Name as LName struct
+ * @return true Interest Name prefix is recognized by producer
+ * @return false Interest Name prefix is not recognized by producer
  */
 static bool Producer_checkForRegisteredPrefix(LName name) {
-    ZF_LOGD("Check registered prefix for Name: %s", name.value);
+    ZF_LOGD("Check for registered prefix");
 
-    if (likely(XRDNDNDPDK_SYCALL_PREFIX_ENCODE_SIZE <= name.length &&
-               memcmp(XRDNDNDPDK_SYCALL_PREFIX_ENCODE, name.value,
-                      XRDNDNDPDK_SYCALL_PREFIX_ENCODE_SIZE) == 0)) {
-        return true;
-    }
-
-    return false;
-}
-
-// TODO
-static Packet *Producer_getPacket_Data(Producer *producer, Packet *npkt,
-                                       uint8_t *payload, uint64_t payloadLen) {
-    uint64_t token = Packet_GetLpL3Hdr(npkt)->pitToken;
-    const LName name = *(const LName *)&Packet_GetInterestHdr(npkt)->name;
-
-    return NULL;
-}
-
-/**
- * @brief Get Data packet containing an uint64_t as content
- *
- * @param producer Pointer to Producer struct
- * @param npkt Packet received over NDN network
- * @param payload Content of packet
- * @return Packet* Data packet
- */
-static Packet *Producer_getNonNegativeInteger_Data(Producer *producer,
-                                                   Packet *npkt,
-                                                   uint64_t payload) {
-    uint64_t token = Packet_GetLpL3Hdr(npkt)->pitToken;
-    const LName name = *(const LName *)&Packet_GetInterestHdr(npkt)->name;
-
-    struct rte_mbuf *seg0 = rte_pktmbuf_alloc(producer->dataMp);
-    if (unlikely(seg0 == NULL)) {
-        ZF_LOGW("dataMp-full");
-        rte_pktmbuf_free(Packet_ToMbuf(npkt));
-        return NULL;
-    }
-
-    uint64_t v = rte_cpu_to_be_64(payload);
-    EncodeData(seg0, name, lnameStub, producer->freshnessPeriod,
-               sizeof(uint64_t), (uint8_t *)&v);
-    rte_pktmbuf_free(Packet_ToMbuf(npkt));
-
-    Packet *response = Packet_FromMbuf(seg0);
-    Packet_SetL2PktType(response, L2PktType_None);
-    Packet_InitLpL3Hdr(response)->pitToken = token;
-    Packet_SetL3PktType(response, L3PktType_Data);
-    return response;
+    return (XRDNDNDPDK_SYCALL_PREFIX_ENCODE_SIZE <= name.length &&
+            memcmp(XRDNDNDPDK_SYCALL_PREFIX_ENCODE, name.value,
+                   XRDNDNDPDK_SYCALL_PREFIX_ENCODE_SIZE) == 0);
 }
 
 /**
@@ -96,10 +45,68 @@ static Packet *Producer_getNonNegativeInteger_Data(Producer *producer,
  * @return Packet* Data packet Nack type
  */
 static Packet *Producer_getPacket_Nack(Packet *npkt, NackReason nackReason) {
-    ZF_LOGD("Composing Nack Data packet with reason: %d", nackReason);
+    ZF_LOGD("Get Nack Packet with reason: %d", nackReason);
 
     MakeNack(npkt, nackReason);
     return npkt;
+}
+
+/**
+ * @brief Create Packet to send over NDN network
+ *
+ * @param producer Pointer to Producer struct
+ * @param npkt Packet received over NDN network
+ * @param type Packet L3 type. L3PktType_MAX type used for application level
+ * Nack
+ * @param length Content length
+ * @param content Content of packet
+ * @return Packet* Packet to send over NDN network
+ */
+static Packet *Producer_getPacket(Producer *producer, Packet *npkt,
+                                  L3PktType type, uint64_t length,
+                                  uint8_t *content) {
+    ZF_LOGD("Get packet type: %d with content length: %d", type, length);
+
+    uint64_t token = Packet_GetLpL3Hdr(npkt)->pitToken;
+    const LName name = *(const LName *)&Packet_GetInterestHdr(npkt)->name;
+
+    struct rte_mbuf *seg0 = rte_pktmbuf_alloc(producer->dataMp);
+    if (unlikely(seg0 == NULL)) {
+        ZF_LOGW("dataMp-full");
+        rte_pktmbuf_free(Packet_ToMbuf(npkt));
+        return NULL;
+    }
+
+    EncodeData(seg0, name, lnameStub, producer->freshnessPeriod, length,
+               content);
+    rte_pktmbuf_free(Packet_ToMbuf(npkt));
+
+    Packet *response = Packet_FromMbuf(seg0);
+    Packet_SetL2PktType(response, L2PktType_None);
+    Packet_InitLpL3Hdr(response)->pitToken = token;
+    Packet_SetL3PktType(response, type);
+    return response;
+}
+
+/**
+ * @brief Get Data packet containing an uint64_t as content
+ *
+ * @param producer Pointer to Producer struct
+ * @param npkt Packet received over NDN network
+ * @param type Packet L3 type. L3PktType_MAX type used for application level
+ * Nack
+ * @param content Content of packet
+ * @return Packet* Data packet
+ */
+static Packet *Producer_getNonNegativeIntegerPacket(Producer *producer,
+                                                    Packet *npkt,
+                                                    L3PktType type,
+                                                    uint64_t content) {
+    ZF_LOGD("Get Data Packet with uint64_t as content");
+
+    uint64_t v = rte_cpu_to_be_64(content);
+    return Producer_getPacket(producer, npkt, L3PktType_Data, sizeof(uint64_t),
+                              (uint8_t *)&v);
 }
 
 /**
@@ -112,21 +119,25 @@ static Packet *Producer_getPacket_Nack(Packet *npkt, NackReason nackReason) {
  */
 static Packet *Producer_onOpenInterest(Producer *producer, Packet *npkt,
                                        const LName name) {
-    ZF_LOGD("Received Interest for file open system call");
     char *path = lnameGetFilePath(
         name, XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE_SIZE, false);
-    ZF_LOGI("Received Interest to open file: %s", path);
+
+    ZF_LOGI("Received open Interest for file: %s", path);
 
     uint64_t openReturnCode = 0;
-    if (open(path, O_RDONLY) == XRDNDNDPDK_EFAILURE) {
+    int fd;
+    if ((fd = open(path, O_RDONLY)) == -XRDNDNDPDK_EFAILURE) {
         openReturnCode = errno;
+    } else {
+        close(fd);
     }
 
     ZF_LOGI("Open file: %s with error code: %d (%s)", path, openReturnCode,
             strerror(openReturnCode));
 
     rte_free(path);
-    return Producer_getNonNegativeInteger_Data(producer, npkt, openReturnCode);
+    return Producer_getNonNegativeIntegerPacket(producer, npkt, L3PktType_Data,
+                                                openReturnCode);
 }
 
 /**
@@ -139,8 +150,31 @@ static Packet *Producer_onOpenInterest(Producer *producer, Packet *npkt,
  */
 static Packet *Producer_onFstatInterest(Producer *producer, Packet *npkt,
                                         const LName name) {
-    ZF_LOGD("Received Interest for file stat system call");
-    return NULL;
+    char *path = lnameGetFilePath(
+        name, XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE_SIZE, false);
+
+    ZF_LOGI("Received fstat Interest for file: %s", path);
+
+    struct stat *statbuf =
+        (struct stat *)rte_malloc(NULL, sizeof(struct stat), 0);
+
+    if (unlikely(stat(path, statbuf) == -XRDNDNDPDK_EFAILURE)) {
+        int fstatRetCode = errno;
+
+        ZF_LOGW("Fstat for file: %s failed with error code: %d (%s)", path,
+                fstatRetCode, strerror(fstatRetCode));
+
+        return Producer_getNonNegativeIntegerPacket(
+            producer, npkt, L3PktType_MAX, fstatRetCode);
+    }
+
+    ZF_LOGI("Fstat file: %s with success", path);
+
+    Packet *pkt = Producer_getPacket(producer, npkt, L3PktType_Data,
+                                     sizeof(struct stat), (uint8_t *)statbuf);
+    rte_free(path);
+    rte_free(statbuf);
+    return pkt;
 }
 
 /**
@@ -164,6 +198,7 @@ static const OnSystemCallInterest onSystemCallInterest[2] = {
  */
 static Packet *Producer_ProcessInterest(Producer *producer, Packet *npkt) {
     ZF_LOGD("Processing new Interest packet");
+
     const LName name = *(const LName *)&Packet_GetInterestHdr(npkt)->name;
 
     if (unlikely(!Producer_checkForRegisteredPrefix(name))) {
@@ -173,6 +208,7 @@ static Packet *Producer_ProcessInterest(Producer *producer, Packet *npkt) {
     }
 
     SystemCallId sid = lnameGetSystemCallId(name);
+
     if (unlikely(sid == SYSCALL_NOT_FOUND)) {
         ZF_LOGW("Unrecognized file system call for Interest Name: %s", name);
         return Producer_getPacket_Nack(npkt, NackReason_Unspecified);
@@ -184,10 +220,11 @@ static Packet *Producer_ProcessInterest(Producer *producer, Packet *npkt) {
 /**
  * @brief Main processing loop of current producer thread
  *
- * @param producer Pointer to Producer structure
+ * @param producer Pointer to Producer struct
  */
 void Producer_Run(Producer *producer) {
-    ZF_LOGD("Started producer thread");
+    ZF_LOGI("Started producer instance on socket: %d lcore %d", rte_socket_id(),
+            rte_lcore_id());
 
     Packet *rx[PRODUCER_BURST_SIZE];
     Packet *tx[PRODUCER_BURST_SIZE];

@@ -5,5 +5,6 @@
     local: "e4:1d:2d:62:0c:66"
     remote: "24:8a:07:55:29:cc"
   consumer:
-    mustbefresh: true
+    mustbefresh: false
+    canbeprefix: false
     filepath: /root/test.txt

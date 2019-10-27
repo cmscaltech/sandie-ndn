@@ -18,12 +18,16 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include "../../../ndn-dpdk/core/logger.h"
-
-#include "../xrdndndpdk-common/xrdndndpdk-namespace.h"
 #include "xrdndndpdk-consumer-tx.h"
 
 INIT_ZF_LOG(Xrdndndpdkconsumer);
+
+/**
+ * @brief Reset ConsumerTx struct counters used for statistic
+ *
+ * @param ct ConsumerTx struct pointer
+ */
+void ConsumerTx_resetCounters(ConsumerTx *ct) { ct->nInterests = 0; }
 
 /**
  * @brief Send one Interest packet over NDN network
@@ -32,7 +36,7 @@ INIT_ZF_LOG(Xrdndndpdkconsumer);
  * @param suffix Suffix of Interest Name
  */
 void ConsumerTx_sendInterest(ConsumerTx *ct, struct LName *suffix) {
-    ZF_LOGD("Send Interest packet");
+    ZF_LOGD("Send Interest packet for open/fstat file system call");
 
     struct rte_mbuf *interestPkt = rte_pktmbuf_alloc(ct->interestMp);
     if (NULL == interestPkt) {
@@ -42,9 +46,53 @@ void ConsumerTx_sendInterest(ConsumerTx *ct, struct LName *suffix) {
     }
 
     interestPkt->data_off = ct->interestMbufHeadroom;
-    EncodeInterest(interestPkt, &ct->tpl, ct->tplPrepareBuffer, *suffix,
+    EncodeInterest(interestPkt, &ct->prefixTpl, ct->prefixTplBuf, *suffix,
                    NonceGen_Next(&ct->nonceGen), 0, NULL);
 
     Packet_SetL3PktType(Packet_FromMbuf(interestPkt), L3PktType_Interest);
+    Packet_InitLpL3Hdr(Packet_FromMbuf(interestPkt));
     Face_Tx(ct->face, Packet_FromMbuf(interestPkt));
+    ++ct->nInterests;
+}
+
+/**
+ * @brief Send multiple Interest packets over NDN network. Used for read file
+ * system call
+ *
+ * @param ct ConsumerTx struct pointer
+ * @param off Starting point of segment number composion
+ * @param n Number of packets to send
+ */
+void ConsumerTx_sendInterests(ConsumerTx *ct, uint64_t off, uint16_t n) {
+    ZF_LOGD(
+        "Sending %d Interest packets for read file system call starting @%d", n,
+        off);
+
+    assert(n <= CONSUMER_MAX_BURST_SIZE);
+
+    Packet *npkts[n];
+    int ret =
+        rte_pktmbuf_alloc_bulk(ct->interestMp, (struct rte_mbuf **)npkts, n);
+
+    if (unlikely(ret != 0)) {
+        ZF_LOGW("interestMp-full");
+        return;
+    }
+
+    for (uint16_t i = 0; i < n; ++i) {
+        struct rte_mbuf *pkt = Packet_ToMbuf(npkts[i]);
+        pkt->data_off = ct->interestMbufHeadroom;
+
+        ct->segmentNumberComponent.compV = off + i * XRDNDNDPDK_PACKET_SIZE;
+        LName lnameSegmentNo = {.length = SEGMENT_NO_COMPONENT_SIZE,
+                                .value = &ct->segmentNumberComponent.compT};
+
+        EncodeInterest(pkt, &ct->readPrefixTpl, ct->readPrefixTplBuf,
+                       lnameSegmentNo, NonceGen_Next(&ct->nonceGen), 0, NULL);
+        Packet_SetL3PktType(npkts[i], L3PktType_Interest);
+        Packet_InitLpL3Hdr(npkts[i]);
+    }
+
+    Face_TxBurst(ct->face, npkts, n);
+    ct->nInterests += n;
 }

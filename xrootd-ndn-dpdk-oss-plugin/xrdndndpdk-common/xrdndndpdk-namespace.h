@@ -22,6 +22,24 @@
 #define XRDNDNDPDK_NAMESPACE_H
 
 /**
+ * @brief Data packet size
+ *
+ */
+#define XRDNDNDPDK_PACKET_SIZE 7168
+
+/**
+ * @brief Consumer maximum burst size
+ *
+ */
+#define CONSUMER_MAX_BURST_SIZE 256
+
+/**
+ * @brief Producer maximum burst size
+ *
+ */
+#define PRODUCER_MAX_BURST_SIZE 256
+
+/**
  * @brief Success error code
  *
  */
@@ -125,6 +143,7 @@ typedef enum SystemCallId {
     SYSCALL_FSTAT_ID,
     SYSCALL_READ_ID,
 
+    SYSCALL_MAX_ID,
     SYSCALL_NOT_FOUND,
 } SystemCallId;
 

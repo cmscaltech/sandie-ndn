@@ -26,12 +26,10 @@
 
 #include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 
-#define CONSUMER_RX_BURST_SIZE 64
-
-typedef void (*onContentCallback)(struct PContent *);
+typedef void (*onContentCallback)(struct PContent *, uint64_t);
 typedef void (*onNonNegativeIntegerDataCallback)(uint64_t);
 
-void onContentCallback_Go(struct PContent *);
+void onContentCallback_Go(struct PContent *content, uint64_t off);
 
 void onNonNegativeIntegerCallback_Go(uint64_t retCode);
 void onErrorCallback_Go(uint64_t errorCode);
@@ -53,7 +51,7 @@ typedef struct ConsumerRx {
     onNonNegativeIntegerDataCallback onError;
 } ConsumerRx;
 
-void ConsumerRx_ResetCounters(ConsumerRx *cr);
+void ConsumerRx_resetCounters(ConsumerRx *cr);
 void ConsumerRx_Run(ConsumerRx *cr);
 
 static void registerRxCallbacks(ConsumerRx *cr) {

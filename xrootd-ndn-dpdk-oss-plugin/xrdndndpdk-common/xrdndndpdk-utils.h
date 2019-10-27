@@ -25,7 +25,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -36,6 +35,8 @@
 #include "../../../ndn-dpdk/ndn/name.h"
 
 #include "xrdndndpdk-namespace.h"
+
+#define SEGMENT_NO_COMPONENT_SIZE 10 // 1B Type, 1B Length, 8B sizeof(uint64_t)
 
 /**
  * @brief Empty LName structure
@@ -59,12 +60,20 @@ typedef struct PContent {
 /**
  * @brief Get file path from LName
  *
- * @param lname LName struct
- * @param lnameOff Offset of filepath in name. Skip prefix and system call name
+ * @param name LName struct
+ * @param nameOff Offset of filepath in name. Skip prefix and system call name
  * @param hasSegmentNo Packet Name contains segment number
  * @return char* The path to the file
  */
-char *lnameGetFilePath(const LName lname, uint16_t lnameOff, bool hasSegmentNo);
+char *lnameGetFilePath(const LName name, uint16_t nameOff, bool hasSegmentNo);
+
+/**
+ * @brief Get segment number (offset in file) from LName
+ *
+ * @param name Packet Name as LName struct
+ * @return uint64_t The offset in file as uint64_t
+ */
+uint64_t lnameGetSegmentNumber(const LName name);
 
 /**
  * @brief Get file system call id from Packet Name. See SystemCallId enum

@@ -70,18 +70,18 @@ static Packet *Producer_getPacket(Producer *producer, Packet *npkt,
     uint64_t token = Packet_GetLpL3Hdr(npkt)->pitToken;
     const LName name = *(const LName *)&Packet_GetInterestHdr(npkt)->name;
 
-    struct rte_mbuf *seg0 = rte_pktmbuf_alloc(producer->dataMp);
-    if (unlikely(seg0 == NULL)) {
+    struct rte_mbuf *pkt = rte_pktmbuf_alloc(producer->dataMp);
+    if (unlikely(pkt == NULL)) {
         ZF_LOGW("dataMp-full");
         rte_pktmbuf_free(Packet_ToMbuf(npkt));
         return NULL;
     }
 
-    EncodeData(seg0, name, lnameStub, producer->freshnessPeriod, length,
+    EncodeData(pkt, name, lnameStub, producer->freshnessPeriod, length,
                content);
     rte_pktmbuf_free(Packet_ToMbuf(npkt));
 
-    Packet *response = Packet_FromMbuf(seg0);
+    Packet *response = Packet_FromMbuf(pkt);
     Packet_SetL2PktType(response, L2PktType_None);
     Packet_InitLpL3Hdr(response)->pitToken = token;
     Packet_SetL3PktType(response, type);
@@ -158,6 +158,10 @@ static Packet *Producer_onFstatInterest(Producer *producer, Packet *npkt,
     struct stat *statbuf =
         (struct stat *)rte_malloc(NULL, sizeof(struct stat), 0);
 
+    if (unlikely(NULL == statbuf)) {
+        ZF_LOGE("Not enough memory");
+    }
+
     if (unlikely(stat(path, statbuf) == -XRDNDNDPDK_EFAILURE)) {
         int fstatRetCode = errno;
 
@@ -178,15 +182,90 @@ static Packet *Producer_onFstatInterest(Producer *producer, Packet *npkt,
 }
 
 /**
+ * @brief Process Interest for read file system call
+ *
+ * @param producer Producer struct pointer
+ * @param npkt Packet received over NDN network
+ * @param name Name from packet
+ * @return Packet* Response packet to Interest for read file system call
+ */
+static Packet *Producer_onReadInterest(Producer *producer, Packet *npkt,
+                                       const LName name) {
+    char *path =
+        lnameGetFilePath(name, XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE, true);
+
+    ZF_LOGD("Received read Interest for file: %s", path);
+
+    uint64_t off = lnameGetSegmentNumber(name);
+    ZF_LOGI("Read %dB @%d from file: %s", XRDNDNDPDK_PACKET_SIZE, off, path);
+
+    int readRetCode;
+    int fd;
+
+    if (unlikely((fd = open(path, O_RDONLY)) == -XRDNDNDPDK_EFAILURE)) {
+        readRetCode = errno;
+
+        ZF_LOGI("Open file: %s with error code: %d (%s)", path, readRetCode,
+                strerror(readRetCode));
+
+        return Producer_getNonNegativeIntegerPacket(producer, npkt,
+                                                    L3PktType_MAX, readRetCode);
+    }
+
+    void *buf = rte_malloc(NULL, sizeof(uint8_t) * XRDNDNDPDK_PACKET_SIZE, 0);
+    if (unlikely(NULL == buf)) {
+        ZF_LOGE("Not enough memory");
+
+        rte_free(path);
+        close(fd);
+
+        return Producer_getNonNegativeIntegerPacket(
+            producer, npkt, L3PktType_MAX, XRDNDNDPDK_EFAILURE);
+    }
+
+    readRetCode = pread(fd, buf, XRDNDNDPDK_PACKET_SIZE, off);
+    if (unlikely(readRetCode == -XRDNDNDPDK_EFAILURE)) {
+        readRetCode = errno;
+        ZF_LOGW("Read from file: %s @%d failed with error code: %d (%s)", path,
+                off, readRetCode, strerror(readRetCode));
+
+        close(fd);
+        rte_free(path);
+        rte_free(buf);
+
+        return Producer_getNonNegativeIntegerPacket(producer, npkt,
+                                                    L3PktType_MAX, readRetCode);
+    }
+
+    close(fd);
+
+    ZF_LOGD("Read from file: %s @%d %dB", path, off, readRetCode);
+
+    Packet *pkt;
+    if (likely(readRetCode != 0)) {
+        pkt = Producer_getPacket(producer, npkt, L3PktType_Data, readRetCode,
+                                 (uint8_t *)buf);
+    } else {
+        pkt = Producer_getNonNegativeIntegerPacket(producer, npkt,
+                                                   L3PktType_MAX, readRetCode);
+    }
+
+    rte_free(path);
+    rte_free(buf);
+    return pkt;
+}
+
+/**
  * @brief Function prototype for processing Interest packets
  *
  */
 typedef Packet *(*OnSystemCallInterest)(Producer *producer, Packet *npkt,
                                         const LName name);
 
-static const OnSystemCallInterest onSystemCallInterest[2] = {
+static const OnSystemCallInterest onSystemCallInterest[SYSCALL_MAX_ID] = {
     [SYSCALL_OPEN_ID] = Producer_onOpenInterest,
     [SYSCALL_FSTAT_ID] = Producer_onFstatInterest,
+    [SYSCALL_READ_ID] = Producer_onReadInterest,
 };
 
 /**
@@ -196,7 +275,7 @@ static const OnSystemCallInterest onSystemCallInterest[2] = {
  * @param npkt Packet received over NDN network
  * @return Packet* Response packet to received Interest
  */
-static Packet *Producer_ProcessInterest(Producer *producer, Packet *npkt) {
+static Packet *Producer_processInterest(Producer *producer, Packet *npkt) {
     ZF_LOGD("Processing new Interest packet");
 
     const LName name = *(const LName *)&Packet_GetInterestHdr(npkt)->name;
@@ -226,17 +305,17 @@ void Producer_Run(Producer *producer) {
     ZF_LOGI("Started producer instance on socket: %d lcore %d", rte_socket_id(),
             rte_lcore_id());
 
-    Packet *rx[PRODUCER_BURST_SIZE];
-    Packet *tx[PRODUCER_BURST_SIZE];
+    Packet *rx[PRODUCER_MAX_BURST_SIZE];
+    Packet *tx[PRODUCER_MAX_BURST_SIZE];
 
     while (ThreadStopFlag_ShouldContinue(&producer->stop)) {
         uint16_t nRx = rte_ring_sc_dequeue_burst(producer->rxQueue, (void **)rx,
-                                                 PRODUCER_BURST_SIZE, NULL);
+                                                 PRODUCER_MAX_BURST_SIZE, NULL);
         uint16_t nTx = 0;
         for (uint16_t i = 0; i < nRx; ++i) {
             Packet *npkt = rx[i];
             assert(Packet_GetL3PktType(npkt) == L3PktType_Interest);
-            tx[nTx] = Producer_ProcessInterest(producer, npkt);
+            tx[nTx] = Producer_processInterest(producer, npkt);
             nTx += (tx[nTx] != NULL);
         }
 

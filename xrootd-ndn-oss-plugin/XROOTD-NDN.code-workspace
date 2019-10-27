@@ -99,9 +99,10 @@
 			"any": "cpp",
 			"token.h": "c",
 			"logger.h": "c",
-			"assert.h": "c"
+			"assert.h": "c",
+			"xrdndndpdk-consumer-tx.h": "c"
 		},
-		"workbench.colorTheme": "Material Theme Ocean High Contrast",
+		"workbench.colorTheme": "Material Theme Palenight High Contrast",
 		"window.zoomLevel": -1,
 		"fileHeaderComment.parameter":{
 			"*":{

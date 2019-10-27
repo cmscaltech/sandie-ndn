@@ -1,6 +1,7 @@
 package xrdndndpdkconsumer
 
 /*
+#include <math.h>
 #include "xrdndndpdk-consumer-rx.h"
 #include "xrdndndpdk-consumer-tx.h"
 #include "../xrdndndpdk-common/xrdndndpdk-namespace.h"
@@ -38,12 +39,14 @@ type ConsumerRxThread struct {
 }
 
 type Message struct {
-	isError   bool // Nack Packet, Application Level Nack
-	intValue  C.uint64_t
+	isError  bool // Nack Packet, Application Level Nack
+	intValue C.uint64_t
+
+	off       C.uint64_t
 	byteValue []byte
 }
 
-var channel chan Message
+var messages chan Message
 
 func newConsumer(face iface.IFace, settings ConsumerSettings) (consumer *Consumer, e error) {
 	socket := face.GetNumaSocket()
@@ -69,7 +72,7 @@ func newConsumer(face iface.IFace, settings ConsumerSettings) (consumer *Consume
 		return nil, fmt.Errorf("settings: %s", e)
 	}
 
-	channel = make(chan Message)
+	messages = make(chan Message)
 
 	return consumer, nil
 }
@@ -84,31 +87,61 @@ func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error)
 		return e
 	}
 
+	// Create template for open/fstat file system call Interest packets
+
 	prefix, e := ndn.ParseName(C.XRDNDNDPDK_SYSCALL_PREFIX_URI)
 	if e != nil {
 		return e
 	}
 
-	tpl := ndn.NewInterestTemplate()
-	tpl.SetNamePrefix(prefix)
-	tpl.SetMustBeFresh(settings.MustBeFresh)
+	prefixTpl := ndn.NewInterestTemplate()
+	prefixTpl.SetNamePrefix(prefix)
+	prefixTpl.SetMustBeFresh(settings.MustBeFresh)
 	if settings.InterestLifetime != 0 {
-		tpl.SetInterestLifetime(settings.InterestLifetime)
+		prefixTpl.SetInterestLifetime(settings.InterestLifetime)
 	}
 
-	if e = tpl.CopyToC(unsafe.Pointer(&consumer.Tx.c.tpl),
-		unsafe.Pointer(&consumer.Tx.c.tplPrepareBuffer),
-		unsafe.Sizeof(consumer.Tx.c.tplPrepareBuffer),
+	if e = prefixTpl.CopyToC(unsafe.Pointer(&consumer.Tx.c.prefixTpl),
+		unsafe.Pointer(&consumer.Tx.c.prefixTplBuf),
+		unsafe.Sizeof(consumer.Tx.c.prefixTplBuf),
 		unsafe.Pointer(&consumer.Tx.c.prefixBuffer),
 		unsafe.Sizeof(consumer.Tx.c.prefixBuffer)); e != nil {
 		return e
 	}
 
+	// Create template for read file system call Interest packets
+
+	readPrefix, e := ndn.ParseName(C.XRDNDNDPDK_SYSCALL_PREFIX_URI +
+		"/" + C.XRDNDNDPDK_SYSCALL_READ_URI + settings.FilePath)
+	if e != nil {
+		return e
+	}
+
+	readPrefixTpl := ndn.NewInterestTemplate()
+	readPrefixTpl.SetNamePrefix(readPrefix)
+	readPrefixTpl.SetMustBeFresh(settings.MustBeFresh)
+	if settings.InterestLifetime != 0 {
+		readPrefixTpl.SetInterestLifetime(settings.InterestLifetime)
+	}
+
+	if e = readPrefixTpl.CopyToC(unsafe.Pointer(&consumer.Tx.c.readPrefixTpl),
+		unsafe.Pointer(&consumer.Tx.c.readPrefixTplBuf),
+		unsafe.Sizeof(consumer.Tx.c.readPrefixTplBuf),
+		unsafe.Pointer(&consumer.Tx.c.readBuffer),
+		unsafe.Sizeof(consumer.Tx.c.readBuffer)); e != nil {
+		return e
+	}
+
+	consumer.Tx.c.segmentNumberComponent.compT = C.TT_GenericNameComponent
+	consumer.Tx.c.segmentNumberComponent.compL = C.uint8_t(C.sizeof_uint64_t)
+	consumer.Tx.c.segmentNumberComponent.compV = C.uint64_t(0)
+
 	consumer.Tx.FilePath = settings.FilePath
 	C.registerRxCallbacks(consumer.Rx.c)
 	C.registerTxCallbacks(consumer.Tx.c)
 
-	C.ConsumerRx_ResetCounters(consumer.Rx.c)
+	C.ConsumerRx_resetCounters(consumer.Rx.c)
+	C.ConsumerTx_resetCounters(consumer.Tx.c)
 
 	return nil
 }
@@ -164,7 +197,7 @@ func (tx *ConsumerTxThread) OpenFile() (e error) {
 		return e
 	}
 
-	m := <-channel
+	m := <-messages
 
 	if m.intValue != C.XRDNDNDPDK_ESUCCESS {
 		return fmt.Errorf("Unable to open file: %s", tx.FilePath)
@@ -198,7 +231,7 @@ func (tx *ConsumerTxThread) FstatFile() (data []byte, e error) {
 		return nil, e
 	}
 
-	m := <-channel
+	m := <-messages
 
 	if m.isError {
 		return nil, fmt.Errorf("Unable to call fstat on file: %s", tx.FilePath)
@@ -207,24 +240,51 @@ func (tx *ConsumerTxThread) FstatFile() (data []byte, e error) {
 	return m.byteValue, nil
 }
 
+// Read from file
+func (tx *ConsumerTxThread) Read(off C.uint64_t, size C.uint64_t) (data []byte, e error) {
+	n := C.uint16_t(C.ceil(C.double(size) / C.double(C.XRDNDNDPDK_PACKET_SIZE)))
+
+	e = tx.LaunchImpl(func() int {
+		C.ConsumerTx_sendInterests(tx.c, off, n)
+		return 0
+	})
+
+	if e != nil {
+		return nil, e
+	}
+
+	data = make([]byte, size)
+	for i := C.uint16_t(0); i < n; i++ {
+		m := <-messages
+
+		if m.isError {
+			return nil, fmt.Errorf("File offset read")
+		}
+
+		copy(data[(m.off-off)/C.XRDNDNDPDK_PACKET_SIZE:], m.byteValue)
+	}
+
+	return data, e
+}
+
 //export onContentCallback_Go
-func onContentCallback_Go(content *C.struct_PContent) {
+func onContentCallback_Go(content *C.struct_PContent, off C.uint64_t) {
 	contentSlice := C.GoBytes(unsafe.Pointer(content.buff), C.int(content.length))
-	go func() {
-		channel <- Message{false, C.XRDNDNDPDK_ESUCCESS, contentSlice}
-	}()
+	go func(channel chan<- Message) {
+		channel <- Message{false, C.XRDNDNDPDK_ESUCCESS, off, contentSlice}
+	}(messages)
 }
 
 //export onNonNegativeIntegerCallback_Go
 func onNonNegativeIntegerCallback_Go(retCode C.uint64_t) {
-	go func() {
-		channel <- Message{false, retCode, nil}
-	}()
+	go func(channel chan<- Message) {
+		channel <- Message{false, retCode, 0, nil}
+	}(messages)
 }
 
 //export onErrorCallback_Go
 func onErrorCallback_Go(errorCode C.uint64_t) {
-	go func() {
-		channel <- Message{true, errorCode, nil}
-	}()
+	go func(channel chan<- Message) {
+		channel <- Message{true, errorCode, 0, nil}
+	}(messages)
 }

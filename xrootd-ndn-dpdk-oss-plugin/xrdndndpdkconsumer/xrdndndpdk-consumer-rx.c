@@ -18,9 +18,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include <stdio.h>
-
-#include "../../../ndn-dpdk/core/logger.h"
 #include "../../../ndn-dpdk/ndn/packet.h"
 
 #include "xrdndndpdk-consumer-rx.h"
@@ -28,7 +25,7 @@
 INIT_ZF_LOG(Xrdndndpdkconsumer);
 
 // TODO:
-static void ConsumerRx_ProcessNackPacket(ConsumerRx *cr, Packet *npkt) {
+static void ConsumerRx_processNackPacket(ConsumerRx *cr, Packet *npkt) {
     ZF_LOGD("Process Nack packet");
     ++cr->nNacks;
 
@@ -39,7 +36,7 @@ static void ConsumerRx_ProcessNackPacket(ConsumerRx *cr, Packet *npkt) {
 }
 
 // Temporary solution for application level Nack
-static void ConsumerRx_ProcessMaxPacket(ConsumerRx *cr, Packet *npkt) {
+static void ConsumerRx_processMaxPacket(ConsumerRx *cr, Packet *npkt) {
     ZF_LOGD("Process MAX packet");
     ++cr->nErrors;
     // TODO: Process content and get nonNegativeInteger from it
@@ -68,7 +65,7 @@ static uint64_t ConsumerRx_readNonNegativeInteger(PContent *content) {
  * @param npkt Packet
  * @param content PContent struct
  */
-static void ConsumerRx_ProcessContent(ConsumerRx *cr, Packet *npkt,
+static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
                                       PContent *content) {
     ZF_LOGD("Process Content from Data packet");
 
@@ -80,19 +77,26 @@ static void ConsumerRx_ProcessContent(ConsumerRx *cr, Packet *npkt,
     SystemCallId sid = lnameGetSystemCallId(name);
 
     if (SYSCALL_OPEN_ID == sid) {
-        ZF_LOGD("Return content for open filesystem call");
+        ZF_LOGI("Return content for open filesystem call");
         uint64_t openRetCode = ConsumerRx_readNonNegativeInteger(content);
         cr->onNonNegativeInteger(openRetCode);
     } else if (SYSCALL_FSTAT_ID == sid) {
-        ZF_LOGD("Return content for stat filesystem call");
-        cr->onContent(content);
+        ZF_LOGI("Return content for stat filesystem call");
+        cr->onContent(content, 0);
     } else if (likely(SYSCALL_READ_ID == sid)) {
-        // TODO:
-        ZF_LOGD("Return content for read filesystem call");
+        ZF_LOGI("Return content for read filesystem call @%d",
+                lnameGetSegmentNumber(name));
+        cr->onContent(content, lnameGetSegmentNumber(name));
     }
 }
 
-static void ConsumerRx_ProcessDataPacket(ConsumerRx *cr, Packet *npkt) {
+/**
+ * @brief Process Data packet
+ *
+ * @param cr ConsumerRx struct pointer
+ * @param npkt Packet received over NDN network
+ */
+static void ConsumerRx_processDataPacket(ConsumerRx *cr, Packet *npkt) {
     ZF_LOGD("Process new Data packet");
 
     NdnError e = Packet_ParseL3(npkt, NULL);
@@ -114,6 +118,8 @@ static void ConsumerRx_ProcessDataPacket(ConsumerRx *cr, Packet *npkt) {
     int32_t length = pkt->pkt_len;
     uint8_t *payload = rte_malloc(NULL, length, 0);
 
+    ZF_LOGD("Received packet with length: %d", length);
+
     // Composing payload from all nb_segs
     for (int offset = 0; NULL != pkt;) {
         rte_memcpy(&payload[offset], rte_pktmbuf_mtod(pkt, uint8_t *),
@@ -130,28 +136,38 @@ static void ConsumerRx_ProcessDataPacket(ConsumerRx *cr, Packet *npkt) {
     rte_free(payload);
 
     cr->nBytes += content.length;
-    ConsumerRx_ProcessContent(cr, npkt, &content);
+    ConsumerRx_processContent(cr, npkt, &content);
 
     rte_free(content.buff);
     ++cr->nData;
 }
 
-void ConsumerRx_ResetCounters(ConsumerRx *cr) {
+/**
+ * @brief Reset ConsumerTx struct counters used for statistic
+ *
+ * @param cr ConsumerRx struct pointer
+ */
+void ConsumerRx_resetCounters(ConsumerRx *cr) {
     cr->nData = 0;
     cr->nNacks = 0;
     cr->nBytes = 0;
     cr->nErrors = 0;
 }
 
+/**
+ * @brief Main processing loop of current consumer thread
+ *
+ * @param cr ConsumerRx struct pointer
+ */
 void ConsumerRx_Run(ConsumerRx *cr) {
     ZF_LOGI("Started consumer Rx instance on socket: %d lcore %d",
             rte_socket_id(), rte_lcore_id());
 
-    Packet *npkts[CONSUMER_RX_BURST_SIZE];
+    Packet *npkts[CONSUMER_MAX_BURST_SIZE];
 
     while (ThreadStopFlag_ShouldContinue(&cr->stop)) {
         uint16_t nRx = rte_ring_sc_dequeue_burst(cr->rxQueue, (void **)npkts,
-                                                 CONSUMER_RX_BURST_SIZE, NULL);
+                                                 CONSUMER_MAX_BURST_SIZE, NULL);
         for (uint16_t i = 0; i < nRx; ++i) {
             Packet *npkt = npkts[i];
             if (unlikely(Packet_GetL2PktType(npkt) != L2PktType_NdnlpV2)) {
@@ -159,13 +175,13 @@ void ConsumerRx_Run(ConsumerRx *cr) {
             }
             switch (Packet_GetL3PktType(npkt)) {
             case L3PktType_Data:
-                ConsumerRx_ProcessDataPacket(cr, npkt);
+                ConsumerRx_processDataPacket(cr, npkt);
                 break;
             case L3PktType_Nack:
-                ConsumerRx_ProcessNackPacket(cr, npkt);
+                ConsumerRx_processNackPacket(cr, npkt);
                 break;
             case L3PktType_MAX:
-                ConsumerRx_ProcessMaxPacket(cr, npkt);
+                ConsumerRx_processMaxPacket(cr, npkt);
                 break;
             default:
                 assert(false);

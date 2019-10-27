@@ -3,12 +3,16 @@ package xrdndndpdkconsumer
 /*
 #include <sys/stat.h>
 #include "../xrdndndpdk-common/xrdndndpdk-input.h"
+#include "../xrdndndpdk-common/xrdndndpdk-namespace.h"
 */
 import "C"
 import (
 	"errors"
 	"fmt"
+	"time"
 	"unsafe"
+
+	"github.com/cheggaaa/pb"
 
 	"ndn-dpdk/appinit"
 	"ndn-dpdk/dpdk"
@@ -155,7 +159,7 @@ func (app *App) CopyFileOverNDN() (e error) {
 		return e
 	}
 	app.task.consumer.Tx.Stop()
-	fmt.Println("Successfully opened file: ", app.task.consumer.Tx.FilePath)
+	fmt.Println("-> successfully opened file:", app.task.consumer.Tx.FilePath)
 
 	data, e := app.task.consumer.Tx.FstatFile()
 	if e != nil {
@@ -164,9 +168,60 @@ func (app *App) CopyFileOverNDN() (e error) {
 	}
 	app.task.consumer.Tx.Stop()
 
-	fileSize := (*C.struct_stat)(unsafe.Pointer(&data[0])).st_size
-	fmt.Printf("File size: %dB\n", fileSize)
+	fileSize := C.uint64_t((*C.struct_stat)(unsafe.Pointer(&data[0])).st_size)
+	fmt.Printf("-> file size: %d bytes\n", fileSize)
 
+	chunkSize := C.uint64_t(C.XRDNDNDPDK_PACKET_SIZE * (C.CONSUMER_MAX_BURST_SIZE - 2))
+	bufSize := C.uint64_t(0)
+
+	pBar := pb.New(int(fileSize))
+	pBar.ShowPercent = true
+	pBar.ShowCounters = true
+	pBar.ShowTimeLeft = false
+	pBar.ShowFinalTime = false
+	pBar.SetMaxWidth(100)
+	pBar.Prefix("-> bytes:")
+
+	pBar.Start()
+	start := time.Now()
+
+	for i := C.uint64_t(0); i < fileSize; i += chunkSize {
+		if fileSize-i < chunkSize {
+			bufSize = fileSize - i
+		} else {
+			bufSize = chunkSize
+		}
+
+		data, e := app.task.consumer.Tx.Read(i, bufSize)
+		if e != nil {
+			app.task.Close()
+			return e
+		}
+
+		app.task.consumer.Tx.Stop()
+		pBar.Add(len(data))
+	}
+
+	elapsed := time.Since(start)
+	pBar.Finish()
+
+	fmt.Printf("---------------------------------------------------------\n")
+	fmt.Printf("--                 TRANSFER FILE REPORT                --\n")
+	fmt.Printf("---------------------------------------------------------\n")
+	fmt.Printf("-- Interest Packets : %d\n", app.task.consumer.Tx.c.nInterests)
+	fmt.Printf("-- Data Packets     : %d\n", app.task.consumer.Rx.c.nData)
+	fmt.Printf("-- Nack Packets     : %d\n", app.task.consumer.Rx.c.nNacks)
+	fmt.Printf("-- Errors           : %d\n\n", app.task.consumer.Rx.c.nErrors)
+	fmt.Printf("-- Maximum Packet size : %d Bytes\n", C.XRDNDNDPDK_PACKET_SIZE)
+	fmt.Printf("-- Read chunk size     : %d Bytes (%d packets)\n", chunkSize, C.CONSUMER_MAX_BURST_SIZE-2)
+	fmt.Printf("-- Bytes transmitted   : %d Bytes\n", app.task.consumer.Rx.c.nBytes)
+	fmt.Printf("-- Time elapsed        : %s\n\n", elapsed)
+	fmt.Printf("-- Throughput          : %.4f Mbit/s \n", (((float64(app.task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds())
+	fmt.Printf("---------------------------------------------------------\n")
+	fmt.Printf("---------------------------------------------------------\n")
+
+	// TODO: Remove this sleep
+	time.Sleep(5 * time.Second)
 	app.task.Close()
 	return nil
 }

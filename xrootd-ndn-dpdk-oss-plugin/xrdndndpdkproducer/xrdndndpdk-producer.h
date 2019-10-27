@@ -28,8 +28,6 @@
 
 #include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 
-#define PRODUCER_BURST_SIZE 64
-
 /**
  * @brief Producer struct
  *
@@ -37,7 +35,6 @@
 typedef struct Producer {
     struct rte_ring *rxQueue;
     struct rte_mempool *dataMp;
-    struct rte_mempool *indirectMp;
     FaceId face;
 
     uint32_t freshnessPeriod;

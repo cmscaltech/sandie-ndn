@@ -1,121 +1,103 @@
+/******************************************************************************
+ * Named Data Networking plugin for XRootD                                    *
+ * Copyright © 2019 California Institute of Technology                        *
+ *                                                                            *
+ * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
+ *                                                                            *
+ * This program is free software: you can redistribute it and/or modify       *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation, either version 3 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * This program is distributed in the hope that it will be useful,            *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
+ *****************************************************************************/
+
 #include "xrdndndpdk-utils.h"
 
-#include <stdio.h>
+INIT_ZF_LOG(Xrdndndpdkutils);
 
-/**
- * @brief TLV Name component representation
- *
- */
-typedef struct NameComponent {
-    uint16_t type;
-    uint16_t length;
-    uint8_t *value;
-} NameComponent;
+static uint64_t getLength(const uint8_t *buf, uint16_t *off) {
+    ZF_LOGD("Get Name component length");
+    uint64_t length = 0;
 
-/**
- * @brief All Name components in Packet LName
- *
- */
-typedef struct NameComponents {
-    NameComponent components[NAME_MAX_LENGTH];
-    uint16_t size;
-} NameComponents;
+    if (likely(buf[*off] <= 0xFC)) {
+        // Length value is encoded in this octet
+        length |= buf[(*off)++];
+    } else if (likely(buf[*off] == 0xFD)) {
+        // Length value is encoded in the following 2 octets
+        rte_be16_t v;
+        rte_memcpy((uint8_t *)&v, &buf[++(*off)], sizeof(uint16_t));
+        length = rte_be_to_cpu_16(v);
+        *off += sizeof(uint16_t);
 
+        assert(length > 0xFC);
+    } else if (unlikely(buf[*off] == 0xFE)) {
+        // Length value is encoded in the following 4 octets
+        rte_be32_t v;
+        rte_memcpy((uint8_t *)&v, &buf[++(*off)], sizeof(uint32_t));
+        length = rte_be_to_cpu_32(v);
+        *off += sizeof(uint32_t);
 
-static uint64_t getLength(const uint8_t *buff, uint16_t *offset) {
-    uint64_t TLV_LENGTH = 0;
+        assert(length > 0xFFFF);
+    } else if (unlikely(buf[*off] == 0xFF)) {
+        // Length value is encoded in the following 8 octets
+        rte_be64_t v;
+        rte_memcpy((uint8_t *)&v, &buf[++(*off)], sizeof(uint64_t));
+        length = rte_be_to_cpu_64(v);
+        *off += sizeof(uint64_t);
 
-    if (buff[*offset] <= 0xFC) { // Length value is encoded in this octet
-        TLV_LENGTH |= buff[(*offset)++];
-    } else if (buff[*offset] ==
-               0xFD) { // Length value is encoded in the following 2 octets
-        *offset += 1;
-        TLV_LENGTH |= buff[(*offset)++];
-        TLV_LENGTH <<= 8;
-        TLV_LENGTH |= buff[(*offset)++];
-        assert(TLV_LENGTH > 0xFC);
-    } else if (buff[*offset] ==
-               0xFE) { // Length value is encoded in the following 4 octets
-        *offset += 1;
-        TLV_LENGTH |= buff[(*offset)++];
-        TLV_LENGTH <<= 8;
-        TLV_LENGTH |= buff[(*offset)++];
-        TLV_LENGTH <<= 8;
-        TLV_LENGTH |= buff[(*offset)++];
-        TLV_LENGTH <<= 8;
-        TLV_LENGTH |= buff[(*offset)++];
-        assert(TLV_LENGTH > 0xFFFF);
-    } else if (buff[*offset] ==
-               0xFF) { // Length value is encoded in the following 8 octets
-        *offset += 1;
-        TLV_LENGTH |= buff[(*offset)++];
-        TLV_LENGTH <<= 8;
-        TLV_LENGTH |= buff[(*offset)++];
-        TLV_LENGTH <<= 8;
-        TLV_LENGTH |= buff[(*offset)++];
-        TLV_LENGTH <<= 8;
-        TLV_LENGTH |= buff[(*offset)++];
-        TLV_LENGTH <<= 8;
-        TLV_LENGTH |= buff[(*offset)++];
-        TLV_LENGTH <<= 8;
-        TLV_LENGTH |= buff[(*offset)++];
-        TLV_LENGTH <<= 8;
-        TLV_LENGTH |= buff[(*offset)++];
-        TLV_LENGTH <<= 8;
-        TLV_LENGTH |= buff[(*offset)++];
-        assert(TLV_LENGTH > 0xFFFFFFFF);
+        assert(length > 0xFFFFFFFF);
     } else {
-        exit(EXIT_FAILURE);
+        ZF_LOGF("Length value encoding: %02X not found", buf[*off]);
+        exit(XRDNDNDPDK_EFAILURE);
     }
 
-    return TLV_LENGTH;
+    return length;
 }
 
-static NameComponents *getNameComponents(const LName name,
-                                         uint16_t startOffset) {
-    NameComponents *c = rte_malloc(NULL, sizeof(NameComponents), 0);
-    c->size = 0;
+char *lnameGetFilePath(const LName name, uint16_t nameOff, bool hasSegmentNo) {
+    ZF_LOGD("Get file path from name");
 
-    for (uint16_t i = startOffset; i < name.length;) {
-        c->components[c->size].type = name.value[i++];
-        assert(c->components[c->size].type == TT_GenericNameComponent);
+    char *path = rte_malloc(NULL, NAME_MAX_LENGTH * sizeof(char), 0);
 
-        c->components[c->size].length = getLength(name.value, &i);
+    int16_t n = likely(hasSegmentNo) ? name.length - SEGMENT_NO_COMPONENT_SIZE
+                                     : name.length;
 
-        c->components[c->size].value =
-            rte_malloc(NULL, c->components[c->size].length, 0);
-        rte_memcpy(c->components[c->size].value, &name.value[i],
-                   c->components[c->size].length);
-        i += c->components[c->size].length;
-        ++c->size;
+    for (uint16_t off = nameOff, length = 0; off < n;) {
+        assert(name.value[off] == TT_GenericNameComponent);
+        ++off;
+        length = getLength(name.value, &off);
+
+        if (length + off > name.length && hasSegmentNo) {
+            break;
+        } else {
+            strcat(path, "/");
+            strncat(path, &name.value[off], length);
+        }
+        off += length;
     }
 
-    return c;
+    return path;
 }
 
-char *lnameGetFilePath(const LName lname, uint16_t lnameOff,
-                       bool hasSegmentNo) {
-    NameComponents *nameComponents = getNameComponents(lname, lnameOff);
+uint64_t lnameGetSegmentNumber(const LName name) {
+    ZF_LOGD("Get Segment Number from LName");
 
-    char *filePath = rte_malloc(NULL, NAME_MAX_LENGTH * sizeof(char), 0);
-    int nComponents =
-        likely(hasSegmentNo) ? nameComponents->size - 1 : nameComponents->size;
-
-    for (int i = 0; i < nComponents; ++i) {
-        strcat(filePath, "/");
-        strcat(filePath, nameComponents->components[i].value);
-    }
-
-    for (int i = 0; i < nameComponents->size; ++i) {
-        rte_free(nameComponents->components[i].value);
-    }
-
-    rte_free(nameComponents);
-
-    return filePath;
+    rte_le64_t v;
+    rte_memcpy((uint8_t *)&v, &name.value[name.length - sizeof(uint64_t)],
+               sizeof(uint64_t));
+    return rte_le_to_cpu_64(v);
 }
 
 SystemCallId lnameGetSystemCallId(const LName name) {
+    ZF_LOGD("Get Systemcall ID from LName");
+
     if (likely(XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE <= name.length &&
                memcmp(XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE, name.value,
                       XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE) == 0)) {
@@ -134,27 +116,28 @@ SystemCallId lnameGetSystemCallId(const LName name) {
 }
 
 PContent packetGetContent(uint8_t *packet, uint16_t len) {
+    ZF_LOGD("Get Content from Packet");
     assert(packet[0] == TT_Data);
 
-    uint8_t TLV_TYPE = 0;
-    uint64_t TLV_LENGTH = 0;
+    uint8_t type = 0;
+    uint64_t length = 0;
     uint16_t offset = 0;
 
     for (; offset < len;) {
-        TLV_TYPE = packet[offset++];
-        assert(TLV_TYPE == TT_Data || TLV_TYPE == TT_Name ||
-               TLV_TYPE == TT_MetaInfo || TLV_TYPE == TT_Content);
+        type = packet[offset++];
+        assert(type == TT_Data || type == TT_Name || type == TT_MetaInfo ||
+               type == TT_Content);
 
-        TLV_LENGTH = getLength(packet, &offset);
+        length = getLength(packet, &offset);
 
-        if (TLV_TYPE == TT_Content)
+        if (type == TT_Content)
             break; // Found Content in packet
-        if (TLV_TYPE != TT_Data) {
-            offset += TLV_LENGTH; // Skip this type's length until Content
+        if (type != TT_Data) {
+            offset += length; // Skip this type's length until Content
         }
     }
 
     PContent content = {
-        .type = TLV_TYPE, .length = TLV_LENGTH, .offset = offset, .buff = NULL};
+        .type = type, .length = length, .offset = offset, .buff = NULL};
     return content;
 }

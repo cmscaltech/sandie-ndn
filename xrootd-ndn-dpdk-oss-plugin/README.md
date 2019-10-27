@@ -1,11 +1,11 @@
 # NDN-DPDK Based Consumer-Producer Application For Copying Files
 
 ## Available support
-At the moment the following system calls are supported: **open**, **fstat**.
+At the moment the following system calls are supported: **open**, **fstat**, **read**.
 
 ## Developer Guide
 
-1. Follow installation steps for [NDN-DPDK](https://github.com/usnistgov/ndn-dpdk)
+1. Clone [NDN-DPDK](https://github.com/usnistgov/ndn-dpdk) repository at revision: **523a54c** and follow installation steps
 
 2. Clone repository next to NDN-DPDK one. Your file hierarchy should look like this:
 ```bash
@@ -26,9 +26,13 @@ go
         `-- [...]
 ```
 
-3. Use [Makefile](./Makefile) to build *producer* and *consumer*
+3. Execute `go get -d -t ./...` to download Go dependencies
+
+4. Use [Makefile](./Makefile) to build *producer* and *consumer*
 
 ## Usage
+
+TODO: Configuration for high-troughput (yaml file and hardware/software setup)
 
 ### Consumer
 Edit yaml configuration file to specify the path to the file to be copied using *filepath* argument.
@@ -56,6 +60,7 @@ Active different log levels for consumer and producer:
 ```bash
 []# export LOG_Xrdndndpdkconsumer=D
 []# export LOG_Xrdndndpdkproducer=D
+[]# export LOG_Xrdndndpdkutils=D
 ```
 
 Available log levels:

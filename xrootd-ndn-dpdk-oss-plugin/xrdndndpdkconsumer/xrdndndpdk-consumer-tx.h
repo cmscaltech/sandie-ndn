@@ -25,9 +25,21 @@
 #include "../../../ndn-dpdk/iface/face.h"
 #include "../../../ndn-dpdk/ndn/encode-interest.h"
 
+#include "../xrdndndpdk-common/xrdndndpdk-utils.h"
+
 typedef void (*onErrorCallback)(uint64_t);
 
 void onErrorCallback_Go(uint64_t errorCode);
+
+typedef struct SegmentNumberComponent {
+    char _padding[6]; // make compV aligned
+    uint8_t compT;
+    uint8_t compL;
+    uint64_t compV;                    // segment number in native endianness
+} __rte_packed SegmentNumberComponent; // segment number component
+
+static_assert(offsetof(SegmentNumberComponent, compV) % sizeof(uint64_t) == 0,
+              "");
 
 /**
  * @brief Consumer Tx structure
@@ -40,15 +52,24 @@ typedef struct ConsumerTx {
 
     struct rte_mempool *interestMp; // mempool for Interests
     NonceGen nonceGen;
+
+    InterestTemplate prefixTpl;
+    uint8_t prefixTplBuf[64];
     uint8_t prefixBuffer[NAME_MAX_LENGTH];
 
-    InterestTemplate tpl;
-    uint8_t tplPrepareBuffer[64];
+    InterestTemplate readPrefixTpl;
+    uint8_t readPrefixTplBuf[128];
+    uint8_t readBuffer[NAME_MAX_LENGTH];
 
+    SegmentNumberComponent segmentNumberComponent;
     onErrorCallback onError;
+
+    uint64_t nInterests;
 } ConsumerTx;
 
+void ConsumerTx_resetCounters(ConsumerTx *ct);
 void ConsumerTx_sendInterest(ConsumerTx *ct, struct LName *suffix);
+void ConsumerTx_sendInterests(ConsumerTx *ct, uint64_t off, uint16_t n);
 
 static void registerTxCallbacks(ConsumerTx *ct) {
     ct->onError = onErrorCallback_Go;

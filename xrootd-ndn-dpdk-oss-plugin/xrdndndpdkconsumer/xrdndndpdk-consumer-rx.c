@@ -54,7 +54,7 @@ static uint64_t ConsumerRx_readNonNegativeInteger(PContent *content) {
     ZF_LOGD("Read nonNegativeInteger from Data packet");
 
     rte_be64_t v;
-    rte_memcpy(&v, content->buff, content->length);
+    rte_memcpy(&v, &content->payload[content->offset], content->length);
     return rte_be_to_cpu_64(v);
 }
 
@@ -78,14 +78,19 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
 
     if (SYSCALL_OPEN_ID == sid) {
         ZF_LOGI("Return content for open filesystem call");
+
         uint64_t openRetCode = ConsumerRx_readNonNegativeInteger(content);
+        rte_free(content->payload);
+        rte_free(content);
         cr->onNonNegativeInteger(openRetCode);
     } else if (SYSCALL_FSTAT_ID == sid) {
         ZF_LOGI("Return content for stat filesystem call");
+
         cr->onContent(content, 0);
     } else if (likely(SYSCALL_READ_ID == sid)) {
         ZF_LOGI("Return content for read filesystem call @%d",
                 lnameGetSegmentNumber(name));
+
         cr->onContent(content, lnameGetSegmentNumber(name));
     }
 }
@@ -116,29 +121,25 @@ static void ConsumerRx_processDataPacket(ConsumerRx *cr, Packet *npkt) {
     }
 
     int32_t length = pkt->pkt_len;
-    uint8_t *payload = rte_malloc(NULL, length, 0);
+    // Higher level application needs to free the memory
+    PContent *content = rte_malloc(NULL, sizeof(PContent), 0);
+    content->payload = rte_malloc(NULL, length, 0);
 
     ZF_LOGD("Received packet with length: %d", length);
 
     // Composing payload from all nb_segs
     for (int offset = 0; NULL != pkt;) {
-        rte_memcpy(&payload[offset], rte_pktmbuf_mtod(pkt, uint8_t *),
+        rte_memcpy(&content->payload[offset], rte_pktmbuf_mtod(pkt, uint8_t *),
                    pkt->data_len);
         offset += pkt->data_len;
         pkt = pkt->next;
     }
 
-    PContent content = packetGetContent(payload, length);
-    content.buff = rte_malloc(NULL, content.length, 0);
+    packetGetContent(content, length);
 
-    // Store entire Content in PContent
-    rte_memcpy(content.buff, &payload[content.offset], content.length);
-    rte_free(payload);
+    cr->nBytes += content->length;
+    ConsumerRx_processContent(cr, npkt, content);
 
-    cr->nBytes += content.length;
-    ConsumerRx_processContent(cr, npkt, &content);
-
-    rte_free(content.buff);
     ++cr->nData;
 }
 

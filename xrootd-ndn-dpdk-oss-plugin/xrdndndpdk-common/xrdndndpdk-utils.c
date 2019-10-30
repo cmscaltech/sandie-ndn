@@ -115,20 +115,20 @@ SystemCallId lnameGetSystemCallId(const LName name) {
     return SYSCALL_NOT_FOUND;
 }
 
-PContent packetGetContent(uint8_t *packet, uint16_t len) {
+void packetGetContent(PContent *content, uint16_t len) {
     ZF_LOGD("Get Content from Packet");
-    assert(packet[0] == TT_Data);
+    assert(content->payload[0] == TT_Data);
 
     uint8_t type = 0;
     uint64_t length = 0;
     uint16_t offset = 0;
 
     for (; offset < len;) {
-        type = packet[offset++];
+        type = content->payload[offset++];
         assert(type == TT_Data || type == TT_Name || type == TT_MetaInfo ||
                type == TT_Content);
 
-        length = getLength(packet, &offset);
+        length = getLength(content->payload, &offset);
 
         if (type == TT_Content)
             break; // Found Content in packet
@@ -137,7 +137,12 @@ PContent packetGetContent(uint8_t *packet, uint16_t len) {
         }
     }
 
-    PContent content = {
-        .type = type, .length = length, .offset = offset, .buff = NULL};
-    return content;
+    content->type = type;
+    content->length = length;
+    content->offset = offset;
+}
+
+void copyFromC(uint8_t *dst, uint16_t dst_off, uint8_t *src, uint16_t src_off,
+               uint64_t count) {
+    memcpy(&dst[dst_off], &src[src_off], count);
 }

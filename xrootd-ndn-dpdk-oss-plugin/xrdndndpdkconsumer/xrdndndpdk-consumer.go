@@ -42,8 +42,8 @@ type Message struct {
 	isError  bool // Nack Packet, Application Level Nack
 	intValue C.uint64_t
 
-	off       C.uint64_t
-	byteValue []byte
+	off     C.uint64_t
+	content *C.struct_PContent
 }
 
 var messages chan Message
@@ -174,6 +174,7 @@ func (consumer *Consumer) Close() error {
 
 // Open file
 func (tx *ConsumerTxThread) OpenFile() (e error) {
+	tx.Stop()
 	e = tx.LaunchImpl(func() int {
 		suffix, e := ndn.ParseName("/" + C.XRDNDNDPDK_SYSCALL_OPEN_URI + tx.FilePath)
 		if e != nil {
@@ -207,7 +208,8 @@ func (tx *ConsumerTxThread) OpenFile() (e error) {
 }
 
 // Fstat file
-func (tx *ConsumerTxThread) FstatFile() (data []byte, e error) {
+func (tx *ConsumerTxThread) FstatFile(buf *C.uint8_t) (e error) {
+	tx.Stop()
 	e = tx.LaunchImpl(func() int {
 		suffix, e := ndn.ParseName("/" + C.XRDNDNDPDK_SYSCALL_FSTAT_URI + tx.FilePath)
 		if e != nil {
@@ -228,50 +230,60 @@ func (tx *ConsumerTxThread) FstatFile() (data []byte, e error) {
 	})
 
 	if e != nil {
-		return nil, e
+		return e
 	}
 
 	m := <-messages
 
 	if m.isError {
-		return nil, fmt.Errorf("Unable to call fstat on file: %s", tx.FilePath)
+		return fmt.Errorf("Unable to call fstat on file: %s", tx.FilePath)
 	}
 
-	return m.byteValue, nil
+	defer C.rte_free(unsafe.Pointer(m.content.payload))
+	defer C.rte_free(unsafe.Pointer(m.content))
+
+	C.copyFromC(buf, 0, m.content.payload, m.content.offset, m.content.length)
+
+	return nil
 }
 
 // Read from file
-func (tx *ConsumerTxThread) Read(off C.uint64_t, size C.uint64_t) (data []byte, e error) {
-	n := C.uint16_t(C.ceil(C.double(size) / C.double(C.XRDNDNDPDK_PACKET_SIZE)))
+func (tx *ConsumerTxThread) Read(buf *C.uint8_t, count C.uint64_t, off C.uint64_t) (nbytes C.uint64_t, e error) {
+	nInterests := C.uint16_t(C.ceil(C.double(count) / C.double(C.XRDNDNDPDK_PACKET_SIZE)))
+	nbytes = 0
 
+	tx.Stop()
 	e = tx.LaunchImpl(func() int {
-		C.ConsumerTx_sendInterests(tx.c, off, n)
+		C.ConsumerTx_sendInterests(tx.c, off, nInterests)
 		return 0
 	})
 
 	if e != nil {
-		return nil, e
+		return 0, e
 	}
 
-	data = make([]byte, size)
-	for i := C.uint16_t(0); i < n; i++ {
+	for i := C.uint16_t(0); i < nInterests; i++ {
 		m := <-messages
 
 		if m.isError {
-			return nil, fmt.Errorf("File offset read")
+			return nbytes, fmt.Errorf("File offset read")
 		}
 
-		copy(data[(m.off-off)/C.XRDNDNDPDK_PACKET_SIZE:], m.byteValue)
+		nbytes += m.content.length
+
+		defer C.rte_free(unsafe.Pointer(m.content.payload))
+		defer C.rte_free(unsafe.Pointer(m.content))
+
+		C.copyFromC(buf, C.uint16_t((m.off-off)/C.XRDNDNDPDK_PACKET_SIZE), m.content.payload, m.content.offset, m.content.length)
 	}
 
-	return data, e
+	return nbytes, e
 }
 
 //export onContentCallback_Go
 func onContentCallback_Go(content *C.struct_PContent, off C.uint64_t) {
-	contentSlice := C.GoBytes(unsafe.Pointer(content.buff), C.int(content.length))
 	go func(channel chan<- Message) {
-		channel <- Message{false, C.XRDNDNDPDK_ESUCCESS, off, contentSlice}
+		channel <- Message{false, C.XRDNDNDPDK_ESUCCESS, off, content}
 	}(messages)
 }
 

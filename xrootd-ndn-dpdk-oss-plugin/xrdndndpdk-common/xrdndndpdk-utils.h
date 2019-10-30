@@ -52,9 +52,9 @@ typedef struct PContent {
     uint8_t
         type; // ContentType:
               // https://named-data.net/doc/NDN-packet-spec/current/data.html
-    uint64_t length; // Content length
-    uint16_t offset; // Content offset in Data packet
-    uint8_t *buff;   // Content bytes of length
+    uint64_t length;  // Content length
+    uint16_t offset;  // Content offset in Data packet
+    uint8_t *payload; // Payload from Data packet
 } PContent;
 
 /**
@@ -87,10 +87,21 @@ SystemCallId lnameGetSystemCallId(const LName name);
  * @brief Retrieve Content offset in Data NDN packet format v0.3
  * https://named-data.net/doc/NDN-packet-spec/current/types.html
  *
- * @param packet Payload received over the NDN network
+ * @param content PContent struct
  * @param len Length of payload
- * @return PContent Pointer to Content in payload
  */
-PContent packetGetContent(uint8_t *packet, uint16_t len);
+void packetGetContent(PContent *content, uint16_t len);
+
+/**
+ * @brief Copy byte array from src to dst at a given offsets
+ *
+ * @param dst Destination buffer
+ * @param dst_off Offset in dst buffer
+ * @param src Source buffer
+ * @param src_off Offset in src buffer
+ * @param count Number of octets to copy from src to dst
+ */
+void copyFromC(uint8_t *dst, uint16_t dst_off, uint8_t *src, uint16_t src_off,
+               uint64_t count);
 
 #endif // XRDNDNDPDK_UTILS_H

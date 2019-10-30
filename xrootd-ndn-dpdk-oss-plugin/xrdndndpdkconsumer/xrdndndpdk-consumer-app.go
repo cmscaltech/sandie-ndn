@@ -141,6 +141,8 @@ func (task *Task) Launch() {
 
 func (task *Task) Close() error {
 	if task.consumer != nil {
+		task.consumer.Tx.Stop()
+		task.consumer.Rx.Stop()
 		task.consumer.Close()
 	}
 	task.Face.Close()
@@ -153,28 +155,33 @@ func (app *App) CopyFileOverNDN() (e error) {
 		return errors.New("nil consumer")
 	}
 
+	// Open file
 	e = app.task.consumer.Tx.OpenFile()
 	if e != nil {
 		app.task.Close()
 		return e
 	}
-	app.task.consumer.Tx.Stop()
+
 	fmt.Println("-> successfully opened file:", app.task.consumer.Tx.FilePath)
 
-	data, e := app.task.consumer.Tx.FstatFile()
+	// Get file size
+	stat := (*C.uint8_t)(C.malloc(C.sizeof_struct_stat))
+	e = app.task.consumer.Tx.FstatFile(stat)
 	if e != nil {
 		app.task.Close()
 		return e
 	}
-	app.task.consumer.Tx.Stop()
 
-	fileSize := C.uint64_t((*C.struct_stat)(unsafe.Pointer(&data[0])).st_size)
-	fmt.Printf("-> file size: %d bytes\n", fileSize)
+	filesz := C.uint64_t((*C.struct_stat)(unsafe.Pointer(stat)).st_size)
+	C.free(unsafe.Pointer(stat))
 
-	chunkSize := C.uint64_t(C.XRDNDNDPDK_PACKET_SIZE * (C.CONSUMER_MAX_BURST_SIZE - 2))
-	bufSize := C.uint64_t(0)
+	fmt.Printf("-> file size: %d bytes\n", filesz)
 
-	pBar := pb.New(int(fileSize))
+	// Read file
+	maxCount := C.uint64_t(C.XRDNDNDPDK_PACKET_SIZE * (C.CONSUMER_MAX_BURST_SIZE - 2))
+	count := C.uint64_t(0)
+
+	pBar := pb.New(int(filesz))
 	pBar.ShowPercent = true
 	pBar.ShowCounters = true
 	pBar.ShowTimeLeft = false
@@ -185,21 +192,23 @@ func (app *App) CopyFileOverNDN() (e error) {
 	pBar.Start()
 	start := time.Now()
 
-	for i := C.uint64_t(0); i < fileSize; i += chunkSize {
-		if fileSize-i < chunkSize {
-			bufSize = fileSize - i
+	for off := C.uint64_t(0); off < filesz; off += maxCount {
+		if filesz-off < maxCount {
+			count = filesz - off
 		} else {
-			bufSize = chunkSize
+			count = maxCount
 		}
 
-		data, e := app.task.consumer.Tx.Read(i, bufSize)
+		buf := (*C.uint8_t)(C.malloc(maxCount * C.sizeof_uint8_t))
+		defer C.free(unsafe.Pointer(buf))
+
+		ret, e := app.task.consumer.Tx.Read(buf, count, off)
 		if e != nil {
 			app.task.Close()
 			return e
 		}
 
-		app.task.consumer.Tx.Stop()
-		pBar.Add(len(data))
+		pBar.Add(int(ret))
 	}
 
 	elapsed := time.Since(start)
@@ -213,15 +222,13 @@ func (app *App) CopyFileOverNDN() (e error) {
 	fmt.Printf("-- Nack Packets     : %d\n", app.task.consumer.Rx.c.nNacks)
 	fmt.Printf("-- Errors           : %d\n\n", app.task.consumer.Rx.c.nErrors)
 	fmt.Printf("-- Maximum Packet size : %d Bytes\n", C.XRDNDNDPDK_PACKET_SIZE)
-	fmt.Printf("-- Read chunk size     : %d Bytes (%d packets)\n", chunkSize, C.CONSUMER_MAX_BURST_SIZE-2)
+	fmt.Printf("-- Read chunk size     : %d Bytes (%d packets)\n", maxCount, C.CONSUMER_MAX_BURST_SIZE-2)
 	fmt.Printf("-- Bytes transmitted   : %d Bytes\n", app.task.consumer.Rx.c.nBytes)
 	fmt.Printf("-- Time elapsed        : %s\n\n", elapsed)
 	fmt.Printf("-- Throughput          : %.4f Mbit/s \n", (((float64(app.task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("---------------------------------------------------------\n")
 
-	// TODO: Remove this sleep
-	time.Sleep(5 * time.Second)
 	app.task.Close()
 	return nil
 }

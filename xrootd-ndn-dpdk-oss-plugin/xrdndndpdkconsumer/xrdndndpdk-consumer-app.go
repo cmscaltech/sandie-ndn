@@ -192,15 +192,16 @@ func (app *App) CopyFileOverNDN() (e error) {
 	pBar.Start()
 	start := time.Now()
 
+	// SC19: This buffer will not be used. We don't need to save file
+	buf := (*C.uint8_t)(C.malloc(maxCount * C.sizeof_uint8_t))
+	defer C.free(unsafe.Pointer(buf))
+
 	for off := C.uint64_t(0); off < filesz; off += maxCount {
 		if filesz-off < maxCount {
 			count = filesz - off
 		} else {
 			count = maxCount
 		}
-
-		buf := (*C.uint8_t)(C.malloc(maxCount * C.sizeof_uint8_t))
-		defer C.free(unsafe.Pointer(buf))
 
 		ret, e := app.task.consumer.Tx.Read(buf, count, off)
 		if e != nil {

@@ -189,12 +189,17 @@ func (app *App) CopyFileOverNDN() (e error) {
 	pBar.SetMaxWidth(100)
 	pBar.Prefix("-> bytes:")
 
-	pBar.Start()
-	start := time.Now()
-
 	// SC19: This buffer will not be used. We don't need to save file
 	buf := (*C.uint8_t)(C.malloc(maxCount * C.sizeof_uint8_t))
 	defer C.free(unsafe.Pointer(buf))
+
+	var samplingStart time.Time
+	var samplingEnd time.Duration
+	samplingCount := C.uint64_t(0)
+	sampling := false
+
+	pBar.Start()
+	start := time.Now()
 
 	for off := C.uint64_t(0); off < filesz; off += maxCount {
 		if filesz-off < maxCount {
@@ -203,13 +208,26 @@ func (app *App) CopyFileOverNDN() (e error) {
 			count = maxCount
 		}
 
+		if !sampling && off > filesz/2 {
+			sampling = true
+			samplingStart = time.Now()
+		}
+
 		ret, e := app.task.consumer.Tx.Read(buf, count, off)
 		if e != nil {
 			app.task.Close()
 			return e
 		}
 
+		if sampling {
+			samplingCount += ret
+		}
+
 		pBar.Add(int(ret))
+	}
+
+	if sampling {
+		samplingEnd = time.Since(samplingStart)
 	}
 
 	elapsed := time.Since(start)
@@ -222,11 +240,13 @@ func (app *App) CopyFileOverNDN() (e error) {
 	fmt.Printf("-- Data Packets     : %d\n", app.task.consumer.Rx.c.nData)
 	fmt.Printf("-- Nack Packets     : %d\n", app.task.consumer.Rx.c.nNacks)
 	fmt.Printf("-- Errors           : %d\n\n", app.task.consumer.Rx.c.nErrors)
-	fmt.Printf("-- Maximum Packet size : %d Bytes\n", C.XRDNDNDPDK_PACKET_SIZE)
-	fmt.Printf("-- Read chunk size     : %d Bytes (%d packets)\n", maxCount, C.CONSUMER_MAX_BURST_SIZE-2)
-	fmt.Printf("-- Bytes transmitted   : %d Bytes\n", app.task.consumer.Rx.c.nBytes)
-	fmt.Printf("-- Time elapsed        : %s\n\n", elapsed)
-	fmt.Printf("-- Throughput          : %.4f Mbit/s \n", (((float64(app.task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds())
+	fmt.Printf("-- Maximum Packet size  : %d Bytes\n", C.XRDNDNDPDK_PACKET_SIZE)
+	fmt.Printf("-- Read chunk size      : %d Bytes (%d packets)\n", maxCount, C.CONSUMER_MAX_BURST_SIZE-2)
+	fmt.Printf("-- Bytes transmitted    : %d Bytes\n", app.task.consumer.Rx.c.nBytes)
+	fmt.Printf("-- Time elapsed         : %s\n\n", elapsed)
+	fmt.Printf("-- Goodput              : %.4f Mbit/s \n", (((float64(pBar.Get())/1024)/1024)*8)/elapsed.Seconds())
+	fmt.Printf("-- Throughput (2nd 1/2) : %.4f Mbit/s \n", (((float64(samplingCount)/1024)/1024)*8)/samplingEnd.Seconds())
+	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(app.task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("---------------------------------------------------------\n")
 

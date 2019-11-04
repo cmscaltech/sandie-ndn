@@ -126,6 +126,7 @@ static void ConsumerRx_processDataPacket(ConsumerRx *cr, Packet *npkt) {
     content->payload = rte_malloc(NULL, length, 0);
 
     ZF_LOGD("Received packet with length: %d", length);
+    cr->nBytes += length;
 
     // Composing payload from all nb_segs
     for (int offset = 0; NULL != pkt;) {
@@ -136,8 +137,6 @@ static void ConsumerRx_processDataPacket(ConsumerRx *cr, Packet *npkt) {
     }
 
     packetGetContent(content, length);
-
-    cr->nBytes += content->length;
     ConsumerRx_processContent(cr, npkt, content);
 
     ++cr->nData;

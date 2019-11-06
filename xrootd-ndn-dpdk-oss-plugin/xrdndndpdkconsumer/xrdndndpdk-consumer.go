@@ -8,7 +8,6 @@ package xrdndndpdkconsumer
 */
 import "C"
 import (
-	"errors"
 	"fmt"
 	"unsafe"
 
@@ -28,8 +27,6 @@ type Consumer struct {
 type ConsumerTxThread struct {
 	dpdk.ThreadBase
 	c *C.ConsumerTx
-
-	FilePath string
 }
 
 // Consumer RX thread.
@@ -82,13 +79,7 @@ func (consumer *Consumer) GetFace() iface.IFace {
 }
 
 func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error) {
-	if len(settings.FilePath) == 0 {
-		e := errors.New("yaml: filepath not defined or empty string")
-		return e
-	}
-
 	// Create template for open/fstat file system call Interest packets
-
 	prefix, e := ndn.ParseName(C.XRDNDNDPDK_SYSCALL_PREFIX_URI)
 	if e != nil {
 		return e
@@ -110,9 +101,8 @@ func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error)
 	}
 
 	// Create template for read file system call Interest packets
-
 	readPrefix, e := ndn.ParseName(C.XRDNDNDPDK_SYSCALL_PREFIX_URI +
-		"/" + C.XRDNDNDPDK_SYSCALL_READ_URI + settings.FilePath)
+		"/" + C.XRDNDNDPDK_SYSCALL_READ_URI)
 	if e != nil {
 		return e
 	}
@@ -136,14 +126,18 @@ func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error)
 	consumer.Tx.c.segmentNumberComponent.compL = C.uint8_t(C.sizeof_uint64_t)
 	consumer.Tx.c.segmentNumberComponent.compV = C.uint64_t(0)
 
-	consumer.Tx.FilePath = settings.FilePath
 	C.registerRxCallbacks(consumer.Rx.c)
 	C.registerTxCallbacks(consumer.Tx.c)
 
-	C.ConsumerRx_resetCounters(consumer.Rx.c)
-	C.ConsumerTx_resetCounters(consumer.Tx.c)
+	consumer.ResetCounters()
 
 	return nil
+}
+
+// Reset Rx and Tx Consumer thread counters for statistics
+func (consumer *Consumer) ResetCounters() {
+	C.ConsumerRx_resetCounters(consumer.Rx.c)
+	C.ConsumerTx_resetCounters(consumer.Tx.c)
 }
 
 // Launch the RX thread.
@@ -173,10 +167,11 @@ func (consumer *Consumer) Close() error {
 }
 
 // Open file
-func (tx *ConsumerTxThread) OpenFile() (e error) {
+func (tx *ConsumerTxThread) OpenFile(path string) (e error) {
 	tx.Stop()
+
 	e = tx.LaunchImpl(func() int {
-		suffix, e := ndn.ParseName("/" + C.XRDNDNDPDK_SYSCALL_OPEN_URI + tx.FilePath)
+		suffix, e := ndn.ParseName("/" + C.XRDNDNDPDK_SYSCALL_OPEN_URI + path)
 		if e != nil {
 			return -1
 		}
@@ -201,17 +196,17 @@ func (tx *ConsumerTxThread) OpenFile() (e error) {
 	m := <-messages
 
 	if m.intValue != C.XRDNDNDPDK_ESUCCESS {
-		return fmt.Errorf("Unable to open file: %s", tx.FilePath)
+		return fmt.Errorf("Unable to open file: %s", path)
 	}
 
 	return nil
 }
 
 // Fstat file
-func (tx *ConsumerTxThread) FstatFile(buf *C.uint8_t) (e error) {
+func (tx *ConsumerTxThread) FstatFile(buf *C.uint8_t, path string) (e error) {
 	tx.Stop()
 	e = tx.LaunchImpl(func() int {
-		suffix, e := ndn.ParseName("/" + C.XRDNDNDPDK_SYSCALL_FSTAT_URI + tx.FilePath)
+		suffix, e := ndn.ParseName("/" + C.XRDNDNDPDK_SYSCALL_FSTAT_URI + path)
 		if e != nil {
 			return -1
 		}
@@ -236,7 +231,7 @@ func (tx *ConsumerTxThread) FstatFile(buf *C.uint8_t) (e error) {
 	m := <-messages
 
 	if m.isError {
-		return fmt.Errorf("Unable to call fstat on file: %s", tx.FilePath)
+		return fmt.Errorf("Unable to call fstat on file: %s", path)
 	}
 
 	defer C.rte_free(unsafe.Pointer(m.content.payload))
@@ -248,13 +243,27 @@ func (tx *ConsumerTxThread) FstatFile(buf *C.uint8_t) (e error) {
 }
 
 // Read from file
-func (tx *ConsumerTxThread) Read(buf *C.uint8_t, count C.uint64_t, off C.uint64_t) (nbytes C.uint64_t, e error) {
+func (tx *ConsumerTxThread) Read(path string, buf *C.uint8_t, count C.uint64_t, off C.uint64_t) (nbytes C.uint64_t, e error) {
 	nInterests := C.uint16_t(C.ceil(C.double(count) / C.double(C.XRDNDNDPDK_PACKET_SIZE)))
 	nbytes = 0
 
 	tx.Stop()
 	e = tx.LaunchImpl(func() int {
-		C.ConsumerTx_sendInterests(tx.c, off, nInterests)
+		pathSuffix, e := ndn.ParseName(path)
+		if e != nil {
+			return -1
+		}
+
+		nameV := unsafe.Pointer(C.malloc(C.uint64_t(pathSuffix.Size())))
+		defer C.free(nameV)
+
+		var lname C.LName
+		e = pathSuffix.CopyToLName(unsafe.Pointer(&lname), nameV, uintptr(pathSuffix.Size()))
+		if e != nil {
+			return -1
+		}
+
+		C.ConsumerTx_sendInterests(tx.c, &lname, off, nInterests)
 		return 0
 	})
 

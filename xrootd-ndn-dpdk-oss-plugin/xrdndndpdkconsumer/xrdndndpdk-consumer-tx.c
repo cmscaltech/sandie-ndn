@@ -60,10 +60,12 @@ void ConsumerTx_sendInterest(ConsumerTx *ct, struct LName *suffix) {
  * system call
  *
  * @param ct ConsumerTx struct pointer
+ * @param path File path
  * @param off Starting point of segment number composion
  * @param n Number of packets to send
  */
-void ConsumerTx_sendInterests(ConsumerTx *ct, uint64_t off, uint16_t n) {
+void ConsumerTx_sendInterests(ConsumerTx *ct, struct LName *path, uint64_t off,
+                              uint16_t n) {
     ZF_LOGD(
         "Sending %d Interest packets for read file system call starting @%d", n,
         off);
@@ -84,11 +86,17 @@ void ConsumerTx_sendInterests(ConsumerTx *ct, uint64_t off, uint16_t n) {
         pkt->data_off = ct->interestMbufHeadroom;
 
         ct->segmentNumberComponent.compV = off + i * XRDNDNDPDK_PACKET_SIZE;
-        LName lnameSegmentNo = {.length = SEGMENT_NO_COMPONENT_SIZE,
-                                .value = &ct->segmentNumberComponent.compT};
 
-        EncodeInterest(pkt, &ct->readPrefixTpl, ct->readPrefixTplBuf,
-                       lnameSegmentNo, NonceGen_Next(&ct->nonceGen), 0, NULL);
+        rte_memcpy(ct->suffixBuffer, path->value, path->length);
+        rte_memcpy(ct->suffixBuffer + path->length,
+                   &ct->segmentNumberComponent.compT,
+                   SEGMENT_NO_COMPONENT_SIZE);
+
+        LName suffix = {.length = path->length + SEGMENT_NO_COMPONENT_SIZE,
+                        .value = ct->suffixBuffer};
+
+        EncodeInterest(pkt, &ct->readPrefixTpl, ct->readPrefixTplBuf, suffix,
+                       NonceGen_Next(&ct->nonceGen), 0, NULL);
         Packet_SetL3PktType(npkts[i], L3PktType_Interest);
         Packet_InitLpL3Hdr(npkts[i]);
     }

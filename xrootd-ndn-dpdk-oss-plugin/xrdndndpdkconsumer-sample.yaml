@@ -7,4 +7,4 @@
   consumer:
     mustbefresh: false
     canbeprefix: false
-    filepath: /root/test.txt
+  files: ['/root/test.txt']

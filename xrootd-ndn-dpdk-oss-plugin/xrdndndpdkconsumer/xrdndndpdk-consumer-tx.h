@@ -60,6 +60,7 @@ typedef struct ConsumerTx {
     InterestTemplate readPrefixTpl;
     uint8_t readPrefixTplBuf[128];
     uint8_t readBuffer[NAME_MAX_LENGTH];
+    uint8_t suffixBuffer[NAME_MAX_LENGTH];
 
     SegmentNumberComponent segmentNumberComponent;
     onErrorCallback onError;
@@ -69,7 +70,8 @@ typedef struct ConsumerTx {
 
 void ConsumerTx_resetCounters(ConsumerTx *ct);
 void ConsumerTx_sendInterest(ConsumerTx *ct, struct LName *suffix);
-void ConsumerTx_sendInterests(ConsumerTx *ct, uint64_t off, uint16_t n);
+void ConsumerTx_sendInterests(ConsumerTx *ct, struct LName *path, uint64_t off,
+                              uint16_t n);
 
 static void registerTxCallbacks(ConsumerTx *ct) {
     ct->onError = onErrorCallback_Go;

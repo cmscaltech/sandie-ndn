@@ -117,6 +117,7 @@ func (app *App) launchRxl(rxl *iface.RxLoop) {
 type Task struct {
 	Face     iface.IFace
 	consumer *Consumer
+	files    []string
 }
 
 func newTask(face iface.IFace, cfg TaskConfig) (task Task, e error) {
@@ -129,6 +130,12 @@ func newTask(face iface.IFace, cfg TaskConfig) (task Task, e error) {
 		task.consumer.Rx.SetLCore(dpdk.LCoreAlloc.Alloc(LCoreRole_ConsumerRx, numaSocket))
 		task.consumer.Tx.SetLCore(dpdk.LCoreAlloc.Alloc(LCoreRole_ConsumerTx, numaSocket))
 	}
+
+	if len(cfg.Files) == 0 {
+		return Task{}, errors.New("yaml: list of file paths empty or not defined")
+	}
+
+	task.files = cfg.Files
 	return task, nil
 }
 
@@ -149,26 +156,40 @@ func (task *Task) Close() error {
 	return nil
 }
 
-func (app *App) CopyFileOverNDN() (e error) {
-	if app.task.consumer == nil {
-		app.task.Close()
+func (app *App) Run() (e error) {
+	for index, path := range app.task.files {
+		fmt.Printf("\n--> Copy file [%d]: %s\n", index, path)
+		e = app.task.CopyFileOverNDN(path)
+
+		if e != nil {
+			app.task.Close()
+			return e
+		}
+
+		app.task.consumer.ResetCounters()
+	}
+
+	app.task.Close()
+	return nil
+}
+
+func (task *Task) CopyFileOverNDN(path string) (e error) {
+	if task.consumer == nil {
 		return errors.New("nil consumer")
 	}
 
 	// Open file
-	e = app.task.consumer.Tx.OpenFile()
+	e = task.consumer.Tx.OpenFile(path)
 	if e != nil {
-		app.task.Close()
 		return e
 	}
 
-	fmt.Println("-> successfully opened file:", app.task.consumer.Tx.FilePath)
+	fmt.Println("-> successfully opened file:", path)
 
 	// Get file size
 	stat := (*C.uint8_t)(C.malloc(C.sizeof_struct_stat))
-	e = app.task.consumer.Tx.FstatFile(stat)
+	e = task.consumer.Tx.FstatFile(stat, path)
 	if e != nil {
-		app.task.Close()
 		return e
 	}
 
@@ -213,9 +234,8 @@ func (app *App) CopyFileOverNDN() (e error) {
 			samplingStart = time.Now()
 		}
 
-		ret, e := app.task.consumer.Tx.Read(buf, count, off)
+		ret, e := task.consumer.Tx.Read(path, buf, count, off)
 		if e != nil {
-			app.task.Close()
 			return e
 		}
 
@@ -233,23 +253,24 @@ func (app *App) CopyFileOverNDN() (e error) {
 	elapsed := time.Since(start)
 	pBar.Finish()
 
+	task.consumer.Tx.Stop()
+
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("--                 TRANSFER FILE REPORT                --\n")
 	fmt.Printf("---------------------------------------------------------\n")
-	fmt.Printf("-- Interest Packets : %d\n", app.task.consumer.Tx.c.nInterests)
-	fmt.Printf("-- Data Packets     : %d\n", app.task.consumer.Rx.c.nData)
-	fmt.Printf("-- Nack Packets     : %d\n", app.task.consumer.Rx.c.nNacks)
-	fmt.Printf("-- Errors           : %d\n\n", app.task.consumer.Rx.c.nErrors)
+	fmt.Printf("-- Interest Packets : %d\n", task.consumer.Tx.c.nInterests)
+	fmt.Printf("-- Data Packets     : %d\n", task.consumer.Rx.c.nData)
+	fmt.Printf("-- Nack Packets     : %d\n", task.consumer.Rx.c.nNacks)
+	fmt.Printf("-- Errors           : %d\n\n", task.consumer.Rx.c.nErrors)
 	fmt.Printf("-- Maximum Packet size  : %d Bytes\n", C.XRDNDNDPDK_PACKET_SIZE)
 	fmt.Printf("-- Read chunk size      : %d Bytes (%d packets)\n", maxCount, C.CONSUMER_MAX_BURST_SIZE-2)
-	fmt.Printf("-- Bytes transmitted    : %d Bytes\n", app.task.consumer.Rx.c.nBytes)
+	fmt.Printf("-- Bytes transmitted    : %d Bytes\n", task.consumer.Rx.c.nBytes)
 	fmt.Printf("-- Time elapsed         : %s\n\n", elapsed)
 	fmt.Printf("-- Goodput              : %.4f Mbit/s \n", (((float64(pBar.Get())/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("-- Throughput (2nd 1/2) : %.4f Mbit/s \n", (((float64(samplingCount)/1024)/1024)*8)/samplingEnd.Seconds())
-	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(app.task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds())
+	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("---------------------------------------------------------\n")
 
-	app.task.Close()
 	return nil
 }

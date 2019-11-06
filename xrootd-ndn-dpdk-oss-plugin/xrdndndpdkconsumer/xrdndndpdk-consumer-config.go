@@ -15,11 +15,11 @@ type InitConfig struct {
 type TaskConfig struct {
 	Face     iface.LocatorWrapper // face locator for face creation
 	Consumer *ConsumerSettings    // if not nil, create a consumer on the face
+	Files    []string             // list of file paths to be copied over NDN
 }
 
 // Consumer config.
 type ConsumerSettings struct {
 	MustBeFresh      bool          // whether to set MustBeFresh
 	InterestLifetime time.Duration // InterestLifetime value, zero means default
-	FilePath         string        // Path to file to be copied over NDN
 }

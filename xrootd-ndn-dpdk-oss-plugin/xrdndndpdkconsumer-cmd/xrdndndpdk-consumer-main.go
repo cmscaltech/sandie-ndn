@@ -29,11 +29,9 @@ func main() {
 	appinit.RegisterMgmt(facemgmt.FaceMgmt{})
 	appinit.StartMgmt()
 
-	e = app.CopyFileOverNDN()
+	e = app.Run()
 	if e != nil {
-		log.WithError(e).Fatal("xrdndndpdkconsumer.CopyFileOverNDN error")
-	} else {
-		log.Info("Successfully copied file over NDN Network")
+		log.WithError(e).Fatal("xrdndndpdkconsumer.Run error")
 	}
 
 	// select {}

@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"os"
-	"time"
 
 	"ndn-dpdk/appinit"
 	"sandie-ndn/xrootd-ndn-dpdk-oss-plugin/xrdndndpdkproducer"
@@ -15,9 +14,8 @@ type initConfig struct {
 }
 
 type parsedCommand struct {
-	initCfg         initConfig
-	tasks           []xrdndndpdkproducer.TaskConfig
-	counterInterval time.Duration
+	initCfg initConfig
+	tasks   []xrdndndpdkproducer.TaskConfig
 }
 
 func parseCommand(args []string) (pc parsedCommand, e error) {

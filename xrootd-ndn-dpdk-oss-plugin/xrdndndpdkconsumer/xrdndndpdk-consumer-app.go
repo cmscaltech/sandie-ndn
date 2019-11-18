@@ -13,6 +13,8 @@ import (
 	"unsafe"
 
 	"github.com/cheggaaa/pb"
+	_ "github.com/influxdata/influxdb1-client" // this is important because of the bug in go mod
+	client "github.com/influxdata/influxdb1-client/v2"
 
 	"ndn-dpdk/appinit"
 	"ndn-dpdk/dpdk"
@@ -115,9 +117,10 @@ func (app *App) launchRxl(rxl *iface.RxLoop) {
 }
 
 type Task struct {
-	Face     iface.IFace
-	consumer *Consumer
-	files    []string
+	Face       iface.IFace
+	consumer   *Consumer
+	files      []string
+	httpClient client.Client
 }
 
 func newTask(face iface.IFace, cfg TaskConfig) (task Task, e error) {
@@ -136,6 +139,18 @@ func newTask(face iface.IFace, cfg TaskConfig) (task Task, e error) {
 	}
 
 	task.files = cfg.Files
+
+	// SC19: Grafana
+	task.httpClient, e := client.NewHTTPClient(client.HTTPConfig{
+		Addr:     "http://www.ner.lt:8086",
+		Username: "admin",
+		Password: "caltechSC19",
+	})
+
+	if e != nil {
+		return Task{}, e
+	}
+
 	return task, nil
 }
 
@@ -271,6 +286,45 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("---------------------------------------------------------\n")
+
+	// SC19: Grafana
+	bpc := client.BatchPointsConfig{
+		Precision: "s",
+		Database:  "sc19",
+	}
+
+	bps, e := client.NewBatchPoints(bpc)
+	if e != nil {
+		fmt.Println("Error: ", e.Error())
+		return nil
+	}
+
+	cp, e := client.NewPoint(
+		"sandie-sc19",
+		map[string]string{
+			"info": "consumer-producer",
+		},
+		map[string]interface{}{
+			"Interest":   task.consumer.Tx.c.nInterests,
+			"Data":       task.consumer.Rx.c.nData,
+			"Bytes":      task.consumer.Rx.c.nBytes,
+			"GoodPut":    (((float64(pBar.Get())/1024)/1024)*8)/elapsed.Seconds(),
+			"Throughput": (((float64(task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds(),
+		},
+		time.Now()
+	)
+
+	if e != nil {
+		fmt.Println("Error: ", e.Error())
+		return nil
+	} else {
+		bps.AddPoint(cp)
+	}
+
+	e = task.httpClient.Write(bps)
+	if e != nil {
+		fmt.Println("Error: ", e.Error())
+	}
 
 	return nil
 }

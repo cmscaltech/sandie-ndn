@@ -141,7 +141,7 @@ func newTask(face iface.IFace, cfg TaskConfig) (task Task, e error) {
 	task.files = cfg.Files
 
 	// SC19: Grafana
-	task.httpClient, e := client.NewHTTPClient(client.HTTPConfig{
+	task.httpClient, e = client.NewHTTPClient(client.HTTPConfig{
 		Addr:     "http://www.ner.lt:8086",
 		Username: "admin",
 		Password: "caltechSC19",
@@ -305,13 +305,14 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 			"info": "consumer-producer",
 		},
 		map[string]interface{}{
-			"Interest":   task.consumer.Tx.c.nInterests,
-			"Data":       task.consumer.Rx.c.nData,
-			"Bytes":      task.consumer.Rx.c.nBytes,
-			"GoodPut":    (((float64(pBar.Get())/1024)/1024)*8)/elapsed.Seconds(),
-			"Throughput": (((float64(task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds(),
+			"Interest":   int64(task.consumer.Tx.c.nInterests),
+			"Data":       int64(task.consumer.Rx.c.nData),
+			"Bytes":      int64(task.consumer.Rx.c.nBytes),
+			"GoodPut":    (((float64(pBar.Get()) / 1024) / 1024) * 8) / elapsed.Seconds(),
+			"Throughput": (((float64(task.consumer.Rx.c.nBytes) / 1024) / 1024) * 8) / elapsed.Seconds(),
+			"Time":       elapsed.Seconds(),
 		},
-		time.Now()
+		time.Now(),
 	)
 
 	if e != nil {

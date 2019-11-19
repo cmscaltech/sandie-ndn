@@ -272,21 +272,10 @@ func (tx *ConsumerTxThread) Read(path string, buf *C.uint8_t, count C.uint64_t, 
 	}
 
 	for i := C.uint16_t(0); i < nInterests; i++ {
-		m := <-messages
-
-		if m.isError {
-			return nbytes, fmt.Errorf("File offset read")
-		}
-
-		nbytes += m.content.length
-
-		defer C.rte_free(unsafe.Pointer(m.content.payload))
-		defer C.rte_free(unsafe.Pointer(m.content))
-
-		// SC19: Don't copy content from C to Go Memory. We don't need to save file
-		// C.copyFromC(buf, C.uint16_t((m.off-off)/C.XRDNDNDPDK_PACKET_SIZE), m.content.payload, m.content.offset, m.content.length)
+		_ = <-messages
 	}
 
+	nbytes = C.uint64_t(C.XRDNDNDPDK_PACKET_SIZE) * C.uint64_t(nInterests)
 	return nbytes, e
 }
 

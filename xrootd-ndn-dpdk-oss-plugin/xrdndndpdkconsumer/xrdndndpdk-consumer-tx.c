@@ -81,24 +81,31 @@ void ConsumerTx_sendInterests(ConsumerTx *ct, struct LName *path, uint64_t off,
         return;
     }
 
-    for (uint16_t i = 0; i < n; ++i) {
-        struct rte_mbuf *pkt = Packet_ToMbuf(npkts[i]);
-        pkt->data_off = ct->interestMbufHeadroom;
+    ZF_LOGD("Have to copy: %d packets", n);
+    for (uint16_t step = 0; step < n; step += 16) {
+        ZF_LOGD ("Copy from: %d to %d", step, step+16);
+        for (uint16_t i = step; i < step + 16 && i < n; ++i) {
+            struct rte_mbuf *pkt = Packet_ToMbuf(npkts[i]);
+            pkt->data_off = ct->interestMbufHeadroom;
 
-        ct->segmentNumberComponent.compV = off + i * XRDNDNDPDK_PACKET_SIZE;
+            ct->segmentNumberComponent.compV = off + i * XRDNDNDPDK_PACKET_SIZE;
 
-        rte_memcpy(ct->suffixBuffer, path->value, path->length);
-        rte_memcpy(ct->suffixBuffer + path->length,
-                   &ct->segmentNumberComponent.compT,
-                   SEGMENT_NO_COMPONENT_SIZE);
+            rte_memcpy(ct->suffixBuffer, path->value, path->length);
+            rte_memcpy(ct->suffixBuffer + path->length,
+                    &ct->segmentNumberComponent.compT,
+                    SEGMENT_NO_COMPONENT_SIZE);
 
-        LName suffix = {.length = path->length + SEGMENT_NO_COMPONENT_SIZE,
-                        .value = ct->suffixBuffer};
+            LName suffix = {.length = path->length + SEGMENT_NO_COMPONENT_SIZE,
+                            .value = ct->suffixBuffer};
 
-        EncodeInterest(pkt, &ct->readPrefixTpl, ct->readPrefixTplBuf, suffix,
-                       NonceGen_Next(&ct->nonceGen), 0, NULL);
-        Packet_SetL3PktType(npkts[i], L3PktType_Interest);
-        Packet_InitLpL3Hdr(npkts[i]);
+            EncodeInterest(pkt, &ct->readPrefixTpl, ct->readPrefixTplBuf, suffix,
+                        NonceGen_Next(&ct->nonceGen), 0, NULL);
+            Packet_SetL3PktType(npkts[i], L3PktType_Interest);
+            Packet_InitLpL3Hdr(npkts[i]);
+        }
+
+        ZF_LOGD("sleep 1ms");
+        rte_delay_us(1);
     }
 
     Face_TxBurst(ct->face, npkts, n);

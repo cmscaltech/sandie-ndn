@@ -91,7 +91,9 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
         ZF_LOGI("Return content for read filesystem call @%d",
                 lnameGetSegmentNumber(name));
 
-        cr->onContent(content, lnameGetSegmentNumber(name));
+        rte_free(content->payload);
+        rte_free(content);
+        cr->onContent(NULL, lnameGetSegmentNumber(name));
     }
 }
 

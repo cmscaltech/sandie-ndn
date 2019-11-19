@@ -182,6 +182,7 @@ func (app *App) Run() (e error) {
 		}
 
 		app.task.consumer.ResetCounters()
+		time.Sleep(10 * time.Second)
 	}
 
 	app.task.Close()
@@ -214,7 +215,7 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	fmt.Printf("-> file size: %d bytes\n", filesz)
 
 	// Read file
-	maxCount := C.uint64_t(C.XRDNDNDPDK_PACKET_SIZE * (C.CONSUMER_MAX_BURST_SIZE - 2))
+	maxCount := C.uint64_t(C.XRDNDNDPDK_PACKET_SIZE * (C.CONSUMER_MAX_BURST_SIZE))
 	count := C.uint64_t(0)
 
 	pBar := pb.New(int(filesz))
@@ -229,11 +230,6 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	buf := (*C.uint8_t)(C.malloc(maxCount * C.sizeof_uint8_t))
 	defer C.free(unsafe.Pointer(buf))
 
-	var samplingStart time.Time
-	var samplingEnd time.Duration
-	samplingCount := C.uint64_t(0)
-	sampling := false
-
 	pBar.Start()
 	start := time.Now()
 
@@ -244,25 +240,12 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 			count = maxCount
 		}
 
-		if !sampling && off > filesz/2 {
-			sampling = true
-			samplingStart = time.Now()
-		}
-
 		ret, e := task.consumer.Tx.Read(path, buf, count, off)
 		if e != nil {
 			return e
 		}
 
-		if sampling {
-			samplingCount += ret
-		}
-
 		pBar.Add(int(ret))
-	}
-
-	if sampling {
-		samplingEnd = time.Since(samplingStart)
 	}
 
 	elapsed := time.Since(start)
@@ -282,7 +265,6 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	fmt.Printf("-- Bytes transmitted    : %d Bytes\n", task.consumer.Rx.c.nBytes)
 	fmt.Printf("-- Time elapsed         : %s\n\n", elapsed)
 	fmt.Printf("-- Goodput              : %.4f Mbit/s \n", (((float64(pBar.Get())/1024)/1024)*8)/elapsed.Seconds())
-	fmt.Printf("-- Throughput (2nd 1/2) : %.4f Mbit/s \n", (((float64(samplingCount)/1024)/1024)*8)/samplingEnd.Seconds())
 	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("---------------------------------------------------------\n")
@@ -322,9 +304,11 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 		bps.AddPoint(cp)
 	}
 
-	e = task.httpClient.Write(bps)
-	if e != nil {
-		fmt.Println("Error: ", e.Error())
+	if (((float64(task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds() < 15000 {
+		e = task.httpClient.Write(bps)
+		if e != nil {
+			fmt.Println("Error: ", e.Error())
+		}
 	}
 
 	return nil

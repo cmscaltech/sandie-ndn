@@ -28,6 +28,8 @@
 
 #include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 
+#include "buffer.h"
+
 /**
  * @brief Producer struct
  *

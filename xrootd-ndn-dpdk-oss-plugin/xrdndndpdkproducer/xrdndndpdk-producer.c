@@ -129,6 +129,14 @@ static Packet *Producer_onOpenInterest(Producer *producer, Packet *npkt,
     if ((fd = open(path, O_RDONLY)) == -XRDNDNDPDK_EFAILURE) {
         openReturnCode = errno;
     } else {
+        // rte_free(producer->sc_magic_buffer);
+        // producer->sc_magic_buffer = rte_malloc(NULL, sizeof(uint8_t) * XRDNDNDPDK_PACKET_SIZE, 0);
+        // int readRetCode = pread(fd, producer->sc_magic_buffer, XRDNDNDPDK_PACKET_SIZE, 0);
+
+        // if (unlikely(readRetCode == -XRDNDNDPDK_EFAILURE))
+        // ZF_LOGW("Read from file: %s @%d failed with error code: %d (%s)", path,
+        //         0, readRetCode, strerror(readRetCode));
+
         close(fd);
     }
 
@@ -191,68 +199,7 @@ static Packet *Producer_onFstatInterest(Producer *producer, Packet *npkt,
  */
 static Packet *Producer_onReadInterest(Producer *producer, Packet *npkt,
                                        const LName name) {
-    char *path =
-        lnameGetFilePath(name, XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE, true);
-
-    ZF_LOGD("Received read Interest for file: %s", path);
-
-    uint64_t off = lnameGetSegmentNumber(name);
-    ZF_LOGI("Read %dB @%d from file: %s", XRDNDNDPDK_PACKET_SIZE, off, path);
-
-    int readRetCode;
-    int fd;
-
-    if (unlikely((fd = open(path, O_RDONLY)) == -XRDNDNDPDK_EFAILURE)) {
-        readRetCode = errno;
-
-        ZF_LOGI("Open file: %s with error code: %d (%s)", path, readRetCode,
-                strerror(readRetCode));
-
-        return Producer_getNonNegativeIntegerPacket(producer, npkt,
-                                                    L3PktType_MAX, readRetCode);
-    }
-
-    void *buf = rte_malloc(NULL, sizeof(uint8_t) * XRDNDNDPDK_PACKET_SIZE, 0);
-    if (unlikely(NULL == buf)) {
-        ZF_LOGE("Not enough memory");
-
-        rte_free(path);
-        close(fd);
-
-        return Producer_getNonNegativeIntegerPacket(
-            producer, npkt, L3PktType_MAX, XRDNDNDPDK_EFAILURE);
-    }
-
-    readRetCode = pread(fd, buf, XRDNDNDPDK_PACKET_SIZE, off);
-    if (unlikely(readRetCode == -XRDNDNDPDK_EFAILURE)) {
-        readRetCode = errno;
-        ZF_LOGW("Read from file: %s @%d failed with error code: %d (%s)", path,
-                off, readRetCode, strerror(readRetCode));
-
-        close(fd);
-        rte_free(path);
-        rte_free(buf);
-
-        return Producer_getNonNegativeIntegerPacket(producer, npkt,
-                                                    L3PktType_MAX, readRetCode);
-    }
-
-    close(fd);
-
-    ZF_LOGD("Read from file: %s @%d %dB", path, off, readRetCode);
-
-    Packet *pkt;
-    if (likely(readRetCode != 0)) {
-        pkt = Producer_getPacket(producer, npkt, L3PktType_Data, readRetCode,
-                                 (uint8_t *)buf);
-    } else {
-        pkt = Producer_getNonNegativeIntegerPacket(producer, npkt,
-                                                   L3PktType_MAX, readRetCode);
-    }
-
-    rte_free(path);
-    rte_free(buf);
-    return pkt;
+    return Producer_getPacket(producer, npkt, L3PktType_Data, XRDNDNDPDK_PACKET_SIZE, sc_magic_buffer);
 }
 
 /**

@@ -172,17 +172,19 @@ func (task *Task) Close() error {
 }
 
 func (app *App) Run() (e error) {
-	for index, path := range app.task.files {
-		fmt.Printf("\n--> Copy file [%d]: %s\n", index, path)
-		e = app.task.CopyFileOverNDN(path)
+	for i := 0; i < 100; i++ {
+		for index, path := range app.task.files {
+			fmt.Printf("\n--> Copy file [%d]: %s\n", index, path)
+			e = app.task.CopyFileOverNDN(path)
 
-		if e != nil {
-			app.task.Close()
-			return e
+			if e != nil {
+				app.task.Close()
+				return e
+			}
+
+			app.task.consumer.ResetCounters()
+			time.Sleep(5 * time.Second)
 		}
-
-		app.task.consumer.ResetCounters()
-		time.Sleep(5 * time.Second)
 	}
 
 	app.task.Close()
@@ -264,7 +266,7 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	fmt.Printf("-- Read chunk size      : %d Bytes (%d packets)\n", maxCount, C.CONSUMER_MAX_BURST_SIZE-2)
 	fmt.Printf("-- Bytes transmitted    : %d Bytes\n", task.consumer.Rx.c.nBytes)
 	fmt.Printf("-- Time elapsed         : %s\n\n", elapsed)
-	fmt.Printf("-- Goodput              : %.4f Mbit/s \n", (((float64(pBar.Get())/1024)/1024)*8)/elapsed.Seconds())
+	fmt.Printf("-- Goodput              : %.4f Mbit/s \n", (((float64(task.consumer.Tx.c.nInterests*C.XRDNDNDPDK_PACKET_SIZE)/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("---------------------------------------------------------\n")

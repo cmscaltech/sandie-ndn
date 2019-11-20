@@ -261,6 +261,7 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	fmt.Printf("-- Interest Packets : %d\n", task.consumer.Tx.c.nInterests)
 	fmt.Printf("-- Data Packets     : %d\n", task.consumer.Rx.c.nData)
 	fmt.Printf("-- Nack Packets     : %d\n", task.consumer.Rx.c.nNacks)
+	fmt.Printf("-- Lost             : %d\n", task.consumer.Tx.c.nInterests-task.consumer.Rx.c.nData)
 	fmt.Printf("-- Errors           : %d\n\n", task.consumer.Rx.c.nErrors)
 	fmt.Printf("-- Maximum Packet size  : %d Bytes\n", C.XRDNDNDPDK_PACKET_SIZE)
 	fmt.Printf("-- Read chunk size      : %d Bytes (%d packets)\n", maxCount, C.CONSUMER_MAX_BURST_SIZE-2)
@@ -284,7 +285,7 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	}
 
 	cp, e := client.NewPoint(
-		"sandie-sc19",
+		"sc19_vip",
 		map[string]string{
 			"info": "consumer-producer",
 		},
@@ -307,7 +308,7 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	}
 
 	if (((float64(task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds() < 15000 {
-		// e = task.httpClient.Write(bps) // Just for Troughput DEMO!!
+		e = task.httpClient.Write(bps) // Just for Troughput DEMO!!
 		if e != nil {
 			fmt.Println("Error: ", e.Error())
 		}

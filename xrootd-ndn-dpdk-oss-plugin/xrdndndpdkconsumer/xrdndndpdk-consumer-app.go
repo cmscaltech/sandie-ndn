@@ -182,7 +182,7 @@ func (app *App) Run() (e error) {
 		}
 
 		app.task.consumer.ResetCounters()
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
 	app.task.Close()
@@ -305,7 +305,7 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	}
 
 	if (((float64(task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds() < 15000 {
-		e = task.httpClient.Write(bps)
+		// e = task.httpClient.Write(bps) // Just for Troughput DEMO!!
 		if e != nil {
 			fmt.Println("Error: ", e.Error())
 		}

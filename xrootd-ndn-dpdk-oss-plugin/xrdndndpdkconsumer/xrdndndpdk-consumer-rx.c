@@ -93,7 +93,7 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
 
         rte_free(content->payload);
         rte_free(content);
-        cr->onContent(NULL, lnameGetSegmentNumber(name));
+        //cr->onContent(NULL, lnameGetSegmentNumber(name));
     }
 }
 

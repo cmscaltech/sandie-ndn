@@ -9,6 +9,7 @@ package xrdndndpdkconsumer
 import "C"
 import (
 	"fmt"
+	"time"
 	"unsafe"
 
 	"ndn-dpdk/appinit"
@@ -26,7 +27,8 @@ type Consumer struct {
 // Consumer TX thread.
 type ConsumerTxThread struct {
 	dpdk.ThreadBase
-	c *C.ConsumerTx
+	c   *C.ConsumerTx
+	msi time.Duration
 }
 
 // Consumer RX thread.
@@ -84,6 +86,9 @@ func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error)
 	if e != nil {
 		return e
 	}
+
+	consumer.Tx.msi = settings.Msi
+	fmt.Println("Configured MSI: ", settings.Msi)
 
 	prefixTpl := ndn.NewInterestTemplate()
 	prefixTpl.SetNamePrefix(prefix)
@@ -234,6 +239,10 @@ func (tx *ConsumerTxThread) FstatFile(buf *C.uint8_t, path string) (e error) {
 		return fmt.Errorf("Unable to call fstat on file: %s", path)
 	}
 
+	if m.content == nil {
+		return fmt.Errorf("Unable to get fstat struct")
+	}
+
 	defer C.rte_free(unsafe.Pointer(m.content.payload))
 	defer C.rte_free(unsafe.Pointer(m.content))
 
@@ -271,10 +280,11 @@ func (tx *ConsumerTxThread) Read(path string, buf *C.uint8_t, count C.uint64_t, 
 		return 0, e
 	}
 
-	for i := C.uint16_t(0); i < nInterests; i++ {
-		_ = <-messages
-	}
+	// for i := C.uint16_t(0); i < nInterests; i++ {
+	// 	_ = <-messages
+	// }
 
+	time.Sleep(tx.msi)
 	nbytes = C.uint64_t(C.XRDNDNDPDK_PACKET_SIZE) * C.uint64_t(nInterests)
 	return nbytes, e
 }

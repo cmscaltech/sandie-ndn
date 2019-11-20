@@ -22,4 +22,5 @@ type TaskConfig struct {
 type ConsumerSettings struct {
 	MustBeFresh      bool          // whether to set MustBeFresh
 	InterestLifetime time.Duration // InterestLifetime value, zero means default
+	Msi              time.Duration // MSI for sending Interest packets over NDN
 }

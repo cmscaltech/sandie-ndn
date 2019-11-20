@@ -104,8 +104,8 @@ void ConsumerTx_sendInterests(ConsumerTx *ct, struct LName *path, uint64_t off,
             Packet_InitLpL3Hdr(npkts[i]);
         }
 
-        ZF_LOGD("sleep 1ms");
-        rte_delay_us(1);
+        // ZF_LOGD("sleep 1ms");
+        rte_delay_us(50);
     }
 
     Face_TxBurst(ct->face, npkts, n);

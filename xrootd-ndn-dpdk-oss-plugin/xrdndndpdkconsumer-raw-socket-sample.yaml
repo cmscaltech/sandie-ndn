@@ -7,4 +7,5 @@
   consumer:
     mustbefresh: false
     canbeprefix: false
+    msi: 5ms
   files: ['/root/test.txt']

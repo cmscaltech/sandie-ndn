@@ -309,7 +309,7 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	}
 
 	if (((float64(task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds() < 15000 {
-		e = task.httpClient.Write(bps) // Just for Troughput DEMO!!
+		//e = task.httpClient.Write(bps) // Just for Troughput DEMO!!
 		if e != nil {
 			fmt.Println("Error: ", e.Error())
 		}

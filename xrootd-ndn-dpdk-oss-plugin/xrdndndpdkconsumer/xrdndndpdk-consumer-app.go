@@ -292,6 +292,7 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 		map[string]interface{}{
 			"Interest":   int64(task.consumer.Tx.c.nInterests),
 			"Data":       int64(task.consumer.Rx.c.nData),
+			"Lost":       int64(task.consumer.Tx.c.nInterests - task.consumer.Rx.c.nData),
 			"Bytes":      int64(task.consumer.Rx.c.nBytes),
 			"GoodPut":    (((float64(pBar.Get()) / 1024) / 1024) * 8) / elapsed.Seconds(),
 			"Throughput": (((float64(task.consumer.Rx.c.nBytes) / 1024) / 1024) * 8) / elapsed.Seconds(),

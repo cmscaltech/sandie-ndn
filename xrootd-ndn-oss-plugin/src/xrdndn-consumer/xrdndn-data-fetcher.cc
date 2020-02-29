@@ -28,7 +28,9 @@ namespace xrdndnconsumer {
 const uint8_t DataFetcher::MAX_RETRIES_NACK = 16;
 const uint8_t DataFetcher::MAX_RETRIES_TIMEOUT = 32;
 const ndn::time::milliseconds DataFetcher::MAX_CONGESTION_BACKOFF_TIME =
-    ndn::time::seconds(8);
+    ndn::time::seconds(10);
+const ndn::time::milliseconds DataFetcher::NO_ROUTE_BACKOFF_TIME =
+    ndn::time::seconds(2);
 
 std::shared_ptr<DataFetcher>
 DataFetcher::getDataFetcher(Face &face, const Interest &interest,
@@ -107,6 +109,12 @@ void DataFetcher::handleNack(const Interest &interest, const lp::Nack &nack) {
     switch (nack.getReason()) {
     case lp::NackReason::DUPLICATE: {
         this->expressInterest(newInterest);
+        break;
+    }
+    case lp::NackReason::NO_ROUTE: {
+        m_scheduler.schedule(
+            NO_ROUTE_BACKOFF_TIME,
+            bind(&DataFetcher::expressInterest, this, newInterest));
         break;
     }
     case lp::NackReason::CONGESTION: {

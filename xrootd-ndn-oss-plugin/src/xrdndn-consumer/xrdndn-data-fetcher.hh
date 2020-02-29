@@ -59,6 +59,12 @@ class DataFetcher : public std::enable_shared_from_this<DataFetcher> {
      */
     static const ndn::time::milliseconds MAX_CONGESTION_BACKOFF_TIME;
 
+    /**
+     * @brief Backoff time in case of no route before sending Interest packet
+     *
+     */
+    static const ndn::time::milliseconds NO_ROUTE_BACKOFF_TIME;
+
     using NotifyTaskCompleteSuccess = std::function<void(const ndn::Data &)>;
     using NotifyTaskCompleteFailure = std::function<void()>;
 

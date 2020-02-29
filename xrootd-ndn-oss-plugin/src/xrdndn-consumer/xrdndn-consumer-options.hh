@@ -28,12 +28,12 @@ namespace xrdndnconsumer {
  * @brief Minimum Interest lifetime set from options
  *
  */
-#define XRDNDN_MININTEREST_LIFETIME 4 // sec
+#define XRDNDN_MININTEREST_LIFETIME 1 // sec
 /**
  * @brief Default Interest lifetime
  *
  */
-#define XRDNDN_DEFAULT_INTEREST_LIFETIME 256 // sec
+#define XRDNDN_DEFAULT_INTEREST_LIFETIME 4 // sec
 /**
  * @brief Maximum Interest lifetime set from options
  *

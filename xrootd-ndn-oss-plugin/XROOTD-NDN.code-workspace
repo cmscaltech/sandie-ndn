@@ -100,10 +100,11 @@
 			"token.h": "c",
 			"logger.h": "c",
 			"assert.h": "c",
-			"xrdndndpdk-consumer-tx.h": "c"
+			"xrdndndpdk-consumer-tx.h": "c",
+			"bit": "cpp"
 		},
 		"workbench.colorTheme": "Material Theme Palenight High Contrast",
-		"window.zoomLevel": -1,
+		"window.zoomLevel": 0,
 		"fileHeaderComment.parameter":{
 			"*":{
 				"commentbegin": "/******************************************************************************",

@@ -57,6 +57,8 @@ InterestManager::~InterestManager() {
 }
 
 std::shared_ptr<FileHandler> InterestManager::getFileHandler(std::string path) {
+    boost::unique_lock<boost::shared_mutex> lock(m_FileHandlersMtx);
+
     auto it = m_FileHandlers.find(path);
     if (it != m_FileHandlers.end()) {
         return it->second->shared_from_this();
@@ -68,9 +70,7 @@ std::shared_ptr<FileHandler> InterestManager::getFileHandler(std::string path) {
         return std::shared_ptr<FileHandler>(nullptr);
     }
 
-    boost::unique_lock<boost::shared_mutex> lock(m_FileHandlersMtx);
     m_FileHandlers[path] = fh;
-
     return m_FileHandlers[path]->shared_from_this();
 }
 

@@ -1,173 +1,19 @@
 {
-	"folders": [
-		{
-			"path": "."
-		},
-		{
-			"path": "/Users/cataliniordache/go/src/sandie-ndn/xrootd-ndn-dpdk-oss-plugin"
-		},
-		{
-			"path": "/Users/cataliniordache/go/src/ndn-dpdk"
-		}
-	],
-	"settings": {
-		"files.associations": {
-			"iostream": "cpp",
-			"iosfwd": "cpp",
-			"sstream": "cpp",
-			"__bit_reference": "cpp",
-			"__string": "cpp",
-			"algorithm": "cpp",
-			"deque": "cpp",
-			"string": "cpp",
-			"string_view": "cpp",
-			"__config": "cpp",
-			"__nullptr": "cpp",
-			"cstddef": "cpp",
-			"exception": "cpp",
-			"initializer_list": "cpp",
-			"new": "cpp",
-			"stdexcept": "cpp",
-			"type_traits": "cpp",
-			"typeinfo": "cpp",
-			"cfenv": "cpp",
-			"bitset": "cpp",
-			"functional": "cpp",
-			"system_error": "cpp",
-			"__functional_base": "cpp",
-			"atomic": "cpp",
-			"chrono": "cpp",
-			"optional": "cpp",
-			"iterator": "cpp",
-			"limits": "cpp",
-			"locale": "cpp",
-			"memory": "cpp",
-			"ratio": "cpp",
-			"tuple": "cpp",
-			"vector": "cpp",
-			"*.ipp": "cpp",
-			"__locale": "cpp",
-			"__hash_table": "cpp",
-			"__split_buffer": "cpp",
-			"__tree": "cpp",
-			"array": "cpp",
-			"list": "cpp",
-			"map": "cpp",
-			"set": "cpp",
-			"unordered_map": "cpp",
-			"utility": "cpp",
-			"istream": "cpp",
-			"typeindex": "cpp",
-			"__functional_03": "cpp",
-			"__functional_base_03": "cpp",
-			"__tuple": "cpp",
-			"complex": "cpp",
-			"ios": "cpp",
-			"mutex": "cpp",
-			"__mutex_base": "cpp",
-			"shared_mutex": "cpp",
-			"fstream": "cpp",
-			"cstring": "cpp",
-			"ostream": "cpp",
-			"stack": "cpp",
-			"unordered_set": "cpp",
-			"thread": "cpp",
-			"variant": "cpp",
-			"__debug": "cpp",
-			"__threading_support": "cpp",
-			"cctype": "cpp",
-			"cmath": "cpp",
-			"codecvt": "cpp",
-			"condition_variable": "cpp",
-			"csignal": "cpp",
-			"cstdarg": "cpp",
-			"cstdint": "cpp",
-			"cstdio": "cpp",
-			"cstdlib": "cpp",
-			"ctime": "cpp",
-			"cwchar": "cpp",
-			"cwctype": "cpp",
-			"iomanip": "cpp",
-			"streambuf": "cpp",
-			"strstream": "cpp",
-			"queue": "cpp",
-			"__errc": "cpp",
-			"__node_handle": "cpp",
-			"future": "cpp",
-			"numeric": "cpp",
-			"random": "cpp",
-			"any": "cpp",
-			"token.h": "c",
-			"logger.h": "c",
-			"assert.h": "c",
-			"xrdndndpdk-consumer-tx.h": "c",
-			"bit": "cpp"
-		},
-		"workbench.colorTheme": "Material Theme Palenight High Contrast",
-		"window.zoomLevel": 0,
-		"fileHeaderComment.parameter":{
-			"*":{
-				"commentbegin": "/******************************************************************************",
-				"commentprefix": " *",
-				"commentend":[" *****************************************************************************/"
-				],
-				"author": "Catalin Iordache",
-				"email": "catalin.iordache@cern.ch",
-				"company": "California Institute of Technology",
-				"license_caltech_gnu-ndncxx":[
-					"Named Data Networking plugin for xrootd                                    *",
-					" Copyright © 2018-${year} ${company}                   *",
-					"                                                                            *",
-					" Author: ${author} <${email}>                        *",
-					"                                                                            *",
-					" This program is free software: you can redistribute it and/or modify       *",
-					" it under the terms of the GNU General Public License as published by       *",
-					" the Free Software Foundation, either version 3 of the License, or          *",
-					" (at your option) any later version.                                        *",
-					"                                                                            *",
-					" This program is distributed in the hope that it will be useful,            *",
-					" but WITHOUT ANY WARRANTY; without even the implied warranty of             *",
-					" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *",
-					" GNU General Public License for more details.                               *",
-					"                                                                            *",
-					" You should have received a copy of the GNU General Public License          *",
-					" along with this program.  If not, see <https://www.gnu.org/licenses/>.     *"
-				],
-				"license_caltech_gnu-dpdk":[
-					"Named Data Networking plugin for XRootD                                    *",
-					" Copyright © ${year} ${company}                        *",
-					"                                                                            *",
-					" Author: ${author} <${email}>                        *",
-					"                                                                            *",
-					" This program is free software: you can redistribute it and/or modify       *",
-					" it under the terms of the GNU General Public License as published by       *",
-					" the Free Software Foundation, either version 3 of the License, or          *",
-					" (at your option) any later version.                                        *",
-					"                                                                            *",
-					" This program is distributed in the hope that it will be useful,            *",
-					" but WITHOUT ANY WARRANTY; without even the implied warranty of             *",
-					" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *",
-					" GNU General Public License for more details.                               *",
-					"                                                                            *",
-					" You should have received a copy of the GNU General Public License          *",
-					" along with this program.  If not, see <https://www.gnu.org/licenses/>.     *"
-				]
-			}
-		},
-		"fileHeaderComment.template":{
-			"ndnxrootd-ndn-cxx":[
-				"${commentbegin}",
-				"${commentprefix} ${license_caltech_gnu-ndncxx}",
-				"${commentend}",
-				""
-			],
-			"ndnxrootd-dpdk": [
-				"${commentbegin}",
-				"${commentprefix} ${license_caltech_gnu-dpdk}",
-				"${commentend}",
-				""
-			]
-		},
-		"python.pythonPath": "/usr/local/bin/python"
-	}
+    "settings": {
+        "window.zoomLevel": 0,
+        "files.associations": {
+            "xrdndndpdk-consumer-rx.h": "c"
+        }
+    },
+    "folders": [
+        {
+            "path": "../workspace"
+        },
+        {
+            "path": "../xrootd-ndn-dpdk-oss-plugin"
+        },
+        {
+            "path": "."
+        }
+    ]
 }

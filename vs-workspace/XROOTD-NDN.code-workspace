@@ -16,6 +16,9 @@
 			"path": "/Users/cataliniordache/go/src/sandie-ndn/vs-workspace"
 		}
 	],
+	"files" : [
+
+	],
 	"settings": {
 		"files.associations": {
 			"iostream": "cpp",
@@ -107,7 +110,8 @@
 			"logger.h": "c",
 			"assert.h": "c",
 			"xrdndndpdk-consumer-tx.h": "c",
-			"bit": "cpp"
+			"bit": "cpp",
+			"xrdndndpdk-utils.h": "c"
 		},
 		"workbench.colorTheme": "Material Theme Palenight High Contrast",
 		"window.zoomLevel": 0,

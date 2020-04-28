@@ -1,7 +1,0 @@
-{
-    "C_Cpp.errorSquiggles": "Disabled",
-    "C_Cpp.intelliSenseEngineFallback": "Disabled",
-    "C_Cpp.workspaceParsingPriority": "low",
-    "git.autofetch": false,
-    "editor.fontSize": 13
-}

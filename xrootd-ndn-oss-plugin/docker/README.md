@@ -1,6 +1,6 @@
 # NDN Dockerfile
 
-This Dockerfile (TODO: link) composes a Docker container with NDN software stack (TODO: link) alongised XRootD NDN OSS plugin, the producer and the consumer test application
+This [Dockerfile](Dockerfile) creates Docker container for [XRootD NDN based OSS plugin](../README.md) and complementary applications based on CentOS 7.7 and the entire [NDN software stack](../../packaging/packaging.md).
 
 ## Build Docker image from Dockerfile
 
@@ -17,5 +17,3 @@ sudo docker build . --no-cache -t sandiendn:1.0.0  --network=host
 sudo docker run --name=mysandiendn -it --cap-add=NET_ADMIN --net=host sandiendn:1.0.0
 
 ```
-
-[TODO] How to use producer - consumer -> link to the other Readme file

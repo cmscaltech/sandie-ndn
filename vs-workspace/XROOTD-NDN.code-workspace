@@ -2,18 +2,19 @@
 	"folders": [
 		{
 			"name": "xrootd-ndn-oss-plugin",
-			"path": "/Users/cataliniordache/go/src/sandie-ndn/xrootd-ndn-oss-plugin"
+			"path": "../xrootd-ndn-oss-plugin"
 		},
 		{
 			"name": "xrootd-ndn-dpdk-oss-plugin",
-			"path": "/Users/cataliniordache/go/src/sandie-ndn/xrootd-ndn-dpdk-oss-plugin"
+			"path": "../xrootd-ndn-dpdk-oss-plugin"
 		},
 		{
-			"path": "/Users/cataliniordache/go/src/ndn-dpdk"
+			"name": "external ndn-dpdk",
+			"path": "../../ndn-dpdk"
 		},
 		{
 			"name": ".vs workspace",
-			"path": "/Users/cataliniordache/go/src/sandie-ndn/vs-workspace"
+			"path": "."
 		}
 	],
 	"files" : [

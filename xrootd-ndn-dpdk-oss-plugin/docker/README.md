@@ -1,7 +1,5 @@
 # NDN Dockerfile
 
-This [Dockerfile](Dockerfile) creates Docker container for [XRootD NDN based OSS plugin](../README.md) and complementary applications based on CentOS 7.7 and the entire [NDN software stack](../../packaging/packaging.md).
-
 This [Dockerfile](Dockerfile) creates Docker container for NDN-DPDK based [consumer and producer applications](../README.md) for XRootD OSS plugin based on CentOS 8.2.
 
 ## Build Docker image from Dockerfile

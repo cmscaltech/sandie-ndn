@@ -5,7 +5,7 @@ At the moment the following system calls are supported: **open**, **fstat**, **r
 
 ## Developer Guide
 
-1. Clone [NDN-DPDK](https://github.com/usnistgov/ndn-dpdk) repository at revision: **523a54c** and follow installation steps
+1. Clone [NDN-DPDK](https://github.com/usnistgov/ndn-dpdk) repository at revision: **7194abef709** and follow installation steps
 
 2. Clone repository next to NDN-DPDK one. Your file hierarchy should look like this:
 ```bash

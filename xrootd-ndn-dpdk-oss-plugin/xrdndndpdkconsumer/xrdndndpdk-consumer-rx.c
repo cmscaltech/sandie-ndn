@@ -166,8 +166,11 @@ void ConsumerRx_Run(ConsumerRx *cr) {
     Packet *npkts[CONSUMER_MAX_BURST_SIZE];
 
     while (ThreadStopFlag_ShouldContinue(&cr->stop)) {
-        uint16_t nRx = rte_ring_sc_dequeue_burst(cr->rxQueue, (void **)npkts,
-                                                 CONSUMER_MAX_BURST_SIZE, NULL);
+        uint32_t nRx =
+            PktQueue_Pop(&cr->rxQueue, (struct rte_mbuf **)npkts,
+                         CONSUMER_MAX_BURST_SIZE, rte_get_tsc_cycles())
+                .count;
+
         for (uint16_t i = 0; i < nRx; ++i) {
             Packet *npkt = npkts[i];
             if (unlikely(Packet_GetL2PktType(npkt) != L2PktType_NdnlpV2)) {

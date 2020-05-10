@@ -2,7 +2,7 @@ package xrdndndpdkconsumer
 
 /*
 #include <sys/stat.h>
-#include "../xrdndndpdk-common/xrdndndpdk-input.h"
+#include <stdlib.h>
 #include "../xrdndndpdk-common/xrdndndpdk-namespace.h"
 */
 import "C"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/cheggaaa/pb"
 
+	"ndn-dpdk/app/inputdemux"
 	"ndn-dpdk/appinit"
 	"ndn-dpdk/dpdk"
 	"ndn-dpdk/iface"
@@ -30,28 +31,43 @@ const (
 
 type App struct {
 	task    Task
-	rxls    []*iface.RxLoop
+	inputs  []*Input
 	initCfg InitConfig
+}
+
+type Input struct {
+	rxl    *iface.RxLoop
+	demux3 inputdemux.Demux3
 }
 
 func New(cfg TaskConfig, initCfg InitConfig) (app *App, e error) {
 	app = new(App)
 	app.initCfg = initCfg
-
 	appinit.ProvideCreateFaceMempools()
-	for _, numaSocket := range createface.ListRxTxNumaSockets() {
-		// TODO create rxl and txl for configured faces only
-		rxLCore := dpdk.LCoreAlloc.Alloc(LCoreRole_Input, numaSocket)
-		rxl := iface.NewRxLoop(rxLCore.GetNumaSocket())
-		rxl.SetLCore(rxLCore)
-		app.rxls = append(app.rxls, rxl)
-		createface.AddRxLoop(rxl)
 
-		txLCore := dpdk.LCoreAlloc.Alloc(LCoreRole_Output, numaSocket)
-		txl := iface.NewTxLoop(txLCore.GetNumaSocket())
-		txl.SetLCore(txLCore)
+	createface.CustomGetRxl = func(rxg iface.IRxGroup) *iface.RxLoop {
+		lc := dpdk.LCoreAlloc.Alloc(LCoreRole_Input, rxg.GetNumaSocket())
+		socket := lc.GetNumaSocket()
+		rxl := iface.NewRxLoop(socket)
+		rxl.SetLCore(lc)
+
+		var input Input
+		input.rxl = rxl
+		app.inputs = append(app.inputs, &input)
+
+		createface.AddRxLoop(rxl)
+		return rxl
+	}
+
+	createface.CustomGetTxl = func(face iface.IFace) *iface.TxLoop {
+		lc := dpdk.LCoreAlloc.Alloc(LCoreRole_Output, face.GetNumaSocket())
+		socket := lc.GetNumaSocket()
+		txl := iface.NewTxLoop(socket)
+		txl.SetLCore(lc)
 		txl.Launch()
+
 		createface.AddTxLoop(txl)
+		return txl
 	}
 
 	face, e := createface.Create(cfg.Face.Locator)
@@ -69,49 +85,27 @@ func New(cfg TaskConfig, initCfg InitConfig) (app *App, e error) {
 }
 
 func (app *App) Launch() {
-	for _, rxl := range app.rxls {
-		app.launchRxl(rxl)
+	for _, input := range app.inputs {
+		app.launchInput(input)
 	}
 
 	app.task.Launch()
 }
 
-func (app *App) launchRxl(rxl *iface.RxLoop) {
-	hasFace := false
-	minFaceId := iface.FACEID_MAX
-	maxFaceId := iface.FACEID_MIN
-	for _, faceId := range rxl.ListFaces() {
-		hasFace = true
-		if faceId < minFaceId {
-			minFaceId = faceId
-		}
-		if faceId > maxFaceId {
-			maxFaceId = faceId
-		}
-	}
-	if !hasFace {
-		return
+func (app *App) launchInput(input *Input) {
+	faces := input.rxl.ListFaces()
+	if len(faces) != 1 {
+		panic("RxLoop should have exactly one face")
 	}
 
-	inputC := C.Input_New(C.uint16_t(minFaceId),
-		C.uint16_t(maxFaceId), C.unsigned(rxl.GetNumaSocket()))
+	input.demux3 = inputdemux.NewDemux3(input.rxl.GetNumaSocket())
+	input.demux3.GetInterestDemux().InitDrop()
+	input.demux3.GetDataDemux().InitDrop()
+	input.demux3.GetNackDemux().InitDrop()
 
-	entryC := C.Input_GetEntry(inputC, C.uint16_t(app.task.Face.GetFaceId()))
-	if entryC == nil {
-		panic(errors.New("Could no get Input entry"))
-	}
-	if app.task.consumer != nil {
-		queue, e := dpdk.NewRing(fmt.Sprintf("consumer-rx"), app.initCfg.QueueCapacity,
-			app.task.Face.GetNumaSocket(), true, true)
-		if e != nil {
-			panic(e)
-		}
-		entryC.consumerQueue = (*C.struct_rte_ring)(queue.GetPtr())
-		app.task.consumer.Rx.c.rxQueue = entryC.consumerQueue
-	}
-
-	rxl.SetCallback(unsafe.Pointer(C.Input_FaceRx), unsafe.Pointer(inputC))
-	rxl.Launch()
+	app.task.ConfigureDemux(input.demux3)
+	input.rxl.SetCallback(inputdemux.Demux3_FaceRx, input.demux3.GetPtr())
+	input.rxl.Launch()
 }
 
 type Task struct {
@@ -137,6 +131,18 @@ func newTask(face iface.IFace, cfg TaskConfig) (task Task, e error) {
 
 	task.files = cfg.Files
 	return task, nil
+}
+
+func (task *Task) ConfigureDemux(demux3 inputdemux.Demux3) {
+	demuxD := demux3.GetDataDemux()
+	demuxN := demux3.GetNackDemux()
+
+	demuxD.InitFirst()
+	demuxN.InitFirst()
+	q := task.consumer.GetRxQueue()
+	demuxD.SetDest(0, q)
+	demuxN.SetDest(0, q)
+
 }
 
 func (task *Task) Launch() {

@@ -312,8 +312,16 @@ void Producer_Run(Producer *producer) {
     Packet *tx[PRODUCER_MAX_BURST_SIZE];
 
     while (ThreadStopFlag_ShouldContinue(&producer->stop)) {
-        uint16_t nRx = rte_ring_sc_dequeue_burst(producer->rxQueue, (void **)rx,
-                                                 PRODUCER_MAX_BURST_SIZE, NULL);
+        uint32_t nRx =
+            PktQueue_Pop(&producer->rxQueue, (struct rte_mbuf **)rx,
+                         PRODUCER_MAX_BURST_SIZE, rte_get_tsc_cycles())
+                .count;
+
+        if (unlikely(nRx == 0)) {
+            rte_pause();
+            continue;
+        }
+
         uint16_t nTx = 0;
         for (uint16_t i = 0; i < nRx; ++i) {
             Packet *npkt = rx[i];

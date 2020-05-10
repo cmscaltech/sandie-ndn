@@ -12,6 +12,7 @@ import (
 	"unsafe"
 
 	"ndn-dpdk/appinit"
+	"ndn-dpdk/container/pktqueue"
 	"ndn-dpdk/dpdk"
 	"ndn-dpdk/iface"
 	"ndn-dpdk/ndn"
@@ -48,6 +49,14 @@ var messages chan Message
 func newConsumer(face iface.IFace, settings ConsumerSettings) (consumer *Consumer, e error) {
 	socket := face.GetNumaSocket()
 	crC := (*C.ConsumerRx)(dpdk.Zmalloc("ConsumerRx", C.sizeof_ConsumerRx, socket))
+
+	var rxQueueAux pktqueue.Config
+
+	if _, e := pktqueue.NewAt(unsafe.Pointer(&crC.rxQueue), rxQueueAux, fmt.Sprintf("PingClient%d_rxQ", face.GetFaceId()), socket); e != nil {
+		dpdk.Free(crC)
+		return nil, nil
+	}
+
 	ctC := (*C.ConsumerTx)(dpdk.Zmalloc("ConsumerTx", C.sizeof_ConsumerTx, socket))
 	ctC.face = (C.FaceId)(face.GetFaceId())
 	ctC.interestMp = (*C.struct_rte_mempool)(appinit.MakePktmbufPool(
@@ -125,6 +134,10 @@ func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error)
 	return nil
 }
 
+func (consumer *Consumer) GetRxQueue() pktqueue.PktQueue {
+	return pktqueue.FromPtr(unsafe.Pointer(&consumer.Rx.c.rxQueue))
+}
+
 // Reset Rx and Tx Consumer thread counters for statistics
 func (consumer *Consumer) ResetCounters() {
 	C.ConsumerRx_resetCounters(consumer.Rx.c)
@@ -152,6 +165,7 @@ func (tx *ConsumerTxThread) Stop() error {
 // Close the consumer.
 // Both RX and TX threads must be stopped before calling this.
 func (consumer *Consumer) Close() error {
+	consumer.GetRxQueue().Close()
 	dpdk.Free(consumer.Rx.c)
 	dpdk.Free(consumer.Tx.c)
 	return nil

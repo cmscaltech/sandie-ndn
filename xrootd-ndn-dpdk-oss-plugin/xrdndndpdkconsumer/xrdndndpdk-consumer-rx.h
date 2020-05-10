@@ -21,6 +21,7 @@
 #ifndef XRDNDNDPDK_CONSUMER_RX_H
 #define XRDNDNDPDK_CONSUMER_RX_H
 
+#include "../../../ndn-dpdk/container/pktqueue/queue.h"
 #include "../../../ndn-dpdk/core/running_stat/running-stat.h"
 #include "../../../ndn-dpdk/dpdk/thread.h"
 
@@ -37,7 +38,7 @@ void onErrorCallback_Go(uint64_t errorCode);
 /**
  */
 typedef struct ConsumerRx {
-    struct rte_ring *rxQueue;
+    PktQueue rxQueue;
     ThreadStopFlag stop;
 
     // Counters

@@ -21,6 +21,8 @@
 #ifndef XRDNDNDPDK_NAMESPACE_H
 #define XRDNDNDPDK_NAMESPACE_H
 
+#include <stdint.h>
+
 /**
  * @brief Data packet size
  *

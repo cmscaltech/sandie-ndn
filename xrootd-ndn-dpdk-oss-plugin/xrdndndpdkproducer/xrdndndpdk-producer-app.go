@@ -1,14 +1,9 @@
 package xrdndndpdkproducer
 
-/*
-#include "../xrdndndpdk-common/xrdndndpdk-input.h"
-*/
-import "C"
 import (
-	"errors"
 	"fmt"
-	"unsafe"
 
+	"ndn-dpdk/app/inputdemux"
 	"ndn-dpdk/appinit"
 	"ndn-dpdk/dpdk"
 	"ndn-dpdk/iface"
@@ -24,8 +19,13 @@ const (
 
 type App struct {
 	task    Task
-	rxls    []*iface.RxLoop
 	initCfg InitConfig
+	inputs  []*Input
+}
+
+type Input struct {
+	rxl    *iface.RxLoop
+	demux3 inputdemux.Demux3
 }
 
 func New(cfg TaskConfig, initCfg InitConfig) (app *App, e error) {
@@ -33,19 +33,30 @@ func New(cfg TaskConfig, initCfg InitConfig) (app *App, e error) {
 	app.initCfg = initCfg
 
 	appinit.ProvideCreateFaceMempools()
-	for _, numaSocket := range createface.ListRxTxNumaSockets() {
-		// TODO create rxl and txl for configured faces only
-		rxLCore := dpdk.LCoreAlloc.Alloc(LCoreRole_Input, numaSocket)
-		rxl := iface.NewRxLoop(rxLCore.GetNumaSocket())
-		rxl.SetLCore(rxLCore)
-		app.rxls = append(app.rxls, rxl)
-		createface.AddRxLoop(rxl)
 
-		txLCore := dpdk.LCoreAlloc.Alloc(LCoreRole_Output, numaSocket)
-		txl := iface.NewTxLoop(txLCore.GetNumaSocket())
-		txl.SetLCore(txLCore)
+	createface.CustomGetRxl = func(rxg iface.IRxGroup) *iface.RxLoop {
+		lc := dpdk.LCoreAlloc.Alloc(LCoreRole_Input, rxg.GetNumaSocket())
+		socket := lc.GetNumaSocket()
+		rxl := iface.NewRxLoop(socket)
+		rxl.SetLCore(lc)
+
+		var input Input
+		input.rxl = rxl
+		app.inputs = append(app.inputs, &input)
+
+		createface.AddRxLoop(rxl)
+		return rxl
+	}
+
+	createface.CustomGetTxl = func(face iface.IFace) *iface.TxLoop {
+		lc := dpdk.LCoreAlloc.Alloc(LCoreRole_Output, face.GetNumaSocket())
+		socket := lc.GetNumaSocket()
+		txl := iface.NewTxLoop(socket)
+		txl.SetLCore(lc)
 		txl.Launch()
+
 		createface.AddTxLoop(txl)
+		return txl
 	}
 
 	face, e := createface.Create(cfg.Face.Locator)
@@ -63,56 +74,29 @@ func New(cfg TaskConfig, initCfg InitConfig) (app *App, e error) {
 }
 
 func (app *App) Launch() error {
-	for _, rxl := range app.rxls {
-		e := app.launchRxl(rxl)
-		if e != nil {
-			return e
-		}
+	for _, input := range app.inputs {
+		app.launchInput(input)
 	}
 
-	return app.task.Launch()
+	app.task.Launch()
+	return nil
 }
 
-func (app *App) launchRxl(rxl *iface.RxLoop) error {
-	hasFace := false
-	minFaceId := iface.FACEID_MAX
-	maxFaceId := iface.FACEID_MIN
-	for _, faceId := range rxl.ListFaces() {
-		hasFace = true
-		if faceId < minFaceId {
-			minFaceId = faceId
-		}
-		if faceId > maxFaceId {
-			maxFaceId = faceId
-		}
-	}
-	if !hasFace {
-		return fmt.Errorf("No face available")
+func (app *App) launchInput(input *Input) {
+	faces := input.rxl.ListFaces()
+	if len(faces) != 1 {
+		panic("RxLoop should have exactly one face")
 	}
 
-	inputC := C.Input_New(C.uint16_t(minFaceId), C.uint16_t(maxFaceId), C.unsigned(rxl.GetNumaSocket()))
+	input.demux3 = inputdemux.NewDemux3(input.rxl.GetNumaSocket())
+	input.demux3.GetInterestDemux().InitDrop()
+	input.demux3.GetDataDemux().InitDrop()
+	input.demux3.GetNackDemux().InitDrop()
 
-	entryC := C.Input_GetEntry(inputC, C.uint16_t(app.task.Face.GetFaceId()))
-	if entryC == nil {
-		panic(errors.New("Could no get Input entry"))
-	}
+	app.task.ConfigureDemux(input.demux3)
 
-	if app.task.Producer != nil {
-		queue, e := dpdk.NewRing(fmt.Sprintf("producer-rx"), app.initCfg.QueueCapacity,
-			app.task.Face.GetNumaSocket(), true, true)
-		if e != nil {
-			panic(e)
-		}
-		entryC.producerQueue = (*C.struct_rte_ring)(queue.GetPtr())
-		app.task.Producer.c.rxQueue = entryC.producerQueue
-	}
-
-	if app.task.Producer == nil {
-		return fmt.Errorf("Unable to get Producer object. Producer nil")
-	}
-
-	rxl.SetCallback(unsafe.Pointer(C.Input_FaceRx), unsafe.Pointer(inputC))
-	return rxl.Launch()
+	input.rxl.SetCallback(inputdemux.Demux3_FaceRx, input.demux3.GetPtr())
+	input.rxl.Launch()
 }
 
 type Task struct {
@@ -137,6 +121,13 @@ func newTask(face iface.IFace, cfg TaskConfig) (task Task, e error) {
 	}
 
 	return task, nil
+}
+
+func (task *Task) ConfigureDemux(demux3 inputdemux.Demux3) {
+	demuxI := demux3.GetInterestDemux()
+	demuxI.InitFirst()
+
+	demuxI.SetDest(0, task.Producer.GetRxQueue())
 }
 
 func (task *Task) Launch() error {

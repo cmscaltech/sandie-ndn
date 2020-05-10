@@ -149,7 +149,6 @@ RUN sed -ri 's,(CONFIG_RTE_BUILD_SHARED_LIB=).*,\1y,' ./config/common_base && \
         sed -ri 's,(CONFIG_RTE_LIBRTE_PMD_OPENSSL=).*,\1y,' ./config/common_base && \
         sed -ri 's,(CONFIG_RTE_LIBRTE_MLX5_PMD=).*,\1y,' ./config/common_base && \
         sed -ri 's,(RTE_MACHINE=).*,\1y,' ./config/common_base && \
-        sed -ri 's,(CONFIG_RTE_BUILD_SHARED_LIB=).*,\1y,' ./config/common_base && \
         sed -ri 's,(CONFIG_RTE_IBVERBS_LINK_DLOPEN=).*,\1y,' ./config/common_base
 RUN CC=gcc meson -Dtests=false --libdir=lib build
 WORKDIR ${HOME}/dpdk/build

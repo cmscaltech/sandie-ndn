@@ -5,4 +5,4 @@
     local: "24:8a:07:55:29:cc"
     remote: "e4:1d:2d:62:0c:66"
   producer:
-    freshnessperiod: 1000000ms
+    freshnessperiod: 10000

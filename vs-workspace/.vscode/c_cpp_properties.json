@@ -12,7 +12,8 @@
                 "${workspaceFolder}/../xrootd-ndn-dpdk-oss-plugin/xrdndndpdkconsumer",
                 "${workspaceFolder}/../xrootd-ndn-dpdk-oss-plugin/xrdndndpdkconsumer-cmd",
                 "${workspaceFolder}/../xrootd-ndn-dpdk-oss-plugin/xrdndndpdkproducer",
-                "${workspaceFolder}/../xrootd-ndn-dpdk-oss-plugin/xrdndndpdkproducer-cmd"
+                "${workspaceFolder}/../xrootd-ndn-dpdk-oss-plugin/xrdndndpdkproducer-cmd",
+                "${workspaceFolder}/../xrootd-ndn-oss-plugin/../../ndn-dpdk/"
             ],
             "defines": [],
             "macFrameworkPath": [

@@ -42,7 +42,7 @@
  * @brief Empty LName structure
  *
  */
-static const LName lnameStub = {.value = "", .length = 0};
+static const LName lnameStub = {.value = NULL, .length = 0};
 
 /**
  * @brief Struct pointing to the Content in Data packet

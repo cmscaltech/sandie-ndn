@@ -54,7 +54,7 @@ typedef struct ConsumerRx {
 void ConsumerRx_resetCounters(ConsumerRx *cr);
 void ConsumerRx_Run(ConsumerRx *cr);
 
-static void registerRxCallbacks(ConsumerRx *cr) {
+inline void registerRxCallbacks(ConsumerRx *cr) {
     cr->onContent = onContentCallback_Go;
 
     cr->onNonNegativeInteger = onNonNegativeIntegerCallback_Go;

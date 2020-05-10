@@ -23,7 +23,10 @@ func main() {
 		log.WithError(e).Fatal("xrdndndpdkproducer.NewApp error")
 	}
 
-	app.Launch()
+	e = app.Launch()
+	if e != nil {
+		log.WithError(e).Fatal("App lauch error")
+	}
 
 	appinit.RegisterMgmt(versionmgmt.VersionMgmt{})
 	appinit.RegisterMgmt(facemgmt.FaceMgmt{})

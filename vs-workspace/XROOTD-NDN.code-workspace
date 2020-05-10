@@ -112,10 +112,12 @@
 			"assert.h": "c",
 			"xrdndndpdk-consumer-tx.h": "c",
 			"bit": "cpp",
-			"xrdndndpdk-utils.h": "c"
+			"xrdndndpdk-utils.h": "c",
+			"face.h": "c",
+			"thread.h": "c"
 		},
 		"workbench.colorTheme": "Material Theme Palenight High Contrast",
-		"window.zoomLevel": 0,
+		"window.zoomLevel": 1,
 		"fileHeaderComment.parameter":{
 			"*":{
 				"commentbegin": "/******************************************************************************",

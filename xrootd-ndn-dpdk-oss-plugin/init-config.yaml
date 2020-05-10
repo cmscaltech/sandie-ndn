@@ -6,22 +6,22 @@
 # Each NUMA socket has its own mempool with the given name.
 mempool:
   IND: # Indirect mbufs
-    capacity: 2097151
-    cachesize: 337
+    capacity: 16383
+    cachesize: 43
   ETHRX: # RX Ethernet frames
-    capacity: 1048575
-    cachesize: 465
-    dataroomsize: 7668
+    capacity: 65535
+    cachesize: 255
+    dataroomsize: 8800
   NAME: # Name linearize
-    capacity: 65535
-    cachesize: 255
+    capacity: 16383
+    cachesize: 43
   HDR: # TX Ethernet+NDNLP+Interest headers
-    capacity: 65535
-    cachesize: 255
+    capacity: 16383
+    cachesize: 43
   INT: # TX Ethernet+NDNLP and encoding Interest
-    capacity: 65535
-    cachesize: 255
-  DATA: #TX Ethernet+NDNLP and encoding Data
+    capacity: 16383
+    cachesize: 43
+  DATA0: # TX Ethernet+NDNLP+Data name prefix
     capacity: 65535
     cachesize: 255
     dataroomsize: 9000

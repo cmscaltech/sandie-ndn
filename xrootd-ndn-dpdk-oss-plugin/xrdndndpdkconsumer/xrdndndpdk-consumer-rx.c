@@ -69,12 +69,12 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
                                       PContent *content) {
     ZF_LOGD("Process Content from Data packet");
 
-    const LName name = *(const LName *)&Packet_GetDataHdr(npkt)->name;
+    const LName *name = (const LName *)&Packet_GetDataHdr(npkt)->name;
 
     // TODO: Check content type Nack and go to nack callback
     // Need to implement encode and decode for MetaInfo ContentType
 
-    SystemCallId sid = lnameGetSystemCallId(name);
+    SystemCallId sid = lnameGetSystemCallId(*name);
 
     if (SYSCALL_OPEN_ID == sid) {
         ZF_LOGI("Return content for open filesystem call");
@@ -88,10 +88,10 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
 
         cr->onContent(content, 0);
     } else if (likely(SYSCALL_READ_ID == sid)) {
-        ZF_LOGI("Return content for read filesystem call @%d",
-                lnameGetSegmentNumber(name));
+        ZF_LOGI("Return content for read filesystem call @%" PRIu64,
+                lnameGetSegmentNumber(*name));
 
-        cr->onContent(content, lnameGetSegmentNumber(name));
+        cr->onContent(content, lnameGetSegmentNumber(*name));
     }
 }
 

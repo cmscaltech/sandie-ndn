@@ -24,7 +24,7 @@ func newProducer(face iface.IFace, cfg ProducerSettings) (producer *Producer, e 
 	socket := face.GetNumaSocket()
 	producerC := (*C.Producer)(dpdk.Zmalloc("Producer", C.sizeof_Producer, socket))
 	producerC.dataMp = (*C.struct_rte_mempool)(appinit.MakePktmbufPool(
-		appinit.MP_DATA, socket).GetPtr())
+		appinit.MP_DATA0, socket).GetPtr())
 	producerC.face = (C.FaceId)(face.GetFaceId())
 
 	producer = new(Producer)

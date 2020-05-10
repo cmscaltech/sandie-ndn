@@ -62,15 +62,18 @@ func New(cfg TaskConfig, initCfg InitConfig) (app *App, e error) {
 	return app, nil
 }
 
-func (app *App) Launch() {
+func (app *App) Launch() error {
 	for _, rxl := range app.rxls {
-		app.launchRxl(rxl)
+		e := app.launchRxl(rxl)
+		if e != nil {
+			return e
+		}
 	}
 
-	app.task.Launch()
+	return app.task.Launch()
 }
 
-func (app *App) launchRxl(rxl *iface.RxLoop) {
+func (app *App) launchRxl(rxl *iface.RxLoop) error {
 	hasFace := false
 	minFaceId := iface.FACEID_MAX
 	maxFaceId := iface.FACEID_MIN
@@ -84,7 +87,7 @@ func (app *App) launchRxl(rxl *iface.RxLoop) {
 		}
 	}
 	if !hasFace {
-		return
+		return fmt.Errorf("No face available")
 	}
 
 	inputC := C.Input_New(C.uint16_t(minFaceId), C.uint16_t(maxFaceId), C.unsigned(rxl.GetNumaSocket()))
@@ -104,8 +107,12 @@ func (app *App) launchRxl(rxl *iface.RxLoop) {
 		app.task.Producer.c.rxQueue = entryC.producerQueue
 	}
 
+	if app.task.Producer == nil {
+		return fmt.Errorf("Unable to get Producer object. Producer nil")
+	}
+
 	rxl.SetCallback(unsafe.Pointer(C.Input_FaceRx), unsafe.Pointer(inputC))
-	rxl.Launch()
+	return rxl.Launch()
 }
 
 type Task struct {
@@ -116,19 +123,29 @@ type Task struct {
 func newTask(face iface.IFace, cfg TaskConfig) (task Task, e error) {
 	numaSocket := face.GetNumaSocket()
 	task.Face = face
+
 	if cfg.Producer != nil {
 		if task.Producer, e = newProducer(task.Face, *cfg.Producer); e != nil {
 			return Task{}, e
 		}
+
+		if task.Producer == nil {
+			return Task{}, fmt.Errorf("Unable to get Producer object. Producer nil")
+		}
+
 		task.Producer.SetLCore(dpdk.LCoreAlloc.Alloc(LCoreRole_Producer, numaSocket))
 	}
+
 	return task, nil
 }
 
-func (task *Task) Launch() {
+func (task *Task) Launch() error {
 	if task.Producer != nil {
 		task.Producer.Launch()
+		return nil
 	}
+
+	return fmt.Errorf("Unable to Launch Producer. Producer nil")
 }
 
 func (task *Task) Close() error {

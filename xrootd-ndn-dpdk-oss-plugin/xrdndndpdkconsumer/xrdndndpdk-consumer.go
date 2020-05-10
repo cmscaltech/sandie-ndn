@@ -50,7 +50,6 @@ func newConsumer(face iface.IFace, settings ConsumerSettings) (consumer *Consume
 	crC := (*C.ConsumerRx)(dpdk.Zmalloc("ConsumerRx", C.sizeof_ConsumerRx, socket))
 	ctC := (*C.ConsumerTx)(dpdk.Zmalloc("ConsumerTx", C.sizeof_ConsumerTx, socket))
 	ctC.face = (C.FaceId)(face.GetFaceId())
-	ctC.interestMbufHeadroom = C.uint16_t(appinit.SizeofEthLpHeaders() + ndn.EncodeInterest_GetHeadroom())
 	ctC.interestMp = (*C.struct_rte_mempool)(appinit.MakePktmbufPool(
 		appinit.MP_INT, socket).GetPtr())
 
@@ -85,18 +84,14 @@ func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error)
 		return e
 	}
 
-	prefixTpl := ndn.NewInterestTemplate()
-	prefixTpl.SetNamePrefix(prefix)
-	prefixTpl.SetMustBeFresh(settings.MustBeFresh)
-	if settings.InterestLifetime != 0 {
-		prefixTpl.SetInterestLifetime(settings.InterestLifetime)
+	tplArgs := []interface{}{ndn.InterestMbufExtraHeadroom(appinit.SizeofEthLpHeaders()), prefix}
+	if settings.MustBeFresh {
+		tplArgs = append(tplArgs, ndn.MustBeFreshFlag)
 	}
-
-	if e = prefixTpl.CopyToC(unsafe.Pointer(&consumer.Tx.c.prefixTpl),
-		unsafe.Pointer(&consumer.Tx.c.prefixTplBuf),
-		unsafe.Sizeof(consumer.Tx.c.prefixTplBuf),
-		unsafe.Pointer(&consumer.Tx.c.prefixBuffer),
-		unsafe.Sizeof(consumer.Tx.c.prefixBuffer)); e != nil {
+	if settings.InterestLifetime != 0 {
+		tplArgs = append(tplArgs, settings.InterestLifetime)
+	}
+	if e = ndn.InterestTemplateFromPtr(unsafe.Pointer(&consumer.Tx.c.prefixTpl)).Init(tplArgs...); e != nil {
 		return e
 	}
 
@@ -107,18 +102,14 @@ func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error)
 		return e
 	}
 
-	readPrefixTpl := ndn.NewInterestTemplate()
-	readPrefixTpl.SetNamePrefix(readPrefix)
-	readPrefixTpl.SetMustBeFresh(settings.MustBeFresh)
-	if settings.InterestLifetime != 0 {
-		readPrefixTpl.SetInterestLifetime(settings.InterestLifetime)
+	tplArgs = []interface{}{ndn.InterestMbufExtraHeadroom(appinit.SizeofEthLpHeaders()), readPrefix}
+	if settings.MustBeFresh {
+		tplArgs = append(tplArgs, ndn.MustBeFreshFlag)
 	}
-
-	if e = readPrefixTpl.CopyToC(unsafe.Pointer(&consumer.Tx.c.readPrefixTpl),
-		unsafe.Pointer(&consumer.Tx.c.readPrefixTplBuf),
-		unsafe.Sizeof(consumer.Tx.c.readPrefixTplBuf),
-		unsafe.Pointer(&consumer.Tx.c.readBuffer),
-		unsafe.Sizeof(consumer.Tx.c.readBuffer)); e != nil {
+	if settings.InterestLifetime != 0 {
+		tplArgs = append(tplArgs, settings.InterestLifetime)
+	}
+	if e = ndn.InterestTemplateFromPtr(unsafe.Pointer(&consumer.Tx.c.readPrefixTpl)).Init(tplArgs...); e != nil {
 		return e
 	}
 

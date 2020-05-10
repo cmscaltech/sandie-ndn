@@ -65,10 +65,10 @@ static Packet *Producer_getPacket_Nack(Packet *npkt, NackReason nackReason) {
 static Packet *Producer_getPacket(Producer *producer, Packet *npkt,
                                   L3PktType type, uint64_t length,
                                   uint8_t *content) {
-    ZF_LOGD("Get packet type: %d with content length: %d", type, length);
+    ZF_LOGD("Get packet type: %d with content length: %" PRIu64, type, length);
 
     uint64_t token = Packet_GetLpL3Hdr(npkt)->pitToken;
-    const LName name = *(const LName *)&Packet_GetInterestHdr(npkt)->name;
+    const LName *name = (const LName *)&Packet_GetInterestHdr(npkt)->name;
 
     struct rte_mbuf *pkt = rte_pktmbuf_alloc(producer->dataMp);
     if (unlikely(pkt == NULL)) {
@@ -77,7 +77,7 @@ static Packet *Producer_getPacket(Producer *producer, Packet *npkt,
         return NULL;
     }
 
-    EncodeData(pkt, name, lnameStub, producer->freshnessPeriod, length,
+    EncodeData(pkt, *name, lnameStub, producer->freshnessPeriod, length,
                content);
     rte_pktmbuf_free(Packet_ToMbuf(npkt));
 
@@ -132,8 +132,8 @@ static Packet *Producer_onOpenInterest(Producer *producer, Packet *npkt,
         close(fd);
     }
 
-    ZF_LOGI("Open file: %s with error code: %d (%s)", path, openReturnCode,
-            strerror(openReturnCode));
+    ZF_LOGI("Open file: %s with error code: %" PRIu64 "(%s)", path,
+            openReturnCode, strerror(openReturnCode));
 
     rte_free(path);
     return Producer_getNonNegativeIntegerPacket(producer, npkt, L3PktType_Data,
@@ -197,7 +197,8 @@ static Packet *Producer_onReadInterest(Producer *producer, Packet *npkt,
     ZF_LOGD("Received read Interest for file: %s", path);
 
     uint64_t off = lnameGetSegmentNumber(name);
-    ZF_LOGI("Read %dB @%d from file: %s", XRDNDNDPDK_PACKET_SIZE, off, path);
+    ZF_LOGI("Read %dB @%" PRIu64 " from file: %s", XRDNDNDPDK_PACKET_SIZE, off,
+            path);
 
     int readRetCode;
     int fd;
@@ -226,8 +227,9 @@ static Packet *Producer_onReadInterest(Producer *producer, Packet *npkt,
     readRetCode = pread(fd, buf, XRDNDNDPDK_PACKET_SIZE, off);
     if (unlikely(readRetCode == -XRDNDNDPDK_EFAILURE)) {
         readRetCode = errno;
-        ZF_LOGW("Read from file: %s @%d failed with error code: %d (%s)", path,
-                off, readRetCode, strerror(readRetCode));
+        ZF_LOGW("Read from file: %s @%" PRIu64
+                " failed with error code: %d (%s)",
+                path, off, readRetCode, strerror(readRetCode));
 
         close(fd);
         rte_free(path);
@@ -239,7 +241,7 @@ static Packet *Producer_onReadInterest(Producer *producer, Packet *npkt,
 
     close(fd);
 
-    ZF_LOGD("Read from file: %s @%d %dB", path, off, readRetCode);
+    ZF_LOGD("Read from file: %s @%" PRIu64 " %dB", path, off, readRetCode);
 
     Packet *pkt;
     if (likely(readRetCode != 0)) {
@@ -278,22 +280,23 @@ static const OnSystemCallInterest onSystemCallInterest[SYSCALL_MAX_ID] = {
 static Packet *Producer_processInterest(Producer *producer, Packet *npkt) {
     ZF_LOGD("Processing new Interest packet");
 
-    const LName name = *(const LName *)&Packet_GetInterestHdr(npkt)->name;
+    const LName *name = (const LName *)&Packet_GetInterestHdr(npkt)->name;
 
-    if (unlikely(!Producer_checkForRegisteredPrefix(name))) {
+    if (unlikely(!Producer_checkForRegisteredPrefix(*name))) {
         ZF_LOGW("Interest prefix for Name: %s not matching prefix: %s",
-                name.value, XRDNDNDPDK_SYSCALL_PREFIX_URI);
+                name->value, XRDNDNDPDK_SYSCALL_PREFIX_URI);
         return Producer_getPacket_Nack(npkt, NackReason_NoRoute);
     }
 
-    SystemCallId sid = lnameGetSystemCallId(name);
+    SystemCallId sid = lnameGetSystemCallId(*name);
 
     if (unlikely(sid == SYSCALL_NOT_FOUND)) {
-        ZF_LOGW("Unrecognized file system call for Interest Name: %s", name);
+        ZF_LOGW("Unrecognized file system call for Interest Name: %s",
+                name->value); // TODO check if it works
         return Producer_getPacket_Nack(npkt, NackReason_Unspecified);
     }
 
-    return onSystemCallInterest[sid](producer, npkt, name);
+    return onSystemCallInterest[sid](producer, npkt, *name);
 }
 
 /**

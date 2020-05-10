@@ -23,7 +23,6 @@
 
 #include "../../../ndn-dpdk/dpdk/thread.h"
 #include "../../../ndn-dpdk/iface/face.h"
-#include "../../../ndn-dpdk/ndn/encode-interest.h"
 
 #include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 
@@ -47,20 +46,13 @@ static_assert(offsetof(SegmentNumberComponent, compV) % sizeof(uint64_t) == 0,
  */
 typedef struct ConsumerTx {
     FaceId face;
-    uint16_t interestMbufHeadroom;
     ThreadStopFlag stop;
 
     struct rte_mempool *interestMp; // mempool for Interests
     NonceGen nonceGen;
 
     InterestTemplate prefixTpl;
-    uint8_t prefixTplBuf[64];
-    uint8_t prefixBuffer[NAME_MAX_LENGTH];
-
     InterestTemplate readPrefixTpl;
-    uint8_t readPrefixTplBuf[128];
-    uint8_t readBuffer[NAME_MAX_LENGTH];
-    uint8_t suffixBuffer[NAME_MAX_LENGTH];
 
     SegmentNumberComponent segmentNumberComponent;
     onErrorCallback onError;
@@ -73,7 +65,7 @@ void ConsumerTx_sendInterest(ConsumerTx *ct, struct LName *suffix);
 void ConsumerTx_sendInterests(ConsumerTx *ct, struct LName *path, uint64_t off,
                               uint16_t n);
 
-static void registerTxCallbacks(ConsumerTx *ct) {
+inline void registerTxCallbacks(ConsumerTx *ct) {
     ct->onError = onErrorCallback_Go;
 }
 

@@ -82,7 +82,7 @@
  * @brief NDN Name v0.3 TLV format for "/ndn/xrootd"
  *
  */
-static uint8_t XRDNDNDPDK_SYCALL_PREFIX_ENCODE[] = {
+static const uint8_t XRDNDNDPDK_SYCALL_PREFIX_ENCODE[] = {
     0x08, 0x03, 0x6E, 0x64, 0x6E, 0x08, 0x06,
     0x78, 0x72, 0x6F, 0x6F, 0x74, 0x64};
 
@@ -96,7 +96,7 @@ static uint8_t XRDNDNDPDK_SYCALL_PREFIX_ENCODE[] = {
  * @brief NDN Name v0.3 TLV format for "/ndn/xrootd/open"
  *
  */
-static uint8_t XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE[] = {
+static const uint8_t XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE[] = {
     0x08, 0x03, 0x6E, 0x64, 0x6E, 0x08, 0x06, 0x78, 0x72, 0x6F,
     0x6F, 0x74, 0x64, 0x08, 0x04, 0x6F, 0x70, 0x65, 0x6E};
 
@@ -110,7 +110,7 @@ static uint8_t XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE[] = {
  * @brief NDN Name v0.3 TLV format for "/ndn/xrootd/fstat"
  *
  */
-static uint8_t XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE[] = {
+static const uint8_t XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE[] = {
     0x08, 0x03, 0x6E, 0x64, 0x6E, 0x08, 0x06, 0x78, 0x72, 0x6F,
     0x6F, 0x74, 0x64, 0x08, 0x05, 0x66, 0x73, 0x74, 0x61, 0x74};
 
@@ -124,7 +124,7 @@ static uint8_t XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE[] = {
  * @brief NDN Name v0.3 TLV format for "/ndn/xrootd/read"
  *
  */
-static uint8_t XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE[] = {
+static const uint8_t XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE[] = {
     0x08, 0x03, 0x6E, 0x64, 0x6E, 0x08, 0x06, 0x78, 0x72, 0x6F,
     0x6F, 0x74, 0x64, 0x08, 0x04, 0x72, 0x65, 0x61, 0x64};
 

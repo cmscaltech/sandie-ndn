@@ -1,0 +1,12 @@
+CDeps = ["xrdndndpdkconsumer", "xrdndndpdkproducer"]
+
+# Generate cgoflags.go files for each Go package
+task "cgoflags"
+CgoflagsPathmap = "%p/cgoflags.go"
+CDeps.each do |t|
+  name = t.pathmap(CgoflagsPathmap)
+  file name do
+    sh "mk/cgoflags.sh #{t}"
+  end
+  task "cgoflags" => name
+end

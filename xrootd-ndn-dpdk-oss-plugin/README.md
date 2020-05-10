@@ -26,7 +26,7 @@ go
         `-- [...]
 ```
 
-3. Execute `go get -d -t ./...` to download Go dependencies
+3. `export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig`
 
 4. Use [Makefile](./Makefile) to build *producer* and *consumer*
 

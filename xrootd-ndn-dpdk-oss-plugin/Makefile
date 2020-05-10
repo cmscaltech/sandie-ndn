@@ -18,9 +18,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.       #
 ################################################################################
 
-export CGO_CFLAGS_ALLOW='.*'
-export CC_FOR_TARGET=${CC:-gcc}
-
 GOCMD 	  := go
 GOINSTALL := $(GOCMD) install
 GOFLAGS   := #-a
@@ -39,7 +36,13 @@ SRC := $(shell find $(STATIC_COMMON_SRCDIR)  -name '*.c')
 OBJ := $(patsubst $(STATIC_COMMON_SRCDIR)/%.c, $(OBJDIR)/%.o, $(SRC))
 
 
-all: consumer producer | $(STATIC_COMMON)
+all: goget godeps consumer producer | $(STATIC_COMMON)
+
+goget:
+	go get -d -t ./...
+
+godeps:
+	rake cgoflags
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
@@ -63,4 +66,4 @@ consumer: | $(STATIC_COMMON)
 .PHONY: all clean
 clean:
 	@$(RM) -rf $(OBJDIR) $(LIBDIR) ../../../bin/xrdndndpdkproducer-cmd ../../../bin/xrdndndpdkconsumer-cmd
-#	go clean -cache -testcache
+	go clean -cache -testcache

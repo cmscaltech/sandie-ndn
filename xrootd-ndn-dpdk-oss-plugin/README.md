@@ -39,19 +39,11 @@ Edit yaml configuration file to specify the path to the file to be copied using 
 
 ```bash
 MGMT=tcp://127.0.0.1:6345 ./xrdndndpdkconsumer-cmd -w 0000:8f:00.0 -- -initcfg @init-config-client.yaml -tasks @xrdndndpdkconsumer.yaml
-
-or using raw socket:
-
-MGMT=tcp://127.0.0.1:6345 ./xrdndndpdkconsumer-cmd --vdev net_af_packetL,iface=enp143s0  -- -initcfg @init-config.yaml -tasks @xrdndndpdkconsumer-raw-socket.yaml
 ```
 
 ### Producer
 ```bash
 MGMT=tcp://127.0.0.1:6345 ./xrdndndpdkproducer-cmd -w 0000:5e:00.0 -- -initcfg @init-config.yaml -tasks @xrdndndpdkproducer.yaml
-
-or using raw socket:
-
-MGMT=tcp://127.0.0.1:6345 ./xrdndndpdkproducer-cmd --vdev net_af_packetL,iface=ens2 -- -initcfg @init-config.yaml -tasks @xrdndndpdkproducer-raw-socket.yaml
 ```
 
 ## Logging

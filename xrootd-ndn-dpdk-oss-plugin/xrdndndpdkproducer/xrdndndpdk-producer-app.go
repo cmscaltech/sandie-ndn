@@ -10,32 +10,33 @@ import (
 	"ndn-dpdk/iface/createface"
 )
 
-// LCoreAlloc roles.
+// LCoreAlloc roles
 const (
-	LCoreRole_Input    = iface.LCoreRole_RxLoop
-	LCoreRole_Output   = iface.LCoreRole_TxLoop
-	LCoreRole_Producer = "ProducerRx"
+	LCoreRoleInput    = iface.LCoreRole_RxLoop
+	LCoreRoleOutput   = iface.LCoreRole_TxLoop
+	LCoreRoleProducer = "ProducerRx"
 )
 
+// App struct
 type App struct {
-	task    Task
-	initCfg InitConfig
-	inputs  []*Input
+	Face     iface.IFace
+	producer *Producer
+	inputs   []*Input
 }
 
+// Input struct
 type Input struct {
 	rxl    *iface.RxLoop
 	demux3 inputdemux.Demux3
 }
 
-func New(cfg TaskConfig, initCfg InitConfig) (app *App, e error) {
+// New App object instance
+func New(initConfigProducer InitConfigProducer) (app *App, e error) {
 	app = new(App)
-	app.initCfg = initCfg
-
 	appinit.ProvideCreateFaceMempools()
 
 	createface.CustomGetRxl = func(rxg iface.IRxGroup) *iface.RxLoop {
-		lc := dpdk.LCoreAlloc.Alloc(LCoreRole_Input, rxg.GetNumaSocket())
+		lc := dpdk.LCoreAlloc.Alloc(LCoreRoleInput, rxg.GetNumaSocket())
 		socket := lc.GetNumaSocket()
 		rxl := iface.NewRxLoop(socket)
 		rxl.SetLCore(lc)
@@ -49,7 +50,7 @@ func New(cfg TaskConfig, initCfg InitConfig) (app *App, e error) {
 	}
 
 	createface.CustomGetTxl = func(face iface.IFace) *iface.TxLoop {
-		lc := dpdk.LCoreAlloc.Alloc(LCoreRole_Output, face.GetNumaSocket())
+		lc := dpdk.LCoreAlloc.Alloc(LCoreRoleOutput, face.GetNumaSocket())
 		socket := lc.GetNumaSocket()
 		txl := iface.NewTxLoop(socket)
 		txl.SetLCore(lc)
@@ -59,29 +60,38 @@ func New(cfg TaskConfig, initCfg InitConfig) (app *App, e error) {
 		return txl
 	}
 
-	face, e := createface.Create(cfg.Face.Locator)
+	app.Face, e = createface.Create(initConfigProducer.Face.Locator)
 	if e != nil {
-		return nil, fmt.Errorf("face creation error: %v", e)
+		return nil, fmt.Errorf("Face creation error: %v", e)
 	}
 
-	task, e := newTask(face, cfg)
-	if e != nil {
-		return nil, fmt.Errorf("init error: %v", e)
+	if initConfigProducer.Producer == nil {
+		return nil, fmt.Errorf("Init config for producer is empty")
 	}
-	app.task = task
 
+	if app.producer, e = NewProducer(app.Face, *initConfigProducer.Producer); e != nil {
+		return nil, e
+	}
+
+	if app.producer == nil {
+		return nil, fmt.Errorf("Unable to get Producer object")
+	}
+
+	app.producer.SetLCore(dpdk.LCoreAlloc.Alloc(LCoreRoleProducer, app.Face.GetNumaSocket()))
 	return app, nil
 }
 
+// Launch App
 func (app *App) Launch() error {
 	for _, input := range app.inputs {
 		app.launchInput(input)
 	}
 
-	app.task.Launch()
+	app.producer.Start()
 	return nil
 }
 
+// LaunchInput
 func (app *App) launchInput(input *Input) {
 	faces := input.rxl.ListFaces()
 	if len(faces) != 1 {
@@ -93,56 +103,26 @@ func (app *App) launchInput(input *Input) {
 	input.demux3.GetDataDemux().InitDrop()
 	input.demux3.GetNackDemux().InitDrop()
 
-	app.task.ConfigureDemux(input.demux3)
+	app.producer.ConfigureDemux(input.demux3)
 
 	input.rxl.SetCallback(inputdemux.Demux3_FaceRx, input.demux3.GetPtr())
 	input.rxl.Launch()
 }
 
-type Task struct {
-	Face     iface.IFace
-	Producer *Producer
-}
-
-func newTask(face iface.IFace, cfg TaskConfig) (task Task, e error) {
-	numaSocket := face.GetNumaSocket()
-	task.Face = face
-
-	if cfg.Producer != nil {
-		if task.Producer, e = newProducer(task.Face, *cfg.Producer); e != nil {
-			return Task{}, e
-		}
-
-		if task.Producer == nil {
-			return Task{}, fmt.Errorf("Unable to get Producer object. Producer nil")
-		}
-
-		task.Producer.SetLCore(dpdk.LCoreAlloc.Alloc(LCoreRole_Producer, numaSocket))
+// Stop App
+func (app *App) Stop() error {
+	if app.producer != nil {
+		return app.producer.Stop()
 	}
-
-	return task, nil
-}
-
-func (task *Task) ConfigureDemux(demux3 inputdemux.Demux3) {
-	demuxI := demux3.GetInterestDemux()
-	demuxI.InitFirst()
-
-	demuxI.SetDest(0, task.Producer.GetRxQueue())
-}
-
-func (task *Task) Launch() error {
-	if task.Producer != nil {
-		task.Producer.Launch()
-		return nil
-	}
-
-	return fmt.Errorf("Unable to Launch Producer. Producer nil")
-}
-
-func (task *Task) Close() error {
-	if task.Producer != nil {
-		task.Producer.Close()
-	}
-	task.Face.Close()
 	return nil
+}
+
+// Close App
+func (app *App) Close() (e error) {
+	if app.producer != nil {
+		if e = app.producer.Close(); e != nil {
+			return e
+		}
+	}
+	return app.Face.Close()
 }

@@ -1,8 +1,15 @@
 ---
 - face:
     scheme: ether
-    port: 0000:5e:00.0
-    local: "24:8a:07:55:29:cc"
-    remote: "e4:1d:2d:62:0c:66"
+    port:
+    local: ""
+    remote: ""
   producer:
-    freshnessperiod: 10000
+    freshnessperiod: 100s   # Interests freshness perios
+    rxqueue:
+      capacity: 131072      # Ring capacity, must be power of 2, default 131072 with delay/CoDel or 4096 without
+      dequeueburstsize: 64  # Dequeue burst size limit, default 64
+      delay: 0              # If non-zero, enforce minimum delay, implies DisableCoDel
+      disablecodel: false   # If true, disable CoDel algorithm
+      target: 5ms           # CoDel TARGET parameter, default 5ms
+      interval: 100ms       # CoDel INTERVAL parameter, default 100ms

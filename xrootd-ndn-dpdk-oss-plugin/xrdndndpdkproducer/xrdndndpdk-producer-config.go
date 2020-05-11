@@ -1,23 +1,19 @@
 package xrdndndpdkproducer
 
 import (
-	"time"
-
+	"ndn-dpdk/container/pktqueue"
+	"ndn-dpdk/core/nnduration"
 	"ndn-dpdk/iface"
 )
 
-// Package initialization config.
-type InitConfig struct {
-	QueueCapacity int // input-producer queue capacity, must be power of 2
+// InitConfigProducer config
+type InitConfigProducer struct {
+	Face     iface.LocatorWrapper // Face locator for face creation
+	Producer *ProducerSettings    // If not nil, create a producer on the face
 }
 
-// Per-face task config for producer
-type TaskConfig struct {
-	Face     iface.LocatorWrapper // face locator for face creation
-	Producer *ProducerSettings    // if not nil, create a producer on the face
-}
-
-// Producer config.
+// ProducerSettings  config
 type ProducerSettings struct {
-	FreshnessPeriod time.Duration // FreshnessPeriod value
+	FreshnessPeriod nnduration.Milliseconds // FreshnessPeriod value
+	RxQueue         pktqueue.Config
 }

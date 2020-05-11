@@ -43,7 +43,7 @@ MGMT=tcp://127.0.0.1:6345 ./xrdndndpdkconsumer-cmd -w 0000:8f:00.0 -- -initcfg @
 
 ### Producer
 ```bash
-MGMT=tcp://127.0.0.1:6345 ./xrdndndpdkproducer-cmd -w 0000:5e:00.0 -- -initcfg @init-config.yaml -tasks @xrdndndpdkproducer.yaml
+MGMT=tcp://127.0.0.1:6345 ./xrdndndpdkproducer-cmd -w 0000:5e:00.0 -- -initcfg @init-config.yaml -initcfgproducer @xrdndndpdkproducer-sample.yaml
 ```
 
 ## Logging

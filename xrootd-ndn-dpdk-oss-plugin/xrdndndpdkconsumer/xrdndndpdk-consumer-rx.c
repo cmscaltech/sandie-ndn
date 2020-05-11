@@ -18,7 +18,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include "../../../ndn-dpdk/ndn/packet.h"
+#include "ndn-dpdk/ndn/packet.h"
 
 #include "xrdndndpdk-consumer-rx.h"
 

@@ -21,11 +21,11 @@
 #ifndef XRDNDNDPDK_PRODUCER_H
 #define XRDNDNDPDK_PRODUCER_H
 
-#include "../../../ndn-dpdk/container/pktqueue/queue.h"
-#include "../../../ndn-dpdk/core/pcg_basic.h"
-#include "../../../ndn-dpdk/dpdk/thread.h"
-#include "../../../ndn-dpdk/iface/face.h"
-#include "../../../ndn-dpdk/ndn/encode-data.h"
+#include "ndn-dpdk/container/pktqueue/queue.h"
+#include "ndn-dpdk/core/pcg_basic.h"
+#include "ndn-dpdk/dpdk/thread.h"
+#include "ndn-dpdk/iface/face.h"
+#include "ndn-dpdk/ndn/encode-data.h"
 
 #include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 

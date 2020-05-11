@@ -21,8 +21,8 @@
 #ifndef XRDNDNDPDK_CONSUMER_TX_H
 #define XRDNDNDPDK_CONSUMER_TX_H
 
-#include "../../../ndn-dpdk/dpdk/thread.h"
-#include "../../../ndn-dpdk/iface/face.h"
+#include "ndn-dpdk/dpdk/thread.h"
+#include "ndn-dpdk/iface/face.h"
 
 #include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 

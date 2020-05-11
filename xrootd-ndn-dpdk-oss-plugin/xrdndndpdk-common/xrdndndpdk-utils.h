@@ -31,8 +31,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "../../../ndn-dpdk/core/logger.h"
-#include "../../../ndn-dpdk/ndn/name.h"
+#include "ndn-dpdk/core/logger.h"
+#include "ndn-dpdk/ndn/name.h"
 
 #include "xrdndndpdk-namespace.h"
 

@@ -21,9 +21,9 @@
 #ifndef XRDNDNDPDK_CONSUMER_RX_H
 #define XRDNDNDPDK_CONSUMER_RX_H
 
-#include "../../../ndn-dpdk/container/pktqueue/queue.h"
-#include "../../../ndn-dpdk/core/running_stat/running-stat.h"
-#include "../../../ndn-dpdk/dpdk/thread.h"
+#include "ndn-dpdk/container/pktqueue/queue.h"
+#include "ndn-dpdk/core/running_stat/running-stat.h"
+#include "ndn-dpdk/dpdk/thread.h"
 
 #include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 

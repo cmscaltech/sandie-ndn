@@ -181,8 +181,8 @@ RUN git clone https://github.com/usnistgov/ndn-dpdk.git
 RUN sudo ln -s /usr/bin/gcc /usr/bin/gcc-7
 WORKDIR ${HOME}/go/src/ndn-dpdk
 
-# Use April 1st 2020 commit: 7194abef709e932e76853f6894abf825c8ca1d50
-RUN git checkout 7194abef709e932e76853f6894abf825c8ca1d50
+# Use April 17th 2020 commit: c1c73f749675c7c65a0755463ffc357839bb1026
+RUN git checkout c1c73f749675c7c65a0755463ffc357839bb1026
 
 RUN sudo npm install -g jayson@3.2.0 tslint@6.1.0 typescript@3.8.3 protobufjs@6.8.8
 RUN sudo npm install

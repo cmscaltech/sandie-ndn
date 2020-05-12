@@ -22,10 +22,12 @@ GOCMD 	  := go
 GOINSTALL := $(GOCMD) install
 GOFLAGS   := #-a
 
+export CGO_CFLAGS_ALLOW := '.*'
+
 CC 	:= gcc
 CFLAGS  := -Werror -Wno-error=deprecated-declarations -m64 -O3 -g -march=native
 rootdir = $(realpath .)
-INCLUDE := -I/usr/local/include/dpdk -I/usr/include/dpdk -I$(rootdir)/../../
+INCLUDE := -I$(rootdir)/../../
 
 STATIC_COMMON	     := libxrdndndpdk-common.a
 STATIC_COMMON_SRCDIR := xrdndndpdk-common

@@ -1,10 +1,10 @@
 ---
 - face:
     scheme: ether
-    port: 0000:8f:00.0
-    local: "e4:1d:2d:62:0c:66"
-    remote: "24:8a:07:55:29:cc"
+    port:
+    local: ""
+    remote: ""
   consumer:
     mustbefresh: false
     canbeprefix: false
-  files: ['/root/test.txt']
+  files: ['']

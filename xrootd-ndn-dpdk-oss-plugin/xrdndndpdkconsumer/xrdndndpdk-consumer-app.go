@@ -167,11 +167,6 @@ func (app *App) Run() (e error) {
 		fmt.Printf("\n--> Copy file [%d]: %s\n", index, path)
 		e = app.task.CopyFileOverNDN(path)
 
-		if e != nil {
-			app.task.Close()
-			return e
-		}
-
 		app.task.consumer.ResetCounters()
 	}
 

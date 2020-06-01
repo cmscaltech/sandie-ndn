@@ -53,6 +53,7 @@ Active different log levels for consumer and producer:
 []# export LOG_Xrdndndpdkconsumer=D
 []# export LOG_Xrdndndpdkproducer=D
 []# export LOG_Xrdndndpdkutils=D
+[]# export LOG_Xrdndndpdkfilesystem=V
 ```
 
 Available log levels:

@@ -2,6 +2,7 @@ package xrdndndpdkproducer
 
 /*
 #include "xrdndndpdk-producer.h"
+#include "filesystem-c-api.h"
 */
 import "C"
 import (
@@ -19,7 +20,8 @@ import (
 // Producer instance and thread.
 type Producer struct {
 	dpdk.ThreadBase
-	c *C.Producer
+	c          *C.Producer
+	fileSystem unsafe.Pointer
 }
 
 // NewProducer object
@@ -29,6 +31,11 @@ func NewProducer(face iface.IFace, producerSettings ProducerSettings) (producer 
 
 	producer = new(Producer)
 	producer.c = (*C.Producer)(dpdk.Zmalloc("Producer", C.sizeof_Producer, socket))
+
+	producer.fileSystem = C.libfs_newFilesystem(GetFilesystemType(producerSettings.FilesystemType))
+	if producer.fileSystem == nil {
+		return nil, nil
+	}
 
 	if _, e := pktqueue.NewAt(unsafe.Pointer(&producer.c.rxQueue), producerSettings.RxQueue, fmt.Sprintf("PingServer%d_rxQ", faceID), socket); e != nil {
 		dpdk.Free(producer.c)
@@ -47,6 +54,7 @@ func NewProducer(face iface.IFace, producerSettings ProducerSettings) (producer 
 
 // SetProducerSettings instance
 func (producer *Producer) SetProducerSettings(producerSettings ProducerSettings) (e error) {
+	producer.c.fs = producer.fileSystem
 	producer.c.freshnessPeriod = C.uint32_t(producerSettings.FreshnessPeriod.Duration() / time.Millisecond)
 	return nil
 }
@@ -84,5 +92,6 @@ func (producer *Producer) Close() (e error) {
 	}
 
 	dpdk.Free(producer.c)
+	C.libfs_destroyFilesystem(producer.fileSystem)
 	return nil
 }

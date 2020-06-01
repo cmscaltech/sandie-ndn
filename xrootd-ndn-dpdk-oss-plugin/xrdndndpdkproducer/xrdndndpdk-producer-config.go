@@ -16,4 +16,5 @@ type InitConfigProducer struct {
 type ProducerSettings struct {
 	FreshnessPeriod nnduration.Milliseconds // FreshnessPeriod value
 	RxQueue         pktqueue.Config
+	FilesystemType  string
 }

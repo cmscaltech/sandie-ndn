@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for XRootD                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2019-2020 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -102,8 +102,6 @@ static Packet *Producer_getNonNegativeIntegerPacket(Producer *producer,
                                                     Packet *npkt,
                                                     L3PktType type,
                                                     uint64_t content) {
-    ZF_LOGD("Get Data Packet with uint64_t as content");
-
     uint64_t v = rte_cpu_to_be_64(content);
     return Producer_getPacket(producer, npkt, L3PktType_Data, sizeof(uint64_t),
                               (uint8_t *)&v);
@@ -119,23 +117,14 @@ static Packet *Producer_getNonNegativeIntegerPacket(Producer *producer,
  */
 static Packet *Producer_onOpenInterest(Producer *producer, Packet *npkt,
                                        const LName name) {
-    char *path = lnameGetFilePath(
+    char *pathname = lnameGetFilePath(
         name, XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE_SIZE, false);
 
-    ZF_LOGI("Received open Interest for file: %s", path);
+    ZF_LOGI("Received open Interest for file: %s", pathname);
 
-    uint64_t openReturnCode = 0;
-    int fd;
-    if ((fd = open(path, O_RDONLY)) == -XRDNDNDPDK_EFAILURE) {
-        openReturnCode = errno;
-    } else {
-        close(fd);
-    }
+    int openReturnCode = libfs_open(producer->fs, pathname);
+    rte_free(pathname);
 
-    ZF_LOGI("Open file: %s with error code: %" PRIu64 "(%s)", path,
-            openReturnCode, strerror(openReturnCode));
-
-    rte_free(path);
     return Producer_getNonNegativeIntegerPacket(producer, npkt, L3PktType_Data,
                                                 openReturnCode);
 }
@@ -150,33 +139,31 @@ static Packet *Producer_onOpenInterest(Producer *producer, Packet *npkt,
  */
 static Packet *Producer_onFstatInterest(Producer *producer, Packet *npkt,
                                         const LName name) {
-    char *path = lnameGetFilePath(
+    char *pathname = lnameGetFilePath(
         name, XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE_SIZE, false);
 
-    ZF_LOGI("Received fstat Interest for file: %s", path);
+    ZF_LOGI("Received fstat Interest for file: %s", pathname);
 
     struct stat *statbuf =
         (struct stat *)rte_malloc(NULL, sizeof(struct stat), 0);
 
     if (unlikely(NULL == statbuf)) {
-        ZF_LOGE("Not enough memory");
+        ZF_LOGF("Not enough memory");
+
+        return Producer_getNonNegativeIntegerPacket(
+            producer, npkt, L3PktType_MAX, XRDNDNDPDK_EFAILURE);
     }
 
-    if (unlikely(stat(path, statbuf) == -XRDNDNDPDK_EFAILURE)) {
-        int fstatRetCode = errno;
+    int fstatRetCode = libfs_fstat(producer->fs, pathname, statbuf);
+    rte_free(pathname);
 
-        ZF_LOGW("Fstat for file: %s failed with error code: %d (%s)", path,
-                fstatRetCode, strerror(fstatRetCode));
-
+    if (fstatRetCode) {
         return Producer_getNonNegativeIntegerPacket(
             producer, npkt, L3PktType_MAX, fstatRetCode);
     }
 
-    ZF_LOGI("Fstat file: %s with success", path);
-
     Packet *pkt = Producer_getPacket(producer, npkt, L3PktType_Data,
                                      sizeof(struct stat), (uint8_t *)statbuf);
-    rte_free(path);
     rte_free(statbuf);
     return pkt;
 }
@@ -191,68 +178,33 @@ static Packet *Producer_onFstatInterest(Producer *producer, Packet *npkt,
  */
 static Packet *Producer_onReadInterest(Producer *producer, Packet *npkt,
                                        const LName name) {
-    char *path =
+    char *pathname =
         lnameGetFilePath(name, XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE, true);
 
-    ZF_LOGD("Received read Interest for file: %s", path);
+    ZF_LOGV("Received read Interest for file: %s", pathname);
 
     uint64_t off = lnameGetSegmentNumber(name);
-    ZF_LOGI("Read %dB @%" PRIu64 " from file: %s", XRDNDNDPDK_PACKET_SIZE, off,
-            path);
-
-    int readRetCode;
-    int fd;
-
-    if (unlikely((fd = open(path, O_RDONLY)) == -XRDNDNDPDK_EFAILURE)) {
-        readRetCode = errno;
-
-        ZF_LOGI("Open file: %s with error code: %d (%s)", path, readRetCode,
-                strerror(readRetCode));
-
-        return Producer_getNonNegativeIntegerPacket(producer, npkt,
-                                                    L3PktType_MAX, readRetCode);
-    }
-
     void *buf = rte_malloc(NULL, sizeof(uint8_t) * XRDNDNDPDK_PACKET_SIZE, 0);
     if (unlikely(NULL == buf)) {
-        ZF_LOGE("Not enough memory");
+        ZF_LOGF("Not enough memory");
 
-        rte_free(path);
-        close(fd);
-
+        rte_free(pathname);
         return Producer_getNonNegativeIntegerPacket(
             producer, npkt, L3PktType_MAX, XRDNDNDPDK_EFAILURE);
     }
 
-    readRetCode = pread(fd, buf, XRDNDNDPDK_PACKET_SIZE, off);
-    if (unlikely(readRetCode == -XRDNDNDPDK_EFAILURE)) {
-        readRetCode = errno;
-        ZF_LOGW("Read from file: %s @%" PRIu64
-                " failed with error code: %d (%s)",
-                path, off, readRetCode, strerror(readRetCode));
+    int readRetCode =
+        libfs_read(producer->fs, pathname, buf, XRDNDNDPDK_PACKET_SIZE, off);
+    rte_free(pathname);
 
-        close(fd);
-        rte_free(path);
+    if (unlikely(readRetCode < 0)) {
         rte_free(buf);
-
-        return Producer_getNonNegativeIntegerPacket(producer, npkt,
-                                                    L3PktType_MAX, readRetCode);
+        return Producer_getNonNegativeIntegerPacket(
+            producer, npkt, L3PktType_MAX, -readRetCode);
     }
 
-    close(fd);
-
-    ZF_LOGD("Read from file: %s @%" PRIu64 " %dB", path, off, readRetCode);
-
-    Packet *pkt;
-    if (likely(readRetCode != 0)) {
-        pkt = Producer_getPacket(producer, npkt, L3PktType_Data, readRetCode,
-                                 (uint8_t *)buf);
-    } else {
-        pkt = Producer_getNonNegativeIntegerPacket(producer, npkt,
-                                                   L3PktType_MAX, readRetCode);
-    }
-
-    rte_free(path);
+    Packet *pkt = Producer_getPacket(producer, npkt, L3PktType_Data,
+                                     readRetCode, (uint8_t *)buf);
     rte_free(buf);
     return pkt;
 }
@@ -278,7 +230,7 @@ static const OnSystemCallInterest onSystemCallInterest[SYSCALL_MAX_ID] = {
  * @return Packet* Response packet to received Interest
  */
 static Packet *Producer_processInterest(Producer *producer, Packet *npkt) {
-    ZF_LOGD("Processing new Interest packet");
+    ZF_LOGD("Processing Interest packet");
 
     const LName *name = (const LName *)&Packet_GetInterestHdr(npkt)->name;
 
@@ -292,7 +244,7 @@ static Packet *Producer_processInterest(Producer *producer, Packet *npkt) {
 
     if (unlikely(sid == SYSCALL_NOT_FOUND)) {
         ZF_LOGW("Unrecognized file system call for Interest Name: %s",
-                name->value); // TODO check if it works
+                name->value);
         return Producer_getPacket_Nack(npkt, NackReason_Unspecified);
     }
 

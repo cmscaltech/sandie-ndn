@@ -20,33 +20,28 @@
 
 #pragma once
 
-#ifndef XRDNDNDPDK_PRODUCER_H
-#define XRDNDNDPDK_PRODUCER_H
+#ifndef XRDNDNDPDK_FILESYSTEM_C_API_H
+#define XRDNDNDPDK_FILESYSTEM_C_API_H
 
-#include "ndn-dpdk/container/pktqueue/queue.h"
-#include "ndn-dpdk/core/pcg_basic.h"
-#include "ndn-dpdk/dpdk/thread.h"
-#include "ndn-dpdk/iface/face.h"
-#include "ndn-dpdk/ndn/encode-data.h"
+#include <stdint.h>
+#include <sys/types.h>
 
-#include "../xrdndndpdk-common/xrdndndpdk-utils.h"
-#include "filesystem-c-api.h"
+typedef enum { POSIX = 0, HADOOP, CEPH } FilesystemType;
 
-/**
- * @brief Producer struct
- *
- */
-typedef struct Producer {
-    PktQueue rxQueue;
-    struct rte_mempool *dataMp;
-    FaceId face;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    uint32_t freshnessPeriod;
-    ThreadStopFlag stop;
+void *libfs_newFilesystem(FilesystemType type);
+void libfs_destroyFilesystem(void *obj);
 
-    void *fs;
-} Producer;
+int libfs_open(void *obj, const char *pathname);
+int libfs_fstat(void *obj, const char *pathname, void *buf);
+int libfs_read(void *obj, const char *pathname, void *buf, size_t count,
+               off_t offset);
 
-void Producer_Run(Producer *producer);
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
-#endif // XRDNDNDPDK_PRODUCER_H
+#endif // XRDNDNDPDK_FILESYSTEM_C_API_H

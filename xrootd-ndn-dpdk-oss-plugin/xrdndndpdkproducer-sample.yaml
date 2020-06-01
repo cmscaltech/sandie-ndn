@@ -6,6 +6,7 @@
     remote: ""
   producer:
     freshnessperiod: 100s   # Interests freshness perios
+    filesystemtype: posix   # Filesystem type: posix/hadoop/ceph, default posix
     rxqueue:
       capacity: 131072      # Ring capacity, must be power of 2, default 131072 with delay/CoDel or 4096 without
       dequeueburstsize: 64  # Dequeue burst size limit, default 64

@@ -20,33 +20,25 @@
 
 #pragma once
 
-#ifndef XRDNDNDPDK_PRODUCER_H
-#define XRDNDNDPDK_PRODUCER_H
-
-#include "ndn-dpdk/container/pktqueue/queue.h"
-#include "ndn-dpdk/core/pcg_basic.h"
-#include "ndn-dpdk/dpdk/thread.h"
-#include "ndn-dpdk/iface/face.h"
-#include "ndn-dpdk/ndn/encode-data.h"
-
-#include "../xrdndndpdk-common/xrdndndpdk-utils.h"
-#include "filesystem-c-api.h"
+#ifndef XRDNDNDPDK_FILESYSTEM_NAMESPACE_HH
+#define XRDNDNDPDK_FILESYSTEM_NAMESPACE_HH
 
 /**
- * @brief Producer struct
+ * @brief Default garbage collector interval for closing opened file descriptors
  *
  */
-typedef struct Producer {
-    PktQueue rxQueue;
-    struct rte_mempool *dataMp;
-    FaceId face;
+#define FILESYSTEM_GB_INTERVAL_DEFAULT 300 // s
 
-    uint32_t freshnessPeriod;
-    ThreadStopFlag stop;
+/**
+ * @brief Success error code
+ *
+ */
+#define FILESYSTEM_ESUCCESS 0
 
-    void *fs;
-} Producer;
+/**
+ * @brief Failure error code
+ *
+ */
+#define FILESYSTEM_EFAILURE -1
 
-void Producer_Run(Producer *producer);
-
-#endif // XRDNDNDPDK_PRODUCER_H
+#endif // XRDNDNDPDK_FILESYSTEM_NAMESPACE_HH

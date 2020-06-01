@@ -20,7 +20,10 @@ source mk/cflags.sh
   echo -n ' -L'$NDNDPDKLIBS_PATH
   echo -n ' -L'$LOCALLIBS_PATH
   echo -n ' '$NDNDPDKLIBS
-  echo -n ' '$LOCALLIBS
+  echo -n ' '$LIB_COMMON
+  if [[ $PKGNAME == *"producer"* ]]; then
+    echo -n ' '$LIB_FILESYSTEM
+  fi
   echo ' '$LIBS
   echo '*/'
   echo 'import "C"'

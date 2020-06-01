@@ -18,35 +18,52 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#pragma once
-
-#ifndef XRDNDNDPDK_PRODUCER_H
-#define XRDNDNDPDK_PRODUCER_H
-
-#include "ndn-dpdk/container/pktqueue/queue.h"
-#include "ndn-dpdk/core/pcg_basic.h"
-#include "ndn-dpdk/dpdk/thread.h"
-#include "ndn-dpdk/iface/face.h"
-#include "ndn-dpdk/ndn/encode-data.h"
-
-#include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 #include "filesystem-c-api.h"
+#include "filesystem-posix.hh"
 
-/**
- * @brief Producer struct
- *
- */
-typedef struct Producer {
-    PktQueue rxQueue;
-    struct rte_mempool *dataMp;
-    FaceId face;
+INIT_ZF_LOG(Xrdndndpdkfilesystem);
 
-    uint32_t freshnessPeriod;
-    ThreadStopFlag stop;
+inline FileSystem *asFilesystem(void *obj) {
+    return reinterpret_cast<FileSystem *>(obj);
+}
 
-    void *fs;
-} Producer;
+void *libfs_newFilesystem(FilesystemType type) {
+    void *obj = NULL;
 
-void Producer_Run(Producer *producer);
+    switch (type) {
+    case FilesystemType::POSIX:
+        ZF_LOGI("Get FileSystem object type: %d (POSIX)", type);
+        obj = new FileSystemPosix();
+        break;
+    case FilesystemType::HADOOP:
+        // ZF_LOGI("Get new FileSystem object type: %d (HADOOP)", type);
+    case FilesystemType::CEPH:
+        // ZF_LOGI("Get new FileSystem object type: %d (CEPH)", type);
+    default:
+        ZF_LOGE("Filesystem type: %d not supported", type);
+    }
 
-#endif // XRDNDNDPDK_PRODUCER_H
+    ZF_LOGI("Return Filesystem object: %p", obj);
+    return obj;
+}
+
+void libfs_destroyFilesystem(void *obj) {
+    ZF_LOGI("Destroy Filesystem object: %p", obj);
+    if (obj != nullptr) {
+        // asFilesystem(obj)->~FileSystem(); // TODO
+        delete asFilesystem(obj);
+    }
+}
+
+int libfs_open(void *obj, const char *pathname) {
+    return asFilesystem(obj)->open(pathname);
+}
+
+int libfs_fstat(void *obj, const char *pathname, void *buf) {
+    return asFilesystem(obj)->fstat(pathname, buf);
+}
+
+int libfs_read(void *obj, const char *pathname, void *buf, size_t count,
+               off_t offset) {
+    return asFilesystem(obj)->read(pathname, buf, count, offset);
+}

@@ -7,4 +7,9 @@ LIBS='-lurcu-qsbr -lurcu-cds -lubpf -lspdk -lspdk_env_dpdk -lrte_bus_pci -lrte_b
 NDNDPDKLIBS_PATH=${PWD}'/../../ndn-dpdk/build'
 NDNDPDKLIBS='-lndn-dpdk-iface -lndn-dpdk-ndn -lndn-dpdk-dpdk -lndn-dpdk-core'
 LOCALLIBS_PATH=${PWD}'/libs'
-LOCALLIBS='-lxrdndndpdk-common'
+LIB_COMMON='-lcommon'
+LIB_FILESYSTEM='-lfilesystem'
+
+if [[ -n $RELEASE ]]; then
+  CFLAGS=$CFLAGS' -DNDEBUG -DZF_LOG_DEF_LEVEL=ZF_LOG_INFO'
+fi

@@ -26,10 +26,11 @@ go
         `-- [...]
 ```
 
-3.1 `export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig`
-3.2 `export HADOOP_HOME=<path to Hadoop install dir>`
+3. `export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig`
 
-4. Use [Makefile](./Makefile) to build *producer* and *consumer*
+4. `export HADOOP_HOME=<path to Hadoop install dir>`
+
+5. Use [Makefile](./Makefile) to build *producer* and *consumer*
 
 ## Usage
 

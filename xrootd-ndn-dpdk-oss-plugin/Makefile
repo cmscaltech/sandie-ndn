@@ -26,10 +26,11 @@ export CGO_CFLAGS_ALLOW := '.*'
 
 rootdir := $(realpath .)
 
-CC 	:= gcc
+CC 	 := gcc
+CLANG	 := clang++-8
 CFLAGS   := -Werror -Wno-error=deprecated-declarations -m64 -O3 -g -march=native
 CXXFLAGS := -std=c++17 $(CFLAGS)
-INCLUDE  := -I$(rootdir)/../../
+INCLUDE  := -I$(rootdir)/../../ -I${HADOOP_HOME}/include
 
 OBJDIR := obj
 LIBDIR := libs
@@ -42,10 +43,8 @@ goget:
 godeps:
 	rake cgoflags
 
-$(OBJDIR):
+dirs:
 	mkdir -p $(OBJDIR)
-
-$(LIBDIR):
 	mkdir -p $(LIBDIR)
 
 # Build libcommon static lib
@@ -54,10 +53,10 @@ STATIC_COMMON_SRCDIR := xrdndndpdk-common
 STATIC_COMMON_SRCS   := $(shell find $(STATIC_COMMON_SRCDIR)  -name '*.c')
 STATIC_COMMON_OBJS   := $(patsubst $(STATIC_COMMON_SRCDIR)/%.c, $(OBJDIR)/%.o, $(STATIC_COMMON_SRCS))
 
-$(OBJDIR)/%.o: $(STATIC_COMMON_SRCDIR)/%.c | $(OBJDIR)
+$(OBJDIR)/%.o: $(STATIC_COMMON_SRCDIR)/%.c | dirs
 	$(CC) $(CFLAGS) -c $< -o $@ $(INCLUDE)
 
-$(STATIC_COMMON): $(STATIC_COMMON_OBJS) | $(LIBDIR)
+$(STATIC_COMMON): $(STATIC_COMMON_OBJS) | dirs
 	@ar rcs $(LIBDIR)/$(STATIC_COMMON) $^
 
 # Build libfilesystem static lib
@@ -66,17 +65,26 @@ LOGGER_SRCS   := $(shell find $(LOGGER_SRCDIR)  -name '*.cc')
 LOGGER_OBJS   := $(patsubst $(LOGGER_SRCDIR)/%.cc, $(OBJDIR)/%.o, $(LOGGER_SRCS))
 
 STATIC_FILESYSTEM 	 := libfilesystem.a
-STATIC_FILESYSTEM_SRCDIR := xrdndndpdkproducer
+STATIC_FILESYSTEM_SRCDIR := xrdndndpdkfilesystem
 STATIC_FILESYSTEM_SRCS 	 := $(shell find $(STATIC_FILESYSTEM_SRCDIR)  -name 'filesys*.cc')
 STATIC_FILESYSTEM_OBJS 	 := $(patsubst $(STATIC_FILESYSTEM_SRCDIR)/filesys%.cc, $(OBJDIR)/filesys%.o, $(STATIC_FILESYSTEM_SRCS))
 
-$(OBJDIR)/%.o: $(LOGGER_SRCDIR)/%.cc | $(OBJDIR)
-	clang++ $(CXXFLAGS) -c $< -o $@
+$(OBJDIR)/%.o: $(LOGGER_SRCDIR)/%.cc | dirs
+	$(CLANG) $(CXXFLAGS) -c $< -o $@
 
-$(OBJDIR)/filesys%.o: $(STATIC_FILESYSTEM_SRCDIR)/filesys%.cc | $(OBJDIR)
-	clang++ $(CXXFLAGS) -c $< -o $@
+$(OBJDIR)/filesystem.o: $(STATIC_FILESYSTEM_SRCDIR)/filesystem.cc | dirs
+	$(CLANG) $(CXXFLAGS) -c $< -o $@ $(INCLUDE)
 
-$(STATIC_FILESYSTEM): $(LOGGER_OBJS) $(STATIC_FILESYSTEM_OBJS) | $(LIBDIR)
+$(OBJDIR)/filesystem-c%.o: $(STATIC_FILESYSTEM_SRCDIR)/filesystem-c%.cc | dirs
+	$(CLANG) $(CXXFLAGS) -c $< -o $@ $(INCLUDE)
+
+$(OBJDIR)/filesystem-posix.o: $(STATIC_FILESYSTEM_SRCDIR)/filesystem-posix.cc | dirs
+	$(CLANG) $(CXXFLAGS) -c $< -o $@ $(INCLUDE)
+
+$(OBJDIR)/filesystem-hdfs.o: $(STATIC_FILESYSTEM_SRCDIR)/filesystem-hdfs.cc | dirs
+	$(CLANG) $(CXXFLAGS) -c $< -o $@ $(INCLUDE)
+
+$(STATIC_FILESYSTEM): $(LOGGER_OBJS) $(STATIC_FILESYSTEM_OBJS) | dirs
 	@ar rcs $(LIBDIR)/$(STATIC_FILESYSTEM) $^
 
 producer: | godeps $(STATIC_COMMON) $(STATIC_FILESYSTEM)

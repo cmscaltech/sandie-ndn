@@ -1,4 +1,4 @@
-CDeps = ["xrdndndpdkconsumer", "xrdndndpdkproducer"]
+CDeps = ["xrdndndpdkconsumer", "xrdndndpdkproducer", "xrdndndpdkfilesystem"]
 
 # Generate cgoflags.go files for each Go package
 task "cgoflags"

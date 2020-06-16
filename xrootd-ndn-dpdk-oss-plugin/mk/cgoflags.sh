@@ -15,16 +15,24 @@ source mk/cflags.sh
   echo 'package '$PKGNAME
   echo
   echo '/*'
-  echo '#cgo CFLAGS: '$CFLAGS
-  echo -n '#cgo LDFLAGS:'
-  echo -n ' -L'$NDNDPDKLIBS_PATH
-  echo -n ' -L'$LOCALLIBS_PATH
-  echo -n ' '$NDNDPDKLIBS
-  echo -n ' '$LIB_COMMON
-  if [[ $PKGNAME == *"producer"* ]]; then
-    echo -n ' '$LIB_FILESYSTEM
+
+  if [[ $PKGNAME == *"consumer"* ]]; then
+    echo '#cgo CFLAGS: '$CFLAGS' '$DPDKFLAGS
+  elif [[ $PKGNAME == *"producer"* ]]; then
+    echo '#cgo CFLAGS: '$CFLAGS' '$DPDKFLAGS
+  elif [[ $PKGNAME == *"filesystem"* ]]; then
+    echo '#cgo CXXFLAGS: '$CXXFLAGS' '
   fi
-  echo ' '$LIBS
+
+  echo -n '#cgo LDFLAGS:'
+  if [[ $PKGNAME == *"consumer"* ]]; then
+    echo $LDFLAGS' '$DPDKLDFLAGS
+  elif [[ $PKGNAME == *"producer"* ]]; then
+    echo $LDFLAGS' '$DPDKLDFLAGS' '$LIB_FILESYSTEM
+  elif [[ $PKGNAME == *"filesystem"* ]]; then
+    echo $LIB_FILESYSTEM
+  fi
+
   echo '*/'
   echo 'import "C"'
 ) | gofmt -s > $PKG/cgoflags.go

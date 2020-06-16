@@ -18,52 +18,28 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include "filesystem-c-api.h"
-#include "filesystem-posix.hh"
+#pragma once
 
-INIT_ZF_LOG(Xrdndndpdkfilesystem);
+#ifndef XRDNDNDPDK_FILESYSTEM_POSIX_HH
+#define XRDNDNDPDK_FILESYSTEM_POSIX_HH
 
-inline FileSystem *asFilesystem(void *obj) {
-    return reinterpret_cast<FileSystem *>(obj);
-}
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-void *libfs_newFilesystem(FilesystemType type) {
-    void *obj = NULL;
+#include "filesystem.hh"
 
-    switch (type) {
-    case FilesystemType::POSIX:
-        ZF_LOGI("Get FileSystem object type: %d (POSIX)", type);
-        obj = new FileSystemPosix();
-        break;
-    case FilesystemType::HADOOP:
-        // ZF_LOGI("Get new FileSystem object type: %d (HADOOP)", type);
-    case FilesystemType::CEPH:
-        // ZF_LOGI("Get new FileSystem object type: %d (CEPH)", type);
-    default:
-        ZF_LOGE("Filesystem type: %d not supported", type);
-    }
+class FileSystemPosix : public FileSystem {
+  public:
+    FileSystemPosix();
+    ~FileSystemPosix();
 
-    ZF_LOGI("Return Filesystem object: %p", obj);
-    return obj;
-}
+    int open(const char *pathname);
+    int fstat(const char *pathname, void *buf);
+    int read(const char *pathname, void *buf, size_t count = 0,
+             off_t offset = 0);
+    void close(const char *pathname, std::any fd);
+};
 
-void libfs_destroyFilesystem(void *obj) {
-    ZF_LOGI("Destroy Filesystem object: %p", obj);
-    if (obj != nullptr) {
-        // asFilesystem(obj)->~FileSystem(); // TODO
-        delete asFilesystem(obj);
-    }
-}
-
-int libfs_open(void *obj, const char *pathname) {
-    return asFilesystem(obj)->open(pathname);
-}
-
-int libfs_fstat(void *obj, const char *pathname, void *buf) {
-    return asFilesystem(obj)->fstat(pathname, buf);
-}
-
-int libfs_read(void *obj, const char *pathname, void *buf, size_t count,
-               off_t offset) {
-    return asFilesystem(obj)->read(pathname, buf, count, offset);
-}
+#endif // XRDNDNDPDK_FILESYSTEM_POSIX_HH

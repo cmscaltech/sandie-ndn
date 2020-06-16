@@ -23,12 +23,15 @@
 #ifndef XRDNDNDPDK_FILESYSTEM_HH
 #define XRDNDNDPDK_FILESYSTEM_HH
 
+#include <any>
+#include <cstring>
 #include <mutex>
 #include <shared_mutex>
-#include <stdio.h>
-#include <sys/types.h>
 #include <thread>
 #include <unordered_map>
+
+#include <stdio.h>
+#include <sys/types.h>
 
 #include "../xrdndndpdk-logger/logger.hh"
 #include "filesystem-namespace.hh"
@@ -37,8 +40,8 @@
 #define unlikely(x) __builtin_expect((x), 0)
 
 struct FileHandler {
-    FileHandler() : fd(0) {}
-    FileHandler(int fd) : fd(fd) {}
+    FileHandler() {}
+    FileHandler(std::any fd) : fd{fd} {}
 
     FileHandler &operator=(const FileHandler &f) {
         if (this != &f) {
@@ -55,10 +58,10 @@ struct FileHandler {
     }
 
     decltype(auto) getOpenTimestamp() { return openTimestamp; }
-    int getFileDescriptor() { return fd; }
+    decltype(auto) getFileDescriptor() { return fd; }
 
   private:
-    int fd;
+    std::any fd;
     std::chrono::steady_clock::time_point openTimestamp;
     mutable std::shared_timed_mutex mtx;
 };
@@ -73,11 +76,11 @@ class FileSystem {
     virtual int fstat(const char *pathname, void *buf) = 0;
     virtual int read(const char *pathname, void *buf, size_t count = 0,
                      off_t offset = 0) = 0;
-    virtual void close(const char *pathname, int fd) = 0;
+    virtual void close(const char *pathname, std::any fd) = 0;
 
   protected:
-    int storeFileHandler(const char *pathname, int fd);
-    int getFileHandler(const char *pathname);
+    int storeFileHandler(const char *pathname, std::any fd);
+    std::any getFileHandler(const char *pathname);
     bool hasFileHandler(const char *pathname);
 
   private:

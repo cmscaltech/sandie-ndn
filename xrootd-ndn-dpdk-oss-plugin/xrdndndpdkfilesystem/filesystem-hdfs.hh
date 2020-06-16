@@ -20,33 +20,30 @@
 
 #pragma once
 
-#ifndef XRDNDNDPDK_PRODUCER_H
-#define XRDNDNDPDK_PRODUCER_H
+#ifndef XRDNDNDPDK_FILESYSTEM_HDFS_HH
+#define XRDNDNDPDK_FILESYSTEM_HDFS_HH
 
-#include "ndn-dpdk/container/pktqueue/queue.h"
-#include "ndn-dpdk/core/pcg_basic.h"
-#include "ndn-dpdk/dpdk/thread.h"
-#include "ndn-dpdk/iface/face.h"
-#include "ndn-dpdk/ndn/encode-data.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#include "../xrdndndpdk-common/xrdndndpdk-utils.h"
-#include "../xrdndndpdkfilesystem/filesystem-c-api.h"
+#include "filesystem.hh"
+#include "hdfs.h"
 
-/**
- * @brief Producer struct
- *
- */
-typedef struct Producer {
-    PktQueue rxQueue;
-    struct rte_mempool *dataMp;
-    FaceId face;
+class FileSystemHDFS : public FileSystem {
+  public:
+    FileSystemHDFS();
+    ~FileSystemHDFS();
 
-    uint32_t freshnessPeriod;
-    ThreadStopFlag stop;
+    int open(const char *pathname);
+    int fstat(const char *pathname, void *buf);
+    int read(const char *pathname, void *buf, size_t count = 0,
+             off_t offset = 0);
+    void close(const char *pathname, std::any fd);
 
-    void *fs;
-} Producer;
+  private:
+    hdfsFS m_hdfsFS;
+};
 
-void Producer_Run(Producer *producer);
-
-#endif // XRDNDNDPDK_PRODUCER_H
+#endif // XRDNDNDPDK_FILESYSTEM_HDFS_HH

@@ -37,8 +37,8 @@ FileSystem::~FileSystem() {
     m_FileHandlers.clear();
 }
 
-int FileSystem::storeFileHandler(const char *pathname, int fd) {
-    ZF_LOGD("Store file descriptor: %d for file: %s", fd, pathname);
+int FileSystem::storeFileHandler(const char *pathname, std::any fd) {
+    ZF_LOGD("Store file descriptor for file: %s", pathname);
 
     unique_lock<shared_timed_mutex> lock(m_protectFileHandlers);
     if (m_FileHandlers.find(pathname) != m_FileHandlers.end()) {
@@ -51,13 +51,13 @@ int FileSystem::storeFileHandler(const char *pathname, int fd) {
     return FILESYSTEM_ESUCCESS;
 }
 
-int FileSystem::getFileHandler(const char *pathname) {
+std::any FileSystem::getFileHandler(const char *pathname) {
     ZF_LOGD("Get file handler for file: %s", pathname);
 
     shared_lock<shared_timed_mutex> lock(m_protectFileHandlers);
     if (m_FileHandlers.find(pathname) == m_FileHandlers.end()) {
         ZF_LOGE("Unavailable file descriptor for file: %s", pathname);
-        return FILESYSTEM_EFAILURE;
+        return std::any();
     }
 
     return m_FileHandlers[pathname].getFileDescriptor();

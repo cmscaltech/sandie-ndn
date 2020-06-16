@@ -18,8 +18,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include <cstring>
-
 #include "filesystem-posix.hh"
 
 INIT_ZF_LOG(Xrdndndpdkfilesystem);
@@ -50,9 +48,9 @@ int FileSystemPosix::open(const char *pathname) {
     return FILESYSTEM_ESUCCESS;
 }
 
-void FileSystemPosix::close(const char *pathname, int fd) {
+void FileSystemPosix::close(const char *pathname, std::any fd) {
     ZF_LOGD("Close file: %s", pathname);
-    if (::close(fd) == -1) {
+    if (::close(std::any_cast<int>(fd)) == -1) {
         ZF_LOGW("Closing file handler for file: %s with errcode: %d (%s)",
                 pathname, errno, strerror(errno));
     }
@@ -73,8 +71,8 @@ int FileSystemPosix::read(const char *pathname, void *buf, size_t count,
                           off_t offset) {
     ZF_LOGD("Read %zuB @%ld from file: %s", count, offset, pathname);
 
-    int fd = this->getFileHandler(pathname);
-    if (unlikely(fd == FILESYSTEM_EFAILURE)) {
+    auto fd = this->getFileHandler(pathname);
+    if (unlikely(!fd.has_value())) {
         ZF_LOGI("File descriptor for: %s not available. Opening file",
                 pathname);
 
@@ -85,7 +83,7 @@ int FileSystemPosix::read(const char *pathname, void *buf, size_t count,
         }
     }
 
-    int ret = pread(fd, buf, count, offset);
+    int ret = pread(std::any_cast<int>(fd), buf, count, offset);
     if (unlikely(ret == -1)) {
         ZF_LOGW("Reading %zuB @%ld from file: %s failed with errcode: %d (%s)",
                 count, offset, pathname, errno, strerror(errno));

@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+  <property>
+    <name>fs.default.name</name>
+    <value>hdfs://10.3.12.112:9000</value>
+  </property>
+  <property>
+    <name>hadoop.tmp.dir</name>
+    <value>/data1/hadoop/scratch</value>
+  </property>
+  <property>
+    <name>dfs.umaskmode</name>
+    <value>002</value>
+  </property>
+  <property>
+    <name>io.bytes.per.checksum</name>
+    <value>4096</value>
+  </property>
+  <property>
+    <name>hadoop.log.dir</name>
+    <value>/var/log/hadoop</value>
+  </property>
+  <property>
+    <name>ipc.maximum.data.length</name>
+    <value>134217728</value>
+  </property>
+</configuration>

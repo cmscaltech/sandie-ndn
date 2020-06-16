@@ -2,11 +2,11 @@ package xrdndndpdkproducer
 
 /*
 #include "xrdndndpdk-producer.h"
-#include "filesystem-c-api.h"
 */
 import "C"
 import (
 	"fmt"
+	"sandie-ndn/xrootd-ndn-dpdk-oss-plugin/xrdndndpdkfilesystem"
 	"time"
 	"unsafe"
 
@@ -32,9 +32,9 @@ func NewProducer(face iface.IFace, producerSettings ProducerSettings) (producer 
 	producer = new(Producer)
 	producer.c = (*C.Producer)(dpdk.Zmalloc("Producer", C.sizeof_Producer, socket))
 
-	producer.fileSystem = C.libfs_newFilesystem(GetFilesystemType(producerSettings.FilesystemType))
-	if producer.fileSystem == nil {
-		return nil, nil
+	if producer.fileSystem, e = xrdndndpdkfilesystem.GetFilesystem(producerSettings.FilesystemType); e != nil {
+		dpdk.Free(producer.c)
+		return nil, e
 	}
 
 	if _, e := pktqueue.NewAt(unsafe.Pointer(&producer.c.rxQueue), producerSettings.RxQueue, fmt.Sprintf("PingServer%d_rxQ", faceID), socket); e != nil {
@@ -92,6 +92,6 @@ func (producer *Producer) Close() (e error) {
 	}
 
 	dpdk.Free(producer.c)
-	C.libfs_destroyFilesystem(producer.fileSystem)
+	xrdndndpdkfilesystem.FreeFilesystem(producer.fileSystem)
 	return nil
 }

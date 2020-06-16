@@ -18,30 +18,56 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#pragma once
+#include "filesystem-c-api.h"
+#include "filesystem-hdfs.hh"
+#include "filesystem-posix.hh"
+#include "filesystem.hh"
 
-#ifndef XRDNDNDPDK_FILESYSTEM_C_API_H
-#define XRDNDNDPDK_FILESYSTEM_C_API_H
+INIT_ZF_LOG(Xrdndndpdkfilesystem);
 
-#include <stdint.h>
-#include <sys/types.h>
+inline FileSystem *asFilesystem(void *obj) {
+    return reinterpret_cast<FileSystem *>(obj);
+}
 
-typedef enum { POSIX = 0, HADOOP, CEPH } FilesystemType;
+void *libfs_newFilesystem(FilesystemType type) {
+    void *obj = NULL;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+    switch (type) {
+    case FilesystemType::FT_POSIX:
+        ZF_LOGI("Get FileSystem object type: %d (FT_POSIX)", type);
+        obj = new FileSystemPosix();
+        break;
+    case FilesystemType::FT_HDFS:
+        ZF_LOGI("Get new FileSystem object type: %d (FT_HDFS)", type);
+        obj = new FileSystemHDFS();
+        break;
+    case FilesystemType::FT_CEPHFS:
+        // ZF_LOGI("Get new FileSystem object type: %d (FT_CEPHFS)", type);
+    default:
+        ZF_LOGE("Filesystem type: %d not supported", type);
+    }
 
-void *libfs_newFilesystem(FilesystemType type);
-void libfs_destroyFilesystem(void *obj);
+    ZF_LOGI("Return Filesystem object: %p", obj);
+    return obj;
+}
 
-int libfs_open(void *obj, const char *pathname);
-int libfs_fstat(void *obj, const char *pathname, void *buf);
+void libfs_destroyFilesystem(void *obj) {
+    ZF_LOGI("Destroy Filesystem object: %p", obj);
+    if (obj != nullptr) {
+        // asFilesystem(obj)->~FileSystem(); // TODO
+        delete asFilesystem(obj);
+    }
+}
+
+int libfs_open(void *obj, const char *pathname) {
+    return asFilesystem(obj)->open(pathname);
+}
+
+int libfs_fstat(void *obj, const char *pathname, void *buf) {
+    return asFilesystem(obj)->fstat(pathname, buf);
+}
+
 int libfs_read(void *obj, const char *pathname, void *buf, size_t count,
-               off_t offset);
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
-
-#endif // XRDNDNDPDK_FILESYSTEM_C_API_H
+               off_t offset) {
+    return asFilesystem(obj)->read(pathname, buf, count, offset);
+}

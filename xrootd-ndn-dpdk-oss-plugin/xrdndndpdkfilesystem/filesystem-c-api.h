@@ -20,27 +20,28 @@
 
 #pragma once
 
-#ifndef XRDNDNDPDK_FILESYSTEM_POSIX_HH
-#define XRDNDNDPDK_FILESYSTEM_POSIX_HH
+#ifndef XRDNDNDPDK_FILESYSTEM_C_API_H
+#define XRDNDNDPDK_FILESYSTEM_C_API_H
 
-#include <errno.h>
-#include <fcntl.h>
-#include <sys/stat.h>
+#include <stddef.h>
 #include <sys/types.h>
-#include <unistd.h>
 
-#include "filesystem.hh"
+typedef enum { FT_POSIX = 0, FT_HDFS, FT_CEPHFS } FilesystemType;
 
-class FileSystemPosix : public FileSystem {
-  public:
-    FileSystemPosix();
-    ~FileSystemPosix();
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    int open(const char *pathname);
-    int fstat(const char *pathname, void *buf);
-    int read(const char *pathname, void *buf, size_t count = 0,
-             off_t offset = 0);
-    void close(const char *pathname, int fd);
-};
+void *libfs_newFilesystem(FilesystemType type);
+void libfs_destroyFilesystem(void *obj);
 
-#endif // XRDNDNDPDK_FILESYSTEM_POSIX_HH
+int libfs_open(void *obj, const char *pathname);
+int libfs_fstat(void *obj, const char *pathname, void *buf);
+int libfs_read(void *obj, const char *pathname, void *buf, size_t count,
+               off_t offset);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
+#endif // XRDNDNDPDK_FILESYSTEM_C_API_H

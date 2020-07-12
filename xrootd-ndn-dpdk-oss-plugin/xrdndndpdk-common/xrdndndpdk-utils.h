@@ -33,10 +33,9 @@
 
 #include "ndn-dpdk/core/logger.h"
 #include "ndn-dpdk/ndn/name.h"
+#include "ndn-dpdk/ndn/nni.h"
 
 #include "xrdndndpdk-namespace.h"
-
-#define SEGMENT_NO_COMPONENT_SIZE 10 // 1B Type, 1B Length, 8B sizeof(uint64_t)
 
 /**
  * @brief Empty LName structure
@@ -58,39 +57,51 @@ typedef struct PContent {
 } PContent;
 
 /**
- * @brief Get file path from LName
- *
- * @param name LName struct
- * @param nameOff Offset of filepath in name. Skip prefix and system call name
- * @param hasSegmentNo Packet Name contains segment number
- * @return char* The path to the file
- */
-char *lnameGetFilePath(const LName name, uint16_t nameOff, bool hasSegmentNo);
-
-/**
- * @brief Get segment number (offset in file) from LName
+ * @brief Get filepath Name component length
  *
  * @param name Packet Name as LName struct
- * @return uint64_t The offset in file as uint64_t
+ * @param off Offset to the first Name component of filepath. Skip prefix and
+ * system call name
+ * @return uint16_t Filepath Name component length
  */
-uint64_t lnameGetSegmentNumber(const LName name);
+uint16_t lnameGetFilePathLength(const LName name, uint16_t off);
 
 /**
- * @brief Get file system call id from Packet Name. See SystemCallId enum
+ * @brief Decode filepath from LName
+ *
+ * @param name Packet Name as LName struct
+ * @param off Offset to the first Name component of filepath. Skip prefix and
+ * system call name
+ * @param filepath output
+ * @return uint16_t offset to end of filepath in LName
+ */
+uint16_t lnameDecodeFilePath(const LName name, uint16_t off, char *filepath);
+
+/**
+ * @brief Decode segment number from LName
+ *
+ * @param name Packet Name as LName struct
+ * @param off Offset to Segment Component in Name
+ * @return uint64_t Segment number
+ */
+uint64_t lnameDecodeSegmentNumber(const LName name, uint16_t off);
+
+/**
+ * @brief Decode file system call id from Packet Name. See SystemCallId enum
  *
  * @param name Packet Name
  * @return SystemCallId File system call id
  */
-SystemCallId lnameGetSystemCallId(const LName name);
+SystemCallId lnameDecodeSystemCallId(const LName name);
 
 /**
- * @brief Retrieve Content offset in Data NDN packet format v0.3
+ * @brief Decode Content offset in Data NDN packet format v0.3
  * https://named-data.net/doc/NDN-packet-spec/current/types.html
  *
  * @param content PContent struct
  * @param len Length of payload
  */
-void packetGetContent(PContent *content, uint16_t len);
+void packetDecodeContent(PContent *content, uint16_t len);
 
 /**
  * @brief Copy byte array from src to dst at a given offsets

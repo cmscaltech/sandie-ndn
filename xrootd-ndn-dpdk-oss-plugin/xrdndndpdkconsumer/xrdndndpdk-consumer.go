@@ -122,10 +122,6 @@ func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error)
 		return e
 	}
 
-	consumer.Tx.c.segmentNumberComponent.compT = C.TT_GenericNameComponent
-	consumer.Tx.c.segmentNumberComponent.compL = C.uint8_t(C.sizeof_uint64_t)
-	consumer.Tx.c.segmentNumberComponent.compV = C.uint64_t(0)
-
 	C.registerRxCallbacks(consumer.Rx.c)
 	C.registerTxCallbacks(consumer.Tx.c)
 

@@ -117,8 +117,10 @@ static Packet *Producer_getNonNegativeIntegerPacket(Producer *producer,
  */
 static Packet *Producer_onOpenInterest(Producer *producer, Packet *npkt,
                                        const LName name) {
-    char *pathname = lnameGetFilePath(
-        name, XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE_SIZE, false);
+
+    char *pathname = rte_malloc(NULL, NAME_MAX_LENGTH * sizeof(char), 0);
+    lnameDecodeFilePath(name, XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE_SIZE,
+                        pathname);
 
     ZF_LOGI("Received open Interest for file: %s", pathname);
 
@@ -139,8 +141,9 @@ static Packet *Producer_onOpenInterest(Producer *producer, Packet *npkt,
  */
 static Packet *Producer_onFstatInterest(Producer *producer, Packet *npkt,
                                         const LName name) {
-    char *pathname = lnameGetFilePath(
-        name, XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE_SIZE, false);
+    char *pathname = rte_malloc(NULL, NAME_MAX_LENGTH * sizeof(char), 0);
+    lnameDecodeFilePath(name, XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE_SIZE,
+                        pathname);
 
     ZF_LOGI("Received fstat Interest for file: %s", pathname);
 
@@ -178,12 +181,11 @@ static Packet *Producer_onFstatInterest(Producer *producer, Packet *npkt,
  */
 static Packet *Producer_onReadInterest(Producer *producer, Packet *npkt,
                                        const LName name) {
-    char *pathname =
-        lnameGetFilePath(name, XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE, true);
-
+    char *pathname = rte_malloc(NULL, NAME_MAX_LENGTH * sizeof(char), 0);
+    uint64_t segOff = lnameDecodeFilePath(
+        name, XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE, pathname);
     ZF_LOGV("Received read Interest for file: %s", pathname);
 
-    uint64_t off = lnameGetSegmentNumber(name);
     void *buf = rte_malloc(NULL, sizeof(uint8_t) * XRDNDNDPDK_PACKET_SIZE, 0);
     if (unlikely(NULL == buf)) {
         ZF_LOGF("Not enough memory");
@@ -193,6 +195,7 @@ static Packet *Producer_onReadInterest(Producer *producer, Packet *npkt,
             producer, npkt, L3PktType_MAX, XRDNDNDPDK_EFAILURE);
     }
 
+    uint64_t off = lnameDecodeSegmentNumber(name, segOff);
     int readRetCode =
         libfs_read(producer->fs, pathname, buf, XRDNDNDPDK_PACKET_SIZE, off);
     rte_free(pathname);
@@ -240,7 +243,7 @@ static Packet *Producer_processInterest(Producer *producer, Packet *npkt) {
         return Producer_getPacket_Nack(npkt, NackReason_NoRoute);
     }
 
-    SystemCallId sid = lnameGetSystemCallId(*name);
+    SystemCallId sid = lnameDecodeSystemCallId(*name);
 
     if (unlikely(sid == SYSCALL_NOT_FOUND)) {
         ZF_LOGW("Unrecognized file system call for Interest Name: %s",

@@ -74,7 +74,7 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
     // TODO: Check content type Nack and go to nack callback
     // Need to implement encode and decode for MetaInfo ContentType
 
-    SystemCallId sid = lnameGetSystemCallId(*name);
+    SystemCallId sid = lnameDecodeSystemCallId(*name);
 
     if (SYSCALL_OPEN_ID == sid) {
         ZF_LOGI("Return content for open filesystem call");
@@ -88,10 +88,10 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
 
         cr->onContent(content, 0);
     } else if (likely(SYSCALL_READ_ID == sid)) {
-        ZF_LOGI("Return content for read filesystem call @%" PRIu64,
-                lnameGetSegmentNumber(*name));
-
-        cr->onContent(content, lnameGetSegmentNumber(*name));
+        uint64_t segNo = lnameDecodeSegmentNumber(
+            *name, lnameGetFilePathLength(
+                       *name, XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE));
+        cr->onContent(content, segNo);
     }
 }
 
@@ -136,7 +136,7 @@ static void ConsumerRx_processDataPacket(ConsumerRx *cr, Packet *npkt) {
         pkt = pkt->next;
     }
 
-    packetGetContent(content, length);
+    packetDecodeContent(content, length);
     ConsumerRx_processContent(cr, npkt, content);
 
     ++cr->nData;

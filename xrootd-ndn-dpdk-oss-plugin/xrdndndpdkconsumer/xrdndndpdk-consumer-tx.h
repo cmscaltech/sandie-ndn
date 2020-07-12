@@ -21,24 +21,14 @@
 #ifndef XRDNDNDPDK_CONSUMER_TX_H
 #define XRDNDNDPDK_CONSUMER_TX_H
 
+#include "ndn-dpdk/container/pktqueue/queue.h"
 #include "ndn-dpdk/dpdk/thread.h"
 #include "ndn-dpdk/iface/face.h"
 
 #include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 
 typedef void (*onErrorCallback)(uint64_t);
-
 void onErrorCallback_Go(uint64_t errorCode);
-
-typedef struct SegmentNumberComponent {
-    char _padding[6]; // make compV aligned
-    uint8_t compT;
-    uint8_t compL;
-    uint64_t compV;                    // segment number in native endianness
-} __rte_packed SegmentNumberComponent; // segment number component
-
-static_assert(offsetof(SegmentNumberComponent, compV) % sizeof(uint64_t) == 0,
-              "");
 
 /**
  * @brief Consumer Tx structure
@@ -47,16 +37,11 @@ static_assert(offsetof(SegmentNumberComponent, compV) % sizeof(uint64_t) == 0,
 typedef struct ConsumerTx {
     FaceId face;
     ThreadStopFlag stop;
-
     struct rte_mempool *interestMp; // mempool for Interests
     NonceGen nonceGen;
-
     InterestTemplate prefixTpl;
     InterestTemplate readPrefixTpl;
-
-    SegmentNumberComponent segmentNumberComponent;
     onErrorCallback onError;
-
     uint64_t nInterests;
 } ConsumerTx;
 

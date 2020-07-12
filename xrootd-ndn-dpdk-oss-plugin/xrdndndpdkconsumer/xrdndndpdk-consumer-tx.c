@@ -19,6 +19,7 @@
  *****************************************************************************/
 
 #include "xrdndndpdk-consumer-tx.h"
+#include "ndn-dpdk/ndn/nni.h"
 
 INIT_ZF_LOG(Xrdndndpdkconsumer);
 
@@ -69,8 +70,6 @@ void ConsumerTx_sendInterests(ConsumerTx *ct, struct LName *path, uint64_t off,
             "@%" PRIu64,
             n, off);
 
-    assert(n <= CONSUMER_MAX_BURST_SIZE);
-
     Packet *npkts[n];
     int ret =
         rte_pktmbuf_alloc_bulk(ct->interestMp, (struct rte_mbuf **)npkts, n);
@@ -83,15 +82,16 @@ void ConsumerTx_sendInterests(ConsumerTx *ct, struct LName *path, uint64_t off,
     for (uint16_t i = 0; i < n; ++i) {
         struct rte_mbuf *pkt = Packet_ToMbuf(npkts[i]);
 
-        ct->segmentNumberComponent.compV = off + i * XRDNDNDPDK_PACKET_SIZE;
+        uint8_t segNumber[10];
+        segNumber[0] = TT_SegmentNameComponent;
+        segNumber[1] =
+            EncodeNni(&segNumber[2], off + i * XRDNDNDPDK_PACKET_SIZE);
 
         uint8_t suffixBuffer[NAME_MAX_LENGTH];
         rte_memcpy(suffixBuffer, path->value, path->length);
-        rte_memcpy(suffixBuffer + path->length,
-                   &ct->segmentNumberComponent.compT,
-                   SEGMENT_NO_COMPONENT_SIZE);
+        rte_memcpy(suffixBuffer + path->length, &segNumber, 10);
 
-        LName suffix = {.length = path->length + SEGMENT_NO_COMPONENT_SIZE,
+        LName suffix = {.length = path->length + segNumber[1] + 2,
                         .value = suffixBuffer};
 
         EncodeInterest(pkt, &ct->readPrefixTpl, suffix,

@@ -38,7 +38,7 @@ RUN sudo yum install -y nodejs
 # Install Hadoop v3.2.1
 ENV JAVA_HOME=/usr/lib/jvm/jre-1.8.0
 RUN wget http://www.trieuvan.com/apache/hadoop/common/hadoop-3.2.1/hadoop-3.2.1.tar.gz
-RUN tar xvzf hadoop-3.2.1.tar.gz && sudo mkdir -p /usr/local/hadoop && sudo mv hadoop-3.2.1/* /usr/local/hadoop && rm -rf hadoop-3.2.1
+RUN tar xvzf hadoop-3.2.1.tar.gz && sudo mkdir -p /usr/local/hadoop && sudo mv hadoop-3.2.1/* /usr/local/hadoop && rm -rf hadoop-3.2.1 && rm hadoop-3.2.1.tar.gz
 ENV HADOOP_INSTALL=/usr/local/hadoop
 ENV PATH=$PATH:$HADOOP_INSTALL/bin:$HADOOP_INSTALL/sbin
 ENV HADOOP_MAPRED_HOME=$HADOOP_INSTALL
@@ -169,5 +169,6 @@ WORKDIR ${HOME}/go/src/ndn-dpdk
 # Use May 25th 2020 commit: f22ed6b12fc1582f6861590194391eb2ba6940d4
 RUN git checkout f22ed6b12fc1582f6861590194391eb2ba6940d4
 RUN npm install
-RUN make
+RUN RELEASE=1 make
+RUN sudo make install
 WORKDIR ${HOME}

@@ -89,17 +89,8 @@ uint16_t lnameDecodeFilePath(const LName name, uint16_t off, char *filepath) {
     return off;
 }
 
-uint64_t lnameDecodeSegmentNumber(const LName name, uint16_t off) {
-    ZF_LOGD("Decode segment number from LName");
-    assert(name.value[off] == TT_SegmentNameComponent);
-
-    uint64_t segNo = 0;
-    DecodeNni(name.value[off + 1], &name.value[off + 2], &segNo);
-    return segNo;
-}
-
-SystemCallId lnameDecodeSystemCallId(const LName name) {
-    ZF_LOGD("Decode Systemcall ID from LName");
+SystemCallId lnameGetSystemCallId(const LName name) {
+    ZF_LOGD("Get Systemcall ID from LName");
 
     if (likely(XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE <= name.length &&
                memcmp(XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE, name.value,

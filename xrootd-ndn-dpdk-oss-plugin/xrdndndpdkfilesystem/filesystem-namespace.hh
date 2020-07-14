@@ -39,6 +39,6 @@
  * @brief Failure error code
  *
  */
-#define FILESYSTEM_EFAILURE -1
+#define FILESYSTEM_EFAILURE 1
 
 #endif // XRDNDNDPDK_FILESYSTEM_NAMESPACE_HH

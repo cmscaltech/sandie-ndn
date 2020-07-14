@@ -77,7 +77,7 @@ int FileSystemPosix::read(const char *pathname, void *buf, size_t count,
                 pathname);
 
         if (unlikely(this->open(pathname) != 0)) {
-            return FILESYSTEM_EFAILURE;
+            return -(FILESYSTEM_EFAILURE);
         } else {
             fd = this->getFileHandler(pathname);
         }

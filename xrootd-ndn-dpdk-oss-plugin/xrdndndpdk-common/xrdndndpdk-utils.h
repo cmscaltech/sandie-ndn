@@ -78,21 +78,12 @@ uint16_t lnameGetFilePathLength(const LName name, uint16_t off);
 uint16_t lnameDecodeFilePath(const LName name, uint16_t off, char *filepath);
 
 /**
- * @brief Decode segment number from LName
- *
- * @param name Packet Name as LName struct
- * @param off Offset to Segment Component in Name
- * @return uint64_t Segment number
- */
-uint64_t lnameDecodeSegmentNumber(const LName name, uint16_t off);
-
-/**
- * @brief Decode file system call id from Packet Name. See SystemCallId enum
+ * @brief Get file system call id from Packet Name. See SystemCallId enum
  *
  * @param name Packet Name
  * @return SystemCallId File system call id
  */
-SystemCallId lnameDecodeSystemCallId(const LName name);
+SystemCallId lnameGetSystemCallId(const LName name);
 
 /**
  * @brief Decode Content offset in Data NDN packet format v0.3

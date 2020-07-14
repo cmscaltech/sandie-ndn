@@ -24,38 +24,20 @@
 
 INIT_ZF_LOG(Xrdndndpdkconsumer);
 
-// TODO:
 static void ConsumerRx_processNackPacket(ConsumerRx *cr, Packet *npkt) {
     ZF_LOGD("Process Nack packet");
     ++cr->nNacks;
 
-    // TODO: Check Nack reason and take actions accordingly
-    // For the moment we treat Nack packet as error, so the consumer app will
-    // stop
     cr->onError(XRDNDNDPDK_EFAILURE);
 }
 
-// Temporary solution for application level Nack
+// Temporary solution for Application Level Nack
 static void ConsumerRx_processMaxPacket(ConsumerRx *cr, Packet *npkt) {
     ZF_LOGD("Process MAX packet");
     ++cr->nErrors;
+
     // TODO: Process content and get nonNegativeInteger from it
-    // After fstat impl
     cr->onError(XRDNDNDPDK_EFAILURE);
-}
-
-/**
- * @brief Read non-negative integer from Data packet
- *
- * @param content PContent structure
- * @return uint64_t Non-negative integer from Data packet
- */
-static uint64_t ConsumerRx_readNonNegativeInteger(PContent *content) {
-    ZF_LOGD("Read nonNegativeInteger from Data packet");
-
-    rte_be64_t v;
-    rte_memcpy(&v, &content->payload[content->offset], content->length);
-    return rte_be_to_cpu_64(v);
 }
 
 /**
@@ -74,24 +56,39 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
     // TODO: Check content type Nack and go to nack callback
     // Need to implement encode and decode for MetaInfo ContentType
 
-    SystemCallId sid = lnameDecodeSystemCallId(*name);
+    SystemCallId sid = lnameGetSystemCallId(*name);
 
     if (SYSCALL_OPEN_ID == sid) {
         ZF_LOGI("Return content for open filesystem call");
 
-        uint64_t openRetCode = ConsumerRx_readNonNegativeInteger(content);
+        uint64_t openRetCode = 0;
+        NdnError e = DecodeNni(
+            content->length, &content->payload[content->offset], &openRetCode);
         rte_free(content->payload);
         rte_free(content);
+
+        if (unlikely(e != NdnError_OK)) {
+            ZF_LOGF("Could not decode Non-Negative Integer");
+            cr->onError(XRDNDNDPDK_EFAILURE);
+        }
+
         cr->onNonNegativeInteger(openRetCode);
     } else if (SYSCALL_FSTAT_ID == sid) {
         ZF_LOGI("Return content for stat filesystem call");
 
         cr->onContent(content, 0);
     } else if (likely(SYSCALL_READ_ID == sid)) {
-        uint64_t segNo = lnameDecodeSegmentNumber(
-            *name, lnameGetFilePathLength(
-                       *name, XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE));
-        cr->onContent(content, segNo);
+        uint16_t len = lnameGetFilePathLength(
+            *name, XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE);
+        uint64_t segNum = 0;
+        NdnError e =
+            DecodeNni(name->value[len + 1], &(name->value[len + 2]), &segNum);
+        if (unlikely(e != NdnError_OK)) {
+            ZF_LOGF("Could not decode Non-Negative Integer");
+            cr->onError(XRDNDNDPDK_EFAILURE);
+        }
+
+        cr->onContent(content, segNum);
     }
 }
 

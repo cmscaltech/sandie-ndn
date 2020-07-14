@@ -55,6 +55,27 @@ void ConsumerTx_sendInterest(ConsumerTx *ct, struct LName *suffix) {
     ++ct->nInterests;
 }
 
+static void ConsumerTx_EncodeReadInterest(ConsumerTx *ct, Packet *npkt,
+                                          struct LName *path, uint64_t segNum) {
+    uint8_t segNumber[10];
+    segNumber[0] = TT_SegmentNameComponent;
+    segNumber[1] = EncodeNni(&segNumber[2], segNum);
+
+    uint8_t suffixBuffer[NAME_MAX_LENGTH];
+    rte_memcpy(suffixBuffer, path->value, path->length);
+    rte_memcpy(suffixBuffer + path->length, &segNumber, 10);
+
+    LName suffix = {.length = path->length + segNumber[1] + 2,
+                    .value = suffixBuffer};
+
+    struct rte_mbuf *pkt = Packet_ToMbuf(npkt);
+    EncodeInterest(pkt, &ct->readPrefixTpl, suffix,
+                   NonceGen_Next(&ct->nonceGen));
+
+    Packet_SetL3PktType(npkt, L3PktType_Interest);
+    Packet_InitLpL3Hdr(npkt);
+}
+
 /**
  * @brief Send multiple Interest packets over NDN network. Used for read file
  * system call
@@ -80,25 +101,8 @@ void ConsumerTx_sendInterests(ConsumerTx *ct, struct LName *path, uint64_t off,
     }
 
     for (uint16_t i = 0; i < n; ++i) {
-        struct rte_mbuf *pkt = Packet_ToMbuf(npkts[i]);
-
-        uint8_t segNumber[10];
-        segNumber[0] = TT_SegmentNameComponent;
-        segNumber[1] =
-            EncodeNni(&segNumber[2], off + i * XRDNDNDPDK_PACKET_SIZE);
-
-        uint8_t suffixBuffer[NAME_MAX_LENGTH];
-        rte_memcpy(suffixBuffer, path->value, path->length);
-        rte_memcpy(suffixBuffer + path->length, &segNumber, 10);
-
-        LName suffix = {.length = path->length + segNumber[1] + 2,
-                        .value = suffixBuffer};
-
-        EncodeInterest(pkt, &ct->readPrefixTpl, suffix,
-                       NonceGen_Next(&ct->nonceGen));
-
-        Packet_SetL3PktType(npkts[i], L3PktType_Interest);
-        Packet_InitLpL3Hdr(npkts[i]);
+        ConsumerTx_EncodeReadInterest(ct, npkts[i], path,
+                                      off + i * XRDNDNDPDK_PACKET_SIZE);
     }
 
     Face_TxBurst(ct->face, npkts, n);

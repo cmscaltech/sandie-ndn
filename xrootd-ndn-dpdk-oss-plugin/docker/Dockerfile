@@ -28,6 +28,8 @@ RUN sudo yum -y install CUnit-devel bind-utils vim htop git wget tar rpm-build r
         libudev-devel pkgconfig libuuid-devel nasm clang python3-distutils-extra \
         java-1.8.0-openjdk kernel-devel kernel-headers
 
+RUN sudo pip3 install ninja meson -U
+
 # Install lcov 1.14
 RUN sudo rpm -i https://netix.dl.sourceforge.net/project/ltp/Coverage%20Analysis/LCOV-1.14/lcov-1.14-1.noarch.rpm
 
@@ -96,11 +98,12 @@ WORKDIR ${HOME}
 RUN rm -rf ubpf
 
 # Install MLNX OFED drivers
-RUN set -o pipefail && curl -L http://content.mellanox.com/ofed/MLNX_OFED-5.0-2.1.8.0/MLNX_OFED_LINUX-5.0-2.1.8.0-rhel8.1-x86_64.tgz | tar -C . -xz
-WORKDIR ${HOME}/MLNX_OFED_LINUX-5.0-2.1.8.0-rhel8.1-x86_64
+ARG MLNX_OFED=MLNX_OFED_LINUX-5.0-2.1.8.0-rhel8.1-x86_64
+RUN set -o pipefail && curl -L http://content.mellanox.com/ofed/MLNX_OFED-5.0-2.1.8.0/${MLNX_OFED}.tgz | tar -C . -xz
+WORKDIR ${HOME}/${MLNX_OFED}
 RUN set -o pipefail && export TERM=linux && sudo ./mlnxofedinstall -vvv --force --dpdk --add-kernel-support --kernel-sources /usr/src/kernels/`uname -r`
 WORKDIR ${HOME}
-RUN rm -rf MLNX_OFED_LINUX-5.0-2.1.8.0-rhel8.1-x86_64
+RUN rm -rf ${MLNX_OFED}
 
 # Install rdma core
 RUN set -o pipefail && curl -L https://github.com/linux-rdma/rdma-core/releases/download/v25.0/rdma-core-25.0.tar.gz | tar -C . -xz
@@ -113,13 +116,9 @@ RUN sudo ninja
 WORKDIR ${HOME}
 RUN rm -rf rdma-core-25.0
 
-# Install DPDK v19.11 with ndn-dpdk patches
-RUN git clone https://github.com/DPDK/dpdk.git
-WORKDIR ${HOME}/dpdk
-RUN git checkout tags/v19.11
-RUN curl -L https://patches.dpdk.org/patch/65156/raw/ >> 65156.patch && git apply 65156.patch && rm -f 65156.patch
-RUN curl -L https://patches.dpdk.org/patch/65158/raw/ >> 65158.patch && git apply 65158.patch && rm -f 65158.patch
-RUN curl -L https://patches.dpdk.org/patch/65270/raw/ >> 65270.patch && git apply 65270.patch && rm -f 65270.patch
+# Install DPDK v20.05
+RUN set -o pipefail && curl -sL https://static.dpdk.org/rel/dpdk-20.05.tar.xz | tar -C . -xJ
+WORKDIR ${HOME}/dpdk-20.05
 RUN sed -ri 's,(CONFIG_RTE_BUILD_SHARED_LIB=).*,\1y,' ./config/common_base && \
         sed -ri 's,(CONFIG_RTE_LIBRTE_BPF_ELF=).*,\1y,' ./config/common_base && \
         sed -ri 's,(CONFIG_RTE_LIBRTE_PMD_OPENSSL=).*,\1y,' ./config/common_base && \
@@ -127,24 +126,24 @@ RUN sed -ri 's,(CONFIG_RTE_BUILD_SHARED_LIB=).*,\1y,' ./config/common_base && \
         sed -ri 's,(RTE_MACHINE=).*,\1y,' ./config/common_base && \
         sed -ri 's,(CONFIG_RTE_IBVERBS_LINK_DLOPEN=).*,\1y,' ./config/common_base
 RUN CC=gcc meson -Dtests=false --libdir=lib build
-WORKDIR ${HOME}/dpdk/build
+WORKDIR ${HOME}/dpdk-20.05/build
 RUN sudo ninja install
+RUN sudo find /usr/local/lib -name 'librte_*.a' -delete
 RUN sudo ldconfig
 WORKDIR ${HOME}
-RUN sudo rm -rf dpdk
+RUN sudo rm -rf dpdk-20.05
 ENV PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig
 
-# Install SPDK v19.10.1
-RUN git clone https://github.com/spdk/spdk.git
-WORKDIR ${HOME}/spdk
-RUN git checkout tags/v19.10.1
+# Install SPDK v20.04.1
+RUN set -o pipefail && curl -sL https://github.com/spdk/spdk/archive/v20.04.1.tar.gz | tar -C . -xz
+WORKDIR ${HOME}/spdk-20.04.1
 RUN sed -ri '/SPDK_MEMPOOL_DEFAULT_CACHE_SIZE/ c\#define SPDK_MEMPOOL_DEFAULT_CACHE_SIZE 512' include/spdk/env.h
 RUN CC=gcc LDFLAGS="-lnuma -lbsd" ./configure --enable-debug --disable-tests --with-shared --with-dpdk=/usr/local --without-vhost --without-isal --without-fuse
 RUN make -j16
 RUN sudo make install
 RUN sudo ldconfig
 WORKDIR ${HOME}
-RUN sudo rm -rf spdk
+RUN sudo rm -rf spdk-20.04.1
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
 # Configure global environment variables
@@ -166,8 +165,9 @@ export CLASSPATH=\$CLASSPATH:\$(\${HADOOP_HOME}/bin/hadoop classpath --glob)\
 WORKDIR ${HOME}/go/src
 RUN git clone https://github.com/usnistgov/ndn-dpdk.git
 WORKDIR ${HOME}/go/src/ndn-dpdk
-# Use May 25th 2020 commit: f22ed6b12fc1582f6861590194391eb2ba6940d4
-RUN git checkout f22ed6b12fc1582f6861590194391eb2ba6940d4
+# Use July 16th 2020 commit: 654a7ac3589b02b4adf3683b56767ed63e202423
+RUN git checkout 654a7ac3589b02b4adf3683b56767ed63e202423
+RUN npm install webpack@1.11.0
 RUN npm install
 RUN RELEASE=1 make
 RUN sudo make install

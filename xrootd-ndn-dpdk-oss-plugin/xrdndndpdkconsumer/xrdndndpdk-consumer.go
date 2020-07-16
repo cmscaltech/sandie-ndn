@@ -87,26 +87,25 @@ func (consumer *Consumer) GetFace() iface.IFace {
 }
 
 func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error) {
-	// Create template for open/fstat file system call Interest packets
-	prefix, e := ndn.ParseName(C.XRDNDNDPDK_SYSCALL_PREFIX_URI)
+	// Create template for FILEINFO Interest packets
+	fileInfoPrefix, e := ndn.ParseName(C.PACKET_NAME_PREFIX_URI_FILEINFO)
 	if e != nil {
 		return e
 	}
 
-	tplArgs := []interface{}{ndn.InterestMbufExtraHeadroom(appinit.SizeofEthLpHeaders()), prefix}
+	tplArgs := []interface{}{ndn.InterestMbufExtraHeadroom(appinit.SizeofEthLpHeaders()), fileInfoPrefix}
 	if settings.MustBeFresh {
 		tplArgs = append(tplArgs, ndn.MustBeFreshFlag)
 	}
 	if settings.InterestLifetime != 0 {
 		tplArgs = append(tplArgs, settings.InterestLifetime)
 	}
-	if e = ndn.InterestTemplateFromPtr(unsafe.Pointer(&consumer.Tx.c.prefixTpl)).Init(tplArgs...); e != nil {
+	if e = ndn.InterestTemplateFromPtr(unsafe.Pointer(&consumer.Tx.c.fileInfoPrefixTpl)).Init(tplArgs...); e != nil {
 		return e
 	}
 
-	// Create template for read file system call Interest packets
-	readPrefix, e := ndn.ParseName(C.XRDNDNDPDK_SYSCALL_PREFIX_URI +
-		"/" + C.XRDNDNDPDK_SYSCALL_READ_URI)
+	// Create template for READ Interest packets
+	readPrefix, e := ndn.ParseName(C.PACKET_NAME_PREFIX_URI_READ)
 	if e != nil {
 		return e
 	}
@@ -167,61 +166,25 @@ func (consumer *Consumer) Close() error {
 	return nil
 }
 
-// Open file
-func (tx *ConsumerTxThread) OpenFile(path string) (e error) {
+// FileInfo file
+func (tx *ConsumerTxThread) FileInfo(buf *C.uint8_t, path string) (e error) {
 	tx.Stop()
-
 	e = tx.LaunchImpl(func() int {
-		suffix, e := ndn.ParseName("/" + C.XRDNDNDPDK_SYSCALL_OPEN_URI + path)
+		pathSuffix, e := ndn.ParseName(path)
 		if e != nil {
 			return -1
 		}
 
-		nameV := unsafe.Pointer(C.malloc(C.uint64_t(suffix.Size())))
+		nameV := unsafe.Pointer(C.malloc(C.uint64_t(pathSuffix.Size())))
 		defer C.free(nameV)
 
 		var lname C.LName
-		e = suffix.CopyToLName(unsafe.Pointer(&lname), nameV, uintptr(suffix.Size()))
+		e = pathSuffix.CopyToLName(unsafe.Pointer(&lname), nameV, uintptr(pathSuffix.Size()))
 		if e != nil {
 			return -1
 		}
 
-		C.ConsumerTx_sendInterest(tx.c, &lname)
-		return 0
-	})
-
-	if e != nil {
-		return e
-	}
-
-	m := <-messages
-
-	if m.intValue != C.XRDNDNDPDK_ESUCCESS {
-		return fmt.Errorf("Unable to open file: %s", path)
-	}
-
-	return nil
-}
-
-// Fstat file
-func (tx *ConsumerTxThread) FstatFile(buf *C.uint8_t, path string) (e error) {
-	tx.Stop()
-	e = tx.LaunchImpl(func() int {
-		suffix, e := ndn.ParseName("/" + C.XRDNDNDPDK_SYSCALL_FSTAT_URI + path)
-		if e != nil {
-			return -1
-		}
-
-		nameV := unsafe.Pointer(C.malloc(C.uint64_t(suffix.Size())))
-		defer C.free(nameV)
-
-		var lname C.LName
-		e = suffix.CopyToLName(unsafe.Pointer(&lname), nameV, uintptr(suffix.Size()))
-		if e != nil {
-			return -1
-		}
-
-		C.ConsumerTx_sendInterest(tx.c, &lname)
+		C.ConsumerTx_ExpressFileInfoInterest(tx.c, &lname)
 		return 0
 	})
 
@@ -232,7 +195,7 @@ func (tx *ConsumerTxThread) FstatFile(buf *C.uint8_t, path string) (e error) {
 	m := <-messages
 
 	if m.isError {
-		return fmt.Errorf("Unable to call fstat on file: %s", path)
+		return fmt.Errorf("Unable to get fileinfo for file: %s", path)
 	}
 
 	defer C.rte_free(unsafe.Pointer(m.content.payload))
@@ -264,7 +227,7 @@ func (tx *ConsumerTxThread) Read(path string, buf *C.uint8_t, count C.uint64_t, 
 			return -1
 		}
 
-		C.ConsumerTx_sendInterests(tx.c, &lname, off, nInterests)
+		C.ConsumerTx_ExpressReadInterests(tx.c, &lname, off, nInterests)
 		return 0
 	})
 
@@ -295,13 +258,6 @@ func (tx *ConsumerTxThread) Read(path string, buf *C.uint8_t, count C.uint64_t, 
 func onContentCallback_Go(content *C.struct_PContent, off C.uint64_t) {
 	go func(channel chan<- Message) {
 		channel <- Message{false, C.XRDNDNDPDK_ESUCCESS, off, content}
-	}(messages)
-}
-
-//export onNonNegativeIntegerCallback_Go
-func onNonNegativeIntegerCallback_Go(retCode C.uint64_t) {
-	go func(channel chan<- Message) {
-		channel <- Message{false, retCode, 0, nil}
 	}(messages)
 }
 

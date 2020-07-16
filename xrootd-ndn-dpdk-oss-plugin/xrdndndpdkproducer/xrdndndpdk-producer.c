@@ -76,32 +76,20 @@ static Packet *Producer_EncodeNniData(Producer *producer, Packet *npkt,
     return Producer_EncodeData(producer, npkt, type, len, &v[0]);
 }
 
-static Packet *Producer_OnOpenInterest(Producer *producer, Packet *npkt,
-                                       const LName name) {
+static Packet *Producer_OnFileInfoInterest(Producer *producer, Packet *npkt,
+                                           const LName name) {
     char *pathname = rte_malloc(NULL, NAME_MAX_LENGTH * sizeof(char), 0);
-    lnameDecodeFilePath(name, XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE_SIZE,
+    lnameDecodeFilePath(name, PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED_LEN,
                         pathname);
 
-    ZF_LOGI("On open Interest for file: %s", pathname);
-
-    int openReturnCode = libfs_open(producer->fs, pathname);
-    rte_free(pathname);
-
-    return Producer_EncodeNniData(
-        producer, npkt, L3PktType_Data,
-        openReturnCode); // TODO Check set App Level Nack when ret != 0
-}
-
-static Packet *Producer_OnFstatInterest(Producer *producer, Packet *npkt,
-                                        const LName name) {
-    char *pathname = rte_malloc(NULL, NAME_MAX_LENGTH * sizeof(char), 0);
-    lnameDecodeFilePath(name, XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE_SIZE,
-                        pathname);
-
-    ZF_LOGI("On fstat Interest for file: %s", pathname);
+    ZF_LOGI("On FILEINFO Interest for file: %s", pathname);
 
     struct stat *statbuf =
         (struct stat *)rte_malloc(NULL, sizeof(struct stat), 0);
+
+    if (libfs_open(producer->fs, pathname) != XRDNDNDPDK_ESUCCESS) {
+        goto returnFailure;
+    }
 
     if (unlikely(NULL == statbuf)) {
         ZF_LOGF("Not enough memory");
@@ -129,9 +117,9 @@ static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
                                        const LName name) {
     char *pathname = rte_malloc(NULL, NAME_MAX_LENGTH * sizeof(char), 0);
     uint64_t segOff = lnameDecodeFilePath(
-        name, XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE, pathname);
+        name, PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN, pathname);
 
-    ZF_LOGV("On read Interest for file: %s", pathname);
+    ZF_LOGV("On READ Interest for file: %s", pathname);
 
     void *buf = rte_malloc(NULL, sizeof(uint8_t) * XRDNDNDPDK_PACKET_SIZE, 0);
     if (unlikely(NULL == buf)) {
@@ -175,13 +163,12 @@ returnFailure:
  * @brief Function prototype for processing Interest packets
  *
  */
-typedef Packet *(*OnSystemCallInterest)(Producer *producer, Packet *npkt,
-                                        const LName name);
+typedef Packet *(*OnInterest)(Producer *producer, Packet *npkt,
+                              const LName name);
 
-static const OnSystemCallInterest onSystemCallInterest[SYSCALL_MAX_ID] = {
-    [SYSCALL_OPEN_ID] = Producer_OnOpenInterest,
-    [SYSCALL_FSTAT_ID] = Producer_OnFstatInterest,
-    [SYSCALL_READ_ID] = Producer_OnReadInterest,
+static const OnInterest onInterest[PACKET_MAX] = {
+    [PACKET_FILEINFO] = Producer_OnFileInfoInterest,
+    [PACKET_READ] = Producer_OnReadInterest,
 };
 
 /**
@@ -194,9 +181,9 @@ static const OnSystemCallInterest onSystemCallInterest[SYSCALL_MAX_ID] = {
 static bool Producer_checkForRegisteredPrefix(LName name) {
     ZF_LOGD("Check for registered prefix");
 
-    return (XRDNDNDPDK_SYCALL_PREFIX_ENCODE_SIZE <= name.length &&
-            memcmp(XRDNDNDPDK_SYCALL_PREFIX_ENCODE, name.value,
-                   XRDNDNDPDK_SYCALL_PREFIX_ENCODE_SIZE) == 0);
+    return (PACKET_NAME_PREFIX_URI_ENCODED_LEN <= name.length &&
+            memcmp(PACKET_NAME_PREFIX_URI_ENCODED, name.value,
+                   PACKET_NAME_PREFIX_URI_ENCODED_LEN) == 0);
 }
 
 /**
@@ -217,15 +204,15 @@ static Packet *Producer_processInterest(Producer *producer, Packet *npkt) {
         return npkt;
     }
 
-    SystemCallId sid = lnameGetSystemCallId(*name);
+    PacketType pt = lnameGetPacketType(*name);
 
-    if (unlikely(sid == SYSCALL_NOT_FOUND)) {
-        ZF_LOGW("Unrecognized file system call for Interest Name");
+    if (unlikely(pt == PACKET_NOT_SUPPORTED)) {
+        ZF_LOGW("Unsupported packet type");
         MakeNack(npkt, NackReason_NoRoute);
         return npkt;
     }
 
-    return onSystemCallInterest[sid](producer, npkt, *name);
+    return onInterest[pt](producer, npkt, *name);
 }
 
 /**

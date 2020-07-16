@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for XRootD                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2019-2020 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -54,99 +54,75 @@
 #define XRDNDNDPDK_EFAILURE 1
 
 /**
- * @brief Name prefix for all Interest packets expressed by consumer
+ * @brief Name prefix for all Packets expressed in SANDIE project
  *
  */
-#define XRDNDNDPDK_SYSCALL_PREFIX_URI "/ndn/xrootd"
-
-/**
- * @brief Name prefix component for Open System Call Interest packets expressed
- * by consumer
- *
- */
-#define XRDNDNDPDK_SYSCALL_OPEN_URI "open"
-
-/**
- * @brief Name prefix component for Fstat System Call Interest packets expressed
- * by consumer
- *
- */
-#define XRDNDNDPDK_SYSCALL_FSTAT_URI "fstat"
-
-/**
- * @brief Name prefix component for Read System Call Interest packets expressed
- * by consumer
- *
- */
-#define XRDNDNDPDK_SYSCALL_READ_URI "read"
+#define PACKET_NAME_PREFIX_URI "/ndn/xrootd"
 
 /**
  * @brief NDN Name v0.3 TLV format for "/ndn/xrootd"
  *
  */
-static const uint8_t XRDNDNDPDK_SYCALL_PREFIX_ENCODE[] = {
+static const uint8_t PACKET_NAME_PREFIX_URI_ENCODED[] = {
     0x08, 0x03, 0x6E, 0x64, 0x6E, 0x08, 0x06,
     0x78, 0x72, 0x6F, 0x6F, 0x74, 0x64};
 
 /**
- * @brief NDN Name v0.3 TLV "/ndn/xrootd" format size
+ * @brief NDN Name v0.3 TLV "/ndn/xrootd" format length
  *
  */
-#define XRDNDNDPDK_SYCALL_PREFIX_ENCODE_SIZE 13
+#define PACKET_NAME_PREFIX_URI_ENCODED_LEN 13
 
 /**
- * @brief NDN Name v0.3 TLV format for "/ndn/xrootd/open"
+ * @brief Name prefix component for FILEINFO Packets
  *
  */
-static const uint8_t XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE[] = {
-    0x08, 0x03, 0x6E, 0x64, 0x6E, 0x08, 0x06, 0x78, 0x72, 0x6F,
-    0x6F, 0x74, 0x64, 0x08, 0x04, 0x6F, 0x70, 0x65, 0x6E};
+#define PACKET_NAME_PREFIX_URI_FILEINFO "/ndn/xrootd/fileinfo"
 
 /**
- * @brief NDN Name v0.3 TLV "/ndn/xrootd/open" format size
+ * @brief NDN Name v0.3 TLV format for "/ndn/xrootd/fileinfo"
  *
  */
-#define XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE_SIZE 19
+static const uint8_t PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED[] = {
+    0x08, 0x03, 0x6E, 0x64, 0x6E, 0x08, 0x06, 0x78, 0x72, 0x6F, 0x6F, 0x74,
+    0x64, 0x08, 0x08, 0x66, 0x69, 0x6C, 0x65, 0x69, 0x6E, 0x66, 0x6F};
 
 /**
- * @brief NDN Name v0.3 TLV format for "/ndn/xrootd/fstat"
+ * @brief NDN Name v0.3 TLV "/ndn/xrootd/fileinfo" format size
  *
  */
-static const uint8_t XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE[] = {
-    0x08, 0x03, 0x6E, 0x64, 0x6E, 0x08, 0x06, 0x78, 0x72, 0x6F,
-    0x6F, 0x74, 0x64, 0x08, 0x05, 0x66, 0x73, 0x74, 0x61, 0x74};
+#define PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED_LEN 23
 
 /**
- * @brief NDN Name v0.3 TLV "/ndn/xrootd/fstat" format size
+ * @brief Name prefix component for READ Packets
  *
  */
-#define XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE_SIZE 20
+#define PACKET_NAME_PREFIX_URI_READ "/ndn/xrootd/read"
 
 /**
  * @brief NDN Name v0.3 TLV format for "/ndn/xrootd/read"
  *
  */
-static const uint8_t XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE[] = {
+static const uint8_t PACKET_NAME_PREFIX_URI_READ_ENCODED[] = {
     0x08, 0x03, 0x6E, 0x64, 0x6E, 0x08, 0x06, 0x78, 0x72, 0x6F,
     0x6F, 0x74, 0x64, 0x08, 0x04, 0x72, 0x65, 0x61, 0x64};
 
 /**
- * @brief NDN Name v0.3 TLV "/ndn/xrootd/open" format size
+ * @brief NDN Name v0.3 TLV "/ndn/xrootd/read" format size
  *
  */
-#define XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE 19
+#define PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN 19
 
 /**
- * @brief List of ids assigned to each supported system call
+ * @brief List of Packet types
  *
  */
-typedef enum SystemCallId {
-    SYSCALL_OPEN_ID = 0,
-    SYSCALL_FSTAT_ID,
-    SYSCALL_READ_ID,
+typedef enum PacketType {
+    PACKET_FILEINFO = 0,
+    PACKET_READ,
 
-    SYSCALL_MAX_ID,
-    SYSCALL_NOT_FOUND,
-} SystemCallId;
+    PACKET_MAX,
+    PACKET_NOT_SUPPORTED,
+} PacketType;
 
 #endif // XRDNDNDPDK_NAMESPACE_H

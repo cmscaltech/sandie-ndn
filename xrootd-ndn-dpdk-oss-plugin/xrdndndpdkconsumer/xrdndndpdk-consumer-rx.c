@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for XRootD                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2019-2020 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -56,30 +56,11 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
     // TODO: Check content type Nack and go to nack callback
     // Need to implement encode and decode for MetaInfo ContentType
 
-    SystemCallId sid = lnameGetSystemCallId(*name);
+    PacketType pt = lnameGetPacketType(*name);
 
-    if (SYSCALL_OPEN_ID == sid) {
-        ZF_LOGI("Return content for open filesystem call");
-
-        uint64_t openRetCode = 0;
-        NdnError e = DecodeNni(
-            content->length, &content->payload[content->offset], &openRetCode);
-        rte_free(content->payload);
-        rte_free(content);
-
-        if (unlikely(e != NdnError_OK)) {
-            ZF_LOGF("Could not decode Non-Negative Integer");
-            cr->onError(XRDNDNDPDK_EFAILURE);
-        }
-
-        cr->onNonNegativeInteger(openRetCode);
-    } else if (SYSCALL_FSTAT_ID == sid) {
-        ZF_LOGI("Return content for stat filesystem call");
-
-        cr->onContent(content, 0);
-    } else if (likely(SYSCALL_READ_ID == sid)) {
+    if (likely(PACKET_READ == pt)) {
         uint16_t len = lnameGetFilePathLength(
-            *name, XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE);
+            *name, PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN);
         uint64_t segNum = 0;
         NdnError e =
             DecodeNni(name->value[len + 1], &(name->value[len + 2]), &segNum);
@@ -89,6 +70,9 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
         }
 
         cr->onContent(content, segNum);
+    } else if (PACKET_FILEINFO == pt) {
+        ZF_LOGI("Return content for stat filesystem call");
+        cr->onContent(content, 0);
     }
 }
 

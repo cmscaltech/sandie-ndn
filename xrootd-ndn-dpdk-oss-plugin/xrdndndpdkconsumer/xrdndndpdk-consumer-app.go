@@ -179,17 +179,9 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 		return errors.New("nil consumer")
 	}
 
-	// Open file
-	e = task.consumer.Tx.OpenFile(path)
-	if e != nil {
-		return e
-	}
-
-	fmt.Println("-> successfully opened file:", path)
-
-	// Get file size
+	// Get file stat
 	stat := (*C.uint8_t)(C.malloc(C.sizeof_struct_stat))
-	e = task.consumer.Tx.FstatFile(stat, path)
+	e = task.consumer.Tx.FileInfo(stat, path)
 	if e != nil {
 		return e
 	}

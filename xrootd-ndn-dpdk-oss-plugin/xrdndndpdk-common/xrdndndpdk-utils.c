@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for XRootD                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2019-2020 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -22,9 +22,9 @@
 
 INIT_ZF_LOG(Xrdndndpdkutils);
 
-static uint64_t getGenericNameComponentLength(const uint8_t *buf,
-                                              uint16_t *off) {
-    ZF_LOGD("Get Name component length");
+static uint64_t decodeGenericNameComponentLength(const uint8_t *buf,
+                                                 uint16_t *off) {
+    ZF_LOGD("Decode Name component length");
     uint64_t length = 0;
 
     if (buf[*off] <= 0xFC) {
@@ -63,12 +63,12 @@ static uint64_t getGenericNameComponentLength(const uint8_t *buf,
 }
 
 uint16_t lnameGetFilePathLength(const LName name, uint16_t off) {
-    ZF_LOGD("Get filepath Name component length");
+    ZF_LOGD("Get encoded filepath length");
     assert(name.value[off] == TT_GenericNameComponent);
 
     while (name.value[off] == TT_GenericNameComponent && off < name.length) {
         ++off;
-        uint64_t length = getGenericNameComponentLength(name.value, &off);
+        uint64_t length = decodeGenericNameComponentLength(name.value, &off);
         off += length;
     }
     return off;
@@ -81,7 +81,7 @@ uint16_t lnameDecodeFilePath(const LName name, uint16_t off, char *filepath) {
     while (name.value[off] == TT_GenericNameComponent && off < name.length) {
         ++off; // skip Type
         uint64_t length =
-            getGenericNameComponentLength(name.value, &off); // get Length
+            decodeGenericNameComponentLength(name.value, &off); // get Length
         strcat(filepath, "/");
         strncat(filepath, &name.value[off], length); // store Value
         off += length;
@@ -89,24 +89,20 @@ uint16_t lnameDecodeFilePath(const LName name, uint16_t off, char *filepath) {
     return off;
 }
 
-SystemCallId lnameGetSystemCallId(const LName name) {
-    ZF_LOGD("Get Systemcall ID from LName");
+PacketType lnameGetPacketType(const LName name) {
+    ZF_LOGD("Get packet type from LName");
 
-    if (likely(XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE <= name.length &&
-               memcmp(XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE, name.value,
-                      XRDNDNDPDK_SYCALL_PREFIX_READ_ENCODE_SIZE) == 0)) {
-        return SYSCALL_READ_ID;
-    } else if (XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE_SIZE <= name.length &&
-               memcmp(XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE, name.value,
-                      XRDNDNDPDK_SYCALL_PREFIX_OPEN_ENCODE_SIZE) == 0) {
-        return SYSCALL_OPEN_ID;
-    } else if (XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE_SIZE <= name.length &&
-               memcmp(XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE, name.value,
-                      XRDNDNDPDK_SYCALL_PREFIX_FSTAT_ENCODE_SIZE) == 0) {
-        return SYSCALL_FSTAT_ID;
+    if (likely(PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN <= name.length &&
+               memcmp(PACKET_NAME_PREFIX_URI_READ_ENCODED, name.value,
+                      PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN) == 0)) {
+        return PACKET_READ;
+    } else if (PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED_LEN <= name.length &&
+               memcmp(PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED, name.value,
+                      PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED_LEN) == 0) {
+        return PACKET_FILEINFO;
     }
 
-    return SYSCALL_NOT_FOUND;
+    return PACKET_NOT_SUPPORTED;
 }
 
 void packetDecodeContent(PContent *content, uint16_t len) {
@@ -122,7 +118,7 @@ void packetDecodeContent(PContent *content, uint16_t len) {
         assert(type == TT_Data || type == TT_Name || type == TT_MetaInfo ||
                type == TT_Content);
 
-        length = getGenericNameComponentLength(content->payload, &offset);
+        length = decodeGenericNameComponentLength(content->payload, &offset);
 
         if (type == TT_Content)
             break; // Found Content in packet

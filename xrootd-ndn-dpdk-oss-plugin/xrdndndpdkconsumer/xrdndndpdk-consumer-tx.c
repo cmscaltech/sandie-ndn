@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for XRootD                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2019-2020 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -30,28 +30,20 @@ INIT_ZF_LOG(Xrdndndpdkconsumer);
  */
 void ConsumerTx_resetCounters(ConsumerTx *ct) { ct->nInterests = 0; }
 
-/**
- * @brief Send one Interest packet over NDN network
- *
- * @param ct ConsumerTx struct pointer
- * @param suffix Suffix of Interest Name
- */
-void ConsumerTx_sendInterest(ConsumerTx *ct, struct LName *suffix) {
-    ZF_LOGD("Send Interest packet for open/fstat file system call");
-
-    struct rte_mbuf *interestPkt = rte_pktmbuf_alloc(ct->interestMp);
-    if (NULL == interestPkt) {
+void ConsumerTx_ExpressFileInfoInterest(ConsumerTx *ct, struct LName *path) {
+    ZF_LOGD("Send Interest packet for FILEINFO");
+    struct rte_mbuf *pkt = rte_pktmbuf_alloc(ct->interestMp);
+    if (NULL == pkt) {
         ZF_LOGF("interestMp-full");
         ct->onError(XRDNDNDPDK_EFAILURE);
         return;
     }
 
-    EncodeInterest(interestPkt, &ct->prefixTpl, *suffix,
+    EncodeInterest(pkt, &ct->fileInfoPrefixTpl, *path,
                    NonceGen_Next(&ct->nonceGen));
-
-    Packet_SetL3PktType(Packet_FromMbuf(interestPkt), L3PktType_Interest);
-    Packet_InitLpL3Hdr(Packet_FromMbuf(interestPkt));
-    Face_Tx(ct->face, Packet_FromMbuf(interestPkt));
+    Packet_SetL3PktType(Packet_FromMbuf(pkt), L3PktType_Interest);
+    Packet_InitLpL3Hdr(Packet_FromMbuf(pkt));
+    Face_Tx(ct->face, Packet_FromMbuf(pkt));
     ++ct->nInterests;
 }
 
@@ -76,20 +68,9 @@ static void ConsumerTx_EncodeReadInterest(ConsumerTx *ct, Packet *npkt,
     Packet_InitLpL3Hdr(npkt);
 }
 
-/**
- * @brief Send multiple Interest packets over NDN network. Used for read file
- * system call
- *
- * @param ct ConsumerTx struct pointer
- * @param path File path
- * @param off Starting point of segment number composion
- * @param n Number of packets to send
- */
-void ConsumerTx_sendInterests(ConsumerTx *ct, struct LName *path, uint64_t off,
-                              uint16_t n) {
-    ZF_LOGD("Sending %d Interest packets for read file system call starting "
-            "@%" PRIu64,
-            n, off);
+void ConsumerTx_ExpressReadInterests(ConsumerTx *ct, struct LName *path,
+                                     uint64_t off, uint16_t n) {
+    ZF_LOGD("Sending %d READ Interest packetsstarting @%" PRIu64, n, off);
 
     Packet *npkts[n];
     int ret =

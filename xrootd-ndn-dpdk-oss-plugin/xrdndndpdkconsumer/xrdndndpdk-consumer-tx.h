@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for XRootD                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2019-2020 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -39,16 +39,16 @@ typedef struct ConsumerTx {
     ThreadStopFlag stop;
     struct rte_mempool *interestMp; // mempool for Interests
     NonceGen nonceGen;
-    InterestTemplate prefixTpl;
+    InterestTemplate fileInfoPrefixTpl;
     InterestTemplate readPrefixTpl;
     onErrorCallback onError;
     uint64_t nInterests;
 } ConsumerTx;
 
 void ConsumerTx_resetCounters(ConsumerTx *ct);
-void ConsumerTx_sendInterest(ConsumerTx *ct, struct LName *suffix);
-void ConsumerTx_sendInterests(ConsumerTx *ct, struct LName *path, uint64_t off,
-                              uint16_t n);
+void ConsumerTx_ExpressFileInfoInterest(ConsumerTx *ct, struct LName *path);
+void ConsumerTx_ExpressReadInterests(ConsumerTx *ct, struct LName *path,
+                                     uint64_t off, uint16_t n);
 
 inline void registerTxCallbacks(ConsumerTx *ct) {
     ct->onError = onErrorCallback_Go;

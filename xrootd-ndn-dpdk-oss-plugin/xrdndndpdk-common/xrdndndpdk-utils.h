@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for XRootD                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2019-2020 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -44,7 +44,7 @@
 static const LName lnameStub = {.value = NULL, .length = 0};
 
 /**
- * @brief Struct pointing to the Content in Data packet
+ * @brief Struct pointing to the Content in a Data packet
  *
  */
 typedef struct PContent {
@@ -57,12 +57,11 @@ typedef struct PContent {
 } PContent;
 
 /**
- * @brief Get filepath Name component length
+ * @brief Get encoded filepath length in Name
  *
  * @param name Packet Name as LName struct
- * @param off Offset to the first Name component of filepath. Skip prefix and
- * system call name
- * @return uint16_t Filepath Name component length
+ * @param off Offset to the first Name component of filepath; skip prefix
+ * @return uint16_t Filepath encoded length
  */
 uint16_t lnameGetFilePathLength(const LName name, uint16_t off);
 
@@ -70,20 +69,19 @@ uint16_t lnameGetFilePathLength(const LName name, uint16_t off);
  * @brief Decode filepath from LName
  *
  * @param name Packet Name as LName struct
- * @param off Offset to the first Name component of filepath. Skip prefix and
- * system call name
+ * @param off Offset to the first Name component of filepath; skip prefix
  * @param filepath output
  * @return uint16_t offset to end of filepath in LName
  */
 uint16_t lnameDecodeFilePath(const LName name, uint16_t off, char *filepath);
 
 /**
- * @brief Get file system call id from Packet Name. See SystemCallId enum
+ * @brief Get packet type from Name
  *
  * @param name Packet Name
- * @return SystemCallId File system call id
+ * @return PacketType Packet type
  */
-SystemCallId lnameGetSystemCallId(const LName name);
+PacketType lnameGetPacketType(const LName name);
 
 /**
  * @brief Decode Content offset in Data NDN packet format v0.3

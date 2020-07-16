@@ -1,6 +1,6 @@
 /******************************************************************************
  * Named Data Networking plugin for XRootD                                    *
- * Copyright © 2019 California Institute of Technology                        *
+ * Copyright © 2019-2020 California Institute of Technology                   *
  *                                                                            *
  * Author: Catalin Iordache <catalin.iordache@cern.ch>                        *
  *                                                                            *
@@ -28,11 +28,9 @@
 #include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 
 typedef void (*onContentCallback)(struct PContent *, uint64_t);
-typedef void (*onNonNegativeIntegerDataCallback)(uint64_t);
+typedef void (*onErrorCallback)(uint64_t);
 
 void onContentCallback_Go(struct PContent *content, uint64_t off);
-
-void onNonNegativeIntegerCallback_Go(uint64_t retCode);
 void onErrorCallback_Go(uint64_t errorCode);
 
 /**
@@ -48,8 +46,7 @@ typedef struct ConsumerRx {
     uint64_t nErrors;
 
     onContentCallback onContent;
-    onNonNegativeIntegerDataCallback onNonNegativeInteger;
-    onNonNegativeIntegerDataCallback onError;
+    onErrorCallback onError;
 } ConsumerRx;
 
 void ConsumerRx_resetCounters(ConsumerRx *cr);
@@ -57,8 +54,6 @@ void ConsumerRx_Run(ConsumerRx *cr);
 
 inline void registerRxCallbacks(ConsumerRx *cr) {
     cr->onContent = onContentCallback_Go;
-
-    cr->onNonNegativeInteger = onNonNegativeIntegerCallback_Go;
     cr->onError = onErrorCallback_Go;
 }
 

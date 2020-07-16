@@ -71,8 +71,13 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
 
         cr->onContent(content, segNum);
     } else if (PACKET_FILEINFO == pt) {
-        ZF_LOGI("Return content for stat filesystem call");
-        cr->onContent(content, 0);
+        ZF_LOGD("Return FILEINFO content of size: %" PRIu64, content->length);
+
+        if (content->length <= sizeof(uint64_t)) {
+            cr->onError(XRDNDNDPDK_EFAILURE);
+        } else {
+            cr->onContent(content, 0);
+        }
     }
 }
 

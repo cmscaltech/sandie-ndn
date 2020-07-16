@@ -60,7 +60,7 @@ static Packet *Producer_EncodeData(Producer *producer, Packet *npkt,
 }
 
 /**
- * @brief Encode Non-negative Integer Data Packet
+ * @brief Encode Non-Negative Integer Data Packet
  *
  * @param producer Pointer to Producer struct
  * @param npkt Packet received over NDN network
@@ -71,6 +71,9 @@ static Packet *Producer_EncodeData(Producer *producer, Packet *npkt,
  */
 static Packet *Producer_EncodeNniData(Producer *producer, Packet *npkt,
                                       L3PktType type, uint64_t content) {
+    ZF_LOGD("Encode Non-Negative Integer Data packet with content: %" PRIu64,
+            content);
+
     uint8_t v[8];
     int len = EncodeNni(&v[0], content);
     return Producer_EncodeData(producer, npkt, type, len, &v[0]);
@@ -109,7 +112,7 @@ static Packet *Producer_OnFileInfoInterest(Producer *producer, Packet *npkt,
 returnFailure:
     rte_free(statbuf);
     rte_free(pathname);
-    return Producer_EncodeNniData(producer, npkt, L3PktType_MAX,
+    return Producer_EncodeNniData(producer, npkt, L3PktType_Data,
                                   XRDNDNDPDK_EFAILURE);
 }
 

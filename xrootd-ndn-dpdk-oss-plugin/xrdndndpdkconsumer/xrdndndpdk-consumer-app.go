@@ -13,60 +13,44 @@ import (
 	"unsafe"
 
 	"github.com/cheggaaa/pb"
-
-	"ndn-dpdk/app/inputdemux"
-	"ndn-dpdk/appinit"
-	"ndn-dpdk/dpdk"
-	"ndn-dpdk/iface"
-	"ndn-dpdk/iface/createface"
+	"github.com/usnistgov/ndn-dpdk/dpdk/ealthread"
+	"github.com/usnistgov/ndn-dpdk/iface"
+	"github.com/usnistgov/ndn-dpdk/iface/createface"
 )
 
 // LCoreAlloc roles.
 const (
-	LCoreRole_Input      = iface.LCoreRole_RxLoop
-	LCoreRole_Output     = iface.LCoreRole_TxLoop
+	LCoreRole_Input      = "RX"
+	LCoreRole_Output     = "TX"
 	LCoreRole_ConsumerRx = "ConsumerRx"
 	LCoreRole_ConsumerTx = "ConsumerTx"
 )
 
 type App struct {
-	task    Task
-	inputs  []*Input
-	initCfg InitConfig
+	task   Task
+	inputs []*Input
 }
 
 type Input struct {
-	rxl    *iface.RxLoop
-	demux3 inputdemux.Demux3
+	rxl iface.RxLoop
 }
 
-func New(cfg TaskConfig, initCfg InitConfig) (app *App, e error) {
+func New(cfg TaskConfig) (app *App, e error) {
 	app = new(App)
-	app.initCfg = initCfg
-	appinit.ProvideCreateFaceMempools()
 
-	createface.CustomGetRxl = func(rxg iface.IRxGroup) *iface.RxLoop {
-		lc := dpdk.LCoreAlloc.Alloc(LCoreRole_Input, rxg.GetNumaSocket())
-		socket := lc.GetNumaSocket()
-		rxl := iface.NewRxLoop(socket)
-		rxl.SetLCore(lc)
+	iface.ChooseRxLoop = func(rxg iface.RxGroup) iface.RxLoop {
+		rxl := iface.NewRxLoop(rxg.NumaSocket())
+		ealthread.AllocThread(rxl)
 
 		var input Input
 		input.rxl = rxl
 		app.inputs = append(app.inputs, &input)
-
-		createface.AddRxLoop(rxl)
 		return rxl
 	}
 
-	createface.CustomGetTxl = func(face iface.IFace) *iface.TxLoop {
-		lc := dpdk.LCoreAlloc.Alloc(LCoreRole_Output, face.GetNumaSocket())
-		socket := lc.GetNumaSocket()
-		txl := iface.NewTxLoop(socket)
-		txl.SetLCore(lc)
-		txl.Launch()
-
-		createface.AddTxLoop(txl)
+	iface.ChooseTxLoop = func(face iface.Face) iface.TxLoop {
+		txl := iface.NewTxLoop(face.NumaSocket())
+		ealthread.Launch(txl)
 		return txl
 	}
 
@@ -93,36 +77,32 @@ func (app *App) Launch() {
 }
 
 func (app *App) launchInput(input *Input) {
-	faces := input.rxl.ListFaces()
-	if len(faces) != 1 {
-		panic("RxLoop should have exactly one face")
-	}
+	demuxI := input.rxl.InterestDemux()
+	demuxD := input.rxl.DataDemux()
+	demuxN := input.rxl.NackDemux()
 
-	input.demux3 = inputdemux.NewDemux3(input.rxl.GetNumaSocket())
-	input.demux3.GetInterestDemux().InitDrop()
-	input.demux3.GetDataDemux().InitDrop()
-	input.demux3.GetNackDemux().InitDrop()
+	demuxI.InitDrop()
+	demuxD.InitDrop()
+	demuxN.InitDrop()
 
-	app.task.ConfigureDemux(input.demux3)
-	input.rxl.SetCallback(inputdemux.Demux3_FaceRx, input.demux3.GetPtr())
+	app.task.ConfigureDemux(demuxI, demuxD, demuxN)
 	input.rxl.Launch()
 }
 
 type Task struct {
-	Face     iface.IFace
+	Face     iface.Face
 	consumer *Consumer
 	files    []string
 }
 
-func newTask(face iface.IFace, cfg TaskConfig) (task Task, e error) {
-	numaSocket := face.GetNumaSocket()
+func newTask(face iface.Face, cfg TaskConfig) (task Task, e error) {
+	socket := face.NumaSocket()
 	task.Face = face
 	if cfg.Consumer != nil {
 		if task.consumer, e = newConsumer(task.Face, *cfg.Consumer); e != nil {
 			return Task{}, e
 		}
-		task.consumer.Rx.SetLCore(dpdk.LCoreAlloc.Alloc(LCoreRole_ConsumerRx, numaSocket))
-		task.consumer.Tx.SetLCore(dpdk.LCoreAlloc.Alloc(LCoreRole_ConsumerTx, numaSocket))
+		task.consumer.SetLCores(ealthread.DefaultAllocator.Alloc(LCoreRole_ConsumerRx, socket), ealthread.DefaultAllocator.Alloc(LCoreRole_ConsumerTx, socket))
 	}
 
 	if len(cfg.Files) == 0 {
@@ -133,29 +113,23 @@ func newTask(face iface.IFace, cfg TaskConfig) (task Task, e error) {
 	return task, nil
 }
 
-func (task *Task) ConfigureDemux(demux3 inputdemux.Demux3) {
-	demuxD := demux3.GetDataDemux()
-	demuxN := demux3.GetNackDemux()
-
+func (task *Task) ConfigureDemux(demuxI, demuxD, demuxN *iface.InputDemux) {
 	demuxD.InitFirst()
 	demuxN.InitFirst()
-	q := task.consumer.GetRxQueue()
+	q := task.consumer.RxQueue()
 	demuxD.SetDest(0, q)
 	demuxN.SetDest(0, q)
-
 }
 
 func (task *Task) Launch() {
 	if task.consumer != nil {
-		task.consumer.Rx.Launch()
-		// task.consumer.Tx.Launch()
+		task.consumer.Launch()
 	}
 }
 
 func (task *Task) Close() error {
 	if task.consumer != nil {
-		task.consumer.Tx.Stop()
-		task.consumer.Rx.Stop()
+		task.consumer.Stop() // TODO: Check for error
 		task.consumer.Close()
 	}
 	task.Face.Close()
@@ -181,7 +155,7 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 
 	// Get file stat
 	stat := (*C.uint8_t)(C.malloc(C.sizeof_struct_stat))
-	e = task.consumer.Tx.FileInfo(stat, path)
+	e = task.consumer.FileInfo(path, stat)
 	if e != nil {
 		return e
 	}
@@ -227,7 +201,7 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 			samplingStart = time.Now()
 		}
 
-		ret, e := task.consumer.Tx.Read(path, buf, count, off)
+		ret, e := task.consumer.Read(path, buf, count, off)
 		if e != nil {
 			return e
 		}
@@ -246,22 +220,20 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	elapsed := time.Since(start)
 	pBar.Finish()
 
-	task.consumer.Tx.Stop()
-
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("--                 TRANSFER FILE REPORT                --\n")
 	fmt.Printf("---------------------------------------------------------\n")
-	fmt.Printf("-- Interest Packets : %d\n", task.consumer.Tx.c.nInterests)
-	fmt.Printf("-- Data Packets     : %d\n", task.consumer.Rx.c.nData)
-	fmt.Printf("-- Nack Packets     : %d\n", task.consumer.Rx.c.nNacks)
-	fmt.Printf("-- Errors           : %d\n\n", task.consumer.Rx.c.nErrors)
+	fmt.Printf("-- Interest Packets : %d\n", task.consumer.txC.nInterests)
+	fmt.Printf("-- Data Packets     : %d\n", task.consumer.rxC.nData)
+	fmt.Printf("-- Nack Packets     : %d\n", task.consumer.rxC.nNacks)
+	fmt.Printf("-- Errors           : %d\n\n", task.consumer.rxC.nErrors)
 	fmt.Printf("-- Maximum Packet size  : %d Bytes\n", C.XRDNDNDPDK_PACKET_SIZE)
 	fmt.Printf("-- Read chunk size      : %d Bytes (%d packets)\n", maxCount, C.CONSUMER_MAX_BURST_SIZE-2)
-	fmt.Printf("-- Bytes transmitted    : %d Bytes\n", task.consumer.Rx.c.nBytes)
+	fmt.Printf("-- Bytes transmitted    : %d Bytes\n", task.consumer.rxC.nBytes)
 	fmt.Printf("-- Time elapsed         : %s\n\n", elapsed)
 	fmt.Printf("-- Goodput              : %.4f Mbit/s \n", (((float64(pBar.Get())/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("-- Throughput (2nd 1/2) : %.4f Mbit/s \n", (((float64(samplingCount)/1024)/1024)*8)/samplingEnd.Seconds())
-	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(task.consumer.Rx.c.nBytes)/1024)/1024)*8)/elapsed.Seconds())
+	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(task.consumer.rxC.nBytes)/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("---------------------------------------------------------\n")
 

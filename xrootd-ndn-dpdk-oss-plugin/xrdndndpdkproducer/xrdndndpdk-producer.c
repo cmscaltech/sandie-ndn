@@ -18,25 +18,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
+#include <sys/stat.h>
+
+#include "../xrdndndpdk-common/xrdndndpdk-data.h"
+#include "../xrdndndpdk-common/xrdndndpdk-name.h"
 #include "xrdndndpdk-producer.h"
 
 INIT_ZF_LOG(Xrdndndpdkproducer);
 
-/**
- * @brief Encode Data Packet
- *
- * @param producer Pointer to Producer struct
- * @param npkt Packet received over NDN network
- * @param type Packet L3 type. L3PktType_MAX type used for application level
- * Nack
- * @param length Content length
- * @param content Content of packet
- * @return Packet* Packet to send over NDN network
- */
 static Packet *Producer_EncodeData(Producer *producer, Packet *npkt,
-                                   L3PktType type, uint64_t length,
-                                   uint8_t *content) {
-    ZF_LOGD("Encode Data type: %d with content length: %" PRIu64, type, length);
+                                   uint64_t length, uint8_t *content) {
+    ZF_LOGD("Encode Data with content length: %" PRIu64, length);
 
     uint64_t token = Packet_GetLpL3Hdr(npkt)->pitToken;
     const LName *name = (const LName *)&Packet_GetInterestHdr(npkt)->name;
@@ -48,42 +40,34 @@ static Packet *Producer_EncodeData(Producer *producer, Packet *npkt,
         return NULL;
     }
 
-    EncodeData(pkt, *name, lnameStub, producer->freshnessPeriod, length,
-               content);
+    Data_Encode(pkt, name->length, name->value, producer->freshnessPeriod,
+                length, content);
     rte_pktmbuf_free(Packet_ToMbuf(npkt));
 
     Packet *response = Packet_FromMbuf(pkt);
-    Packet_SetL2PktType(response, L2PktType_None);
-    Packet_InitLpL3Hdr(response)->pitToken = token;
-    Packet_SetL3PktType(response, type);
+    Packet_SetType(response, PktSData);
+    *Packet_GetLpL3Hdr(response) = (const LpL3){0};
+    Packet_GetLpL3Hdr(response)->pitToken = token;
+
     return response;
 }
 
-/**
- * @brief Encode Non-Negative Integer Data Packet
- *
- * @param producer Pointer to Producer struct
- * @param npkt Packet received over NDN network
- * @param type Packet L3 type. L3PktType_MAX type used for application level
- * Nack
- * @param content Content of packet
- * @return Packet* Data packet
- */
 static Packet *Producer_EncodeNniData(Producer *producer, Packet *npkt,
-                                      L3PktType type, uint64_t content) {
+                                      uint64_t content) {
     ZF_LOGD("Encode Non-Negative Integer Data packet with content: %" PRIu64,
             content);
 
     uint8_t v[8];
-    int len = EncodeNni(&v[0], content);
-    return Producer_EncodeData(producer, npkt, type, len, &v[0]);
+    int len = Nni_Encode(&v[0], content);
+    return Producer_EncodeData(producer, npkt, len, &v[0]);
 }
 
 static Packet *Producer_OnFileInfoInterest(Producer *producer, Packet *npkt,
                                            const LName name) {
-    char *pathname = rte_malloc(NULL, NAME_MAX_LENGTH * sizeof(char), 0);
-    lnameDecodeFilePath(name, PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED_LEN,
-                        pathname);
+    char *pathname =
+        rte_malloc(NULL, XRDNDNDPDK_MAX_NAME_SIZE * sizeof(char), 0);
+    Name_Decode_FilePath(name, PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED_LEN,
+                         pathname);
 
     ZF_LOGI("On FILEINFO Interest for file: %s", pathname);
 
@@ -103,8 +87,8 @@ static Packet *Producer_OnFileInfoInterest(Producer *producer, Packet *npkt,
         goto returnFailure;
     }
 
-    Packet *pkt = Producer_EncodeData(producer, npkt, L3PktType_Data,
-                                      sizeof(struct stat), (uint8_t *)statbuf);
+    Packet *pkt = Producer_EncodeData(producer, npkt, sizeof(struct stat),
+                                      (uint8_t *)statbuf);
     rte_free(statbuf);
     rte_free(pathname);
     return pkt;
@@ -112,15 +96,17 @@ static Packet *Producer_OnFileInfoInterest(Producer *producer, Packet *npkt,
 returnFailure:
     rte_free(statbuf);
     rte_free(pathname);
-    return Producer_EncodeNniData(producer, npkt, L3PktType_Data,
-                                  XRDNDNDPDK_EFAILURE);
+    return Producer_EncodeNniData(producer, npkt, XRDNDNDPDK_EFAILURE);
 }
 
 static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
                                        const LName name) {
-    char *pathname = rte_malloc(NULL, NAME_MAX_LENGTH * sizeof(char), 0);
-    uint64_t segOff = lnameDecodeFilePath(
-        name, PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN, pathname);
+    char *pathname =
+        rte_malloc(NULL, XRDNDNDPDK_MAX_NAME_SIZE * sizeof(char), 0);
+    const uint8_t *segNumComp = RTE_PTR_ADD(
+        name.value,
+        Name_Decode_FilePath(name, PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN,
+                             pathname));
 
     ZF_LOGV("On READ Interest for file: %s", pathname);
 
@@ -130,14 +116,9 @@ static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
         goto returnFailure;
     }
 
-    assert(name.value[segOff] == TT_SegmentNameComponent);
+    assert(segNumComp[0] == TtSegmentNameComponent);
     uint64_t segNum = 0;
-    NdnError e =
-        DecodeNni(name.value[segOff + 1], &name.value[segOff + 2], &segNum);
-    if (unlikely(e != NdnError_OK)) {
-        ZF_LOGF("Could not decode Non-Negative Integer");
-        goto returnFailure;
-    }
+    Nni_Decode(segNumComp[1], RTE_PTR_ADD(segNumComp, 2), &segNum);
 
     int readRetCode =
         libfs_read(producer->fs, pathname, buf, XRDNDNDPDK_PACKET_SIZE, segNum);
@@ -145,12 +126,11 @@ static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
     if (unlikely(readRetCode < 0)) {
         rte_free(buf);
         rte_free(pathname);
-        return Producer_EncodeNniData(producer, npkt, L3PktType_MAX,
-                                      -readRetCode);
+        return Producer_EncodeNniData(producer, npkt, -readRetCode);
     }
 
-    Packet *pkt = Producer_EncodeData(producer, npkt, L3PktType_Data,
-                                      readRetCode, (uint8_t *)buf);
+    Packet *pkt =
+        Producer_EncodeData(producer, npkt, readRetCode, (uint8_t *)buf);
     rte_free(buf);
     rte_free(pathname);
     return pkt;
@@ -158,14 +138,9 @@ static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
 returnFailure:
     rte_free(buf);
     rte_free(pathname);
-    return Producer_EncodeNniData(producer, npkt, L3PktType_MAX,
-                                  XRDNDNDPDK_EFAILURE);
+    return Producer_EncodeNniData(producer, npkt, XRDNDNDPDK_EFAILURE);
 }
 
-/**
- * @brief Function prototype for processing Interest packets
- *
- */
 typedef Packet *(*OnInterest)(Producer *producer, Packet *npkt,
                               const LName name);
 
@@ -174,13 +149,6 @@ static const OnInterest onInterest[PACKET_MAX] = {
     [PACKET_READ] = Producer_OnReadInterest,
 };
 
-/**
- * @brief Check if Interest Name prefix is recognized by this producer
- *
- * @param name Interest Name as LName struct
- * @return true Interest Name prefix is recognized by producer
- * @return false Interest Name prefix is not recognized by producer
- */
 static bool Producer_checkForRegisteredPrefix(LName name) {
     ZF_LOGD("Check for registered prefix");
 
@@ -189,13 +157,6 @@ static bool Producer_checkForRegisteredPrefix(LName name) {
                    PACKET_NAME_PREFIX_URI_ENCODED_LEN) == 0);
 }
 
-/**
- * @brief Function for processing all incomming Interest packets
- *
- * @param producer Pointer to producer
- * @param npkt Packet received over NDN network
- * @return Packet* Response (Data) packet to received Interest
- */
 static Packet *Producer_processInterest(Producer *producer, Packet *npkt) {
     ZF_LOGD("Processing Interest packet");
 
@@ -203,16 +164,14 @@ static Packet *Producer_processInterest(Producer *producer, Packet *npkt) {
 
     if (unlikely(!Producer_checkForRegisteredPrefix(*name))) {
         ZF_LOGW("Unsupported Interest prefix");
-        MakeNack(npkt, NackReason_NoRoute);
-        return npkt;
+        return Nack_FromInterest(npkt, NackNoRoute);
     }
 
-    PacketType pt = lnameGetPacketType(*name);
+    PacketType pt = Name_Decode_PacketType(*name);
 
     if (unlikely(pt == PACKET_NOT_SUPPORTED)) {
         ZF_LOGW("Unsupported packet type");
-        MakeNack(npkt, NackReason_NoRoute);
-        return npkt;
+        return Nack_FromInterest(npkt, NackNoRoute);
     }
 
     return onInterest[pt](producer, npkt, *name);
@@ -227,13 +186,13 @@ void Producer_Run(Producer *producer) {
     ZF_LOGI("Started producer instance on socket: %d lcore %d", rte_socket_id(),
             rte_lcore_id());
 
-    Packet *rx[PRODUCER_MAX_BURST_SIZE];
+    struct rte_mbuf *rx[PRODUCER_MAX_BURST_SIZE];
     Packet *tx[PRODUCER_MAX_BURST_SIZE];
 
     while (ThreadStopFlag_ShouldContinue(&producer->stop)) {
         uint32_t nRx =
-            PktQueue_Pop(&producer->rxQueue, (struct rte_mbuf **)rx,
-                         PRODUCER_MAX_BURST_SIZE, rte_get_tsc_cycles())
+            PktQueue_Pop(&producer->rxQueue, rx, PRODUCER_MAX_BURST_SIZE,
+                         rte_get_tsc_cycles())
                 .count;
 
         if (unlikely(nRx == 0)) {
@@ -243,10 +202,10 @@ void Producer_Run(Producer *producer) {
 
         uint16_t nTx = 0;
         for (uint16_t i = 0; i < nRx; ++i) {
-            Packet *npkt = rx[i];
-            assert(Packet_GetL3PktType(npkt) == L3PktType_Interest);
+            Packet *npkt = Packet_FromMbuf(rx[i]);
+            NDNDPDK_ASSERT(Packet_GetType(npkt) == PktInterest);
             tx[nTx] = Producer_processInterest(producer, npkt);
-            nTx += (tx[nTx] != NULL);
+            nTx += (int)(tx[nTx] != NULL);
         }
 
         Face_TxBurst(producer->face, tx, nTx);

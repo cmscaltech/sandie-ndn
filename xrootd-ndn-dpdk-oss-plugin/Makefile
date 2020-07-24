@@ -38,7 +38,7 @@ LIBDIR := libs
 all: goget godeps consumer producer | $(STATIC_COMMON)
 
 goget:
-	go get -d -t ./...
+	go get -d ./...
 
 godeps:
 	rake cgoflags

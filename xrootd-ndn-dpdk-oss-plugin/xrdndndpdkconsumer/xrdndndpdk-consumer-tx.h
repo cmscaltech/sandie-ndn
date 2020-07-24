@@ -21,9 +21,9 @@
 #ifndef XRDNDNDPDK_CONSUMER_TX_H
 #define XRDNDNDPDK_CONSUMER_TX_H
 
-#include "ndn-dpdk/container/pktqueue/queue.h"
-#include "ndn-dpdk/dpdk/thread.h"
-#include "ndn-dpdk/iface/face.h"
+#include "ndn-dpdk/csrc/dpdk/thread.h"
+#include "ndn-dpdk/csrc/iface/face.h"
+#include "ndn-dpdk/csrc/iface/pktqueue.h"
 
 #include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 
@@ -31,24 +31,36 @@ typedef void (*onErrorCallback)(uint64_t);
 void onErrorCallback_Go(uint64_t errorCode);
 
 /**
+ * @brief
+ *
+ */
+typedef struct ConsumerTxRequest {
+    PacketType pt;
+    uint16_t npkts;
+    uint64_t off;
+    uint16_t nameL;
+    uint8_t nameV[XRDNDNDPDK_MAX_NAME_SIZE];
+} ConsumerTxRequest;
+
+/**
  * @brief Consumer Tx structure
  *
  */
 typedef struct ConsumerTx {
-    FaceId face;
+    FaceID face;
     ThreadStopFlag stop;
     struct rte_mempool *interestMp; // mempool for Interests
     NonceGen nonceGen;
     InterestTemplate fileInfoPrefixTpl;
     InterestTemplate readPrefixTpl;
     onErrorCallback onError;
+    struct rte_ring *requestQueue;
+
     uint64_t nInterests;
 } ConsumerTx;
 
+int ConsumerTx_Run(ConsumerTx *ct);
 void ConsumerTx_resetCounters(ConsumerTx *ct);
-void ConsumerTx_ExpressFileInfoInterest(ConsumerTx *ct, struct LName *path);
-void ConsumerTx_ExpressReadInterests(ConsumerTx *ct, struct LName *path,
-                                     uint64_t off, uint16_t n);
 
 inline void registerTxCallbacks(ConsumerTx *ct) {
     ct->onError = onErrorCallback_Go;

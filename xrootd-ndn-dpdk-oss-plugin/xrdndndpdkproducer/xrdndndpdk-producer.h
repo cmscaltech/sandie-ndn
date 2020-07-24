@@ -23,13 +23,10 @@
 #ifndef XRDNDNDPDK_PRODUCER_H
 #define XRDNDNDPDK_PRODUCER_H
 
-#include "ndn-dpdk/container/pktqueue/queue.h"
-#include "ndn-dpdk/core/pcg_basic.h"
-#include "ndn-dpdk/dpdk/thread.h"
-#include "ndn-dpdk/iface/face.h"
-#include "ndn-dpdk/ndn/encode-data.h"
+#include "ndn-dpdk/csrc/dpdk/thread.h"
+#include "ndn-dpdk/csrc/iface/face.h"
+#include "ndn-dpdk/csrc/iface/pktqueue.h"
 
-#include "../xrdndndpdk-common/xrdndndpdk-utils.h"
 #include "../xrdndndpdkfilesystem/filesystem-c-api.h"
 
 /**
@@ -39,7 +36,7 @@
 typedef struct Producer {
     PktQueue rxQueue;
     struct rte_mempool *dataMp;
-    FaceId face;
+    FaceID face;
 
     uint32_t freshnessPeriod;
     ThreadStopFlag stop;

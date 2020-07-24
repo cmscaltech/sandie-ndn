@@ -1,9 +1,8 @@
 package xrdndndpdkproducer
 
 import (
-	"ndn-dpdk/container/pktqueue"
-	"ndn-dpdk/core/nnduration"
-	"ndn-dpdk/iface"
+	"github.com/usnistgov/ndn-dpdk/core/nnduration"
+	"github.com/usnistgov/ndn-dpdk/iface"
 )
 
 // InitConfigProducer config
@@ -15,6 +14,6 @@ type InitConfigProducer struct {
 // ProducerSettings  config
 type ProducerSettings struct {
 	FreshnessPeriod nnduration.Milliseconds // FreshnessPeriod value
-	RxQueue         pktqueue.Config
+	RxQueue         iface.PktQueueConfig
 	FilesystemType  string
 }

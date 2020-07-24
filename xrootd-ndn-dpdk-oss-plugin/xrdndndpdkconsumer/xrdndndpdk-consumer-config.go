@@ -3,13 +3,8 @@ package xrdndndpdkconsumer
 import (
 	"time"
 
-	"ndn-dpdk/iface"
+	"github.com/usnistgov/ndn-dpdk/iface"
 )
-
-// Package initialization config.
-type InitConfig struct {
-	QueueCapacity int // input-consumer queue capacity, must be power of 2
-}
 
 // Per-face task config for consumer
 type TaskConfig struct {
@@ -22,4 +17,5 @@ type TaskConfig struct {
 type ConsumerSettings struct {
 	MustBeFresh      bool          // whether to set MustBeFresh
 	InterestLifetime time.Duration // InterestLifetime value, zero means default
+	RxQueue          iface.PktQueueConfig
 }

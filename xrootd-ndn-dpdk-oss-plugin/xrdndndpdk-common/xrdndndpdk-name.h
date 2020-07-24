@@ -18,43 +18,38 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#ifndef XRDNDNDPDK_CONSUMER_RX_H
-#define XRDNDNDPDK_CONSUMER_RX_H
+#ifndef XRDNDNDPDK_NAME_H
+#define XRDNDNDPDK_NAME_H
 
-#include "ndn-dpdk/csrc/dpdk/thread.h"
-#include "ndn-dpdk/csrc/iface/pktqueue.h"
-
-#include "../xrdndndpdk-common/xrdndndpdk-data.h"
-#include "../xrdndndpdk-common/xrdndndpdk-name.h"
-
-typedef void (*onContentCallback)(struct PContent *, uint64_t);
-typedef void (*onErrorCallback)(uint64_t);
-
-void onContentCallback_Go(struct PContent *content, uint64_t off);
-void onErrorCallback_Go(uint64_t errorCode);
+#include "xrdndndpdk-utils.h"
 
 /**
+ * @brief Decode filepath from LName
+ *
+ * @param name Packet Name as LName struct
+ * @param off Offset to the first Name component of filepath; skip prefix
+ * @param filepath output
+ * @return uint16_t offset to end of filepath in LName
  */
-typedef struct ConsumerRx {
-    PktQueue rxQueue;
-    ThreadStopFlag stop;
+__attribute__((nonnull)) uint16_t
+Name_Decode_FilePath(const LName name, uint16_t off, char *filepath);
 
-    // Counters
-    uint64_t nData;
-    uint64_t nNacks;
-    uint64_t nBytes;
-    uint64_t nErrors;
+/**
+ * @brief Decode filepath length from LName
+ *
+ * @param name Packet Name as LName struct
+ * @param off Offset to the first Name component of filepath; skip prefix
+ * @return uint16_t Filepath encoded length
+ */
+__attribute__((nonnull)) uint16_t Name_Decode_FilePathLength(const LName name,
+                                                             uint16_t off);
 
-    onContentCallback onContent;
-    onErrorCallback onError;
-} ConsumerRx;
+/**
+ * @brief Decode packet type from LName
+ *
+ * @param name Packet Name
+ * @return PacketType Packet type
+ */
+__attribute__((nonnull)) PacketType Name_Decode_PacketType(const LName name);
 
-void ConsumerRx_resetCounters(ConsumerRx *cr);
-__attribute__((nonnull)) int ConsumerRx_Run(ConsumerRx *cr);
-
-inline void registerRxCallbacks(ConsumerRx *cr) {
-    cr->onContent = onContentCallback_Go;
-    cr->onError = onErrorCallback_Go;
-}
-
-#endif // XRDNDNDPDK_CONSUMER_RX_H
+#endif // XRDNDNDPDK_NAME_H

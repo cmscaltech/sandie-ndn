@@ -18,43 +18,31 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#ifndef XRDNDNDPDK_CONSUMER_RX_H
-#define XRDNDNDPDK_CONSUMER_RX_H
+#ifndef XRDNDNDPDK_TLV_H
+#define XRDNDNDPDK_TLV_H
 
-#include "ndn-dpdk/csrc/dpdk/thread.h"
-#include "ndn-dpdk/csrc/iface/pktqueue.h"
+#include "xrdndndpdk-utils.h"
 
-#include "../xrdndndpdk-common/xrdndndpdk-data.h"
-#include "../xrdndndpdk-common/xrdndndpdk-name.h"
+__attribute__((nonnull)) uint64_t
+TlvDecoder_GenericNameComponentLength(const uint8_t *buf, uint16_t *off);
 
-typedef void (*onContentCallback)(struct PContent *, uint64_t);
-typedef void (*onErrorCallback)(uint64_t);
-
-void onContentCallback_Go(struct PContent *content, uint64_t off);
-void onErrorCallback_Go(uint64_t errorCode);
+__attribute__((nonnull)) uint8_t *TlvEncoder_AppendTLV(struct rte_mbuf *m,
+                                                       uint16_t len);
 
 /**
+ * @brief Append a TLV-TYPE or TLV-LENGTH number
+ *
+ * @param m Buffer to append number
+ * @param n Number to append
  */
-typedef struct ConsumerRx {
-    PktQueue rxQueue;
-    ThreadStopFlag stop;
+__attribute__((nonnull)) void TlvEncoder_AppendTL(struct rte_mbuf *m,
+                                                  uint32_t n);
 
-    // Counters
-    uint64_t nData;
-    uint64_t nNacks;
-    uint64_t nBytes;
-    uint64_t nErrors;
+/**
+ * @brief Prepend TLV-TYPE and TLV-LENGTH to mbuf.
+ * @param m target mbuf, must have enough headroom.
+ */
+__attribute__((nonnull)) void
+TlvEncoder_PrependTL(struct rte_mbuf *m, uint32_t type, uint32_t length);
 
-    onContentCallback onContent;
-    onErrorCallback onError;
-} ConsumerRx;
-
-void ConsumerRx_resetCounters(ConsumerRx *cr);
-__attribute__((nonnull)) int ConsumerRx_Run(ConsumerRx *cr);
-
-inline void registerRxCallbacks(ConsumerRx *cr) {
-    cr->onContent = onContentCallback_Go;
-    cr->onError = onErrorCallback_Go;
-}
-
-#endif // XRDNDNDPDK_CONSUMER_RX_H
+#endif // XRDNDNDPDK_TLV_H

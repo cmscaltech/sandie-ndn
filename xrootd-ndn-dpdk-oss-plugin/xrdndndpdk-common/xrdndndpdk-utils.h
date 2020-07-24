@@ -22,86 +22,20 @@
 #define XRDNDNDPDK_UTILS_H
 
 #include <assert.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 
-#include "ndn-dpdk/core/logger.h"
-#include "ndn-dpdk/ndn/name.h"
-#include "ndn-dpdk/ndn/nni.h"
+#include "ndn-dpdk/csrc/core/logger.h"
+#include "ndn-dpdk/csrc/ndni//nni.h"
+#include "ndn-dpdk/csrc/ndni/name.h"
 
 #include "xrdndndpdk-namespace.h"
 
-/**
- * @brief Empty LName structure
- *
- */
-static const LName lnameStub = {.value = NULL, .length = 0};
-
-/**
- * @brief Struct pointing to the Content in a Data packet
- *
- */
-typedef struct PContent {
-    uint8_t
-        type; // ContentType:
-              // https://named-data.net/doc/NDN-packet-spec/current/data.html
-    uint64_t length;  // Content length
-    uint16_t offset;  // Content offset in Data packet
-    uint8_t *payload; // Payload from Data packet
-} PContent;
-
-/**
- * @brief Get encoded filepath length in Name
- *
- * @param name Packet Name as LName struct
- * @param off Offset to the first Name component of filepath; skip prefix
- * @return uint16_t Filepath encoded length
- */
-uint16_t lnameGetFilePathLength(const LName name, uint16_t off);
-
-/**
- * @brief Decode filepath from LName
- *
- * @param name Packet Name as LName struct
- * @param off Offset to the first Name component of filepath; skip prefix
- * @param filepath output
- * @return uint16_t offset to end of filepath in LName
- */
-uint16_t lnameDecodeFilePath(const LName name, uint16_t off, char *filepath);
-
-/**
- * @brief Get packet type from Name
- *
- * @param name Packet Name
- * @return PacketType Packet type
- */
-PacketType lnameGetPacketType(const LName name);
-
-/**
- * @brief Decode Content offset in Data NDN packet format v0.3
- * https://named-data.net/doc/NDN-packet-spec/current/types.html
- *
- * @param content PContent struct
- * @param len Length of payload
- */
-void packetDecodeContent(PContent *content, uint16_t len);
-
-/**
- * @brief Copy byte array from src to dst at a given offsets
- *
- * @param dst Destination buffer
- * @param dst_off Offset in dst buffer
- * @param src Source buffer
- * @param src_off Offset in src buffer
- * @param count Number of octets to copy from src to dst
- */
-void copyFromC(uint8_t *dst, uint16_t dst_off, uint8_t *src, uint16_t src_off,
-               uint64_t count);
+__attribute__((unused)) static void copyFromC(uint8_t *dst, uint16_t dst_off,
+                                              uint8_t *src, uint16_t src_off,
+                                              uint64_t count) {
+    memcpy(&dst[dst_off], &src[src_off], count);
+}
 
 #endif // XRDNDNDPDK_UTILS_H

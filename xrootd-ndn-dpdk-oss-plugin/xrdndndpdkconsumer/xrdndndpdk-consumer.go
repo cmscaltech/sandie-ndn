@@ -9,31 +9,24 @@ package xrdndndpdkconsumer
 import "C"
 import (
 	"fmt"
+	"ndn-dpdk/dpdk/ringbuffer"
 	"unsafe"
 
-	"ndn-dpdk/appinit"
-	"ndn-dpdk/container/pktqueue"
-	"ndn-dpdk/dpdk"
-	"ndn-dpdk/iface"
-	"ndn-dpdk/ndn"
+	"github.com/usnistgov/ndn-dpdk/core/cptr"
+	"github.com/usnistgov/ndn-dpdk/dpdk/eal"
+	"github.com/usnistgov/ndn-dpdk/dpdk/ealthread"
+	"github.com/usnistgov/ndn-dpdk/iface"
+	"github.com/usnistgov/ndn-dpdk/ndn"
+	"github.com/usnistgov/ndn-dpdk/ndni"
 )
 
 // Consumer Instance
 type Consumer struct {
-	Rx ConsumerRxThread
-	Tx ConsumerTxThread
-}
+	Rx ealthread.Thread
+	Tx ealthread.Thread
 
-// Consumer TX thread.
-type ConsumerTxThread struct {
-	dpdk.ThreadBase
-	c *C.ConsumerTx
-}
-
-// Consumer RX thread.
-type ConsumerRxThread struct {
-	dpdk.ThreadBase
-	c *C.ConsumerRx
+	rxC *C.ConsumerRx
+	txC *C.ConsumerTx
 }
 
 type Message struct {
@@ -46,196 +39,161 @@ type Message struct {
 
 var messages chan Message
 
-func newConsumer(face iface.IFace, settings ConsumerSettings) (consumer *Consumer, e error) {
-	socket := face.GetNumaSocket()
-	crC := (*C.ConsumerRx)(dpdk.Zmalloc("ConsumerRx", C.sizeof_ConsumerRx, socket))
+func newConsumer(face iface.Face, settings ConsumerSettings) (*Consumer, error) {
+	socket := face.NumaSocket()
+	rxC := (*C.ConsumerRx)(eal.Zmalloc("ConsumerRx", C.sizeof_ConsumerRx, socket))
 
-	var rxQueueAux pktqueue.Config
-
-	if _, e := pktqueue.NewAt(unsafe.Pointer(&crC.rxQueue), rxQueueAux, fmt.Sprintf("PingClient%d_rxQ", face.GetFaceId()), socket); e != nil {
-		dpdk.Free(crC)
-		return nil, nil
+	settings.RxQueue.DisableCoDel = true
+	if e := iface.PktQueueFromPtr(unsafe.Pointer(&rxC.rxQueue)).Init(settings.RxQueue, socket); e != nil {
+		eal.Free(rxC)
+		return nil, e
 	}
 
-	ctC := (*C.ConsumerTx)(dpdk.Zmalloc("ConsumerTx", C.sizeof_ConsumerTx, socket))
-	ctC.face = (C.FaceId)(face.GetFaceId())
-	ctC.interestMp = (*C.struct_rte_mempool)(appinit.MakePktmbufPool(
-		appinit.MP_INT, socket).GetPtr())
+	txC := (*C.ConsumerTx)(eal.Zmalloc("ConsumerTx", C.sizeof_ConsumerTx, socket))
+	txC.face = (C.FaceID)(face.ID())
+	txC.interestMp = (*C.struct_rte_mempool)(ndni.InterestMempool.MakePool(socket).Ptr())
+	C.NonceGen_Init(&txC.nonceGen)
 
-	C.NonceGen_Init(&ctC.nonceGen)
+	var consumer Consumer
+	consumer.rxC = rxC
+	consumer.txC = txC
 
-	consumer = new(Consumer)
-	consumer.Rx.c = crC
-	consumer.Rx.ResetThreadBase()
-	dpdk.InitStopFlag(unsafe.Pointer(&crC.stop))
+	consumer.Rx = ealthread.New(
+		cptr.Func0.C(unsafe.Pointer(C.ConsumerRx_Run), unsafe.Pointer(rxC)),
+		ealthread.InitStopFlag(unsafe.Pointer(&rxC.stop)),
+	)
+	consumer.Tx = ealthread.New(
+		cptr.Func0.C(unsafe.Pointer(C.ConsumerTx_Run), unsafe.Pointer(txC)),
+		ealthread.InitStopFlag(unsafe.Pointer(&txC.stop)),
+	)
 
-	consumer.Tx.c = ctC
-	consumer.Tx.ResetThreadBase()
-	dpdk.InitStopFlag(unsafe.Pointer(&ctC.stop))
-
-	if e := consumer.ConfigureConsumer(settings); e != nil {
+	if e := consumer.Configure(settings); e != nil {
+		eal.Free(rxC)
+		eal.Free(txC)
 		return nil, fmt.Errorf("settings: %s", e)
 	}
 
+	requestQueue, e := ringbuffer.New(1024, socket, ringbuffer.ProducerMulti, ringbuffer.ConsumerSingle)
+	if e != nil {
+		return nil, fmt.Errorf("ringbuffer.New: %w", e)
+	}
+	consumer.txC.requestQueue = (*C.struct_rte_ring)(requestQueue.Ptr())
+
 	messages = make(chan Message)
-
-	return consumer, nil
+	return &consumer, nil
 }
 
-func (consumer *Consumer) GetFace() iface.IFace {
-	return iface.Get(iface.FaceId(consumer.Tx.c.face))
-}
+func (consumer *Consumer) Configure(settings ConsumerSettings) error {
+	fileInfoPrefix := ndn.ParseName(C.PACKET_NAME_PREFIX_URI_FILEINFO)
+	readPrefix := ndn.ParseName(C.PACKET_NAME_PREFIX_URI_READ)
 
-func (consumer *Consumer) ConfigureConsumer(settings ConsumerSettings) (e error) {
-	// Create template for FILEINFO Interest packets
-	fileInfoPrefix, e := ndn.ParseName(C.PACKET_NAME_PREFIX_URI_FILEINFO)
-	if e != nil {
-		return e
-	}
-
-	tplArgs := []interface{}{ndn.InterestMbufExtraHeadroom(appinit.SizeofEthLpHeaders()), fileInfoPrefix}
+	tplArgsFileInfo := []interface{}{fileInfoPrefix}
+	tplArgsRead := []interface{}{readPrefix}
 	if settings.MustBeFresh {
-		tplArgs = append(tplArgs, ndn.MustBeFreshFlag)
+		tplArgsFileInfo = append(tplArgsFileInfo, ndn.MustBeFreshFlag)
+		tplArgsRead = append(tplArgsRead, ndn.MustBeFreshFlag)
 	}
 	if settings.InterestLifetime != 0 {
-		tplArgs = append(tplArgs, settings.InterestLifetime)
-	}
-	if e = ndn.InterestTemplateFromPtr(unsafe.Pointer(&consumer.Tx.c.fileInfoPrefixTpl)).Init(tplArgs...); e != nil {
-		return e
+		tplArgsFileInfo = append(tplArgsFileInfo, settings.InterestLifetime)
+		tplArgsRead = append(tplArgsRead, settings.InterestLifetime)
 	}
 
-	// Create template for READ Interest packets
-	readPrefix, e := ndn.ParseName(C.PACKET_NAME_PREFIX_URI_READ)
-	if e != nil {
-		return e
-	}
+	ndni.InterestTemplateFromPtr(unsafe.Pointer(&consumer.txC.fileInfoPrefixTpl)).Init(tplArgsFileInfo...)
+	ndni.InterestTemplateFromPtr(unsafe.Pointer(&consumer.txC.readPrefixTpl)).Init(tplArgsRead...)
 
-	tplArgs = []interface{}{ndn.InterestMbufExtraHeadroom(appinit.SizeofEthLpHeaders()), readPrefix}
-	if settings.MustBeFresh {
-		tplArgs = append(tplArgs, ndn.MustBeFreshFlag)
-	}
-	if settings.InterestLifetime != 0 {
-		tplArgs = append(tplArgs, settings.InterestLifetime)
-	}
-	if e = ndn.InterestTemplateFromPtr(unsafe.Pointer(&consumer.Tx.c.readPrefixTpl)).Init(tplArgs...); e != nil {
-		return e
-	}
-
-	C.registerRxCallbacks(consumer.Rx.c)
-	C.registerTxCallbacks(consumer.Tx.c)
-
+	C.registerRxCallbacks(consumer.rxC)
+	C.registerTxCallbacks(consumer.txC)
 	consumer.ResetCounters()
 
 	return nil
 }
 
-func (consumer *Consumer) GetRxQueue() pktqueue.PktQueue {
-	return pktqueue.FromPtr(unsafe.Pointer(&consumer.Rx.c.rxQueue))
+func (consumer *Consumer) GetFace() iface.Face {
+	return iface.Get(iface.ID(consumer.txC.face))
 }
 
-// Reset Rx and Tx Consumer thread counters for statistics
-func (consumer *Consumer) ResetCounters() {
-	C.ConsumerRx_resetCounters(consumer.Rx.c)
-	C.ConsumerTx_resetCounters(consumer.Tx.c)
+// RxQueue from Consumer instance
+func (consumer *Consumer) RxQueue() *iface.PktQueue {
+	return iface.PktQueueFromPtr(unsafe.Pointer(&consumer.rxC.rxQueue))
+}
+
+func (consumer *Consumer) SetLCores(rxLCore, txLCore eal.LCore) {
+	consumer.Rx.SetLCore(rxLCore)
+	consumer.Tx.SetLCore(txLCore)
 }
 
 // Launch the RX thread.
-func (rx ConsumerRxThread) Launch() error {
-	return rx.LaunchImpl(func() int {
-		C.ConsumerRx_Run(rx.c)
-		return 0
-	})
+func (consumer *Consumer) Launch() {
+	consumer.Rx.Launch()
+	consumer.Tx.Launch()
 }
 
-// Stop the RX thread.
-func (rx *ConsumerRxThread) Stop() error {
-	return rx.StopImpl(dpdk.NewStopFlag(unsafe.Pointer(&rx.c.stop)))
-}
+// Stop Rx and TX threads.
+func (consumer *Consumer) Stop() error {
+	eTx := consumer.Tx.Stop()
+	eRx := consumer.Rx.Stop()
 
-// Stop the TX thread.
-func (tx *ConsumerTxThread) Stop() error {
-	return tx.StopImpl(dpdk.NewStopFlag(unsafe.Pointer(&tx.c.stop)))
+	if eRx != nil || eTx != nil {
+		return fmt.Errorf("RX %v; TX %v", eRx, eTx)
+	}
+	return nil
 }
 
 // Close the consumer.
 // Both RX and TX threads must be stopped before calling this.
 func (consumer *Consumer) Close() error {
-	consumer.GetRxQueue().Close()
-	dpdk.Free(consumer.Rx.c)
-	dpdk.Free(consumer.Tx.c)
+	consumer.RxQueue().Close()
+	eal.Free(consumer.rxC)
+	ringbuffer.FromPtr(unsafe.Pointer(&consumer.txC.requestQueue)).Close()
+	eal.Free(consumer.txC)
 	return nil
 }
 
+// ResetCounters Reset Rx and Tx Consumer thread counters for statistics
+func (consumer *Consumer) ResetCounters() {
+	C.ConsumerRx_resetCounters(consumer.rxC)
+	C.ConsumerTx_resetCounters(consumer.txC)
+}
+
 // FileInfo file
-func (tx *ConsumerTxThread) FileInfo(buf *C.uint8_t, path string) (e error) {
-	tx.Stop()
-	e = tx.LaunchImpl(func() int {
-		pathSuffix, e := ndn.ParseName(path)
-		if e != nil {
-			return -1
-		}
+func (consumer *Consumer) FileInfo(pathname string, buf *C.uint8_t) error {
+	name := ndn.ParseName(pathname)
+	nameV, _ := name.MarshalBinary()
 
-		nameV := unsafe.Pointer(C.malloc(C.uint64_t(pathSuffix.Size())))
-		defer C.free(nameV)
+	var c C.ConsumerTxRequest
+	c.nameL = C.uint16_t(copy(cptr.AsByteSlice(&c.nameV), nameV))
+	c.pt = 0
 
-		var lname C.LName
-		e = pathSuffix.CopyToLName(unsafe.Pointer(&lname), nameV, uintptr(pathSuffix.Size()))
-		if e != nil {
-			return -1
-		}
-
-		C.ConsumerTx_ExpressFileInfoInterest(tx.c, &lname)
-		return 0
-	})
-
-	if e != nil {
-		return e
-	}
+	C.rte_ring_enqueue(consumer.txC.requestQueue, (unsafe.Pointer)(&c))
 
 	m := <-messages
-
 	if m.isError {
-		return fmt.Errorf("Unable to get fileinfo for file: %s", path)
+		return fmt.Errorf("Unable to get fileinfo for file: %s", pathname)
 	}
 
 	defer C.rte_free(unsafe.Pointer(m.content.payload))
 	defer C.rte_free(unsafe.Pointer(m.content))
 
 	C.copyFromC(buf, 0, m.content.payload, m.content.offset, m.content.length)
-
 	return nil
 }
 
 // Read from file
-func (tx *ConsumerTxThread) Read(path string, buf *C.uint8_t, count C.uint64_t, off C.uint64_t) (nbytes C.uint64_t, e error) {
-	nInterests := C.uint16_t(C.ceil(C.double(count) / C.double(C.XRDNDNDPDK_PACKET_SIZE)))
+func (consumer *Consumer) Read(pathname string, buf *C.uint8_t,
+	count C.uint64_t, off C.uint64_t) (nbytes C.uint64_t, e error) {
+	name := ndn.ParseName(pathname)
+	nameV, _ := name.MarshalBinary()
+
+	var c C.ConsumerTxRequest
+	c.nameL = C.uint16_t(copy(cptr.AsByteSlice(&c.nameV), nameV))
+	c.pt = 1
+	c.npkts = C.uint16_t(C.ceil(C.double(count) / C.double(C.XRDNDNDPDK_PACKET_SIZE)))
+	c.off = off
+
+	C.rte_ring_enqueue(consumer.txC.requestQueue, (unsafe.Pointer)(&c))
+
 	nbytes = 0
-
-	tx.Stop()
-	e = tx.LaunchImpl(func() int {
-		pathSuffix, e := ndn.ParseName(path)
-		if e != nil {
-			return -1
-		}
-
-		nameV := unsafe.Pointer(C.malloc(C.uint64_t(pathSuffix.Size())))
-		defer C.free(nameV)
-
-		var lname C.LName
-		e = pathSuffix.CopyToLName(unsafe.Pointer(&lname), nameV, uintptr(pathSuffix.Size()))
-		if e != nil {
-			return -1
-		}
-
-		C.ConsumerTx_ExpressReadInterests(tx.c, &lname, off, nInterests)
-		return 0
-	})
-
-	if e != nil {
-		return 0, e
-	}
-
-	for i := C.uint16_t(0); i < nInterests; i++ {
+	for i := C.uint16_t(0); i < c.npkts; i++ {
 		m := <-messages
 
 		if m.isError {
@@ -251,7 +209,7 @@ func (tx *ConsumerTxThread) Read(path string, buf *C.uint8_t, count C.uint64_t, 
 		// C.copyFromC(buf, C.uint16_t((m.off-off)/C.XRDNDNDPDK_PACKET_SIZE), m.content.payload, m.content.offset, m.content.length)
 	}
 
-	return nbytes, e
+	return nbytes, nil
 }
 
 //export onContentCallback_Go

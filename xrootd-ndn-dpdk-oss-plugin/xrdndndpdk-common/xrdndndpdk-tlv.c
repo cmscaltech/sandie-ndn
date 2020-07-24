@@ -18,13 +18,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
-#include "xrdndndpdk-utils.h"
+#include "xrdndndpdk-tlv.h"
 
 INIT_ZF_LOG(Xrdndndpdkutils);
 
-static uint64_t decodeGenericNameComponentLength(const uint8_t *buf,
-                                                 uint16_t *off) {
-    ZF_LOGD("Decode Name component length");
+uint64_t TlvDecoder_GenericNameComponentLength(const uint8_t *buf,
+                                               uint16_t *off) {
+    ZF_LOGV("Decode Name component length");
     uint64_t length = 0;
 
     if (buf[*off] <= 0xFC) {
@@ -62,77 +62,79 @@ static uint64_t decodeGenericNameComponentLength(const uint8_t *buf,
     return length;
 }
 
-uint16_t lnameGetFilePathLength(const LName name, uint16_t off) {
-    ZF_LOGD("Get encoded filepath length");
-    assert(name.value[off] == TT_GenericNameComponent);
-
-    while (name.value[off] == TT_GenericNameComponent && off < name.length) {
-        ++off;
-        uint64_t length = decodeGenericNameComponentLength(name.value, &off);
-        off += length;
-    }
-    return off;
-}
-
-uint16_t lnameDecodeFilePath(const LName name, uint16_t off, char *filepath) {
-    ZF_LOGD("Decode filepath from LName");
-    assert(name.value[off] == TT_GenericNameComponent);
-
-    while (name.value[off] == TT_GenericNameComponent && off < name.length) {
-        ++off; // skip Type
-        uint64_t length =
-            decodeGenericNameComponentLength(name.value, &off); // get Length
-        strcat(filepath, "/");
-        strncat(filepath, &name.value[off], length); // store Value
-        off += length;
-    }
-    return off;
-}
-
-PacketType lnameGetPacketType(const LName name) {
-    ZF_LOGD("Get packet type from LName");
-
-    if (likely(PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN <= name.length &&
-               memcmp(PACKET_NAME_PREFIX_URI_READ_ENCODED, name.value,
-                      PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN) == 0)) {
-        return PACKET_READ;
-    } else if (PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED_LEN <= name.length &&
-               memcmp(PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED, name.value,
-                      PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED_LEN) == 0) {
-        return PACKET_FILEINFO;
+static __rte_always_inline uint8_t *TlvEncoder_EncodeVarNum(uint8_t *room,
+                                                            uint32_t n) {
+    if (likely(n < 253)) {
+        room[0] = (uint8_t)n;
+        return room + 1;
     }
 
-    return PACKET_NOT_SUPPORTED;
-}
-
-void packetDecodeContent(PContent *content, uint16_t len) {
-    ZF_LOGD("Decode Content from Packet");
-    assert(content->payload[0] == TT_Data);
-
-    uint8_t type = 0;
-    uint64_t length = 0;
-    uint16_t offset = 0;
-
-    for (; offset < len;) {
-        type = content->payload[offset++];
-        assert(type == TT_Data || type == TT_Name || type == TT_MetaInfo ||
-               type == TT_Content);
-
-        length = decodeGenericNameComponentLength(content->payload, &offset);
-
-        if (type == TT_Content)
-            break; // Found Content in packet
-        if (type != TT_Data) {
-            offset += length; // Skip this type's length until Content
-        }
+    if (likely(n <= UINT16_MAX)) {
+        room[0] = 253;
+        room[1] = (uint8_t)(n >> 8);
+        room[2] = (uint8_t)n;
+        return room + 3;
     }
 
-    content->type = type;
-    content->length = length;
-    content->offset = offset;
+    *room++ = 254;
+    rte_be32_t v = rte_cpu_to_be_32((uint32_t)n);
+    rte_memcpy(room, &v, 4);
+    return room + 4;
 }
 
-void copyFromC(uint8_t *dst, uint16_t dst_off, uint8_t *src, uint16_t src_off,
-               uint64_t count) {
-    memcpy(&dst[dst_off], &src[src_off], count);
+/**
+ * @brief Compute size of VAR-NUMBER
+ *
+ * @param n Number
+ * @return __rte_always_inline Size
+ */
+static __rte_always_inline uint8_t TlvEncoder_SizeofVarNum(uint32_t n) {
+    if (likely(n < 0xFD)) {
+        return 1;
+    } else if (likely(n <= UINT16_MAX)) {
+        return 3;
+    } else {
+        return 5;
+    }
+}
+
+/**
+ * @brief Write VAR-NUMBER to the given buffer.
+ * @param[out] room output buffer, must have sufficient size.
+ */
+__attribute__((nonnull)) static __rte_always_inline void
+TlvEncoder_WriteVarNum(uint8_t *room, uint32_t n) {
+    assert(room != NULL);
+    if (likely(n < 0xFD)) {
+        room[0] = n;
+    } else if (likely(n <= UINT16_MAX)) {
+        room[0] = 0xFD;
+        unaligned_uint16_t *b = RTE_PTR_ADD(room, 1);
+        *b = rte_cpu_to_be_16(n);
+    } else {
+        room[0] = 0xFE;
+        unaligned_uint32_t *b = RTE_PTR_ADD(room, 1);
+        *b = rte_cpu_to_be_32(n);
+    }
+}
+
+uint8_t *TlvEncoder_AppendTLV(struct rte_mbuf *m, uint16_t len) {
+    assert(len <= rte_pktmbuf_tailroom(m));
+    uint16_t off = m->data_len;
+    m->pkt_len = m->data_len = off + len;
+    return rte_pktmbuf_mtod_offset(m, uint8_t *, off);
+}
+
+void TlvEncoder_AppendTL(struct rte_mbuf *m, uint32_t n) {
+    uint8_t *room = TlvEncoder_AppendTLV(m, TlvEncoder_SizeofVarNum(n));
+    assert(room != NULL);
+    TlvEncoder_EncodeVarNum(room, n);
+}
+
+void TlvEncoder_PrependTL(struct rte_mbuf *m, uint32_t type, uint32_t length) {
+    uint16_t sizeT = TlvEncoder_SizeofVarNum(type);
+    uint16_t sizeL = TlvEncoder_SizeofVarNum(length);
+    uint8_t *room = (uint8_t *)rte_pktmbuf_prepend(m, sizeT + sizeL);
+    TlvEncoder_WriteVarNum(room, type);
+    TlvEncoder_WriteVarNum((uint8_t *)RTE_PTR_ADD(room, sizeT), length);
 }

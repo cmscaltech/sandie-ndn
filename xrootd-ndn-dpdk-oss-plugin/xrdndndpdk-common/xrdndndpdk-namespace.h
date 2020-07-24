@@ -30,6 +30,12 @@
 #define XRDNDNDPDK_PACKET_SIZE 7168
 
 /**
+ * @brief Maximum Name length
+ *
+ */
+#define XRDNDNDPDK_MAX_NAME_SIZE 2048
+
+/**
  * @brief Consumer maximum burst size
  *
  */

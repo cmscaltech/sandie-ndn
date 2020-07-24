@@ -5,19 +5,17 @@ import (
 	"os/signal"
 	"syscall"
 
-	"ndn-dpdk/appinit"
-	"ndn-dpdk/dpdk"
-	"ndn-dpdk/mgmt/facemgmt"
-	"ndn-dpdk/mgmt/versionmgmt"
 	"sandie-ndn/xrootd-ndn-dpdk-oss-plugin/xrdndndpdkproducer"
+
+	"github.com/usnistgov/ndn-dpdk/dpdk/ealinit"
+	"github.com/usnistgov/ndn-dpdk/dpdk/ealthread"
+	"github.com/usnistgov/ndn-dpdk/mgmt"
+	"github.com/usnistgov/ndn-dpdk/mgmt/facemgmt"
+	"github.com/usnistgov/ndn-dpdk/mgmt/versionmgmt"
 )
 
 func exit(app *xrdndndpdkproducer.App) {
 	log.Info("Stopping XRootD NDN-DPDK Producer application")
-
-	if e := app.Stop(); e != nil {
-		log.WithError(e).Fatal("On stopping XRootD NDN-DPDK Producer application")
-	}
 
 	if e := app.Close(); e != nil {
 		log.WithError(e).Fatal("On stopping XRootD NDN-DPDK Producer application")
@@ -25,12 +23,14 @@ func exit(app *xrdndndpdkproducer.App) {
 }
 
 func main() {
-	pc, e := parseCommand(dpdk.MustInitEal(os.Args)[1:])
+	pc, e := parseCommand(ealinit.Init(os.Args)[1:])
 	if e != nil {
 		log.WithError(e).Fatal("Command line error")
 	}
 
-	pc.initCfg.InitConfig.Apply()
+	pc.initCfg.Mempool.Apply()
+	ealthread.DefaultAllocator.Config = pc.initCfg.LCoreAlloc
+	pc.initCfg.Face.Apply()
 
 	app, e := xrdndndpdkproducer.New(pc.initCfgProducer[0])
 	if e != nil {
@@ -51,9 +51,9 @@ func main() {
 		log.WithError(e).Fatal("App lauch error")
 	}
 
-	appinit.RegisterMgmt(versionmgmt.VersionMgmt{})
-	appinit.RegisterMgmt(facemgmt.FaceMgmt{})
-	appinit.StartMgmt()
+	mgmt.Register(versionmgmt.VersionMgmt{})
+	mgmt.Register(facemgmt.FaceMgmt{})
+	mgmt.Start()
 
 	select {}
 }

@@ -4,13 +4,18 @@ import (
 	"flag"
 	"os"
 
-	"ndn-dpdk/appinit"
 	"sandie-ndn/xrootd-ndn-dpdk-oss-plugin/xrdndndpdkconsumer"
+
+	"github.com/usnistgov/ndn-dpdk/core/yamlflag"
+	"github.com/usnistgov/ndn-dpdk/dpdk/ealthread"
+	"github.com/usnistgov/ndn-dpdk/dpdk/pktmbuf"
+	"github.com/usnistgov/ndn-dpdk/iface/createface"
 )
 
 type initConfig struct {
-	appinit.InitConfig `yaml:",inline"`
-	ConsumerInitConfig xrdndndpdkconsumer.InitConfig
+	Mempool    pktmbuf.TemplateUpdates
+	LCoreAlloc ealthread.AllocConfig
+	Face       createface.Config
 }
 
 type parsedCommand struct {
@@ -19,11 +24,9 @@ type parsedCommand struct {
 }
 
 func parseCommand(args []string) (pc parsedCommand, e error) {
-	pc.initCfg.ConsumerInitConfig.QueueCapacity = 256
-
 	flags := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	appinit.DeclareInitConfigFlag(flags, &pc.initCfg)
-	appinit.DeclareConfigFlag(flags, &pc.tasks, "tasks", "xrdndndpdkconsumer task description")
+	flags.Var(yamlflag.New(&pc.initCfg), "initcfg", "initialization config object")
+	flags.Var(yamlflag.New(&pc.tasks), "tasks", "xrdndndpdkconsumer task description")
 
 	e = flags.Parse(args)
 	return pc, e

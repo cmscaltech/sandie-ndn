@@ -3,64 +3,51 @@ package xrdndndpdkproducer
 import (
 	"fmt"
 
-	"ndn-dpdk/app/inputdemux"
-	"ndn-dpdk/appinit"
-	"ndn-dpdk/dpdk"
-	"ndn-dpdk/iface"
-	"ndn-dpdk/iface/createface"
+	"github.com/usnistgov/ndn-dpdk/dpdk/ealthread"
+	"github.com/usnistgov/ndn-dpdk/iface"
+	"github.com/usnistgov/ndn-dpdk/iface/createface"
 )
 
 // LCoreAlloc roles
 const (
-	LCoreRoleInput    = iface.LCoreRole_RxLoop
-	LCoreRoleOutput   = iface.LCoreRole_TxLoop
+	LCoreRoleInput    = "RX"
+	LCoreRoleOutput   = "TX"
 	LCoreRoleProducer = "ProducerRx"
 )
 
 // App struct
 type App struct {
-	Face     iface.IFace
+	face     iface.Face
 	producer *Producer
 	inputs   []*Input
 }
 
 // Input struct
 type Input struct {
-	rxl    *iface.RxLoop
-	demux3 inputdemux.Demux3
+	rxl iface.RxLoop
 }
 
 // New App object instance
 func New(initConfigProducer InitConfigProducer) (app *App, e error) {
 	app = new(App)
-	appinit.ProvideCreateFaceMempools()
 
-	createface.CustomGetRxl = func(rxg iface.IRxGroup) *iface.RxLoop {
-		lc := dpdk.LCoreAlloc.Alloc(LCoreRoleInput, rxg.GetNumaSocket())
-		socket := lc.GetNumaSocket()
-		rxl := iface.NewRxLoop(socket)
-		rxl.SetLCore(lc)
+	iface.ChooseRxLoop = func(rxg iface.RxGroup) iface.RxLoop {
+		rxl := iface.NewRxLoop(rxg.NumaSocket())
+		ealthread.AllocThread(rxl)
 
 		var input Input
 		input.rxl = rxl
 		app.inputs = append(app.inputs, &input)
-
-		createface.AddRxLoop(rxl)
 		return rxl
 	}
 
-	createface.CustomGetTxl = func(face iface.IFace) *iface.TxLoop {
-		lc := dpdk.LCoreAlloc.Alloc(LCoreRoleOutput, face.GetNumaSocket())
-		socket := lc.GetNumaSocket()
-		txl := iface.NewTxLoop(socket)
-		txl.SetLCore(lc)
-		txl.Launch()
-
-		createface.AddTxLoop(txl)
+	iface.ChooseTxLoop = func(face iface.Face) iface.TxLoop {
+		txl := iface.NewTxLoop(face.NumaSocket())
+		ealthread.Launch(txl)
 		return txl
 	}
 
-	app.Face, e = createface.Create(initConfigProducer.Face.Locator)
+	app.face, e = createface.Create(initConfigProducer.Face.Locator)
 	if e != nil {
 		return nil, fmt.Errorf("Face creation error: %v", e)
 	}
@@ -69,7 +56,7 @@ func New(initConfigProducer InitConfigProducer) (app *App, e error) {
 		return nil, fmt.Errorf("Init config for producer is empty")
 	}
 
-	if app.producer, e = NewProducer(app.Face, *initConfigProducer.Producer); e != nil {
+	if app.producer, e = NewProducer(app.face, *initConfigProducer.Producer); e != nil {
 		return nil, e
 	}
 
@@ -77,7 +64,7 @@ func New(initConfigProducer InitConfigProducer) (app *App, e error) {
 		return nil, fmt.Errorf("Unable to get Producer object")
 	}
 
-	app.producer.SetLCore(dpdk.LCoreAlloc.Alloc(LCoreRoleProducer, app.Face.GetNumaSocket()))
+	app.producer.SetLCore(ealthread.DefaultAllocator.Alloc(LCoreRoleProducer, app.face.NumaSocket()))
 	return app, nil
 }
 
@@ -87,34 +74,22 @@ func (app *App) Launch() error {
 		app.launchInput(input)
 	}
 
-	app.producer.Start()
+	app.producer.Launch()
 	return nil
 }
 
 // LaunchInput
 func (app *App) launchInput(input *Input) {
-	faces := input.rxl.ListFaces()
-	if len(faces) != 1 {
-		panic("RxLoop should have exactly one face")
-	}
+	demuxI := input.rxl.InterestDemux()
+	demuxD := input.rxl.DataDemux()
+	demuxN := input.rxl.NackDemux()
 
-	input.demux3 = inputdemux.NewDemux3(input.rxl.GetNumaSocket())
-	input.demux3.GetInterestDemux().InitDrop()
-	input.demux3.GetDataDemux().InitDrop()
-	input.demux3.GetNackDemux().InitDrop()
+	demuxI.InitDrop()
+	demuxD.InitDrop()
+	demuxN.InitDrop()
 
-	app.producer.ConfigureDemux(input.demux3)
-
-	input.rxl.SetCallback(inputdemux.Demux3_FaceRx, input.demux3.GetPtr())
+	app.producer.ConfigureDemux(demuxI, demuxD, demuxN)
 	input.rxl.Launch()
-}
-
-// Stop App
-func (app *App) Stop() error {
-	if app.producer != nil {
-		return app.producer.Stop()
-	}
-	return nil
 }
 
 // Close App
@@ -124,5 +99,5 @@ func (app *App) Close() (e error) {
 			return e
 		}
 	}
-	return app.Face.Close()
+	return app.face.Close()
 }

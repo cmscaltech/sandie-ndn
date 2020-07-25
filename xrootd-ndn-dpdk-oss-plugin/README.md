@@ -40,12 +40,12 @@ TODO: Configuration for high-troughput (yaml file and hardware/software setup)
 Edit yaml configuration file to specify the path to the file to be copied using *filepath* argument.
 
 ```bash
-MGMT=tcp://127.0.0.1:6345 ./xrdndndpdkconsumer-cmd -w 0000:8f:00.0 -- -initcfg @init-config-client.yaml -tasks @xrdndndpdkconsumer.yaml
+./xrdndndpdkconsumer-cmd -w 0000:8f:00.0 -- -initcfg @init-config-client.yaml -initcfgconsumer @xrdndndpdkconsumer-sample.yaml
 ```
 
 ### Producer
 ```bash
-MGMT=tcp://127.0.0.1:6345 ./xrdndndpdkproducer-cmd -w 0000:5e:00.0 -- -initcfg @init-config.yaml -initcfgproducer @xrdndndpdkproducer-sample.yaml
+./xrdndndpdkproducer-cmd -w 0000:5e:00.0 -- -initcfg @init-config.yaml -initcfgproducer @xrdndndpdkproducer-sample.yaml
 ```
 
 ## Logging

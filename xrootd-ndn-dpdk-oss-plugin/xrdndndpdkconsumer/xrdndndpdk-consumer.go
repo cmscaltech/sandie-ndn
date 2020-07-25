@@ -117,6 +117,15 @@ func (consumer *Consumer) RxQueue() *iface.PktQueue {
 	return iface.PktQueueFromPtr(unsafe.Pointer(&consumer.rxC.rxQueue))
 }
 
+// ConfigureDemux for Consumer instance
+func (consumer *Consumer) ConfigureDemux(demuxI, demuxD, demuxN *iface.InputDemux) {
+	demuxD.InitFirst()
+	demuxN.InitFirst()
+	q := consumer.RxQueue()
+	demuxD.SetDest(0, q)
+	demuxN.SetDest(0, q)
+}
+
 func (consumer *Consumer) SetLCores(rxLCore, txLCore eal.LCore) {
 	consumer.Rx.SetLCore(rxLCore)
 	consumer.Tx.SetLCore(txLCore)
@@ -144,7 +153,7 @@ func (consumer *Consumer) Stop() error {
 func (consumer *Consumer) Close() error {
 	consumer.RxQueue().Close()
 	eal.Free(consumer.rxC)
-	ringbuffer.FromPtr(unsafe.Pointer(&consumer.txC.requestQueue)).Close()
+	ringbuffer.FromPtr(unsafe.Pointer(consumer.txC.requestQueue)).Close()
 	eal.Free(consumer.txC)
 	return nil
 }
@@ -155,16 +164,25 @@ func (consumer *Consumer) ResetCounters() {
 	C.ConsumerTx_resetCounters(consumer.txC)
 }
 
-// FileInfo file
-func (consumer *Consumer) FileInfo(pathname string, buf *C.uint8_t) error {
+// RequestData over NDN
+func (consumer *Consumer) RequestData(pathname string, buf *C.uint8_t,
+	count C.uint64_t, off C.uint64_t, pt C.PacketType) (n C.uint16_t) {
 	name := ndn.ParseName(pathname)
 	nameV, _ := name.MarshalBinary()
 
-	var c C.ConsumerTxRequest
-	c.nameL = C.uint16_t(copy(cptr.AsByteSlice(&c.nameV), nameV))
-	c.pt = 0
+	var req C.ConsumerTxRequest
+	req.nameL = C.uint16_t(copy(cptr.AsByteSlice(&req.nameV), nameV))
+	req.pt = pt
+	req.npkts = C.uint16_t(C.ceil(C.double(count) / C.double(C.XRDNDNDPDK_PACKET_SIZE)))
+	req.off = off
 
-	C.rte_ring_enqueue(consumer.txC.requestQueue, (unsafe.Pointer)(&c))
+	C.rte_ring_enqueue(consumer.txC.requestQueue, (unsafe.Pointer)(&req))
+	return req.npkts
+}
+
+// FileInfo file
+func (consumer *Consumer) FileInfo(pathname string, buf *C.uint8_t) error {
+	consumer.RequestData(pathname, buf, C.uint64_t(0), C.uint64_t(0), C.PACKET_FILEINFO)
 
 	m := <-messages
 	if m.isError {
@@ -181,19 +199,10 @@ func (consumer *Consumer) FileInfo(pathname string, buf *C.uint8_t) error {
 // Read from file
 func (consumer *Consumer) Read(pathname string, buf *C.uint8_t,
 	count C.uint64_t, off C.uint64_t) (nbytes C.uint64_t, e error) {
-	name := ndn.ParseName(pathname)
-	nameV, _ := name.MarshalBinary()
-
-	var c C.ConsumerTxRequest
-	c.nameL = C.uint16_t(copy(cptr.AsByteSlice(&c.nameV), nameV))
-	c.pt = 1
-	c.npkts = C.uint16_t(C.ceil(C.double(count) / C.double(C.XRDNDNDPDK_PACKET_SIZE)))
-	c.off = off
-
-	C.rte_ring_enqueue(consumer.txC.requestQueue, (unsafe.Pointer)(&c))
+	n := consumer.RequestData(pathname, buf, count, off, C.PACKET_READ)
 
 	nbytes = 0
-	for i := C.uint16_t(0); i < c.npkts; i++ {
+	for i := C.uint16_t(0); i < n; i++ {
 		m := <-messages
 
 		if m.isError {

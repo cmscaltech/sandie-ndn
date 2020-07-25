@@ -28,10 +28,9 @@ static void ConsumerTx_ExpressFileInfoInterest(ConsumerTx *ct,
                                                ConsumerTxRequest *req) {
     ZF_LOGD("Send Interest packet for FILEINFO");
 
-    if (unlikely(req->nameL +
+    if (unlikely(req->nameL + 10 +
                      RTE_MAX(PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN,
-                             PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED_LEN) +
-                     10 >
+                             PACKET_NAME_PREFIX_URI_FILEINFO_ENCODED_LEN) >
                  XRDNDNDPDK_MAX_NAME_SIZE)) {
         ZF_LOGW("The Interest Name is too long to fit in packet");
         ct->onError(XRDNDNDPDK_EFAILURE);

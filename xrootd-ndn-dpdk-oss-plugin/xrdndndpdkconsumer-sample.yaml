@@ -7,4 +7,11 @@
   consumer:
     mustbefresh: false
     canbeprefix: false
+    rxqueue:
+      capacity: 131072      # Ring capacity, must be power of 2, default 131072 with delay/CoDel or 4096 without
+      dequeueburstsize: 64  # Dequeue burst size limit, default 64
+      delay: 0              # If non-zero, enforce minimum delay, implies DisableCoDel
+      disablecodel: false   # If true, disable CoDel algorithm
+      target: 5ms           # CoDel TARGET parameter, default 5ms
+      interval: 100ms       # CoDel INTERVAL parameter, default 100ms
   files: ['']

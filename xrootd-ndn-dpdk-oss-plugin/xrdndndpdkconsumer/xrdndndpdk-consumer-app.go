@@ -18,7 +18,7 @@ import (
 	"github.com/usnistgov/ndn-dpdk/iface/createface"
 )
 
-// LCoreAlloc roles.
+// LCoreAlloc roles
 const (
 	LCoreRole_Input      = "RX"
 	LCoreRole_Output     = "TX"
@@ -26,16 +26,21 @@ const (
 	LCoreRole_ConsumerTx = "ConsumerTx"
 )
 
+// App struct
 type App struct {
-	task   Task
-	inputs []*Input
+	face     iface.Face
+	consumer *Consumer
+	files    []string
+	inputs   []*Input
 }
 
+// Input struct
 type Input struct {
 	rxl iface.RxLoop
 }
 
-func New(cfg TaskConfig) (app *App, e error) {
+// New App object instance
+func New(initCfgConsumer InitConfigConsumer) (app *App, e error) {
 	app = new(App)
 
 	iface.ChooseRxLoop = func(rxg iface.RxGroup) iface.RxLoop {
@@ -54,28 +59,45 @@ func New(cfg TaskConfig) (app *App, e error) {
 		return txl
 	}
 
-	face, e := createface.Create(cfg.Face.Locator)
+	app.face, e = createface.Create(initCfgConsumer.Face.Locator)
 	if e != nil {
 		return nil, fmt.Errorf("face creation error: %v", e)
 	}
 
-	task, e := newTask(face, cfg)
-	if e != nil {
-		return nil, fmt.Errorf("init error: %v", e)
+	if initCfgConsumer.Consumer == nil {
+		return nil, fmt.Errorf("Init config for consumer is empty")
 	}
-	app.task = task
 
+	if len(initCfgConsumer.Files) == 0 {
+		return nil, errors.New("yaml: list of file paths empty or not defined")
+	} else {
+		app.files = initCfgConsumer.Files
+	}
+
+	socket := app.face.NumaSocket()
+	if app.consumer, e = newConsumer(app.face, *initCfgConsumer.Consumer); e != nil {
+		return nil, e
+	}
+
+	if app.consumer == nil {
+		return nil, fmt.Errorf("Unable to get Consumer object")
+	}
+
+	app.consumer.SetLCores(ealthread.DefaultAllocator.Alloc(LCoreRole_ConsumerRx, socket),
+		ealthread.DefaultAllocator.Alloc(LCoreRole_ConsumerTx, socket))
 	return app, nil
 }
 
+// Launch App
 func (app *App) Launch() {
 	for _, input := range app.inputs {
 		app.launchInput(input)
 	}
 
-	app.task.Launch()
+	app.consumer.Launch()
 }
 
+// LaunchInput
 func (app *App) launchInput(input *Input) {
 	demuxI := input.rxl.InterestDemux()
 	demuxD := input.rxl.DataDemux()
@@ -85,77 +107,41 @@ func (app *App) launchInput(input *Input) {
 	demuxD.InitDrop()
 	demuxN.InitDrop()
 
-	app.task.ConfigureDemux(demuxI, demuxD, demuxN)
+	app.consumer.ConfigureDemux(demuxI, demuxD, demuxN)
 	input.rxl.Launch()
 }
 
-type Task struct {
-	Face     iface.Face
-	consumer *Consumer
-	files    []string
-}
-
-func newTask(face iface.Face, cfg TaskConfig) (task Task, e error) {
-	socket := face.NumaSocket()
-	task.Face = face
-	if cfg.Consumer != nil {
-		if task.consumer, e = newConsumer(task.Face, *cfg.Consumer); e != nil {
-			return Task{}, e
-		}
-		task.consumer.SetLCores(ealthread.DefaultAllocator.Alloc(LCoreRole_ConsumerRx, socket), ealthread.DefaultAllocator.Alloc(LCoreRole_ConsumerTx, socket))
+// Close App
+func (app *App) Close() error {
+	if app.consumer != nil {
+		app.consumer.Stop()
+		app.consumer.Close()
 	}
 
-	if len(cfg.Files) == 0 {
-		return Task{}, errors.New("yaml: list of file paths empty or not defined")
-	}
-
-	task.files = cfg.Files
-	return task, nil
-}
-
-func (task *Task) ConfigureDemux(demuxI, demuxD, demuxN *iface.InputDemux) {
-	demuxD.InitFirst()
-	demuxN.InitFirst()
-	q := task.consumer.RxQueue()
-	demuxD.SetDest(0, q)
-	demuxN.SetDest(0, q)
-}
-
-func (task *Task) Launch() {
-	if task.consumer != nil {
-		task.consumer.Launch()
-	}
-}
-
-func (task *Task) Close() error {
-	if task.consumer != nil {
-		task.consumer.Stop() // TODO: Check for error
-		task.consumer.Close()
-	}
-	task.Face.Close()
+	app.face.Close()
 	return nil
 }
 
 func (app *App) Run() (e error) {
-	for index, path := range app.task.files {
+	for index, path := range app.files {
 		fmt.Printf("\n--> Copy file [%d]: %s\n", index, path)
-		e = app.task.CopyFileOverNDN(path)
+		e = app.CopyFileOverNDN(path)
 
-		app.task.consumer.ResetCounters()
+		app.consumer.ResetCounters()
 	}
 
-	app.task.Close()
+	app.Close()
 	return nil
 }
 
-func (task *Task) CopyFileOverNDN(path string) (e error) {
-	if task.consumer == nil {
+func (app *App) CopyFileOverNDN(path string) (e error) {
+	if app.consumer == nil {
 		return errors.New("nil consumer")
 	}
 
 	// Get file stat
 	stat := (*C.uint8_t)(C.malloc(C.sizeof_struct_stat))
-	e = task.consumer.FileInfo(path, stat)
+	e = app.consumer.FileInfo(path, stat)
 	if e != nil {
 		return e
 	}
@@ -201,7 +187,7 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 			samplingStart = time.Now()
 		}
 
-		ret, e := task.consumer.Read(path, buf, count, off)
+		ret, e := app.consumer.Read(path, buf, count, off)
 		if e != nil {
 			return e
 		}
@@ -223,17 +209,17 @@ func (task *Task) CopyFileOverNDN(path string) (e error) {
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("--                 TRANSFER FILE REPORT                --\n")
 	fmt.Printf("---------------------------------------------------------\n")
-	fmt.Printf("-- Interest Packets : %d\n", task.consumer.txC.nInterests)
-	fmt.Printf("-- Data Packets     : %d\n", task.consumer.rxC.nData)
-	fmt.Printf("-- Nack Packets     : %d\n", task.consumer.rxC.nNacks)
-	fmt.Printf("-- Errors           : %d\n\n", task.consumer.rxC.nErrors)
+	fmt.Printf("-- Interest Packets : %d\n", app.consumer.txC.nInterests)
+	fmt.Printf("-- Data Packets     : %d\n", app.consumer.rxC.nData)
+	fmt.Printf("-- Nack Packets     : %d\n", app.consumer.rxC.nNacks)
+	fmt.Printf("-- Errors           : %d\n\n", app.consumer.rxC.nErrors)
 	fmt.Printf("-- Maximum Packet size  : %d Bytes\n", C.XRDNDNDPDK_PACKET_SIZE)
 	fmt.Printf("-- Read chunk size      : %d Bytes (%d packets)\n", maxCount, C.CONSUMER_MAX_BURST_SIZE-2)
-	fmt.Printf("-- Bytes transmitted    : %d Bytes\n", task.consumer.rxC.nBytes)
+	fmt.Printf("-- Bytes transmitted    : %d Bytes\n", app.consumer.rxC.nBytes)
 	fmt.Printf("-- Time elapsed         : %s\n\n", elapsed)
 	fmt.Printf("-- Goodput              : %.4f Mbit/s \n", (((float64(pBar.Get())/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("-- Throughput (2nd 1/2) : %.4f Mbit/s \n", (((float64(samplingCount)/1024)/1024)*8)/samplingEnd.Seconds())
-	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(task.consumer.rxC.nBytes)/1024)/1024)*8)/elapsed.Seconds())
+	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(app.consumer.rxC.nBytes)/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("---------------------------------------------------------\n")
 

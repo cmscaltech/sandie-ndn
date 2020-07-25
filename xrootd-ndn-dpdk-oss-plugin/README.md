@@ -1,61 +1,33 @@
 # NDN-DPDK Based Consumer-Producer Application For Copying Files
 
 ## Available support
-At the moment the following system calls are supported: **open**, **fstat**, **read**.
+The consumer application is able to request a list of files to be copied over NDN using Interest packets. The producer is able to respond to Interests sent by consumer by replying with Data packets.
 
 ## Developer Guide
 
-1. Clone [NDN-DPDK](https://github.com/usnistgov/ndn-dpdk) repository at revision: **c1c73f749675c** and follow installation steps
-
-2. Clone repository next to NDN-DPDK one. Your file hierarchy should look like this:
-```bash
-go
-|-- bin
-|-- pkg
-|   [...]
-`-- src
-    |-- [...]
-    |-- ndn-dpdk
-    |	[...]
-    `-- sandie-ndn
-       	|- [...]
-        |-- xrootd-ndn-dpdk-oss-plugin
-        |   |-- xrdndndpdk-common
-        |   |-- xrdndndpdkproducer
-        |   `-- xrdndndpdkproducer-cmd
-        `-- [...]
-```
-
-3. `export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig`
-
-4. `export HADOOP_HOME=<path to Hadoop install dir>`
-
-5. Use [Makefile](./Makefile) to build *producer* and *consumer*
+1. Clone this repository to: **$GOPATH/src/**
+2. Run `cd $GOPATH/src/sandie-ndn/xrootd-ndn-dpdk-oss-plugin && make godeps`. This will download all Go dependencies including [NDN-DPDK git repository](https://github.com/usnistgov/ndn-dpdk)
+3. Go to `$GOPATH/src/github.com/usnistgov/ndn-dpdk` and checkout to revision **654a7ac3589**. Follow the instruction on how to build NDN-DPDK from [official git page](https://github.com/usnistgov/ndn-dpdk). You can also use the [Dockerfile](./docker/Dockerfile) as guidline on how to build NDN-DPDK and all required dependencies on CentOS 8
+4. Run `cd $GOPATH/src/sandie-ndn/xrootd-ndn-dpdk-oss-plugin`
+5. Run `make`. This will build both consumer and producer application into *$GOPATH/bin*
 
 ## Usage
 
-TODO: Configuration for high-troughput (yaml file and hardware/software setup)
-
-### Consumer
-Edit yaml configuration file to specify the path to the file to be copied using *filepath* argument.
+Use [init-config-sample.yaml](./init-config-sample.yaml), [xrdndndpdkconsumer-sample.yaml](./xrdndndpdkconsumer-sample.yaml) and [xrdndndpdkproducer-sample.yaml](./xrdndndpdkproducer-sample.yaml) files in order to run the consumer and producer applications. Example:
 
 ```bash
-./xrdndndpdkconsumer-cmd -w 0000:8f:00.0 -- -initcfg @init-config-client.yaml -initcfgconsumer @xrdndndpdkconsumer-sample.yaml
-```
-
-### Producer
-```bash
-./xrdndndpdkproducer-cmd -w 0000:5e:00.0 -- -initcfg @init-config.yaml -initcfgproducer @xrdndndpdkproducer-sample.yaml
+./xrdndndpdkconsumer-cmd -w 0000:8f:00.0 -- -initcfg @init-config-sample.yaml -initcfgconsumer @xrdndndpdkconsumer-sample.yaml
+./xrdndndpdkproducer-cmd -w 0000:5e:00.0 -- -initcfg @init-config-sample.yaml -initcfgproducer @xrdndndpdkproducer-sample.yaml
 ```
 
 ## Logging
 
 Active different log levels for consumer and producer:
 ```bash
-[]# export LOG_Xrdndndpdkconsumer=D
-[]# export LOG_Xrdndndpdkproducer=D
-[]# export LOG_Xrdndndpdkutils=D
-[]# export LOG_Xrdndndpdkfilesystem=V
+[]# export LOG_Xrdndndpdkconsumer=I
+[]# export LOG_Xrdndndpdkproducer=I
+[]# export LOG_Xrdndndpdkcommon=I
+[]# export LOG_Xrdndndpdkfilesystem=I
 ```
 
 Available log levels:

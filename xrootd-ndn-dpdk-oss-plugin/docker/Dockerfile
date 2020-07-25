@@ -26,7 +26,7 @@ RUN sudo yum -y install CUnit-devel bind-utils vim htop git wget tar rpm-build r
         libfdt numad numactl-devel numactl-libs libpcap-devel libbsd-devel jansson-devel nvme-cli \
         createrepo libaio-devel bzip2-devel libffi-devel pciutils pandoc meson ninja-build libnl3-devel \
         libudev-devel pkgconfig libuuid-devel nasm clang python3-distutils-extra \
-        java-1.8.0-openjdk kernel-devel kernel-headers
+        java-1.8.0-openjdk kernel-devel kernel-headers gdb
 
 RUN sudo pip3 install ninja meson -U
 
@@ -158,17 +158,30 @@ export HADOOP_HOME=${HADOOP_INSTALL}\n\
 export PATH=\$PATH:\${HADOOP_HOME}/bin:\${HADOOP_HOME}/sbin\n\
 export LIBRARY_PATH=\$LIBRARY_PATH:\${HADOOP_HOME}/lib/native:\${JRE_HOME}/lib/amd64/server\n\
 export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:${LD_LIBRARY_PATH}:\$LIBRARY_PATH\n\
-export CLASSPATH=\$CLASSPATH:\$(\${HADOOP_HOME}/bin/hadoop classpath --glob)\
+export CLASSPATH=\$CLASSPATH:\$(\${HADOOP_HOME}/bin/hadoop classpath --glob)\n\
+\n\
+ulimit -u unlimited\
 ' > /etc/profile.d/container.sh"
 
-# Install NDN-DPDK
-WORKDIR ${HOME}/go/src
+# Install SANDIE consumer and producer applications and NDN-DPDK
+ENV HADOOP_HOME=$HADOOP_INSTALL
+ENV LIBRARY_PATH=$LIBRARY_PATH:$HADOOP_HOME/lib/native:$JAVA_HOME/lib/amd64/server
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIBRARY_PATH
+
+RUN mkdir ${GOPATH}/src/github.com/usnistgov
+WORKDIR ${GOPATH}/src/github.com/usnistgov
 RUN git clone https://github.com/usnistgov/ndn-dpdk.git
-WORKDIR ${HOME}/go/src/ndn-dpdk
+WORKDIR ${GOPATH}/src/github.com/usnistgov/ndn-dpdk
 # Use July 16th 2020 commit: 654a7ac3589b02b4adf3683b56767ed63e202423
 RUN git checkout 654a7ac3589b02b4adf3683b56767ed63e202423
 RUN npm install webpack@1.11.0
 RUN npm install
+ENV BPFCC=clang-9
 RUN RELEASE=1 make
 RUN sudo make install
+
+WORKDIR ${GOPATH}/src
+RUN git clone https://github.com/cmscaltech/sandie-ndn.git
+WORKDIR ${GOPATH}/src/sandie-ndn/xrootd-ndn-dpdk-oss-plugin
+RUN make
 WORKDIR ${HOME}

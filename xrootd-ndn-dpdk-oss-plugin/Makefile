@@ -30,7 +30,7 @@ CC 	 := gcc
 CLANG	 := clang++-8
 CFLAGS   := -Werror -Wno-error=deprecated-declarations -m64 -O3 -g -march=native
 CXXFLAGS := -std=c++17 $(CFLAGS)
-INCLUDE  := -I$(rootdir)/../../ -I${HADOOP_HOME}/include
+INCLUDE  := -I${GOPATH}/src/github.com/usnistgov -I${HADOOP_HOME}/include
 
 OBJDIR := obj
 LIBDIR := libs

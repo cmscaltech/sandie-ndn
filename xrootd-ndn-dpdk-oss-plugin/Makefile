@@ -27,7 +27,7 @@ export CGO_CFLAGS_ALLOW := '.*'
 rootdir := $(realpath .)
 
 CC 	 := gcc
-CLANG	 := clang++-8
+CLANG	 := clang++-9
 CFLAGS   := -Werror -Wno-error=deprecated-declarations -m64 -O3 -g -march=native
 CXXFLAGS := -std=c++17 $(CFLAGS)
 INCLUDE  := -I${GOPATH}/src/github.com/usnistgov -I${HADOOP_HOME}/include

@@ -21,7 +21,7 @@
 #include "xrdndndpdk-data.h"
 #include "xrdndndpdk-tlv.h"
 
-INIT_ZF_LOG(Xrdndndpdkutils);
+INIT_ZF_LOG(Xrdndndpdkcommon);
 
 // clang-format off
 static const uint8_t FAKESIG[] = {

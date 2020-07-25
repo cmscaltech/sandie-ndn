@@ -22,7 +22,7 @@
 #include "xrdndndpdk-tlv.h"
 #include "xrdndndpdk-utils.h"
 
-INIT_ZF_LOG(Xrdndndpdkutils);
+INIT_ZF_LOG(Xrdndndpdkcommon);
 
 uint16_t Name_Decode_FilePath(const LName name, uint16_t off, char *filepath) {
     ZF_LOGD("Decode filepath from LName");

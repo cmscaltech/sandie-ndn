@@ -20,7 +20,7 @@
 
 #include "xrdndndpdk-tlv.h"
 
-INIT_ZF_LOG(Xrdndndpdkutils);
+INIT_ZF_LOG(Xrdndndpdkcommon);
 
 uint64_t TlvDecoder_GenericNameComponentLength(const uint8_t *buf,
                                                uint16_t *off) {

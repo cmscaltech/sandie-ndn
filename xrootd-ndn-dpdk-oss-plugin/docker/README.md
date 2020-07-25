@@ -1,11 +1,10 @@
 # NDN Dockerfile
 
-This [Dockerfile](Dockerfile) creates Docker container for NDN-DPDK based [consumer and producer applications](../README.md) for XRootD OSS plugin based on CentOS 8.2.
+This [Dockerfile](Dockerfile) creates Docker container for NDN-DPDK based [consumer and producer applications](../README.md) based on CentOS 8.
 
 ## Build Docker image from Dockerfile
 
 ```bash
-sudo yum update
 sudo docker build . -t sandiendndpdk_docker_img  --network=host
 
 ```

@@ -11,7 +11,7 @@ type InitConfigProducer struct {
 	Producer *ProducerSettings    // If not nil, create a producer on the face
 }
 
-// ProducerSettings  config
+// ProducerSettings config
 type ProducerSettings struct {
 	FreshnessPeriod nnduration.Milliseconds // FreshnessPeriod value
 	RxQueue         iface.PktQueueConfig

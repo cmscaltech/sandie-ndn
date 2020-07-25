@@ -28,7 +28,7 @@ type Input struct {
 }
 
 // New App object instance
-func New(initConfigProducer InitConfigProducer) (app *App, e error) {
+func New(initCfgProducer InitConfigProducer) (app *App, e error) {
 	app = new(App)
 
 	iface.ChooseRxLoop = func(rxg iface.RxGroup) iface.RxLoop {
@@ -47,16 +47,16 @@ func New(initConfigProducer InitConfigProducer) (app *App, e error) {
 		return txl
 	}
 
-	app.face, e = createface.Create(initConfigProducer.Face.Locator)
+	app.face, e = createface.Create(initCfgProducer.Face.Locator)
 	if e != nil {
 		return nil, fmt.Errorf("Face creation error: %v", e)
 	}
 
-	if initConfigProducer.Producer == nil {
+	if initCfgProducer.Producer == nil {
 		return nil, fmt.Errorf("Init config for producer is empty")
 	}
 
-	if app.producer, e = NewProducer(app.face, *initConfigProducer.Producer); e != nil {
+	if app.producer, e = NewProducer(app.face, *initCfgProducer.Producer); e != nil {
 		return nil, e
 	}
 

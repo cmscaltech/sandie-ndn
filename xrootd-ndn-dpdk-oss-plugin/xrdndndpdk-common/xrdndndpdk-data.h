@@ -67,7 +67,7 @@ Data_Encode_AppLvlNack(struct rte_mbuf *m, uint16_t nameL, const uint8_t *nameV,
  */
 void Data_Decode(PContent *content, uint16_t len);
 
-__attribute__((nonnull)) static inline bool
+__attribute__((nonnull)) static __rte_always_inline bool
 Data_IsAppLvlNack(PContent *content) {
     // https://named-data.net/doc/NDN-packet-spec/current/types.html
     return content->type == 0x03;

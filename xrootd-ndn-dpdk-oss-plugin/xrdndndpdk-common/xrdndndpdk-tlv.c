@@ -22,48 +22,26 @@
 
 INIT_ZF_LOG(Xrdndndpdkcommon);
 
-uint16_t TlvDecoder_GenericNameComponentLength(const uint8_t *buf,
-                                               uint16_t *off) {
-    ZF_LOGV("Decode Name component length");
-    uint16_t length = 0;
+/**
+ * @brief Parse TLV-LENGTH number
+ *
+ * @param room Buffer to start of TLV-LENGTH
+ * @param n The number
+ * @return uint16_t The size of n
+ */
+uint16_t TlvDecoder_ReadLength(const uint8_t *room, uint16_t *n) {
+    ZF_LOGV("Read TLV-Length number");
 
-    if (buf[*off] <= 0xFC) {
-        // Length value is encoded in this octet
-        length |= buf[(*off)++];
-    } else if (likely(buf[*off] == 0xFD)) {
-        // Length value is encoded in the following 2 octets
-        rte_be16_t v;
-        rte_memcpy((uint8_t *)&v, &buf[++(*off)], sizeof(uint16_t));
-        length = rte_be_to_cpu_16(v);
-        *off += sizeof(uint16_t);
-
-        assert(length > 0xFC);
-    } else {
-        ZF_LOGF("Length value encoding: %02X not found", buf[*off]);
-        exit(XRDNDNDPDK_EFAILURE);
+    if (room[0] <= 0xFC) {
+        *n = *room;
+        return 1;
+    } else if (likely(room[0] == 0xFD)) {
+        *n = rte_be_to_cpu_16(*(unaligned_uint16_t *)(room + 1));
+        return 3;
     }
 
-    return length;
-}
-
-static __rte_always_inline uint8_t *TlvEncoder_EncodeVarNum(uint8_t *room,
-                                                            uint32_t n) {
-    if (likely(n < 253)) {
-        room[0] = (uint8_t)n;
-        return room + 1;
-    }
-
-    if (likely(n <= UINT16_MAX)) {
-        room[0] = 253;
-        room[1] = (uint8_t)(n >> 8);
-        room[2] = (uint8_t)n;
-        return room + 3;
-    }
-
-    *room++ = 254;
-    rte_be32_t v = rte_cpu_to_be_32((uint32_t)n);
-    rte_memcpy(room, &v, 4);
-    return room + 4;
+    assert(room[0] <= 0xFC || room[0] == 0xFD);
+    return 1;
 }
 
 /**
@@ -88,8 +66,7 @@ static __rte_always_inline uint8_t TlvEncoder_SizeofVarNum(uint32_t n) {
  */
 __attribute__((nonnull)) static __rte_always_inline void
 TlvEncoder_WriteVarNum(uint8_t *room, uint32_t n) {
-    assert(room != NULL);
-    if (likely(n < 0xFD)) {
+    if (likely(n < 0xFD)) { // 253
         room[0] = n;
     } else if (likely(n <= UINT16_MAX)) {
         room[0] = 0xFD;
@@ -102,17 +79,17 @@ TlvEncoder_WriteVarNum(uint8_t *room, uint32_t n) {
     }
 }
 
-uint8_t *TlvEncoder_AppendTLV(struct rte_mbuf *m, uint16_t len) {
+uint8_t *TlvEncoder_Append(struct rte_mbuf *m, uint16_t len) {
     assert(len <= rte_pktmbuf_tailroom(m));
     uint16_t off = m->data_len;
     m->pkt_len = m->data_len = off + len;
     return rte_pktmbuf_mtod_offset(m, uint8_t *, off);
 }
 
-void TlvEncoder_AppendTL(struct rte_mbuf *m, uint32_t n) {
-    uint8_t *room = TlvEncoder_AppendTLV(m, TlvEncoder_SizeofVarNum(n));
+void TlvEncoder_AppendVarNum(struct rte_mbuf *m, uint32_t n) {
+    uint8_t *room = TlvEncoder_Append(m, TlvEncoder_SizeofVarNum(n));
     assert(room != NULL);
-    TlvEncoder_EncodeVarNum(room, n);
+    TlvEncoder_WriteVarNum(room, n);
 }
 
 void TlvEncoder_PrependTL(struct rte_mbuf *m, uint32_t type, uint32_t length) {

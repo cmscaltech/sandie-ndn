@@ -31,7 +31,7 @@
  * @param filepath output
  * @return uint16_t offset to end of filepath in LName
  */
-__attribute__((nonnull)) uint16_t
+__attribute__((nonnull)) inline uint16_t
 Name_Decode_FilePath(const LName name, uint16_t off, char *filepath);
 
 /**
@@ -41,8 +41,8 @@ Name_Decode_FilePath(const LName name, uint16_t off, char *filepath);
  * @param off Offset to the first Name component of filepath; skip prefix
  * @return uint16_t Filepath encoded length
  */
-__attribute__((nonnull)) uint16_t Name_Decode_FilePathLength(const LName name,
-                                                             uint16_t off);
+__attribute__((nonnull)) inline uint16_t
+Name_Decode_FilePathLength(const LName name, uint16_t off);
 
 /**
  * @brief Decode packet type from LName
@@ -50,6 +50,7 @@ __attribute__((nonnull)) uint16_t Name_Decode_FilePathLength(const LName name,
  * @param name Packet Name
  * @return PacketType Packet type
  */
-__attribute__((nonnull)) PacketType Name_Decode_PacketType(const LName name);
+__attribute__((nonnull)) __rte_always_inline PacketType
+Name_Decode_PacketType(const LName name);
 
 #endif // XRDNDNDPDK_NAME_H

@@ -23,11 +23,11 @@
 
 #include "xrdndndpdk-utils.h"
 
-__attribute__((nonnull)) uint16_t
-TlvDecoder_GenericNameComponentLength(const uint8_t *buf, uint16_t *off);
+__attribute__((nonnull)) uint16_t TlvDecoder_ReadLength(const uint8_t *room,
+                                                        uint16_t *n);
 
-__attribute__((nonnull)) uint8_t *TlvEncoder_AppendTLV(struct rte_mbuf *m,
-                                                       uint16_t len);
+__attribute__((nonnull)) uint8_t *TlvEncoder_Append(struct rte_mbuf *m,
+                                                    uint16_t len);
 
 /**
  * @brief Append a TLV-TYPE or TLV-LENGTH number
@@ -35,8 +35,8 @@ __attribute__((nonnull)) uint8_t *TlvEncoder_AppendTLV(struct rte_mbuf *m,
  * @param m Buffer to append number
  * @param n Number to append
  */
-__attribute__((nonnull)) void TlvEncoder_AppendTL(struct rte_mbuf *m,
-                                                  uint32_t n);
+__attribute__((nonnull)) void TlvEncoder_AppendVarNum(struct rte_mbuf *m,
+                                                      uint32_t n);
 
 /**
  * @brief Prepend TLV-TYPE and TLV-LENGTH to mbuf.

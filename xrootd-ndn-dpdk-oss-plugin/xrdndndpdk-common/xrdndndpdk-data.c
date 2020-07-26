@@ -42,8 +42,8 @@ void *Data_Encode_(struct rte_mbuf *m, uint16_t nameL, const uint8_t *nameV,
 
     { // Name
         assert(nameL > 0);
-        TlvEncoder_AppendTL(m, TtName);
-        TlvEncoder_AppendTL(m, nameL);
+        TlvEncoder_AppendVarNum(m, TtName);
+        TlvEncoder_AppendVarNum(m, nameL);
         rte_memcpy(rte_pktmbuf_append(m, nameL), nameV, nameL);
     }
 
@@ -59,7 +59,7 @@ void *Data_Encode_(struct rte_mbuf *m, uint16_t nameL, const uint8_t *nameV,
             rte_be32_t freshnessPeriodV;
         } __rte_packed MetaInfoF;
 
-        MetaInfoF *f = (MetaInfoF *)TlvEncoder_AppendTLV(m, sizeof(MetaInfoF));
+        MetaInfoF *f = (MetaInfoF *)TlvEncoder_Append(m, sizeof(MetaInfoF));
         f->metaInfoT = TtMetaInfo;
         f->metaInfoL = 9;
 
@@ -77,8 +77,8 @@ void *Data_Encode_(struct rte_mbuf *m, uint16_t nameL, const uint8_t *nameV,
 
     { // Content
         if (contentL != 0) {
-            TlvEncoder_AppendTL(m, TtContent);
-            TlvEncoder_AppendTL(m, contentL);
+            TlvEncoder_AppendVarNum(m, TtContent);
+            TlvEncoder_AppendVarNum(m, contentL);
             rte_memcpy(rte_pktmbuf_append(m, contentL), contentV, contentL);
         }
     }
@@ -98,7 +98,6 @@ void Data_Decode(PContent *content, uint16_t len) {
     assert(content->payload[0] == TtData);
 
     uint8_t type = 0;
-    uint16_t length = 0;
     uint16_t offset = 0;
 
     while (offset < len) {
@@ -106,21 +105,22 @@ void Data_Decode(PContent *content, uint16_t len) {
         assert(type == TtData || type == TtName || type == TtMetaInfo ||
                type == TtContent);
 
-        length =
-            TlvDecoder_GenericNameComponentLength(content->payload, &offset);
+        uint16_t length = 0;
+        offset += TlvDecoder_ReadLength(&content->payload[offset], &length);
 
         if (type == TtMetaInfo) {
             assert(content->payload[offset] == 0x18);
             content->type = content->payload[offset + 2];
         }
 
-        if (type == TtContent)
+        if (type == TtContent) {
+            content->length = length;
             break; // Found Content in packet
+        }
         if (type != TtData) {
             offset += length; // Skip this type's length until Content
         }
     }
 
-    content->length = length;
     content->offset = offset;
 }

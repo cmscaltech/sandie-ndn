@@ -30,8 +30,17 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
 
     const LName *name = (const LName *)&Packet_GetDataHdr(npkt)->name;
 
-    // TODO: Check content type Nack and go to nack callback
-    // Need to implement encode and decode for MetaInfo ContentType
+    if (unlikely(Data_IsAppLvlNack(content))) {
+        uint64_t err = 0;
+        Nni_Decode(content->length, &(content->payload[content->offset]), &err);
+
+        ZF_LOGW("Received Application-Level Nack with content: %" PRIu64, err);
+
+        rte_free(content->payload);
+        rte_free(content);
+        cr->onError(err);
+        return;
+    }
 
     PacketType pt = Name_Decode_PacketType(*name);
 
@@ -46,20 +55,14 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
 
         cr->onContent(content, segNum);
     } else if (PACKET_FILEINFO == pt) {
-        ZF_LOGD("Return FILEINFO content of size: %" PRIu64, content->length);
-
-        if (content->length <= sizeof(uint64_t)) {
-            cr->onError(XRDNDNDPDK_EFAILURE);
-        } else {
-            cr->onContent(content, 0);
-        }
+        ZF_LOGD("Return FILEINFO content of size: %" PRIu16, content->length);
+        cr->onContent(content, 0);
     }
 }
 
 static void ConsumerRx_processNackPacket(ConsumerRx *cr, Packet *npkt) {
     ZF_LOGD("Process new Nack packet");
     ++cr->nNacks;
-
     cr->onError(XRDNDNDPDK_EFAILURE);
 }
 
@@ -92,7 +95,6 @@ static void ConsumerRx_processDataPacket(ConsumerRx *cr, Packet *npkt) {
 
     Data_Decode(content, length);
     ConsumerRx_processContent(cr, npkt, content);
-
     ++cr->nData;
 }
 

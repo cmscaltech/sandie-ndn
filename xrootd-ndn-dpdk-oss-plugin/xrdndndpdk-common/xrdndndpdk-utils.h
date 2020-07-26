@@ -34,7 +34,7 @@
 
 __attribute__((unused)) static void copyFromC(uint8_t *dst, uint16_t dst_off,
                                               uint8_t *src, uint16_t src_off,
-                                              uint64_t count) {
+                                              uint16_t count) {
     memcpy(&dst[dst_off], &src[src_off], count);
 }
 

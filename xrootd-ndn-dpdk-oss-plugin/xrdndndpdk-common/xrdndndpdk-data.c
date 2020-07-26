@@ -98,7 +98,7 @@ void Data_Decode(PContent *content, uint16_t len) {
     assert(content->payload[0] == TtData);
 
     uint8_t type = 0;
-    uint64_t length = 0;
+    uint16_t length = 0;
     uint16_t offset = 0;
 
     while (offset < len) {

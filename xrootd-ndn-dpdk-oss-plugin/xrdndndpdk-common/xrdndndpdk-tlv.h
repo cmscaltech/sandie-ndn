@@ -23,7 +23,7 @@
 
 #include "xrdndndpdk-utils.h"
 
-__attribute__((nonnull)) uint64_t
+__attribute__((nonnull)) uint16_t
 TlvDecoder_GenericNameComponentLength(const uint8_t *buf, uint16_t *off);
 
 __attribute__((nonnull)) uint8_t *TlvEncoder_AppendTLV(struct rte_mbuf *m,

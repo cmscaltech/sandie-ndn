@@ -22,15 +22,15 @@
 
 INIT_ZF_LOG(Xrdndndpdkcommon);
 
-uint64_t TlvDecoder_GenericNameComponentLength(const uint8_t *buf,
+uint16_t TlvDecoder_GenericNameComponentLength(const uint8_t *buf,
                                                uint16_t *off) {
     ZF_LOGV("Decode Name component length");
-    uint64_t length = 0;
+    uint16_t length = 0;
 
     if (buf[*off] <= 0xFC) {
         // Length value is encoded in this octet
         length |= buf[(*off)++];
-    } else if (buf[*off] == 0xFD) {
+    } else if (likely(buf[*off] == 0xFD)) {
         // Length value is encoded in the following 2 octets
         rte_be16_t v;
         rte_memcpy((uint8_t *)&v, &buf[++(*off)], sizeof(uint16_t));
@@ -38,22 +38,6 @@ uint64_t TlvDecoder_GenericNameComponentLength(const uint8_t *buf,
         *off += sizeof(uint16_t);
 
         assert(length > 0xFC);
-    } else if (buf[*off] == 0xFE) {
-        // Length value is encoded in the following 4 octets
-        rte_be32_t v;
-        rte_memcpy((uint8_t *)&v, &buf[++(*off)], sizeof(uint32_t));
-        length = rte_be_to_cpu_32(v);
-        *off += sizeof(uint32_t);
-
-        assert(length > 0xFFFF);
-    } else if (buf[*off] == 0xFF) {
-        // Length value is encoded in the following 8 octets
-        rte_be64_t v;
-        rte_memcpy((uint8_t *)&v, &buf[++(*off)], sizeof(uint64_t));
-        length = rte_be_to_cpu_64(v);
-        *off += sizeof(uint64_t);
-
-        assert(length > 0xFFFFFFFF);
     } else {
         ZF_LOGF("Length value encoding: %02X not found", buf[*off]);
         exit(XRDNDNDPDK_EFAILURE);

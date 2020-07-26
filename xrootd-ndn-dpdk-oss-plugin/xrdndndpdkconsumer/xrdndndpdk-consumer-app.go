@@ -122,12 +122,14 @@ func (app *App) Close() error {
 	return nil
 }
 
+// Run App
 func (app *App) Run() (e error) {
 	for index, path := range app.files {
 		fmt.Printf("\n--> Copy file [%d]: %s\n", index, path)
-		e = app.CopyFileOverNDN(path)
-
-		app.consumer.ResetCounters()
+		if e = app.CopyFileOverNDN(path); e != nil {
+			fmt.Println(e)
+			continue
+		}
 	}
 
 	app.Close()
@@ -138,6 +140,8 @@ func (app *App) CopyFileOverNDN(path string) (e error) {
 	if app.consumer == nil {
 		return errors.New("nil consumer")
 	}
+
+	app.consumer.ResetCounters()
 
 	// Get file stat
 	stat := (*C.uint8_t)(C.malloc(C.sizeof_struct_stat))

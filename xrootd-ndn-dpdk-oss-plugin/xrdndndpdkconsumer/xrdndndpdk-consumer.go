@@ -186,7 +186,7 @@ func (consumer *Consumer) FileInfo(pathname string, buf *C.uint8_t) error {
 
 	m := <-messages
 	if m.isError {
-		return fmt.Errorf("Unable to get fileinfo for file: %s", pathname)
+		return fmt.Errorf("Return error code %d for fileinfo on file: %s", m.intValue, pathname)
 	}
 
 	defer C.rte_free(unsafe.Pointer(m.content.payload))
@@ -206,13 +206,13 @@ func (consumer *Consumer) Read(pathname string, buf *C.uint8_t,
 		m := <-messages
 
 		if m.isError {
-			return nbytes, fmt.Errorf("File offset read")
+			return nbytes, fmt.Errorf("Return error code %d for read on file: %s", m.intValue, pathname)
 		}
 
-		nbytes += m.content.length
+		nbytes += C.uint64_t(m.content.length)
 
-		defer C.rte_free(unsafe.Pointer(m.content.payload))
-		defer C.rte_free(unsafe.Pointer(m.content))
+		C.rte_free(unsafe.Pointer(m.content.payload))
+		C.rte_free(unsafe.Pointer(m.content))
 
 		// SC19: Don't copy content from C to Go Memory. We don't need to save file
 		// C.copyFromC(buf, C.uint16_t((m.off-off)/C.XRDNDNDPDK_PACKET_SIZE), m.content.payload, m.content.offset, m.content.length)

@@ -52,14 +52,32 @@ static Packet *Producer_EncodeData(Producer *producer, Packet *npkt,
     return response;
 }
 
-static Packet *Producer_EncodeNniData(Producer *producer, Packet *npkt,
-                                      uint64_t content) {
-    ZF_LOGD("Encode Non-Negative Integer Data packet with content: %" PRIu64,
-            content);
+static Packet *Producer_EncodeDataAsError(Producer *producer, Packet *npkt,
+                                          uint64_t content) {
+    ZF_LOGI("Encode Application-Level Nack with content: %" PRIu64, content);
 
-    uint8_t v[8];
-    int len = Nni_Encode(&v[0], content);
-    return Producer_EncodeData(producer, npkt, len, &v[0]);
+    uint64_t token = Packet_GetLpL3Hdr(npkt)->pitToken;
+    const LName *name = (const LName *)&Packet_GetInterestHdr(npkt)->name;
+
+    struct rte_mbuf *pkt = rte_pktmbuf_alloc(producer->dataMp);
+    if (unlikely(pkt == NULL)) {
+        ZF_LOGW("dataMp-full");
+        rte_pktmbuf_free(Packet_ToMbuf(npkt));
+        return NULL;
+    }
+
+    uint8_t err[8];
+    int length = Nni_Encode(&err[0], content);
+    Data_Encode_AppLvlNack(pkt, name->length, name->value, 0, length, &err[0]);
+
+    rte_pktmbuf_free(Packet_ToMbuf(npkt));
+
+    Packet *response = Packet_FromMbuf(pkt);
+    Packet_SetType(response, PktSData);
+    *Packet_GetLpL3Hdr(response) = (const LpL3){0};
+    Packet_GetLpL3Hdr(response)->pitToken = token;
+
+    return response;
 }
 
 static Packet *Producer_OnFileInfoInterest(Producer *producer, Packet *npkt,
@@ -70,21 +88,29 @@ static Packet *Producer_OnFileInfoInterest(Producer *producer, Packet *npkt,
                          pathname);
 
     ZF_LOGI("On FILEINFO Interest for file: %s", pathname);
+    {
+        int err = libfs_open(producer->fs, pathname);
+        if (err != XRDNDNDPDK_ESUCCESS) {
+            rte_free(pathname);
+            return Producer_EncodeDataAsError(producer, npkt, err);
+        }
+    }
 
     struct stat *statbuf =
         (struct stat *)rte_malloc(NULL, sizeof(struct stat), 0);
-
-    if (libfs_open(producer->fs, pathname) != XRDNDNDPDK_ESUCCESS) {
-        goto returnFailure;
-    }
-
     if (unlikely(NULL == statbuf)) {
-        ZF_LOGF("Not enough memory");
-        goto returnFailure;
+        ZF_LOGF("Not enough memory to alloc struct stat");
+        rte_free(pathname);
+        return Producer_EncodeDataAsError(producer, npkt, XRDNDNDPDK_EFAILURE);
     }
 
-    if (libfs_fstat(producer->fs, pathname, statbuf) != XRDNDNDPDK_ESUCCESS) {
-        goto returnFailure;
+    {
+        int err = libfs_fstat(producer->fs, pathname, statbuf);
+        if (err != XRDNDNDPDK_ESUCCESS) {
+            rte_free(statbuf);
+            rte_free(pathname);
+            return Producer_EncodeDataAsError(producer, npkt, err);
+        }
     }
 
     Packet *pkt = Producer_EncodeData(producer, npkt, sizeof(struct stat),
@@ -92,11 +118,6 @@ static Packet *Producer_OnFileInfoInterest(Producer *producer, Packet *npkt,
     rte_free(statbuf);
     rte_free(pathname);
     return pkt;
-
-returnFailure:
-    rte_free(statbuf);
-    rte_free(pathname);
-    return Producer_EncodeNniData(producer, npkt, XRDNDNDPDK_EFAILURE);
 }
 
 static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
@@ -112,8 +133,10 @@ static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
 
     void *buf = rte_malloc(NULL, sizeof(uint8_t) * XRDNDNDPDK_PACKET_SIZE, 0);
     if (unlikely(NULL == buf)) {
-        ZF_LOGF("Not enough memory");
-        goto returnFailure;
+        ZF_LOGF("Not enough memory to alloc read buffer of size %d",
+                XRDNDNDPDK_PACKET_SIZE);
+        rte_free(pathname);
+        return Producer_EncodeDataAsError(producer, npkt, XRDNDNDPDK_EFAILURE);
     }
 
     assert(segNumComp[0] == TtSegmentNameComponent);
@@ -126,7 +149,7 @@ static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
     if (unlikely(readRetCode < 0)) {
         rte_free(buf);
         rte_free(pathname);
-        return Producer_EncodeNniData(producer, npkt, -readRetCode);
+        return Producer_EncodeDataAsError(producer, npkt, -readRetCode);
     }
 
     Packet *pkt =
@@ -134,11 +157,6 @@ static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
     rte_free(buf);
     rte_free(pathname);
     return pkt;
-
-returnFailure:
-    rte_free(buf);
-    rte_free(pathname);
-    return Producer_EncodeNniData(producer, npkt, XRDNDNDPDK_EFAILURE);
 }
 
 typedef Packet *(*OnInterest)(Producer *producer, Packet *npkt,

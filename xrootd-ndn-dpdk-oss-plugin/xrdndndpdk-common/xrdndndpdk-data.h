@@ -29,7 +29,7 @@
  */
 typedef struct PContent {
     uint8_t type;     // Content Type Value
-    uint64_t length;  // Content Length Value
+    uint16_t length;  // Content Length Value
     uint16_t offset;  // Content offset in Data packet
     uint8_t *payload; // Payload from Data packet
 } PContent;
@@ -49,9 +49,9 @@ Data_Encode(struct rte_mbuf *m, uint16_t nameL, const uint8_t *nameV,
 }
 
 __attribute__((nonnull)) static inline void *
-Data_Encode_AppLNack(struct rte_mbuf *m, uint16_t nameL, const uint8_t *nameV,
-                     uint32_t freshnessPeriod, uint16_t contentL,
-                     const uint8_t *contentV) {
+Data_Encode_AppLvlNack(struct rte_mbuf *m, uint16_t nameL, const uint8_t *nameV,
+                       uint32_t freshnessPeriod, uint16_t contentL,
+                       const uint8_t *contentV) {
     // ContentType 0x03 (Application-level Nack)
     // https://named-data.net/doc/NDN-packet-spec/current/types.html
     return Data_Encode_(m, nameL, nameV, 0x03, freshnessPeriod, contentL,
@@ -67,7 +67,8 @@ Data_Encode_AppLNack(struct rte_mbuf *m, uint16_t nameL, const uint8_t *nameV,
  */
 void Data_Decode(PContent *content, uint16_t len);
 
-__attribute__((nonnull)) static inline bool Data_IsAppLNack(PContent *content) {
+__attribute__((nonnull)) static inline bool
+Data_IsAppLvlNack(PContent *content) {
     // https://named-data.net/doc/NDN-packet-spec/current/types.html
     return content->type == 0x03;
 }

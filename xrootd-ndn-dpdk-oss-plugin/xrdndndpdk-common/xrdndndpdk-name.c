@@ -30,7 +30,7 @@ uint16_t Name_Decode_FilePath(const LName name, uint16_t off, char *filepath) {
 
     while (name.value[off] == TtGenericNameComponent && off < name.length) {
         ++off; // skip Type
-        uint64_t length = TlvDecoder_GenericNameComponentLength(
+        uint16_t length = TlvDecoder_GenericNameComponentLength(
             name.value, &off); // get Length
         strcat(filepath, "/");
         strncat(filepath, &name.value[off], length); // store Value
@@ -45,7 +45,7 @@ uint16_t Name_Decode_FilePathLength(const LName name, uint16_t off) {
 
     while (name.value[off] == TtGenericNameComponent && off < name.length) {
         ++off;
-        uint64_t length =
+        uint16_t length =
             TlvDecoder_GenericNameComponentLength(name.value, &off);
         off += length;
     }

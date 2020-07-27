@@ -29,15 +29,15 @@ type Consumer struct {
 	txC *C.ConsumerTx
 }
 
-type Message struct {
-	isError  bool // Nack Packet, Application Level Nack
-	intValue C.uint64_t
-
-	off     C.uint64_t
-	content *C.struct_PContent
+// MessageRx struct between Go and C (Rx Thread/s)
+type MessageRx struct {
+	Error      bool
+	ErrorCode  C.uint64_t
+	SegmentNum C.uint64_t
+	Content    *C.struct_PContent
 }
 
-var messages chan Message
+var messagesRx chan MessageRx
 
 func newConsumer(face iface.Face, settings ConsumerSettings) (*Consumer, error) {
 	socket := face.NumaSocket()
@@ -79,7 +79,7 @@ func newConsumer(face iface.Face, settings ConsumerSettings) (*Consumer, error) 
 	}
 	consumer.txC.requestQueue = (*C.struct_rte_ring)(requestQueue.Ptr())
 
-	messages = make(chan Message)
+	messagesRx = make(chan MessageRx)
 	return &consumer, nil
 }
 
@@ -184,15 +184,15 @@ func (consumer *Consumer) RequestData(pathname string, buf *C.uint8_t,
 func (consumer *Consumer) FileInfo(pathname string, buf *C.uint8_t) error {
 	consumer.RequestData(pathname, buf, C.uint64_t(0), C.uint64_t(0), C.PACKET_FILEINFO)
 
-	m := <-messages
-	if m.isError {
-		return fmt.Errorf("Return error code %d for fileinfo on file: %s", m.intValue, pathname)
+	m := <-messagesRx
+	if m.Error {
+		return fmt.Errorf("Return error code %d for fileinfo on file: %s", m.ErrorCode, pathname)
 	}
 
-	defer C.rte_free(unsafe.Pointer(m.content.payload))
-	defer C.rte_free(unsafe.Pointer(m.content))
+	defer C.rte_free(unsafe.Pointer(m.Content.payload))
+	defer C.rte_free(unsafe.Pointer(m.Content))
 
-	C.copyFromC(buf, 0, m.content.payload, m.content.offset, m.content.length)
+	C.copyFromC(buf, 0, m.Content.contentV, 0, m.Content.contentL)
 	return nil
 }
 
@@ -203,34 +203,34 @@ func (consumer *Consumer) Read(pathname string, buf *C.uint8_t,
 
 	nbytes = 0
 	for i := C.uint16_t(0); i < n; i++ {
-		m := <-messages
+		m := <-messagesRx
 
-		if m.isError {
-			return nbytes, fmt.Errorf("Return error code %d for read on file: %s", m.intValue, pathname)
+		if m.Error {
+			return nbytes, fmt.Errorf("Return error code %d for read on file: %s", m.ErrorCode, pathname)
 		}
 
-		nbytes += C.uint64_t(m.content.length)
+		nbytes += C.uint64_t(m.Content.contentL)
 
-		C.rte_free(unsafe.Pointer(m.content.payload))
-		C.rte_free(unsafe.Pointer(m.content))
+		C.rte_free(unsafe.Pointer(m.Content.payload))
+		C.rte_free(unsafe.Pointer(m.Content))
 
 		// SC19: Don't copy content from C to Go Memory. We don't need to save file
-		// C.copyFromC(buf, C.uint16_t((m.off-off)/C.XRDNDNDPDK_PACKET_SIZE), m.content.payload, m.content.offset, m.content.length)
+		// C.copyFromC(buf, C.uint16_t((m.SegmentNum-off)/C.XRDNDNDPDK_PACKET_SIZE), m.Content.contentV, 0, m.Content.contentL)
 	}
 
 	return nbytes, nil
 }
 
 //export onContentCallback_Go
-func onContentCallback_Go(content *C.struct_PContent, off C.uint64_t) {
-	go func(channel chan<- Message) {
-		channel <- Message{false, C.XRDNDNDPDK_ESUCCESS, off, content}
-	}(messages)
+func onContentCallback_Go(content *C.struct_PContent, segmentNum C.uint64_t) {
+	go func(channel chan<- MessageRx) {
+		channel <- MessageRx{false, C.XRDNDNDPDK_ESUCCESS, segmentNum, content}
+	}(messagesRx)
 }
 
 //export onErrorCallback_Go
 func onErrorCallback_Go(errorCode C.uint64_t) {
-	go func(channel chan<- Message) {
-		channel <- Message{true, errorCode, 0, nil}
-	}(messages)
+	go func(channel chan<- MessageRx) {
+		channel <- MessageRx{true, errorCode, 0, nil}
+	}(messagesRx)
 }

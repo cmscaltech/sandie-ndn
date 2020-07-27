@@ -24,24 +24,22 @@
 
 INIT_ZF_LOG(Xrdndndpdkconsumer);
 
-static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
-                                      PContent *content) {
+__attribute__((nonnull)) static void
+ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt, PContent *content) {
     ZF_LOGD("Process Content from Data packet");
-
-    const LName *name = (const LName *)&Packet_GetDataHdr(npkt)->name;
 
     if (unlikely(Data_IsAppLvlNack(content))) {
         uint64_t err = 0;
-        Nni_Decode(content->length, &(content->payload[content->offset]), &err);
+        Nni_Decode(content->contentL, content->contentV, &err);
 
         ZF_LOGW("Received Application-Level Nack with content: %" PRIu64, err);
-
         rte_free(content->payload);
         rte_free(content);
         cr->onError(err);
         return;
     }
 
+    const LName *name = (const LName *)&Packet_GetDataHdr(npkt)->name;
     PacketType pt = Name_Decode_PacketType(*name);
 
     if (likely(PACKET_READ == pt)) {
@@ -55,47 +53,34 @@ static void ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt,
 
         cr->onContent(content, segNum);
     } else if (PACKET_FILEINFO == pt) {
-        ZF_LOGD("Return FILEINFO content of size: %" PRIu16, content->length);
+        ZF_LOGD("Return FILEINFO content of size: %" PRIu16, content->contentL);
         cr->onContent(content, 0);
     }
 }
 
-static void ConsumerRx_processNackPacket(ConsumerRx *cr, Packet *npkt) {
+__attribute__((nonnull)) static void
+ConsumerRx_processNackPacket(ConsumerRx *cr, Packet *npkt) {
     ZF_LOGD("Process new Nack packet");
     ++cr->nNacks;
     cr->onError(XRDNDNDPDK_EFAILURE);
 }
 
-static void ConsumerRx_processDataPacket(ConsumerRx *cr, Packet *npkt) {
+__attribute__((nonnull)) static void
+ConsumerRx_processDataPacket(ConsumerRx *cr, Packet *npkt) {
     ZF_LOGD("Process new Data packet");
 
     struct rte_mbuf *pkt = Packet_ToMbuf(npkt);
-    int32_t length = pkt->pkt_len;
-    if (pkt->pkt_len == 0) {
-        ZF_LOGE("Received packet with no payload");
-        ++cr->nErrors;
-        cr->onError(XRDNDNDPDK_EFAILURE);
-        return;
-    }
-
-    // Higher level application needs to free the memory
+    // Higher level application needs to free this memory
     PContent *content = rte_malloc(NULL, sizeof(PContent), 0);
-    content->payload = rte_malloc(NULL, length, 0);
+    content->payload = rte_malloc(NULL, pkt->pkt_len, 0);
+    Mbuf_CopyTo(pkt, content->payload);
 
-    ZF_LOGD("Received packet with length: %d", length);
-    cr->nBytes += length;
-
-    // Composing payload from all nb_segs
-    for (int offset = 0; NULL != pkt;) {
-        rte_memcpy(&content->payload[offset], rte_pktmbuf_mtod(pkt, uint8_t *),
-                   pkt->data_len);
-        offset += pkt->data_len;
-        pkt = pkt->next;
-    }
-
-    Data_Decode(content, length);
-    ConsumerRx_processContent(cr, npkt, content);
+    // Update counters
+    cr->nBytes += pkt->pkt_len;
     ++cr->nData;
+
+    Data_Decode(content, pkt->pkt_len);
+    ConsumerRx_processContent(cr, npkt, content);
 }
 
 void ConsumerRx_resetCounters(ConsumerRx *cr) {

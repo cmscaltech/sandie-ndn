@@ -28,10 +28,11 @@
  *
  */
 typedef struct PContent {
-    uint8_t type;     // Content Type Value
-    uint16_t length;  // Content Length Value
-    uint16_t offset;  // Content offset in Data packet
-    uint8_t *payload; // Payload from Data packet
+    uint8_t contentT;  // TLV-TYPE
+    uint16_t contentL; // TLV-LENGTH
+    uint8_t *contentV; // TLV-VALUE
+
+    uint8_t *payload; // Pointer to the entire content of Data Packet
 } PContent;
 
 void *Data_Encode_(struct rte_mbuf *m, uint16_t nameL, const uint8_t *nameV,
@@ -70,7 +71,7 @@ void Data_Decode(PContent *content, uint16_t len);
 __attribute__((nonnull)) static __rte_always_inline bool
 Data_IsAppLvlNack(PContent *content) {
     // https://named-data.net/doc/NDN-packet-spec/current/types.html
-    return content->type == 0x03;
+    return content->contentT == 0x03;
 }
 
 #endif // XRDNDNDPDK_DATA_H

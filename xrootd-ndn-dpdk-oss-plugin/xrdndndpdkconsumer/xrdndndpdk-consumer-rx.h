@@ -30,7 +30,7 @@
 typedef void (*onContentCallback)(struct PContent *, uint64_t);
 typedef void (*onErrorCallback)(uint64_t);
 
-void onContentCallback_Go(struct PContent *content, uint64_t off);
+void onContentCallback_Go(struct PContent *content, uint64_t segmentNum);
 void onErrorCallback_Go(uint64_t errorCode);
 
 /**
@@ -49,10 +49,11 @@ typedef struct ConsumerRx {
     onErrorCallback onError;
 } ConsumerRx;
 
-void ConsumerRx_resetCounters(ConsumerRx *cr);
+__attribute__((nonnull)) void ConsumerRx_resetCounters(ConsumerRx *cr);
 __attribute__((nonnull)) int ConsumerRx_Run(ConsumerRx *cr);
 
-inline void registerRxCallbacks(ConsumerRx *cr) {
+__attribute__((unused, nonnull)) static void
+registerRxCallbacks(ConsumerRx *cr) {
     cr->onContent = onContentCallback_Go;
     cr->onError = onErrorCallback_Go;
 }

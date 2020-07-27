@@ -97,11 +97,9 @@ void Data_Decode(PContent *content, uint16_t len) {
     ZF_LOGD("Decode Content from Packet");
     assert(content->payload[0] == TtData);
 
-    uint8_t type = 0;
     uint16_t offset = 0;
-
     while (offset < len) {
-        type = content->payload[offset++];
+        uint8_t type = content->payload[offset++];
         assert(type == TtData || type == TtName || type == TtMetaInfo ||
                type == TtContent);
 
@@ -110,17 +108,20 @@ void Data_Decode(PContent *content, uint16_t len) {
 
         if (type == TtMetaInfo) {
             assert(content->payload[offset] == 0x18);
-            content->type = content->payload[offset + 2];
+            content->contentT = content->payload[offset + 2];
         }
 
         if (type == TtContent) {
-            content->length = length;
-            break; // Found Content in packet
+            content->contentT = 0x0;                       // Type
+            content->contentL = length;                    // Length
+            content->contentV = &content->payload[offset]; // Value
+            return;
         }
         if (type != TtData) {
             offset += length; // Skip this type's length until Content
         }
     }
 
-    content->offset = offset;
+    content->contentL = 0;
+    assert(false);
 }

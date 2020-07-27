@@ -24,10 +24,10 @@
 #include <stdint.h>
 
 /**
- * @brief Data packet size
+ * @brief Maximum Data packet payload size
  *
  */
-#define XRDNDNDPDK_PACKET_SIZE 7168
+#define XRDNDNDPDK_MAX_PAYLOAD_SIZE 6144
 
 /**
  * @brief Maximum Name length
@@ -36,10 +36,16 @@
 #define XRDNDNDPDK_MAX_NAME_SIZE 2048
 
 /**
- * @brief Consumer maximum burst size
+ * @brief Consumer RX thread maximum burst size
  *
  */
-#define CONSUMER_MAX_BURST_SIZE 256
+#define CONSUMER_RX_MAX_BURST_SIZE 128
+
+/**
+ * @brief Consumer TX thread maximum burst size
+ *
+ */
+#define CONSUMER_TX_MAX_BURST_SIZE 64
 
 /**
  * @brief Producer maximum burst size

@@ -131,10 +131,11 @@ static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
 
     ZF_LOGV("On READ Interest for file: %s", pathname);
 
-    void *buf = rte_malloc(NULL, sizeof(uint8_t) * XRDNDNDPDK_PACKET_SIZE, 0);
+    void *buf =
+        rte_malloc(NULL, sizeof(uint8_t) * XRDNDNDPDK_MAX_PAYLOAD_SIZE, 0);
     if (unlikely(NULL == buf)) {
         ZF_LOGF("Not enough memory to alloc read buffer of size %d",
-                XRDNDNDPDK_PACKET_SIZE);
+                XRDNDNDPDK_MAX_PAYLOAD_SIZE);
         rte_free(pathname);
         return Producer_EncodeDataAsError(producer, npkt, XRDNDNDPDK_EFAILURE);
     }
@@ -143,8 +144,8 @@ static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
     uint64_t segNum = 0;
     Nni_Decode(segNumComp[1], RTE_PTR_ADD(segNumComp, 2), &segNum);
 
-    int readRetCode =
-        libfs_read(producer->fs, pathname, buf, XRDNDNDPDK_PACKET_SIZE, segNum);
+    int readRetCode = libfs_read(producer->fs, pathname, buf,
+                                 XRDNDNDPDK_MAX_PAYLOAD_SIZE, segNum);
 
     if (unlikely(readRetCode < 0)) {
         rte_free(buf);

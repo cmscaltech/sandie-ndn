@@ -165,24 +165,26 @@ func (consumer *Consumer) ResetCounters() {
 }
 
 // RequestData over NDN
-func (consumer *Consumer) RequestData(pathname string, buf *C.uint8_t,
-	count C.uint64_t, off C.uint64_t, pt C.PacketType) (n C.uint16_t) {
+func (consumer *Consumer) RequestData(pathname string, len C.uint64_t,
+	off C.uint64_t, pt C.PacketType) (n C.uint16_t) {
 	name := ndn.ParseName(pathname)
 	nameV, _ := name.MarshalBinary()
 
 	var req C.ConsumerTxRequest
 	req.nameL = C.uint16_t(copy(cptr.AsByteSlice(&req.nameV), nameV))
 	req.pt = pt
-	req.npkts = C.uint16_t(C.ceil(C.double(count) / C.double(C.XRDNDNDPDK_PACKET_SIZE)))
+
+	n = C.uint16_t(C.ceil(C.double(len) / C.double(C.XRDNDNDPDK_MAX_PAYLOAD_SIZE)))
+	req.npkts = n
 	req.off = off
 
 	C.rte_ring_enqueue(consumer.txC.requestQueue, (unsafe.Pointer)(&req))
-	return req.npkts
+	return n
 }
 
 // FileInfo file
 func (consumer *Consumer) FileInfo(pathname string, buf *C.uint8_t) error {
-	consumer.RequestData(pathname, buf, C.uint64_t(0), C.uint64_t(0), C.PACKET_FILEINFO)
+	consumer.RequestData(pathname, C.uint64_t(0), C.uint64_t(0), C.PACKET_FILEINFO)
 
 	m := <-messagesRx
 	if m.Error {
@@ -198,8 +200,8 @@ func (consumer *Consumer) FileInfo(pathname string, buf *C.uint8_t) error {
 
 // Read from file
 func (consumer *Consumer) Read(pathname string, buf *C.uint8_t,
-	count C.uint64_t, off C.uint64_t) (nbytes C.uint64_t, e error) {
-	n := consumer.RequestData(pathname, buf, count, off, C.PACKET_READ)
+	len C.uint64_t, off C.uint64_t) (nbytes C.uint64_t, e error) {
+	n := consumer.RequestData(pathname, len, off, C.PACKET_READ)
 
 	nbytes = 0
 	for i := C.uint16_t(0); i < n; i++ {
@@ -211,11 +213,14 @@ func (consumer *Consumer) Read(pathname string, buf *C.uint8_t,
 
 		nbytes += C.uint64_t(m.Content.contentL)
 
+		// TODO: Store data in buff
+
 		C.rte_free(unsafe.Pointer(m.Content.payload))
 		C.rte_free(unsafe.Pointer(m.Content))
+	}
 
-		// SC19: Don't copy content from C to Go Memory. We don't need to save file
-		// C.copyFromC(buf, C.uint16_t((m.SegmentNum-off)/C.XRDNDNDPDK_PACKET_SIZE), m.Content.contentV, 0, m.Content.contentL)
+	if nbytes > len {
+		nbytes = len
 	}
 
 	return nbytes, nil

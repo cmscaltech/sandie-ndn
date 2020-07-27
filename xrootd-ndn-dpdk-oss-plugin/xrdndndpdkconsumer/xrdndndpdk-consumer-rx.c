@@ -99,7 +99,7 @@ int ConsumerRx_Run(ConsumerRx *cr) {
     ZF_LOGI("Started consumer Rx instance on socket: %d lcore %d",
             rte_socket_id(), rte_lcore_id());
 
-    struct rte_mbuf *pkts[CONSUMER_MAX_BURST_SIZE];
+    struct rte_mbuf *pkts[CONSUMER_RX_MAX_BURST_SIZE];
 
     while (ThreadStopFlag_ShouldContinue(&cr->stop)) {
         uint32_t nRx = PktQueue_Pop(&cr->rxQueue, (struct rte_mbuf **)pkts,

@@ -74,23 +74,31 @@ static void ConsumerTx_ExpressReadInterests(ConsumerTx *ct,
     ZF_LOGD("Sending %d READ Interest packet/s starting @%" PRIu64, req->npkts,
             req->off);
 
-    struct rte_mbuf *pkts[req->npkts];
-    int ret = rte_pktmbuf_alloc_bulk(ct->interestMp, (struct rte_mbuf **)pkts,
-                                     req->npkts);
+    while (req->npkts > 0) {
+        uint16_t nTx = req->npkts > CONSUMER_TX_MAX_BURST_SIZE
+                           ? CONSUMER_TX_MAX_BURST_SIZE
+                           : req->npkts;
+        req->npkts -= nTx;
 
-    if (unlikely(ret != 0)) {
-        ZF_LOGW("interestMp-full");
-        ct->onError(XRDNDNDPDK_EFAILURE);
-        return;
+        struct rte_mbuf *pkts[nTx];
+        int ret = rte_pktmbuf_alloc_bulk(ct->interestMp,
+                                         (struct rte_mbuf **)pkts, nTx);
+
+        if (unlikely(ret != 0)) {
+            ZF_LOGW("interestMp-full");
+            ct->onError(XRDNDNDPDK_EFAILURE);
+            return;
+        }
+
+        for (uint16_t i = 0; i < nTx; ++i) {
+            ConsumerTx_EncodeReadInterest(
+                ct, pkts[i], req, req->off + i * XRDNDNDPDK_MAX_PAYLOAD_SIZE);
+        }
+
+        Face_TxBurst(ct->face, (Packet **)pkts, nTx);
+        req->off += XRDNDNDPDK_MAX_PAYLOAD_SIZE * nTx;
+        ct->nInterests += nTx;
     }
-
-    for (uint16_t i = 0; i < req->npkts; ++i) {
-        ConsumerTx_EncodeReadInterest(ct, pkts[i], req,
-                                      req->off + i * XRDNDNDPDK_PACKET_SIZE);
-    }
-
-    Face_TxBurst(ct->face, (Packet **)pkts, req->npkts);
-    ct->nInterests += req->npkts;
 }
 
 typedef void (*OnRequest)(ConsumerTx *ct, ConsumerTxRequest *req);

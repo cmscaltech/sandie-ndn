@@ -124,6 +124,10 @@ func (app *App) Close() error {
 
 // Run App
 func (app *App) Run() (e error) {
+	if app.consumer == nil {
+		return errors.New("nil consumer")
+	}
+
 	for index, path := range app.files {
 		fmt.Printf("\n--> Copy file [%d]: %s\n", index, path)
 		if e = app.CopyFileOverNDN(path); e != nil {
@@ -137,74 +141,54 @@ func (app *App) Run() (e error) {
 }
 
 func (app *App) CopyFileOverNDN(path string) (e error) {
-	if app.consumer == nil {
-		return errors.New("nil consumer")
-	}
-
 	app.consumer.ResetCounters()
 
-	// Get file stat
-	stat := (*C.uint8_t)(C.malloc(C.sizeof_struct_stat))
-	e = app.consumer.FileInfo(path, stat)
-	if e != nil {
-		return e
+	// Get file size
+	var fileSize C.uint64_t
+	{
+		stat := (*C.uint8_t)(C.malloc(C.sizeof_struct_stat))
+		defer C.free(unsafe.Pointer(stat))
+
+		if e = app.consumer.FileInfo(path, stat); e != nil {
+			return e
+		}
+		fileSize = C.uint64_t((*C.struct_stat)(unsafe.Pointer(stat)).st_size)
+		fmt.Printf("-> File Size: %d B\n", fileSize)
 	}
 
-	filesz := C.uint64_t((*C.struct_stat)(unsafe.Pointer(stat)).st_size)
-	C.free(unsafe.Pointer(stat))
-
-	fmt.Printf("-> file size: %d bytes\n", filesz)
-
-	// Read file
-	maxCount := C.uint64_t(C.XRDNDNDPDK_PACKET_SIZE * (C.CONSUMER_MAX_BURST_SIZE - 2))
-	count := C.uint64_t(0)
-
-	pBar := pb.New(int(filesz))
+	pBar := pb.New(int(fileSize))
 	pBar.ShowPercent = true
 	pBar.ShowCounters = true
 	pBar.ShowTimeLeft = false
 	pBar.ShowFinalTime = false
 	pBar.SetMaxWidth(100)
 	pBar.Prefix("-> bytes:")
-
-	// SC19: This buffer will not be used. We don't need to save file
-	buf := (*C.uint8_t)(C.malloc(maxCount * C.sizeof_uint8_t))
-	defer C.free(unsafe.Pointer(buf))
-
-	var samplingStart time.Time
-	var samplingEnd time.Duration
-	samplingCount := C.uint64_t(0)
-	sampling := false
-
 	pBar.Start()
+
+	// Read file
+	bufferSize := C.uint64_t(1048576) // 1MB
+
 	start := time.Now()
+	for offset := C.uint64_t(0); offset < fileSize; offset += bufferSize {
+		nBytes := C.uint64_t(0)
 
-	for off := C.uint64_t(0); off < filesz; off += maxCount {
-		if filesz-off < maxCount {
-			count = filesz - off
+		if bufferSize > fileSize {
+			nBytes = fileSize
+		} else if fileSize-offset < bufferSize {
+			nBytes = fileSize - offset
 		} else {
-			count = maxCount
+			nBytes = bufferSize
 		}
 
-		if !sampling && off > filesz/2 {
-			sampling = true
-			samplingStart = time.Now()
-		}
+		//buf := (*C.uint8_t)(C.malloc(nBytes * C.sizeof_uint8_t))
+		retRead, e := app.consumer.Read(path, nil, nBytes, offset)
+		// C.free(unsafe.Pointer(buf))
 
-		ret, e := app.consumer.Read(path, buf, count, off)
 		if e != nil {
 			return e
 		}
 
-		if sampling {
-			samplingCount += ret
-		}
-
-		pBar.Add(int(ret))
-	}
-
-	if sampling {
-		samplingEnd = time.Since(samplingStart)
+		pBar.Add(int(retRead))
 	}
 
 	elapsed := time.Since(start)
@@ -217,12 +201,11 @@ func (app *App) CopyFileOverNDN(path string) (e error) {
 	fmt.Printf("-- Data Packets     : %d\n", app.consumer.rxC.nData)
 	fmt.Printf("-- Nack Packets     : %d\n", app.consumer.rxC.nNacks)
 	fmt.Printf("-- Errors           : %d\n\n", app.consumer.rxC.nErrors)
-	fmt.Printf("-- Maximum Packet size  : %d Bytes\n", C.XRDNDNDPDK_PACKET_SIZE)
-	fmt.Printf("-- Read chunk size      : %d Bytes (%d packets)\n", maxCount, C.CONSUMER_MAX_BURST_SIZE-2)
+	fmt.Printf("-- Maximum Payload size : %d Bytes\n", C.XRDNDNDPDK_MAX_PAYLOAD_SIZE)
+	fmt.Printf("-- Read chunk size      : %d Bytes\n", bufferSize)
 	fmt.Printf("-- Bytes transmitted    : %d Bytes\n", app.consumer.rxC.nBytes)
 	fmt.Printf("-- Time elapsed         : %s\n\n", elapsed)
 	fmt.Printf("-- Goodput              : %.4f Mbit/s \n", (((float64(pBar.Get())/1024)/1024)*8)/elapsed.Seconds())
-	fmt.Printf("-- Throughput (2nd 1/2) : %.4f Mbit/s \n", (((float64(samplingCount)/1024)/1024)*8)/samplingEnd.Seconds())
 	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(app.consumer.rxC.nBytes)/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("---------------------------------------------------------\n")
 	fmt.Printf("---------------------------------------------------------\n")

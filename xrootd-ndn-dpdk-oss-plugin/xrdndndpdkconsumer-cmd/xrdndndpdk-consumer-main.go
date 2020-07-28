@@ -30,7 +30,6 @@ func main() {
 
 	pc.initCfg.Mempool.Apply()
 	ealthread.DefaultAllocator.Config = pc.initCfg.LCoreAlloc
-	pc.initCfg.Face.Apply()
 
 	app, e := xrdndndpdkconsumer.New(pc.initCfgConsumer[0])
 	if e != nil {

@@ -9,13 +9,11 @@ import (
 	"github.com/usnistgov/ndn-dpdk/core/yamlflag"
 	"github.com/usnistgov/ndn-dpdk/dpdk/ealthread"
 	"github.com/usnistgov/ndn-dpdk/dpdk/pktmbuf"
-	"github.com/usnistgov/ndn-dpdk/iface/createface"
 )
 
 type initConfig struct {
 	Mempool    pktmbuf.TemplateUpdates
 	LCoreAlloc ealthread.AllocConfig
-	Face       createface.Config
 }
 
 type parsedCommand struct {

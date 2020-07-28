@@ -5,7 +5,6 @@ import (
 
 	"github.com/usnistgov/ndn-dpdk/dpdk/ealthread"
 	"github.com/usnistgov/ndn-dpdk/iface"
-	"github.com/usnistgov/ndn-dpdk/iface/createface"
 )
 
 // LCoreAlloc roles
@@ -47,7 +46,7 @@ func New(initCfgProducer InitConfigProducer) (app *App, e error) {
 		return txl
 	}
 
-	app.face, e = createface.Create(initCfgProducer.Face.Locator)
+	app.face, e = initCfgProducer.Face.Locator.CreateFace()
 	if e != nil {
 		return nil, fmt.Errorf("Face creation error: %v", e)
 	}

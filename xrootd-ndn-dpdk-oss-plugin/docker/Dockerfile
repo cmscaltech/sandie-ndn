@@ -172,8 +172,8 @@ RUN mkdir ${GOPATH}/src/github.com/usnistgov
 WORKDIR ${GOPATH}/src/github.com/usnistgov
 RUN git clone https://github.com/usnistgov/ndn-dpdk.git
 WORKDIR ${GOPATH}/src/github.com/usnistgov/ndn-dpdk
-# Use July 16th 2020 commit: 654a7ac3589b02b4adf3683b56767ed63e202423
-RUN git checkout 654a7ac3589b02b4adf3683b56767ed63e202423
+# Use July 24th 2020 commit: dfeaab3d3e2e619a644316a1d8cb5ac1ae65e0e5
+RUN git checkout dfeaab3d3e2e619a644316a1d8cb5ac1ae65e0e5
 RUN npm install webpack@1.11.0
 RUN npm install
 ENV BPFCC=clang-9

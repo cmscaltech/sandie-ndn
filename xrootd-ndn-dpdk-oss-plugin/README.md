@@ -7,7 +7,7 @@ The consumer application is able to request a list of files to be copied over ND
 
 1. Clone this repository to: **$GOPATH/src/**
 2. Run `cd $GOPATH/src/sandie-ndn/xrootd-ndn-dpdk-oss-plugin && make godeps`. This will download all Go dependencies including [NDN-DPDK Git repository](https://github.com/usnistgov/ndn-dpdk)
-3. Go to `$GOPATH/src/github.com/usnistgov/ndn-dpdk` and checkout to revision **654a7ac3589**. Follow the instruction on how to build NDN-DPDK from [official Git page](https://github.com/usnistgov/ndn-dpdk). You can also use the [Dockerfile](./docker/Dockerfile) as guideline on how to build NDN-DPDK and all required dependencies on CentOS 8
+3. Go to `$GOPATH/src/github.com/usnistgov/ndn-dpdk` and checkout to revision **dfeaab3d**. Follow the instruction on how to build NDN-DPDK from [official Git page](https://github.com/usnistgov/ndn-dpdk). You can also use the [Dockerfile](./docker/Dockerfile) as guideline on how to build NDN-DPDK and all required dependencies on CentOS 8
 4. Run `cd $GOPATH/src/sandie-ndn/xrootd-ndn-dpdk-oss-plugin`
 5. Run `make`. This will build both consumer and producer application into *$GOPATH/bin*
 

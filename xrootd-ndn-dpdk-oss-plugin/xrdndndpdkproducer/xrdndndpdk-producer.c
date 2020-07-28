@@ -167,25 +167,10 @@ static const OnInterest onInterest[PACKET_MAX] = {
     [PACKET_FILEINFO] = Producer_OnFileInfoInterest,
     [PACKET_READ] = Producer_OnReadInterest,
 };
-
-static bool Producer_checkForRegisteredPrefix(LName name) {
-    ZF_LOGD("Check for registered prefix");
-
-    return (PACKET_NAME_PREFIX_URI_ENCODED_LEN <= name.length &&
-            memcmp(PACKET_NAME_PREFIX_URI_ENCODED, name.value,
-                   PACKET_NAME_PREFIX_URI_ENCODED_LEN) == 0);
-}
-
 static Packet *Producer_processInterest(Producer *producer, Packet *npkt) {
     ZF_LOGD("Processing Interest packet");
 
     const LName *name = (const LName *)&Packet_GetInterestHdr(npkt)->name;
-
-    if (unlikely(!Producer_checkForRegisteredPrefix(*name))) {
-        ZF_LOGW("Unsupported Interest prefix");
-        return Nack_FromInterest(npkt, NackNoRoute);
-    }
-
     PacketType pt = Name_Decode_PacketType(*name);
 
     if (unlikely(pt == PACKET_NOT_SUPPORTED)) {

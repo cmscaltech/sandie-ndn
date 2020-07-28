@@ -1,16 +1,16 @@
 ---
 - face:
     scheme: ether
-    port:
-    local: ""
-    remote: ""
+    port: 0000:5e:01.1
+    local: "52:37:4f:e8:5a:80"
+    remote: "9e:0a:a8:c5:d3:97"
   producer:
     freshnessperiod: 100s   # Interest packets freshness period
     filesystemtype: posix   # Filesystem type: posix/hdfs/cephfs, default posix
-    rxqueue:
-      capacity: 131072      # Ring capacity, must be power of 2, default 131072 with delay/CoDel or 4096 without
-      dequeueburstsize: 64  # Dequeue burst size limit, default 64
-      delay: 0              # If non-zero, enforce minimum delay, implies DisableCoDel
-      disablecodel: false   # If true, disable CoDel algorithm
-      target: 5ms           # CoDel TARGET parameter, default 5ms
-      interval: 100ms       # CoDel INTERVAL parameter, default 100ms
+    # rxqueue:
+    #   capacity: 131072      # Ring capacity, must be power of 2, default 131072 with delay/CoDel or 4096 without
+    #   dequeueburstsize: 64  # Dequeue burst size limit, default 64
+    #   delay: 0              # If non-zero, enforce minimum delay, implies DisableCoDel
+    #   disablecodel: false   # If true, disable CoDel algorithm
+    #   target: 5ms           # CoDel TARGET parameter, default 5ms
+    #   interval: 100ms       # CoDel INTERVAL parameter, default 100ms

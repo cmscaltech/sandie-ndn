@@ -31,6 +31,14 @@ typedef void (*onErrorCallback)(uint64_t);
 void onErrorCallback_Go(uint64_t errorCode);
 
 /**
+ * @brief Tx counters
+ *
+ */
+typedef struct CountersTx {
+    uint64_t nInterest;
+} CountersTx;
+
+/**
  * @brief
  *
  */
@@ -50,20 +58,26 @@ typedef struct ConsumerTx {
     FaceID face;
     ThreadStopFlag stop;
     struct rte_mempool *interestMp; // mempool for Interests
+    struct rte_ring *requestQueue;
+
     NonceGen nonceGen;
     InterestTemplate fileInfoPrefixTpl;
     InterestTemplate readPrefixTpl;
-    onErrorCallback onError;
-    struct rte_ring *requestQueue;
 
-    uint64_t nInterests;
+    onErrorCallback onError;
+    CountersTx cnt;
 } ConsumerTx;
 
-int ConsumerTx_Run(ConsumerTx *ct);
-void ConsumerTx_resetCounters(ConsumerTx *ct);
+__attribute__((nonnull)) int ConsumerTx_Run(ConsumerTx *ct);
 
-inline void registerTxCallbacks(ConsumerTx *ct) {
+__attribute__((unused, nonnull)) inline void
+ConsumerTx_RegisterGoCallbacks(ConsumerTx *ct) {
     ct->onError = onErrorCallback_Go;
+}
+
+__attribute__((unused, nonnull)) static void
+ConsumerTx_ClearCounters(ConsumerTx *ct) {
+    ct->cnt.nInterest = 0;
 }
 
 #endif // XRDNDNDPDK_CONSUMER_TX_H

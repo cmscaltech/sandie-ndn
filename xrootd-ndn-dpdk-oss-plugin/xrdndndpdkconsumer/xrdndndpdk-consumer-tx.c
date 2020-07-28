@@ -22,8 +22,6 @@
 
 INIT_ZF_LOG(Xrdndndpdkconsumer);
 
-void ConsumerTx_resetCounters(ConsumerTx *ct) { ct->nInterests = 0; }
-
 static void ConsumerTx_ExpressFileInfoInterest(ConsumerTx *ct,
                                                ConsumerTxRequest *req) {
     ZF_LOGD("Send Interest packet for FILEINFO");
@@ -49,7 +47,7 @@ static void ConsumerTx_ExpressFileInfoInterest(ConsumerTx *ct,
 
     InterestTemplate_Encode(&ct->fileInfoPrefixTpl, pkt, suffix, nonce);
     Face_Tx(ct->face, Packet_FromMbuf(pkt));
-    ++ct->nInterests;
+    ++(ct->cnt.nInterest);
 }
 
 static void ConsumerTx_EncodeReadInterest(ConsumerTx *ct, struct rte_mbuf *pkt,
@@ -99,7 +97,7 @@ static void ConsumerTx_ExpressReadInterests(ConsumerTx *ct,
 
     if (req->npkts > 0)
         rte_ring_enqueue(ct->requestQueue, req);
-    ct->nInterests += nTx;
+    ct->cnt.nInterest += nTx;
 }
 
 typedef void (*OnRequest)(ConsumerTx *ct, ConsumerTxRequest *req);

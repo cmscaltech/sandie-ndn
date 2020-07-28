@@ -36,6 +36,13 @@ type MessageRx struct {
 	SegmentNum int64
 }
 
+type Counters struct {
+	nInterest int64
+	nData     int64
+	nNack     int64
+	nBytes    int64
+}
+
 var messagesRx chan MessageRx
 
 func newConsumer(face iface.Face, settings ConsumerSettings) (*Consumer, error) {
@@ -100,8 +107,8 @@ func (consumer *Consumer) Configure(settings ConsumerSettings) error {
 	ndni.InterestTemplateFromPtr(unsafe.Pointer(&consumer.txC.fileInfoPrefixTpl)).Init(tplArgsFileInfo...)
 	ndni.InterestTemplateFromPtr(unsafe.Pointer(&consumer.txC.readPrefixTpl)).Init(tplArgsRead...)
 
-	C.registerRxCallbacks(consumer.rxC)
-	C.registerTxCallbacks(consumer.txC)
+	C.ConsumerRx_RegisterGoCallbacks(consumer.rxC)
+	C.ConsumerTx_RegisterGoCallbacks(consumer.txC)
 	consumer.ResetCounters()
 
 	return nil
@@ -159,8 +166,17 @@ func (consumer *Consumer) Close() error {
 
 // ResetCounters Reset Rx and Tx Consumer thread counters for statistics
 func (consumer *Consumer) ResetCounters() {
-	C.ConsumerRx_resetCounters(consumer.rxC)
-	C.ConsumerTx_resetCounters(consumer.txC)
+	C.ConsumerRx_ClearCounters(consumer.rxC)
+	C.ConsumerTx_ClearCounters(consumer.txC)
+}
+
+// GetCounters Get Rx and Tx consumer counters
+func (consumer *Consumer) GetCounters() (cnt Counters) {
+	cnt.nInterest = int64(consumer.txC.cnt.nInterest)
+	cnt.nData = int64(consumer.rxC.cnt.nData)
+	cnt.nNack = int64(consumer.rxC.cnt.nNack)
+	cnt.nBytes = int64(consumer.rxC.cnt.nBytes)
+	return cnt
 }
 
 // RequestData over NDN

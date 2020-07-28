@@ -34,28 +34,39 @@ void onContentCallback_Go(uint64_t value, uint64_t segmentNum);
 void onErrorCallback_Go(uint64_t errorCode);
 
 /**
+ * @brief Rx counters
+ *
+ */
+typedef struct CountersRx {
+    uint64_t nData;
+    uint64_t nNack;
+    uint64_t nBytes;
+} CountersRx;
+
+/**
  */
 typedef struct ConsumerRx {
     PktQueue rxQueue;
     ThreadStopFlag stop;
-
-    // Counters
-    uint64_t nData;
-    uint64_t nNacks;
-    uint64_t nBytes;
-    uint64_t nErrors;
-
     onContentCallback onContent;
     onErrorCallback onError;
+
+    CountersRx cnt;
 } ConsumerRx;
 
-__attribute__((nonnull)) void ConsumerRx_resetCounters(ConsumerRx *cr);
 __attribute__((nonnull)) int ConsumerRx_Run(ConsumerRx *cr);
 
 __attribute__((unused, nonnull)) static void
-registerRxCallbacks(ConsumerRx *cr) {
+ConsumerRx_RegisterGoCallbacks(ConsumerRx *cr) {
     cr->onContent = onContentCallback_Go;
     cr->onError = onErrorCallback_Go;
+}
+
+__attribute__((unused, nonnull)) static void
+ConsumerRx_ClearCounters(ConsumerRx *cr) {
+    cr->cnt.nData = 0;
+    cr->cnt.nNack = 0;
+    cr->cnt.nBytes = 0;
 }
 
 #endif // XRDNDNDPDK_CONSUMER_RX_H

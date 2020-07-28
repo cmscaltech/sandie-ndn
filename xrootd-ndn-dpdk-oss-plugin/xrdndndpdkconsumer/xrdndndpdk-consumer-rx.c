@@ -37,6 +37,7 @@ ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt, PContent *content) {
         ZF_LOGW("Received Application-Level Nack with content: %" PRIu64, err);
         rte_free(content->payload);
         rte_free(content);
+
         cr->onError(err);
         return;
     }
@@ -59,7 +60,7 @@ ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt, PContent *content) {
         cr->onContent(((struct stat *)content->contentV)->st_size, 0);
     }
 
-    // Do not set payload back to Golang - Performance issue
+    // Do not send payload back to Golang - performance issue
     rte_free(content->payload);
     rte_free(content);
 }
@@ -67,7 +68,7 @@ ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt, PContent *content) {
 __attribute__((nonnull)) static void
 ConsumerRx_processNackPacket(ConsumerRx *cr, Packet *npkt) {
     ZF_LOGD("Process new Nack packet");
-    ++cr->nNacks;
+    cr->cnt.nNack++;
     cr->onError(XRDNDNDPDK_EFAILURE);
 }
 
@@ -76,24 +77,16 @@ ConsumerRx_processDataPacket(ConsumerRx *cr, Packet *npkt) {
     ZF_LOGD("Process new Data packet");
     struct rte_mbuf *pkt = Packet_ToMbuf(npkt);
 
-    // Higher level application needs to free this memory
     PContent *content = rte_malloc(NULL, sizeof(PContent), 0);
     content->payload = rte_malloc(NULL, pkt->pkt_len, 0);
     Mbuf_CopyTo(pkt, content->payload);
 
     // Update counters
-    cr->nBytes += pkt->pkt_len;
-    ++cr->nData;
+    cr->cnt.nBytes += pkt->pkt_len;
+    ++(cr->cnt.nData);
 
     Data_Decode(content, pkt->pkt_len);
     ConsumerRx_processContent(cr, npkt, content);
-}
-
-void ConsumerRx_resetCounters(ConsumerRx *cr) {
-    cr->nData = 0;
-    cr->nNacks = 0;
-    cr->nBytes = 0;
-    cr->nErrors = 0;
 }
 
 /**

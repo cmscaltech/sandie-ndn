@@ -41,7 +41,7 @@ func NewProducer(face iface.Face, producerSettings ProducerSettings) (producer *
 		return nil, nil
 	}
 
-	producer.c.dataMp = (*C.struct_rte_mempool)(ndni.PayloadMempool.MakePool(socket).Ptr())
+	producer.c.payloadMp = (*C.struct_rte_mempool)(ndni.PayloadMempool.MakePool(socket).Ptr())
 	producer.c.face = (C.FaceID)(faceID)
 
 	producer.Thread = ealthread.New(

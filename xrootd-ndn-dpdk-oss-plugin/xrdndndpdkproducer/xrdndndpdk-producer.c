@@ -33,9 +33,9 @@ static Packet *Producer_EncodeData(Producer *producer, Packet *npkt,
     uint64_t token = Packet_GetLpL3Hdr(npkt)->pitToken;
     const LName *name = (const LName *)&Packet_GetInterestHdr(npkt)->name;
 
-    struct rte_mbuf *pkt = rte_pktmbuf_alloc(producer->dataMp);
+    struct rte_mbuf *pkt = rte_pktmbuf_alloc(producer->payloadMp);
     if (unlikely(pkt == NULL)) {
-        ZF_LOGW("dataMp-full");
+        ZF_LOGW("payloadMp-full");
         rte_pktmbuf_free(Packet_ToMbuf(npkt));
         return NULL;
     }
@@ -59,9 +59,9 @@ static Packet *Producer_EncodeDataAsError(Producer *producer, Packet *npkt,
     uint64_t token = Packet_GetLpL3Hdr(npkt)->pitToken;
     const LName *name = (const LName *)&Packet_GetInterestHdr(npkt)->name;
 
-    struct rte_mbuf *pkt = rte_pktmbuf_alloc(producer->dataMp);
+    struct rte_mbuf *pkt = rte_pktmbuf_alloc(producer->payloadMp);
     if (unlikely(pkt == NULL)) {
-        ZF_LOGW("dataMp-full");
+        ZF_LOGW("payloadMp-full");
         rte_pktmbuf_free(Packet_ToMbuf(npkt));
         return NULL;
     }

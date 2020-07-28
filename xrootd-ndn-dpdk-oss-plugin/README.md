@@ -13,11 +13,11 @@ The consumer application is able to request a list of files to be copied over ND
 
 ## Usage
 
-Use [init-config-sample.yaml](./init-config-sample.yaml), [xrdndndpdkconsumer-sample.yaml](./xrdndndpdkconsumer-sample.yaml) and [xrdndndpdkproducer-sample.yaml](./xrdndndpdkproducer-sample.yaml) files in order to run the consumer and producer applications. Example:
+Use [init-config.sample.yaml](./init-config.sample.yaml), [init-config-consumer.sample.yaml](./init-config-consumer.sample.yaml) and [init-config-consumer.sample.yaml](./init-config-consumer.sample.yaml) files in order to run the consumer and producer applications. Example:
 
 ```bash
-./xrdndndpdkconsumer-cmd -w 0000:8f:00.0 -- -initcfg @init-config-sample.yaml -initcfgconsumer @xrdndndpdkconsumer-sample.yaml
-./xrdndndpdkproducer-cmd -w 0000:5e:00.0 -- -initcfg @init-config-sample.yaml -initcfgproducer @xrdndndpdkproducer-sample.yaml
+./xrdndndpdkconsumer-cmd -w 0000:8f:00.0 -- -initcfg @init-config.sample.yaml -initcfgconsumer @init-config-consumer.sample.yaml
+./xrdndndpdkproducer-cmd -w 0000:5e:00.0 -- -initcfg @init-config.sample.yaml -initcfgproducer @init-config-consumer.sample.yaml
 ```
 
 ## Logging

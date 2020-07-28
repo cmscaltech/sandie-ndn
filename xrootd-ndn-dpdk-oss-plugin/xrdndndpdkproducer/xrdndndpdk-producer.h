@@ -35,7 +35,7 @@
  */
 typedef struct Producer {
     PktQueue rxQueue;
-    struct rte_mempool *dataMp;
+    struct rte_mempool *payloadMp;
     FaceID face;
 
     uint32_t freshnessPeriod;

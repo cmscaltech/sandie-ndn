@@ -27,10 +27,10 @@
 #include "../xrdndndpdk-common/xrdndndpdk-data.h"
 #include "../xrdndndpdk-common/xrdndndpdk-name.h"
 
-typedef void (*onContentCallback)(struct PContent *, uint64_t);
+typedef void (*onContentCallback)(uint64_t, uint64_t);
 typedef void (*onErrorCallback)(uint64_t);
 
-void onContentCallback_Go(struct PContent *content, uint64_t segmentNum);
+void onContentCallback_Go(uint64_t value, uint64_t segmentNum);
 void onErrorCallback_Go(uint64_t errorCode);
 
 /**

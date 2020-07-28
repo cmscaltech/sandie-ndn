@@ -74,31 +74,32 @@ static void ConsumerTx_ExpressReadInterests(ConsumerTx *ct,
     ZF_LOGD("Sending %d READ Interest packet/s starting @%" PRIu64, req->npkts,
             req->off);
 
-    while (req->npkts > 0) {
-        uint16_t nTx = req->npkts > CONSUMER_TX_MAX_BURST_SIZE
-                           ? CONSUMER_TX_MAX_BURST_SIZE
-                           : req->npkts;
-        req->npkts -= nTx;
+    uint16_t nTx = req->npkts > CONSUMER_TX_MAX_BURST_SIZE
+                       ? CONSUMER_TX_MAX_BURST_SIZE
+                       : req->npkts;
+    req->npkts -= nTx;
 
-        struct rte_mbuf *pkts[nTx];
-        int ret = rte_pktmbuf_alloc_bulk(ct->interestMp,
-                                         (struct rte_mbuf **)pkts, nTx);
+    struct rte_mbuf *pkts[nTx];
+    int ret =
+        rte_pktmbuf_alloc_bulk(ct->interestMp, (struct rte_mbuf **)pkts, nTx);
 
-        if (unlikely(ret != 0)) {
-            ZF_LOGW("interestMp-full");
-            ct->onError(XRDNDNDPDK_EFAILURE);
-            return;
-        }
-
-        for (uint16_t i = 0; i < nTx; ++i) {
-            ConsumerTx_EncodeReadInterest(
-                ct, pkts[i], req, req->off + i * XRDNDNDPDK_MAX_PAYLOAD_SIZE);
-        }
-
-        Face_TxBurst(ct->face, (Packet **)pkts, nTx);
-        req->off += XRDNDNDPDK_MAX_PAYLOAD_SIZE * nTx;
-        ct->nInterests += nTx;
+    if (unlikely(ret != 0)) {
+        ZF_LOGW("interestMp-full");
+        ct->onError(XRDNDNDPDK_EFAILURE);
+        return;
     }
+
+    for (uint16_t i = 0; i < nTx; ++i) {
+        ConsumerTx_EncodeReadInterest(
+            ct, pkts[i], req, req->off + i * XRDNDNDPDK_MAX_PAYLOAD_SIZE);
+    }
+
+    Face_TxBurst(ct->face, (Packet **)pkts, nTx);
+    req->off += XRDNDNDPDK_MAX_PAYLOAD_SIZE * nTx;
+
+    if (req->npkts > 0)
+        rte_ring_enqueue(ct->requestQueue, req);
+    ct->nInterests += nTx;
 }
 
 typedef void (*OnRequest)(ConsumerTx *ct, ConsumerTxRequest *req);
@@ -115,7 +116,7 @@ int ConsumerTx_Run(ConsumerTx *ct) {
     while (ThreadStopFlag_ShouldContinue(&ct->stop)) {
         void *request;
         if (rte_ring_dequeue_burst(ct->requestQueue, &request, 1, 0) <= 0) {
-            // rte_pause();
+            rte_pause();
             continue;
         }
 

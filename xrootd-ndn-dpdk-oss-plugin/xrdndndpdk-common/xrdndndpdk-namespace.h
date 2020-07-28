@@ -39,19 +39,19 @@
  * @brief Consumer RX thread maximum burst size
  *
  */
-#define CONSUMER_RX_MAX_BURST_SIZE 128
+#define CONSUMER_RX_MAX_BURST_SIZE 64
 
 /**
  * @brief Consumer TX thread maximum burst size
  *
  */
-#define CONSUMER_TX_MAX_BURST_SIZE 64
+#define CONSUMER_TX_MAX_BURST_SIZE 32
 
 /**
  * @brief Producer maximum burst size
  *
  */
-#define PRODUCER_MAX_BURST_SIZE 256
+#define PRODUCER_MAX_BURST_SIZE 64
 
 /**
  * @brief Success error code

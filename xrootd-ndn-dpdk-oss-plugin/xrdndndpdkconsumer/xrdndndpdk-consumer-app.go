@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"unsafe"
 
 	"github.com/cheggaaa/pb"
 	"github.com/usnistgov/ndn-dpdk/dpdk/ealthread"
@@ -128,9 +127,9 @@ func (app *App) Run() (e error) {
 		return errors.New("nil consumer")
 	}
 
-	for index, path := range app.files {
-		fmt.Printf("\n--> Copy file [%d]: %s\n", index, path)
-		if e = app.CopyFileOverNDN(path); e != nil {
+	for index, filepath := range app.files {
+		fmt.Printf("\nTRANSFER FILE (%d/%d): \"%s\"\n", index+1, len(app.files), filepath)
+		if e = app.TransferFile(filepath); e != nil {
 			fmt.Println(e)
 			continue
 		}
@@ -140,55 +139,60 @@ func (app *App) Run() (e error) {
 	return nil
 }
 
-func (app *App) CopyFileOverNDN(path string) (e error) {
+// TransferFile over NDN
+func (app *App) TransferFile(filepath string) (e error) {
 	app.consumer.ResetCounters()
 
 	// Get file size
-	var fileSize C.uint64_t
-	{
-		stat := (*C.uint8_t)(C.malloc(C.sizeof_struct_stat))
-		defer C.free(unsafe.Pointer(stat))
-
-		if e = app.consumer.FileInfo(path, stat); e != nil {
-			return e
-		}
-		fileSize = C.uint64_t((*C.struct_stat)(unsafe.Pointer(stat)).st_size)
-		fmt.Printf("-> File Size: %d B\n", fileSize)
+	filesize, e := app.consumer.FileInfo(filepath)
+	if e != nil {
+		return e
 	}
 
-	pBar := pb.New(int(fileSize))
+	fmt.Printf("FILE SIZE: %d B\n", filesize)
+
+	pBar := pb.New(int(filesize))
 	pBar.ShowPercent = true
 	pBar.ShowCounters = true
 	pBar.ShowTimeLeft = false
 	pBar.ShowFinalTime = false
 	pBar.SetMaxWidth(100)
-	pBar.Prefix("-> bytes:")
+	pBar.Prefix("BYTES:")
 	pBar.Start()
 
 	// Read file
-	bufferSize := C.uint64_t(1048576) // 1MB
+	buffersz := int64(1048576) // 1MB
+	workers := 2
+	results := make(chan bool)
+
+	worker := func(id int, offset int64, results chan<- bool) {
+		for offset < filesize {
+			count := buffersz
+
+			if buffersz > filesize {
+				count = filesize
+			} else if filesize-offset < buffersz {
+				count = filesize - offset
+			}
+
+			//buf := (*C.uint8_t)(C.malloc(count * C.sizeof_uint8_t))
+			retRead, _ := app.consumer.Read(filepath, nil, count, offset)
+			// C.free(unsafe.Pointer(buf))
+
+			pBar.Add(int(retRead))
+			offset += int64(workers) * buffersz
+		}
+
+		results <- true
+	}
 
 	start := time.Now()
-	for offset := C.uint64_t(0); offset < fileSize; offset += bufferSize {
-		nBytes := C.uint64_t(0)
 
-		if bufferSize > fileSize {
-			nBytes = fileSize
-		} else if fileSize-offset < bufferSize {
-			nBytes = fileSize - offset
-		} else {
-			nBytes = bufferSize
-		}
-
-		//buf := (*C.uint8_t)(C.malloc(nBytes * C.sizeof_uint8_t))
-		retRead, e := app.consumer.Read(path, nil, nBytes, offset)
-		// C.free(unsafe.Pointer(buf))
-
-		if e != nil {
-			return e
-		}
-
-		pBar.Add(int(retRead))
+	for w := 0; w < workers; w++ {
+		go worker(w, int64(w)*buffersz, results)
+	}
+	for w := 0; w < workers; w++ {
+		<-results
 	}
 
 	elapsed := time.Since(start)
@@ -202,9 +206,9 @@ func (app *App) CopyFileOverNDN(path string) (e error) {
 	fmt.Printf("-- Nack Packets     : %d\n", app.consumer.rxC.nNacks)
 	fmt.Printf("-- Errors           : %d\n\n", app.consumer.rxC.nErrors)
 	fmt.Printf("-- Maximum Payload size : %d Bytes\n", C.XRDNDNDPDK_MAX_PAYLOAD_SIZE)
-	fmt.Printf("-- Read chunk size      : %d Bytes\n", bufferSize)
+	fmt.Printf("-- Read buffer size     : %d Bytes\n", buffersz)
 	fmt.Printf("-- Bytes transmitted    : %d Bytes\n", app.consumer.rxC.nBytes)
-	fmt.Printf("-- Time elapsed         : %s\n\n", elapsed)
+	fmt.Printf("-- Time elapsed         : %s\n\n", elapsed.Round(time.Millisecond))
 	fmt.Printf("-- Goodput              : %.4f Mbit/s \n", (((float64(pBar.Get())/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("-- Throughput           : %.4f Mbit/s \n", (((float64(app.consumer.rxC.nBytes)/1024)/1024)*8)/elapsed.Seconds())
 	fmt.Printf("---------------------------------------------------------\n")

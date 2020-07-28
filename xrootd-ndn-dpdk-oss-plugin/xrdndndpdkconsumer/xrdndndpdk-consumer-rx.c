@@ -18,6 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.     *
  *****************************************************************************/
 
+#include <sys/stat.h>
+
 #include "ndn-dpdk/csrc/ndni/packet.h"
 
 #include "xrdndndpdk-consumer-rx.h"
@@ -51,11 +53,15 @@ ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt, PContent *content) {
         uint64_t segNum = 0;
         Nni_Decode(segNumComp[1], RTE_PTR_ADD(segNumComp, 2), &segNum);
 
-        cr->onContent(content, segNum);
+        cr->onContent(content->contentL, segNum);
     } else if (PACKET_FILEINFO == pt) {
         ZF_LOGD("Return FILEINFO content of size: %" PRIu16, content->contentL);
-        cr->onContent(content, 0);
+        cr->onContent(((struct stat *)content->contentV)->st_size, 0);
     }
+
+    // Do not set payload back to Golang - Performance issue
+    rte_free(content->payload);
+    rte_free(content);
 }
 
 __attribute__((nonnull)) static void
@@ -68,8 +74,8 @@ ConsumerRx_processNackPacket(ConsumerRx *cr, Packet *npkt) {
 __attribute__((nonnull)) static void
 ConsumerRx_processDataPacket(ConsumerRx *cr, Packet *npkt) {
     ZF_LOGD("Process new Data packet");
-
     struct rte_mbuf *pkt = Packet_ToMbuf(npkt);
+
     // Higher level application needs to free this memory
     PContent *content = rte_malloc(NULL, sizeof(PContent), 0);
     content->payload = rte_malloc(NULL, pkt->pkt_len, 0);

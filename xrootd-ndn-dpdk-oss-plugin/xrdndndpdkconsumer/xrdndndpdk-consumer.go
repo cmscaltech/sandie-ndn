@@ -32,9 +32,8 @@ type Consumer struct {
 // MessageRx struct between Go and C (Rx Thread/s)
 type MessageRx struct {
 	Error      bool
-	ErrorCode  C.uint64_t
-	SegmentNum C.uint64_t
-	Content    *C.struct_PContent
+	Value      int64
+	SegmentNum int64
 }
 
 var messagesRx chan MessageRx
@@ -165,8 +164,7 @@ func (consumer *Consumer) ResetCounters() {
 }
 
 // RequestData over NDN
-func (consumer *Consumer) RequestData(pathname string, len C.uint64_t,
-	off C.uint64_t, pt C.PacketType) (n C.uint16_t) {
+func (consumer *Consumer) RequestData(pathname string, count int64, offset int64, pt C.PacketType) int {
 	name := ndn.ParseName(pathname)
 	nameV, _ := name.MarshalBinary()
 
@@ -174,68 +172,57 @@ func (consumer *Consumer) RequestData(pathname string, len C.uint64_t,
 	req.nameL = C.uint16_t(copy(cptr.AsByteSlice(&req.nameV), nameV))
 	req.pt = pt
 
-	n = C.uint16_t(C.ceil(C.double(len) / C.double(C.XRDNDNDPDK_MAX_PAYLOAD_SIZE)))
+	n := C.uint16_t(C.ceil(C.double(C.uint64_t(count)) / C.double(C.XRDNDNDPDK_MAX_PAYLOAD_SIZE)))
 	req.npkts = n
-	req.off = off
+	req.off = C.uint64_t(offset)
 
 	C.rte_ring_enqueue(consumer.txC.requestQueue, (unsafe.Pointer)(&req))
-	return n
+	return int(n)
 }
 
 // FileInfo file
-func (consumer *Consumer) FileInfo(pathname string, buf *C.uint8_t) error {
-	consumer.RequestData(pathname, C.uint64_t(0), C.uint64_t(0), C.PACKET_FILEINFO)
+func (consumer *Consumer) FileInfo(pathname string) (filesize int64, e error) {
+	consumer.RequestData(pathname, 0, 0, C.PACKET_FILEINFO)
 
 	m := <-messagesRx
 	if m.Error {
-		return fmt.Errorf("Return error code %d for fileinfo on file: %s", m.ErrorCode, pathname)
+		return 0, fmt.Errorf("Return error code %d for fileinfo on file: %s", m.Value, pathname)
 	}
 
-	defer C.rte_free(unsafe.Pointer(m.Content.payload))
-	defer C.rte_free(unsafe.Pointer(m.Content))
-
-	C.copyFromC(buf, 0, m.Content.contentV, 0, m.Content.contentL)
-	return nil
+	return m.Value, nil
 }
 
 // Read from file
-func (consumer *Consumer) Read(pathname string, buf *C.uint8_t,
-	len C.uint64_t, off C.uint64_t) (nbytes C.uint64_t, e error) {
-	n := consumer.RequestData(pathname, len, off, C.PACKET_READ)
+func (consumer *Consumer) Read(pathname string, buf *C.uint8_t, count int64, offset int64) (nbytes int64, e error) {
+	n := consumer.RequestData(pathname, count, offset, C.PACKET_READ)
 
-	nbytes = 0
-	for i := C.uint16_t(0); i < n; i++ {
+	for i := 0; i < n; i++ {
 		m := <-messagesRx
 
 		if m.Error {
-			return nbytes, fmt.Errorf("Return error code %d for read on file: %s", m.ErrorCode, pathname)
+			return nbytes, fmt.Errorf("Return error code %d for read on file: %s", m.Value, pathname)
 		}
 
-		nbytes += C.uint64_t(m.Content.contentL)
-
-		// TODO: Store data in buff
-
-		C.rte_free(unsafe.Pointer(m.Content.payload))
-		C.rte_free(unsafe.Pointer(m.Content))
+		nbytes += m.Value
 	}
 
-	if nbytes > len {
-		nbytes = len
+	if nbytes > count {
+		nbytes = count
 	}
 
 	return nbytes, nil
 }
 
 //export onContentCallback_Go
-func onContentCallback_Go(content *C.struct_PContent, segmentNum C.uint64_t) {
+func onContentCallback_Go(value C.uint64_t, segmentNum C.uint64_t) {
 	go func(channel chan<- MessageRx) {
-		channel <- MessageRx{false, C.XRDNDNDPDK_ESUCCESS, segmentNum, content}
+		channel <- MessageRx{false, int64(value), int64(segmentNum)}
 	}(messagesRx)
 }
 
 //export onErrorCallback_Go
 func onErrorCallback_Go(errorCode C.uint64_t) {
 	go func(channel chan<- MessageRx) {
-		channel <- MessageRx{true, errorCode, 0, nil}
+		channel <- MessageRx{true, int64(errorCode), 0}
 	}(messagesRx)
 }

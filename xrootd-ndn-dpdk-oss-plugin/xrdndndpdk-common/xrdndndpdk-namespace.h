@@ -36,22 +36,10 @@
 #define XRDNDNDPDK_MAX_NAME_SIZE 2048
 
 /**
- * @brief Consumer RX thread maximum burst size
- *
- */
-#define CONSUMER_RX_MAX_BURST_SIZE 64
-
-/**
  * @brief Consumer TX thread maximum burst size
  *
  */
 #define CONSUMER_TX_MAX_BURST_SIZE 32
-
-/**
- * @brief Producer maximum burst size
- *
- */
-#define PRODUCER_MAX_BURST_SIZE 64
 
 /**
  * @brief Success error code

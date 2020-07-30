@@ -69,13 +69,13 @@ static void ConsumerTx_EncodeReadInterest(ConsumerTx *ct, struct rte_mbuf *pkt,
 
 static void ConsumerTx_ExpressReadInterests(ConsumerTx *ct,
                                             ConsumerTxRequest *req) {
-    ZF_LOGD("Sending %d READ Interest packet/s starting @%" PRIu64, req->npkts,
-            req->off);
-
     uint16_t nTx = req->npkts > CONSUMER_TX_MAX_BURST_SIZE
                        ? CONSUMER_TX_MAX_BURST_SIZE
                        : req->npkts;
     req->npkts -= nTx;
+
+    ZF_LOGD("Sending %d READ Interest packet/s starting @%" PRIu64, nTx,
+            req->off);
 
     struct rte_mbuf *pkts[nTx];
     int ret =
@@ -113,7 +113,8 @@ int ConsumerTx_Run(ConsumerTx *ct) {
 
     while (ThreadStopFlag_ShouldContinue(&ct->stop)) {
         void *request;
-        if (rte_ring_dequeue_burst(ct->requestQueue, &request, 1, 0) <= 0) {
+        if (unlikely(rte_ring_dequeue_burst(ct->requestQueue, &request, 1, 0) <=
+                     0)) {
             rte_pause();
             continue;
         }

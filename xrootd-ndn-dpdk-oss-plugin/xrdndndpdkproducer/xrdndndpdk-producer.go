@@ -16,7 +16,7 @@ import (
 	"github.com/usnistgov/ndn-dpdk/ndni"
 )
 
-// Producer instance and thread.
+// Producer instance and thread
 type Producer struct {
 	ealthread.Thread
 	c          *C.Producer
@@ -24,21 +24,21 @@ type Producer struct {
 }
 
 // NewProducer object
-func NewProducer(face iface.Face, producerSettings ProducerSettings) (producer *Producer, e error) {
+func NewProducer(face iface.Face, settings ProducerSettings) (producer *Producer, e error) {
 	faceID := face.ID()
 	socket := face.NumaSocket()
 	producer = new(Producer)
 	producer.c = (*C.Producer)(eal.Zmalloc("Producer", C.sizeof_Producer, socket))
 
-	if producer.fileSystem, e = xrdndndpdkfilesystem.GetFilesystem(producerSettings.FilesystemType); e != nil {
+	if producer.fileSystem, e = xrdndndpdkfilesystem.GetFilesystem(settings.FilesystemType); e != nil {
 		eal.Free(producer.c)
 		return nil, e
 	}
 
-	producerSettings.RxQueue.DisableCoDel = true
-	if e := iface.PktQueueFromPtr(unsafe.Pointer(&producer.c.rxQueue)).Init(producerSettings.RxQueue, socket); e != nil {
+	settings.RxQueue.DisableCoDel = true
+	if e := iface.PktQueueFromPtr(unsafe.Pointer(&producer.c.rxQueue)).Init(settings.RxQueue, socket); e != nil {
 		eal.Free(producer.c)
-		return nil, nil
+		return nil, e
 	}
 
 	producer.c.payloadMp = (*C.struct_rte_mempool)(ndni.PayloadMempool.MakePool(socket).Ptr())
@@ -49,14 +49,14 @@ func NewProducer(face iface.Face, producerSettings ProducerSettings) (producer *
 		ealthread.InitStopFlag(unsafe.Pointer(&producer.c.stop)),
 	)
 
-	producer.SetProducerSettings(producerSettings)
+	producer.Configure(settings)
 	return producer, nil
 }
 
-// SetProducerSettings instance
-func (producer *Producer) SetProducerSettings(producerSettings ProducerSettings) (e error) {
+// Configure producer instance
+func (producer *Producer) Configure(settings ProducerSettings) (e error) {
 	producer.c.fs = producer.fileSystem
-	producer.c.freshnessPeriod = C.uint32_t(producerSettings.FreshnessPeriod.Duration() / time.Millisecond)
+	producer.c.freshnessPeriod = C.uint32_t(settings.FreshnessPeriod.Duration() / time.Millisecond)
 	return nil
 }
 
@@ -68,14 +68,15 @@ func (producer *Producer) RxQueue() *iface.PktQueue {
 // ConfigureDemux for Producer instance
 func (producer *Producer) ConfigureDemux(demuxI, demuxD, demuxN *iface.InputDemux) {
 	demuxI.InitRoundrobin(1)
-	demuxI.SetDest(0, producer.RxQueue())
+	q := producer.RxQueue()
+	demuxI.SetDest(0, q)
 	demuxD.InitToken()
 	demuxN.InitToken()
-	demuxD.SetDest(0, producer.RxQueue())
-	demuxN.SetDest(0, producer.RxQueue())
+	demuxD.SetDest(0, q)
+	demuxN.SetDest(0, q)
 }
 
-// Close the producer.
+// Close the producer
 // The thread must be stopped before calling this.
 func (producer *Producer) Close() error {
 	producer.Stop()

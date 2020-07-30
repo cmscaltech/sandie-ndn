@@ -52,7 +52,7 @@ func New(initCfgProducer InitConfigProducer) (app *App, e error) {
 	}
 
 	if initCfgProducer.Producer == nil {
-		return nil, fmt.Errorf("Init config for producer is empty")
+		return nil, fmt.Errorf("Producer config empty")
 	}
 
 	if app.producer, e = NewProducer(app.face, *initCfgProducer.Producer); e != nil {
@@ -63,7 +63,8 @@ func New(initCfgProducer InitConfigProducer) (app *App, e error) {
 		return nil, fmt.Errorf("Unable to get Producer object")
 	}
 
-	app.producer.SetLCore(ealthread.DefaultAllocator.Alloc(LCoreRoleProducer, app.face.NumaSocket()))
+	socket := app.face.NumaSocket()
+	app.producer.SetLCore(ealthread.DefaultAllocator.Alloc(LCoreRoleProducer, socket))
 	return app, nil
 }
 

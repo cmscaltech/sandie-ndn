@@ -20,7 +20,7 @@ import (
 	"github.com/usnistgov/ndn-dpdk/ndni"
 )
 
-// Consumer Instance
+// Consumer Instance and threads
 type Consumer struct {
 	Rx ealthread.Thread
 	Tx ealthread.Thread
@@ -36,6 +36,7 @@ type MessageRx struct {
 	SegmentNum int64
 }
 
+// Counters for Consumer Rx and Tx threads
 type Counters struct {
 	nInterest int64
 	nData     int64
@@ -45,7 +46,9 @@ type Counters struct {
 
 var messagesRx chan MessageRx
 
-func newConsumer(face iface.Face, settings ConsumerSettings) (*Consumer, error) {
+// NewConsumer objet
+func NewConsumer(face iface.Face, settings ConsumerSettings) (*Consumer, error) {
+	faceID := face.ID()
 	socket := face.NumaSocket()
 	rxC := (*C.ConsumerRx)(eal.Zmalloc("ConsumerRx", C.sizeof_ConsumerRx, socket))
 
@@ -56,7 +59,7 @@ func newConsumer(face iface.Face, settings ConsumerSettings) (*Consumer, error) 
 	}
 
 	txC := (*C.ConsumerTx)(eal.Zmalloc("ConsumerTx", C.sizeof_ConsumerTx, socket))
-	txC.face = (C.FaceID)(face.ID())
+	txC.face = (C.FaceID)(faceID)
 	txC.interestMp = (*C.struct_rte_mempool)(ndni.InterestMempool.MakePool(socket).Ptr())
 	C.NonceGen_Init(&txC.nonceGen)
 
@@ -89,6 +92,7 @@ func newConsumer(face iface.Face, settings ConsumerSettings) (*Consumer, error) 
 	return &consumer, nil
 }
 
+// Configure consumer instance
 func (consumer *Consumer) Configure(settings ConsumerSettings) error {
 	fileInfoPrefix := ndn.ParseName(C.PACKET_NAME_PREFIX_URI_FILEINFO)
 	readPrefix := ndn.ParseName(C.PACKET_NAME_PREFIX_URI_READ)
@@ -114,10 +118,6 @@ func (consumer *Consumer) Configure(settings ConsumerSettings) error {
 	return nil
 }
 
-func (consumer *Consumer) GetFace() iface.Face {
-	return iface.Get(iface.ID(consumer.txC.face))
-}
-
 // RxQueue from Consumer instance
 func (consumer *Consumer) RxQueue() *iface.PktQueue {
 	return iface.PktQueueFromPtr(unsafe.Pointer(&consumer.rxC.rxQueue))
@@ -132,18 +132,19 @@ func (consumer *Consumer) ConfigureDemux(demuxI, demuxD, demuxN *iface.InputDemu
 	demuxN.SetDest(0, q)
 }
 
+// SetLCores for Consumer instane
 func (consumer *Consumer) SetLCores(rxLCore, txLCore eal.LCore) {
 	consumer.Rx.SetLCore(rxLCore)
 	consumer.Tx.SetLCore(txLCore)
 }
 
-// Launch the RX thread.
+// Launch the RX thread
 func (consumer *Consumer) Launch() {
 	consumer.Rx.Launch()
 	consumer.Tx.Launch()
 }
 
-// Stop Rx and TX threads.
+// Stop Rx and TX threads
 func (consumer *Consumer) Stop() error {
 	eTx := consumer.Tx.Stop()
 	eRx := consumer.Rx.Stop()
@@ -154,7 +155,7 @@ func (consumer *Consumer) Stop() error {
 	return nil
 }
 
-// Close the consumer.
+// Close the consumer
 // Both RX and TX threads must be stopped before calling this.
 func (consumer *Consumer) Close() error {
 	consumer.RxQueue().Close()
@@ -218,7 +219,6 @@ func (consumer *Consumer) Read(pathname string, buf *C.uint8_t, count int64, off
 		if m.Error {
 			return nbytes, fmt.Errorf("Return error code %d for read on file: %s", m.Value, pathname)
 		}
-
 		nbytes += m.Value
 	}
 

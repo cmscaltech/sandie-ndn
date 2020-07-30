@@ -11,7 +11,6 @@ import (
 	"github.com/usnistgov/ndn-dpdk/dpdk/ealthread"
 	"github.com/usnistgov/ndn-dpdk/mgmt"
 	"github.com/usnistgov/ndn-dpdk/mgmt/facemgmt"
-	"github.com/usnistgov/ndn-dpdk/mgmt/versionmgmt"
 )
 
 func exit(app *xrdndndpdkconsumer.App) {
@@ -25,7 +24,7 @@ func exit(app *xrdndndpdkconsumer.App) {
 func main() {
 	pc, e := parseCommand(ealinit.Init(os.Args)[1:])
 	if e != nil {
-		log.WithError(e).Fatal("command line error")
+		log.WithError(e).Fatal("Command line error")
 	}
 
 	pc.initCfg.Mempool.Apply()
@@ -33,7 +32,7 @@ func main() {
 
 	app, e := xrdndndpdkconsumer.New(pc.initCfgConsumer[0])
 	if e != nil {
-		log.WithError(e).Fatal("xrdndndpdkconsumer.NewApp error")
+		log.WithError(e).Fatal("New App error")
 	}
 
 	signalChan := make(chan os.Signal)
@@ -44,14 +43,15 @@ func main() {
 		os.Exit(1)
 	}()
 
-	app.Launch()
+	log.Info("Starting XRootD NDN-DPDK Consumer application")
+	if e = app.Launch(); e != nil {
+		log.WithError(e).Fatal("App launch error")
+	}
 
-	mgmt.Register(versionmgmt.VersionMgmt{})
 	mgmt.Register(facemgmt.FaceMgmt{})
 	mgmt.Start()
 
-	e = app.Run()
-	if e != nil {
-		log.WithError(e).Fatal("xrdndndpdkconsumer.Run error")
+	if e = app.Run(); e != nil {
+		log.WithError(e).Fatal("App run error")
 	}
 }

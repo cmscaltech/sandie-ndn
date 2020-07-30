@@ -98,12 +98,17 @@ int ConsumerRx_Run(ConsumerRx *cr) {
     ZF_LOGI("Started consumer Rx instance on socket: %d lcore %d",
             rte_socket_id(), rte_lcore_id());
 
-    struct rte_mbuf *pkts[CONSUMER_RX_MAX_BURST_SIZE];
+    struct rte_mbuf *pkts[cr->rxQueue.dequeueBurstSize];
 
     while (ThreadStopFlag_ShouldContinue(&cr->stop)) {
-        uint32_t nRx = PktQueue_Pop(&cr->rxQueue, (struct rte_mbuf **)pkts,
-                                    RTE_DIM(pkts), rte_get_tsc_cycles())
-                           .count;
+        TscTime now = rte_get_tsc_cycles();
+        uint32_t nRx =
+            PktQueue_Pop(&cr->rxQueue, pkts, RTE_DIM(pkts), now).count;
+
+        if (unlikely(nRx == 0)) {
+            rte_pause();
+            continue;
+        }
 
         for (uint16_t i = 0; i < nRx; ++i) {
             Packet *npkt = Packet_FromMbuf(pkts[i]);

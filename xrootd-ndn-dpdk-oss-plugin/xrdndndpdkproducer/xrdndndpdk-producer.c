@@ -190,12 +190,12 @@ void Producer_Run(Producer *producer) {
     ZF_LOGI("Started producer instance on socket: %d lcore %d", rte_socket_id(),
             rte_lcore_id());
 
-    struct rte_mbuf *rx[PRODUCER_MAX_BURST_SIZE];
-    Packet *tx[PRODUCER_MAX_BURST_SIZE];
+    struct rte_mbuf *rx[cr->rxQueue.dequeueBurstSize];
+    Packet *tx[cr->rxQueue.dequeueBurstSize];
 
     while (ThreadStopFlag_ShouldContinue(&producer->stop)) {
         uint32_t nRx =
-            PktQueue_Pop(&producer->rxQueue, rx, PRODUCER_MAX_BURST_SIZE,
+            PktQueue_Pop(&producer->rxQueue, rx, cr->rxQueue.dequeueBurstSize,
                          rte_get_tsc_cycles())
                 .count;
 

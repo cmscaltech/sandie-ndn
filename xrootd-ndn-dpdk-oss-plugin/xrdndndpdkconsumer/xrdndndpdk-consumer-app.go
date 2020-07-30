@@ -1,8 +1,6 @@
 package xrdndndpdkconsumer
 
 /*
-#include <sys/stat.h>
-#include <stdlib.h>
 #include "../xrdndndpdk-common/xrdndndpdk-namespace.h"
 */
 import "C"
@@ -59,21 +57,20 @@ func New(initCfgConsumer InitConfigConsumer) (app *App, e error) {
 
 	app.face, e = initCfgConsumer.Face.Locator.CreateFace()
 	if e != nil {
-		return nil, fmt.Errorf("face creation error: %v", e)
+		return nil, fmt.Errorf("Face creation error: %v", e)
 	}
 
 	if initCfgConsumer.Consumer == nil {
-		return nil, fmt.Errorf("Init config for consumer is empty")
+		return nil, fmt.Errorf("Consumer config empty")
 	}
 
 	if len(initCfgConsumer.Files) == 0 {
 		return nil, errors.New("yaml: list of file paths empty or not defined")
-	} else {
-		app.files = initCfgConsumer.Files
 	}
+	app.files = initCfgConsumer.Files
 
 	socket := app.face.NumaSocket()
-	if app.consumer, e = newConsumer(app.face, *initCfgConsumer.Consumer); e != nil {
+	if app.consumer, e = NewConsumer(app.face, *initCfgConsumer.Consumer); e != nil {
 		return nil, e
 	}
 
@@ -87,12 +84,13 @@ func New(initCfgConsumer InitConfigConsumer) (app *App, e error) {
 }
 
 // Launch App
-func (app *App) Launch() {
+func (app *App) Launch() error {
 	for _, input := range app.inputs {
 		app.launchInput(input)
 	}
 
 	app.consumer.Launch()
+	return nil
 }
 
 // LaunchInput
@@ -110,14 +108,17 @@ func (app *App) launchInput(input *Input) {
 }
 
 // Close App
-func (app *App) Close() error {
+func (app *App) Close() (e error) {
 	if app.consumer != nil {
-		app.consumer.Stop()
-		app.consumer.Close()
+		if e = app.consumer.Stop(); e != nil {
+			return e
+		}
+		if e = app.consumer.Close(); e != nil {
+			return e
+		}
 	}
 
-	app.face.Close()
-	return nil
+	return app.face.Close()
 }
 
 // Run App

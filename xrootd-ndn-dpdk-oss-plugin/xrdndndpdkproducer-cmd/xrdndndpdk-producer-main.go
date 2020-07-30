@@ -11,7 +11,6 @@ import (
 	"github.com/usnistgov/ndn-dpdk/dpdk/ealthread"
 	"github.com/usnistgov/ndn-dpdk/mgmt"
 	"github.com/usnistgov/ndn-dpdk/mgmt/facemgmt"
-	"github.com/usnistgov/ndn-dpdk/mgmt/versionmgmt"
 )
 
 func exit(app *xrdndndpdkproducer.App) {
@@ -33,7 +32,7 @@ func main() {
 
 	app, e := xrdndndpdkproducer.New(pc.initCfgProducer[0])
 	if e != nil {
-		log.WithError(e).Fatal("Error on New App")
+		log.WithError(e).Fatal("New App error")
 	}
 
 	signalChan := make(chan os.Signal)
@@ -45,12 +44,10 @@ func main() {
 	}()
 
 	log.Info("Starting XRootD NDN-DPDK Producer application")
-	e = app.Launch()
-	if e != nil {
+	if e = app.Launch(); e != nil {
 		log.WithError(e).Fatal("App lauch error")
 	}
 
-	mgmt.Register(versionmgmt.VersionMgmt{})
 	mgmt.Register(facemgmt.FaceMgmt{})
 	mgmt.Start()
 

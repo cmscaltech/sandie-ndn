@@ -4,6 +4,8 @@
     port: 0000:5e:01.1
     local: "52:37:4f:e8:5a:80"
     remote: "9e:0a:a8:c5:d3:97"
+    portConfig:
+      mtu: 9000
   producer:
     freshnessperiod: 100s   # Interest packets freshness period
     filesystemtype: posix   # Filesystem type: posix/hdfs/cephfs, default posix

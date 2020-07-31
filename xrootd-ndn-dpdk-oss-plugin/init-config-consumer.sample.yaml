@@ -4,6 +4,8 @@
     port: 0000:5e:02.0
     local: "9e:0a:a8:c5:d3:97"
     remote: "52:37:4f:e8:5a:80"
+    portConfig:
+      mtu: 9000
   consumer:
     mustbefresh: false
     canbeprefix: false

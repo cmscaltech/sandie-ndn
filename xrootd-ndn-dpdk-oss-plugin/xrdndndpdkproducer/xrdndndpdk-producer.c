@@ -113,10 +113,12 @@ static Packet *Producer_OnFileInfoInterest(Producer *producer, Packet *npkt,
         }
     }
 
-    Packet *pkt = Producer_EncodeData(producer, npkt, sizeof(struct stat),
-                                      (uint8_t *)statbuf);
+    FileInfo fileInfo = {statbuf->st_size, statbuf->st_mode};
     rte_free(statbuf);
     rte_free(pathname);
+
+    Packet *pkt = Producer_EncodeData(producer, npkt, sizeof(struct stat),
+                                      (uint8_t *)(&fileInfo));
     return pkt;
 }
 

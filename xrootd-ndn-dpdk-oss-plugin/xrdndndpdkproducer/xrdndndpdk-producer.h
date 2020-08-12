@@ -30,6 +30,15 @@
 #include "../xrdndndpdkfilesystem/filesystem-c-api.h"
 
 /**
+ * @brief FileInfo struct to return on FileInfo Interest
+ *
+ */
+typedef struct FileInfo {
+    uint64_t size;
+    uint32_t mode;
+} FileInfo;
+
+/**
  * @brief Producer struct
  *
  */

@@ -113,12 +113,16 @@ static Packet *Producer_OnFileInfoInterest(Producer *producer, Packet *npkt,
         }
     }
 
-    FileInfo fileInfo = {statbuf->st_size, statbuf->st_mode};
+    // On stat send only filesize at the moment for compatibility with Pure-Go
+    // consumer
+    FileInfo fileInfo = {statbuf->st_size};
+    uint8_t contentV[8];
+    int contentL = Nni_Encode(&contentV[0], fileInfo.size);
+
     rte_free(statbuf);
     rte_free(pathname);
 
-    Packet *pkt = Producer_EncodeData(producer, npkt, sizeof(struct stat),
-                                      (uint8_t *)(&fileInfo));
+    Packet *pkt = Producer_EncodeData(producer, npkt, contentL, contentV);
     return pkt;
 }
 
@@ -126,7 +130,7 @@ static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
                                        const LName name) {
     char *pathname =
         rte_malloc(NULL, XRDNDNDPDK_MAX_NAME_SIZE * sizeof(char), 0);
-    const uint8_t *segNumComp = RTE_PTR_ADD(
+    const uint8_t *offsetNumComp = RTE_PTR_ADD(
         name.value,
         Name_Decode_FilePath(name, PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN,
                              pathname));
@@ -142,12 +146,12 @@ static Packet *Producer_OnReadInterest(Producer *producer, Packet *npkt,
         return Producer_EncodeDataAsError(producer, npkt, XRDNDNDPDK_EFAILURE);
     }
 
-    assert(segNumComp[0] == TtSegmentNameComponent);
-    uint64_t segNum = 0;
-    Nni_Decode(segNumComp[1], RTE_PTR_ADD(segNumComp, 2), &segNum);
+    assert(offsetNumComp[0] == TtByteOffsetNameComponent);
+    uint64_t offset = 0;
+    Nni_Decode(offsetNumComp[1], RTE_PTR_ADD(offsetNumComp, 2), &offset);
 
     int readRetCode = libfs_read(producer->fs, pathname, buf,
-                                 XRDNDNDPDK_MAX_PAYLOAD_SIZE, segNum);
+                                 XRDNDNDPDK_MAX_PAYLOAD_SIZE, offset);
 
     if (unlikely(readRetCode < 0)) {
         rte_free(buf);

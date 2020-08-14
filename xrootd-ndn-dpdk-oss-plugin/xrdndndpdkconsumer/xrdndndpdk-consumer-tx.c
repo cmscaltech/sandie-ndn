@@ -53,14 +53,14 @@ static void ConsumerTx_ExpressFileInfoInterest(ConsumerTx *ct,
 static void ConsumerTx_EncodeReadInterest(ConsumerTx *ct, struct rte_mbuf *pkt,
                                           ConsumerTxRequest *req,
                                           uint64_t segNum) {
-    uint8_t segNumComp[10];
-    segNumComp[0] = TtSegmentNameComponent;
-    segNumComp[1] = Nni_Encode(RTE_PTR_ADD(segNumComp, 2), segNum);
+    uint8_t offsetNumComp[10];
+    offsetNumComp[0] = TtByteOffsetNameComponent;
+    offsetNumComp[1] = Nni_Encode(RTE_PTR_ADD(offsetNumComp, 2), segNum);
 
-    uint16_t suffixL = req->nameL + segNumComp[1] + 2;
+    uint16_t suffixL = req->nameL + offsetNumComp[1] + 2;
     uint8_t *suffixV = (uint8_t *)rte_malloc(NULL, suffixL, 0);
     rte_memcpy(suffixV, req->nameV, req->nameL);
-    rte_memcpy(suffixV + req->nameL, &segNumComp, segNumComp[1] + 2);
+    rte_memcpy(suffixV + req->nameL, &offsetNumComp, offsetNumComp[1] + 2);
 
     LName suffix = {.length = suffixL, .value = suffixV};
     uint32_t nonce = NonceGen_Next(&ct->nonceGen);

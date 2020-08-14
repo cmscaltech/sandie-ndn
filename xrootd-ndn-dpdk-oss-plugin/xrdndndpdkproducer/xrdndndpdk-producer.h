@@ -35,7 +35,7 @@
  */
 typedef struct FileInfo {
     uint64_t size;
-    uint32_t mode;
+    // uint32_t mode;
 } FileInfo;
 
 /**

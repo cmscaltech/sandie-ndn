@@ -46,13 +46,13 @@ ConsumerRx_processContent(ConsumerRx *cr, Packet *npkt, PContent *content) {
     PacketType pt = Name_Decode_PacketType(*name);
 
     if (likely(PACKET_READ == pt)) {
-        const uint8_t *segNumComp = RTE_PTR_ADD(
+        const uint8_t *offsetNumComp = RTE_PTR_ADD(
             name->value, Name_Decode_FilePathLength(
                              *name, PACKET_NAME_PREFIX_URI_READ_ENCODED_LEN));
-        assert(segNumComp[0] == TtSegmentNameComponent);
+        assert(offsetNumComp[0] == TtByteOffsetNameComponent);
 
         uint64_t segNum = 0;
-        Nni_Decode(segNumComp[1], RTE_PTR_ADD(segNumComp, 2), &segNum);
+        Nni_Decode(offsetNumComp[1], RTE_PTR_ADD(offsetNumComp, 2), &segNum);
 
         cr->onContent(content->contentL, segNum);
     } else if (PACKET_FILEINFO == pt) {

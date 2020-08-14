@@ -1,12 +1,11 @@
 *.DS_Store
+*.idea
+*.vscode
 
 xrootd-ndn-oss-plugin/build/*
 xrootd-ndn-dpdk-oss-plugin/libs/*
 xrootd-ndn-dpdk-oss-plugin/obj/*
-xrootd-ndn-dpdk-oss-plugin/.vscode/*
 
 xrootd-ndn-dpdk-oss-plugin/xrdndndpdkconsumer/cgoflags.go
 xrootd-ndn-dpdk-oss-plugin/xrdndndpdkproducer/cgoflags.go
 xrootd-ndn-dpdk-oss-plugin/xrdndndpdkfilesystem/cgoflags.go
-
-vs-workspace/*

@@ -1,0 +1,1 @@
+# sandie-ndn/go/internal/pkg/consumer

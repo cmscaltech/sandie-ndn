@@ -19,8 +19,8 @@ import (
 
 // Consumer
 type Consumer struct {
-	face    l3.Face
-	cleanup func()
+	face       l3.Face
+	mgmtClient *gqlmgmt.Client
 }
 
 type FileInfo struct {
@@ -34,8 +34,9 @@ var (
 	errorCh = make(chan error)
 )
 
-func createFaceLocal(gqluri string) (l3.Face, func(), error) {
+func createFaceLocal(gqluri string) (l3.Face, *gqlmgmt.Client, error) {
 	c, e := gqlmgmt.New(gqluri)
+
 	if e != nil {
 		return nil, nil, e
 	}
@@ -50,25 +51,22 @@ func createFaceLocal(gqluri string) (l3.Face, func(), error) {
 	log.Info("Opening memif face on local forwarder ", f.ID())
 	time.Sleep(1000 * time.Millisecond)
 
-	return f.Face(), func() {
-		time.Sleep(100 * time.Millisecond) // allow time to close face
-		_ = c.Close()
-	}, nil
+	return f.Face(), c, nil
 }
 
-func createFaceNet(settings Settings) (l3.Face, func(), error) {
+func createFaceNet(settings Settings) (l3.Face, error) {
 	tr, e := afpacket.New(settings.Ifname, settings.Config)
 	if e != nil {
-		return nil, nil, e
+		return nil, e
 	}
 
 	face, e := l3.NewFace(tr)
 	if e != nil {
-		return nil, nil, e
+		return nil, e
 	}
 
 	log.Info("Opening AF_PACKET face on network interface ", settings.Ifname)
-	return face, func() {}, nil
+	return face, nil
 }
 
 // NewConsumer
@@ -77,9 +75,9 @@ func NewConsumer(settings Settings) (consumer *Consumer, e error) {
 	log.Debug("Get new consumer")
 
 	if settings.Ifname == "" {
-		consumer.face, consumer.cleanup, e = createFaceLocal(settings.Gqluri)
+		consumer.face, consumer.mgmtClient, e = createFaceLocal(settings.Gqluri)
 	} else {
-		consumer.face, consumer.cleanup, e = createFaceNet(settings)
+		consumer.face, e = createFaceNet(settings)
 	}
 
 	if e != nil {
@@ -101,7 +99,11 @@ func (consumer *Consumer) Close() {
 	// Closing this channel causes the face to close
 	// Rx channel will also be closed, likewise OnPacket goroutine
 	close(consumer.face.Tx())
-	consumer.cleanup()
+
+	if consumer.mgmtClient != nil {
+		time.Sleep(100 * time.Millisecond) // allow time to close face
+		_ = consumer.mgmtClient.Close()
+	}
 
 	close(dataCh)
 	close(errorCh)

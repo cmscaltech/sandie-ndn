@@ -8,9 +8,7 @@ import (
 	"github.com/usnistgov/ndn-dpdk/ndn"
 	"github.com/usnistgov/ndn-dpdk/ndn/an"
 	"github.com/usnistgov/ndn-dpdk/ndn/l3"
-	"github.com/usnistgov/ndn-dpdk/ndn/memiftransport"
 	"github.com/usnistgov/ndn-dpdk/ndn/mgmt/gqlmgmt"
-	"github.com/usnistgov/ndn-dpdk/ndn/packettransport/afpacket"
 	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
 	"sandie-ndn/go/internal/pkg/namespace"
 	"sandie-ndn/go/internal/pkg/utils"
@@ -34,50 +32,15 @@ var (
 	errorCh = make(chan error)
 )
 
-func createFaceLocal(gqluri string) (l3.Face, *gqlmgmt.Client, error) {
-	c, e := gqlmgmt.New(gqluri)
-
-	if e != nil {
-		return nil, nil, e
-	}
-
-	var loc = memiftransport.Locator{Dataroom: 9000}
-
-	f, e := c.OpenMemif(loc)
-	if e != nil {
-		return nil, nil, e
-	}
-
-	log.Info("Opening memif face on local forwarder ", f.ID())
-	time.Sleep(1000 * time.Millisecond)
-
-	return f.Face(), c, nil
-}
-
-func createFaceNet(settings Settings) (l3.Face, error) {
-	tr, e := afpacket.New(settings.Ifname, settings.Config)
-	if e != nil {
-		return nil, e
-	}
-
-	face, e := l3.NewFace(tr)
-	if e != nil {
-		return nil, e
-	}
-
-	log.Info("Opening AF_PACKET face on network interface ", settings.Ifname)
-	return face, nil
-}
-
 // NewConsumer
 func NewConsumer(settings Settings) (consumer *Consumer, e error) {
 	consumer = new(Consumer)
 	log.Debug("Get new consumer")
 
 	if settings.Ifname == "" {
-		consumer.face, consumer.mgmtClient, e = createFaceLocal(settings.Gqluri)
+		consumer.face, consumer.mgmtClient, e = utils.CreateFaceLocal(settings.Gqluri)
 	} else {
-		consumer.face, e = createFaceNet(settings)
+		consumer.face, e = utils.CreateFaceNet(settings.Ifname, settings.Config)
 	}
 
 	if e != nil {

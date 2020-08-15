@@ -11,6 +11,8 @@ import (
 )
 
 type App struct {
+	shouldContinue bool
+
 	Consumer *Consumer
 	input    string
 	output   string
@@ -32,7 +34,16 @@ func NewApp(config AppConfig) (app *App, e error) {
 
 // Run application
 func (app *App) Run() (e error) {
-	return app.GetFile()
+	if app.Consumer == nil {
+		return fmt.Errorf("app consumer is nil")
+	}
+
+	if e = app.GetFile(); e != nil {
+		return e
+	}
+
+	app.Consumer.Close()
+	return nil
 }
 
 // Close application
@@ -41,17 +52,21 @@ func (app *App) Close() error {
 		return fmt.Errorf("app consumer is nil")
 	}
 
-	return app.Consumer.Close()
+	app.shouldContinue = true
+	time.Sleep(time.Second) // allow time to stop GetFile processing loop
+
+	app.Consumer.Close()
+	return nil
 }
 
 // GetFile over NDN
 func (app *App) GetFile() (e error) {
-	var fileinfo FileInfo
-	if fileinfo, e = app.Consumer.Stat(app.input); e != nil {
+	log.Info("Get file: ", app.input, " over NDN...")
+
+	fileinfo, e := app.Consumer.Stat(app.input)
+	if e != nil {
 		return e
 	}
-
-	log.Info("File ", app.input, " size: ", fileinfo.Size, " bytes")
 
 	var progressBar *pb.ProgressBar
 	{
@@ -63,6 +78,10 @@ func (app *App) GetFile() (e error) {
 	}
 
 	for off, n := int64(0), 0; off < int64(fileinfo.Size); {
+		if app.shouldContinue {
+			return nil
+		}
+
 		b := make([]byte, uint64(262144))
 		if n, e = app.Consumer.ReadAt(b, off, app.input); e != nil {
 			return e

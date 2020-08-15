@@ -19,8 +19,8 @@ import (
 
 // Consumer
 type Consumer struct {
-	face      l3.Face
-	cleanup func() error
+	face    l3.Face
+	cleanup func()
 }
 
 type FileInfo struct {
@@ -30,11 +30,11 @@ type FileInfo struct {
 }
 
 var (
-	dataCh = make(chan *ndn.Data)
+	dataCh  = make(chan *ndn.Data)
 	errorCh = make(chan error)
 )
 
-func createFaceLocal(gqluri string) (l3.Face, func() error, error) {
+func createFaceLocal(gqluri string) (l3.Face, func(), error) {
 	c, e := gqlmgmt.New(gqluri)
 	if e != nil {
 		return nil, nil, e
@@ -50,13 +50,13 @@ func createFaceLocal(gqluri string) (l3.Face, func() error, error) {
 	log.Info("Opening memif face on local forwarder ", f.ID())
 	time.Sleep(1000 * time.Millisecond)
 
-	return f.Face(), func() error {
-		time.Sleep(1000 * time.Millisecond) // allow time to close face
-		return c.Close()
+	return f.Face(), func() {
+		time.Sleep(100 * time.Millisecond) // allow time to close face
+		_ = c.Close()
 	}, nil
 }
 
-func createFaceNet(settings Settings) (l3.Face, func() error, error) {
+func createFaceNet(settings Settings) (l3.Face, func(), error) {
 	tr, e := afpacket.New(settings.Ifname, settings.Config)
 	if e != nil {
 		return nil, nil, e
@@ -68,13 +68,13 @@ func createFaceNet(settings Settings) (l3.Face, func() error, error) {
 	}
 
 	log.Info("Opening AF_PACKET face on network interface ", settings.Ifname)
-	return face, func() error { return nil }, nil
+	return face, func() {}, nil
 }
 
 // NewConsumer
 func NewConsumer(settings Settings) (consumer *Consumer, e error) {
 	consumer = new(Consumer)
-	log.Debug("Get new Consumer")
+	log.Debug("Get new consumer")
 
 	if settings.Ifname == "" {
 		consumer.face, consumer.cleanup, e = createFaceLocal(settings.Gqluri)
@@ -96,19 +96,15 @@ func NewConsumer(settings Settings) (consumer *Consumer, e error) {
 }
 
 // Close
-func (consumer *Consumer) Close() error {
+func (consumer *Consumer) Close() {
 	log.Debug("Closing consumer")
 	// Closing this channel causes the face to close
 	// Rx channel will also be closed, likewise OnPacket goroutine
 	close(consumer.face.Tx())
-
-	if e := consumer.cleanup(); e != nil {
-		return e
-	}
+	consumer.cleanup()
 
 	close(dataCh)
 	close(errorCh)
-	return nil
 }
 
 // OnPacket Process all packets on Rx channel
@@ -148,7 +144,7 @@ func (consumer *Consumer) OnPacket() {
 }
 
 func (consumer *Consumer) Stat(filepath string) (fi FileInfo, e error) {
-	log.Info("Get fileinfo for: ", filepath)
+	log.Debug("Stat: ", filepath)
 
 	in := ndn.ParseName(namespace.NamePrefixUriFileinfo + filepath)
 	consumer.face.Tx() <- ndn.MakeInterest(in, ndn.NewNonce(), namespace.DefaultInterestLifetime)
@@ -156,20 +152,18 @@ func (consumer *Consumer) Stat(filepath string) (fi FileInfo, e error) {
 	select {
 	case data := <-dataCh:
 		{
-			log.Debug("Received Data for fileinfo Interest")
 			if contentV, e := utils.ReadNNI(data.Content); e == nil {
 				fi.Size = uint64(contentV)
 			}
 		}
 	case e = <-errorCh:
-		return fi, nil
 	}
 
 	return fi, e
 }
 
 func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e error) {
-	log.Debug("Reading ", len(b), " bytes @", off, " from: ", filepath)
+	log.Debug("Read@", off, " ", len(b), " bytes from: ", filepath)
 
 	var npkts = 0
 
@@ -186,9 +180,6 @@ func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e
 			ndn.NameComponent{Element: byteOffsetNameComponent},
 		)
 
-		if consumer.face.State() != l3.TransportUp {
-			return 0, nil
-		}
 		consumer.face.Tx() <- ndn.MakeInterest(name, ndn.NewNonce(), namespace.DefaultInterestLifetime)
 
 		byteOffsetV += namespace.MaxPayloadSize
@@ -216,7 +207,7 @@ func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e
 				}
 			}
 		case e = <-errorCh:
-				return 0, e
+			return n, e
 		}
 	}
 

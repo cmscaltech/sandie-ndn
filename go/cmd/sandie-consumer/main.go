@@ -31,12 +31,12 @@ func init() {
 	flag.Var(&remote, "remote", "remote MAC address")
 }
 
-func exit(app *consumer.App) {
-	log.Info("Closing SANDIE consumer application...")
-
+func exit(app *consumer.App, code int) {
 	if e := app.Close(); e != nil {
 		log.WithError(e).Fatal("close error")
 	}
+
+	os.Exit(code)
 }
 
 func main() {
@@ -56,27 +56,22 @@ func main() {
 	appConfig.Input = *input
 	appConfig.Output = *output
 
-	log.Info("Starting SANDIE consumer application...")
-
 	app, e := consumer.NewApp(appConfig)
 	if e != nil {
 		log.WithError(e).Error("init error")
-		exit(app)
-		os.Exit(namespace.EFailure)
+		exit(app, namespace.EFailure)
 	}
 
-	signalChan := make(chan os.Signal)
-	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+	signals := make(chan os.Signal)
+	signal.Notify(signals, syscall.SIGINT)
+
 	go func() {
-		<-signalChan
-		exit(app)
+		<-signals
+		exit(app, namespace.EFailure)
 	}()
 
 	if e := app.Run(); e != nil {
 		log.WithError(e).Error("run error")
-		exit(app)
-		os.Exit(namespace.EFailure)
+		exit(app, namespace.EFailure)
 	}
-
-	exit(app)
 }

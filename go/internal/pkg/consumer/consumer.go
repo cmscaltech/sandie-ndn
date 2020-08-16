@@ -57,7 +57,7 @@ func NewConsumer(config Config) (consumer *Consumer, e error) {
 }
 
 // Close consumer
-// Closing face.Tx() will close RX(), thus onPacket go-routine
+// Closing face.Tx() will close RX(), thus onPacket goroutine
 func (consumer *Consumer) Close() {
 	log.Debug("Closing consumer")
 	close(consumer.face.Tx())

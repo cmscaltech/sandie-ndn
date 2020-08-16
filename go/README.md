@@ -15,7 +15,7 @@ The resulting programs are being place inside: **$GOPATH/bin**.
 
 ### Docker packaging
 
-See [`/docker`](./docker) for more information on how to build Docker image able to run the main applications of this project.
+See [`/docker`](./docker) for more information.
 
 ## Go Directories
 
@@ -28,7 +28,7 @@ Main applications for this project. For more information and examples see:
 #### `/docker`
 
 Dockerfile and its auxiliary files and directories used for building Docker images to run the main applications of this project
-as well as the [NDN-DPDK](https://github.com/usnistgov/ndn-dpdk) forwarder. For more information see [`./docker`](./docker).
+as well as the [NDN-DPDK](https://github.com/usnistgov/ndn-dpdk) forwarder. For more information see [`/docker`](./docker).
 
 #### `/internal`
 

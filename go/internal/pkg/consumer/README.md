@@ -11,7 +11,7 @@ Interest packets expressed by this API are under **/ndn/xrootd** prefix. Maximum
 For high-performance throughput the consumer API will connect to the local NDN-DPDK forwarder for sharing memory and transmitting and receiving packets over the NDN network.
 It is also able to connect to a remote NDN entity: forwarder, producer, using AF_PACKET socket but with low performance.
 
-As an example on how to use this API use the code inside [`/cmd/sandie-consumer`](../../../cmd/sandie-consumer) as a reference.
+Check the [`/internal/app/consumer`](../../app/consumer) source code as an example on how to use this API.
 
 ## Logging
 

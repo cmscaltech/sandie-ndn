@@ -39,6 +39,7 @@ func exit(app *consumer.App, code int) {
 	os.Exit(code)
 }
 
+// main
 func main() {
 	flag.Parse()
 	if *input == "" {

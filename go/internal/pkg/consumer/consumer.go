@@ -33,14 +33,14 @@ var (
 )
 
 // NewConsumer
-func NewConsumer(settings Settings) (consumer *Consumer, e error) {
+func NewConsumer(config Config) (consumer *Consumer, e error) {
 	consumer = new(Consumer)
 	log.Debug("Get new consumer")
 
-	if settings.Ifname == "" {
-		consumer.face, consumer.mgmtClient, e = utils.CreateFaceLocal(settings.Gqluri)
+	if config.Ifname == "" {
+		consumer.face, consumer.mgmtClient, e = utils.CreateFaceLocal(config.Gqluri)
 	} else {
-		consumer.face, e = utils.CreateFaceNet(settings.Ifname, settings.Config)
+		consumer.face, e = utils.CreateFaceNet(config.Ifname, config.Config)
 	}
 
 	if e != nil {
@@ -52,15 +52,14 @@ func NewConsumer(settings Settings) (consumer *Consumer, e error) {
 	}
 
 	// Launch goroutine to process all incoming packets on Rx channel
-	go consumer.OnPacket()
+	go consumer.onPacket()
 	return consumer, nil
 }
 
-// Close
+// Close consumer
+// Closing face.Tx() will close RX(), thus onPacket go-routine
 func (consumer *Consumer) Close() {
 	log.Debug("Closing consumer")
-	// Closing this channel causes the face to close
-	// Rx channel will also be closed, likewise OnPacket goroutine
 	close(consumer.face.Tx())
 
 	if consumer.mgmtClient != nil {
@@ -72,8 +71,8 @@ func (consumer *Consumer) Close() {
 	close(errorCh)
 }
 
-// OnPacket Process all packets on Rx channel
-func (consumer *Consumer) OnPacket() {
+// onPacket process all packets on Rx channel
+func (consumer *Consumer) onPacket() {
 	for packet := range consumer.face.Rx() {
 		if packet.Data != nil {
 			if packet.Data.ContentType != an.ContentNack {
@@ -108,6 +107,7 @@ func (consumer *Consumer) OnPacket() {
 	}
 }
 
+// Stat Express Interest type: FILEINFO, for getting Data with Content FileInfo struct for file
 func (consumer *Consumer) Stat(filepath string) (fi FileInfo, e error) {
 	log.Debug("Stat: ", filepath)
 
@@ -127,27 +127,24 @@ func (consumer *Consumer) Stat(filepath string) (fi FileInfo, e error) {
 	return fi, e
 }
 
+// ReadAt Express Interest type: READAT, to get Data with Content bytes from file.
+// Always request the same packets no matter the offset in file. Round down to
+// the nearest multiple of MaxPayloadSize
 func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e error) {
 	log.Debug("Read@", off, " ", len(b), " bytes from: ", filepath)
 
 	var npkts = 0
 
-	// Always request the same packets no matter the offset in file.
-	// Round down to the nearest multiple of MaxPayloadSize.
-	// Packet Name format: Prefix + filepath + ByteOffset
-	var byteOffsetV = (off / namespace.MaxPayloadSize) * namespace.MaxPayloadSize
-	for byteOffsetV < off+int64(len(b)) {
-		byteOffsetNameComponent := tlv.MakeElementNNI(an.TtByteOffsetNameComponent, byteOffsetV)
+	for byteOffsetV := (off / namespace.MaxPayloadSize) * namespace.MaxPayloadSize;
+		byteOffsetV < off+int64(len(b)); byteOffsetV += namespace.MaxPayloadSize {
 
 		name := ndn.ParseName(namespace.NamePrefixUriFileRead + filepath)
 		name = append(
 			name,
-			ndn.NameComponent{Element: byteOffsetNameComponent},
+			ndn.NameComponent{Element: tlv.MakeElementNNI(an.TtByteOffsetNameComponent, byteOffsetV)},
 		)
 
 		consumer.face.Tx() <- ndn.MakeInterest(name, ndn.NewNonce(), namespace.DefaultInterestLifetime)
-
-		byteOffsetV += namespace.MaxPayloadSize
 		npkts++
 	}
 
@@ -159,16 +156,15 @@ func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e
 					continue
 				}
 
-				// Read ByteOffsetNameComponent V
-				byteOffset, e := utils.ReadNNI(data.Name.Get(-1).Value)
+				byteOffsetV, e := utils.ReadNNI(data.Name.Get(-1).Value)
 				if e != nil {
-					return 0, e
+					return n, e
 				}
 
-				if int64(byteOffset) < off { // Trim first segment
-					n += copy(b, data.Content[off-int64(byteOffset):])
+				if int64(byteOffsetV) < off { // Trim first segment
+					n += copy(b, data.Content[off-int64(byteOffsetV):])
 				} else {
-					n += copy(b[int64(byteOffset)-off:], data.Content)
+					n += copy(b[int64(byteOffsetV)-off:], data.Content)
 				}
 			}
 		case e = <-errorCh:

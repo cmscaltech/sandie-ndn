@@ -20,10 +20,10 @@ type App struct {
 
 // NewApp
 func NewApp(config AppConfig) (app *App, e error) {
-	log.Debug("Get new App")
+	log.Debug("Get new app")
 
 	app = new(App)
-	if app.Consumer, e = NewConsumer(config.Settings); e != nil {
+	if app.Consumer, e = NewConsumer(config.Config); e != nil {
 		return nil, e
 	}
 

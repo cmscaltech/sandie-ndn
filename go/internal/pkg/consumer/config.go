@@ -7,8 +7,8 @@ import (
 	"github.com/usnistgov/ndn-dpdk/ndn/packettransport/afpacket"
 )
 
-// Settings
-type Settings struct {
+// Config
+type Config struct {
 	Ifname string
 	Gqluri string
 	afpacket.Config

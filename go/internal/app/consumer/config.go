@@ -9,7 +9,7 @@ import (
 
 // AppConfig
 type AppConfig struct {
-	consumer.Settings
+	consumer.Config
 	Input  string
 	Output string
 }

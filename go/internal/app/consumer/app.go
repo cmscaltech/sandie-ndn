@@ -6,6 +6,7 @@ package consumer
 import (
 	"fmt"
 	"github.com/cheggaaa/pb/v3"
+	"os"
 	. "sandie-ndn/go/internal/pkg/consumer"
 	"time"
 )
@@ -63,6 +64,20 @@ func (app *App) Close() error {
 func (app *App) GetFile() (e error) {
 	log.Info("Get file: ", app.input, " over NDN...")
 
+	var output *os.File
+	if app.output != "" {
+		if output, e = os.Create(app.output); e != nil {
+			return e
+		}
+	}
+
+	// close output file on end of function
+	defer func() {
+		if output != nil {
+			_ = output.Close()
+		}
+	}()
+
 	fileinfo, e := app.Consumer.Stat(app.input)
 	if e != nil {
 		return e
@@ -91,8 +106,10 @@ func (app *App) GetFile() (e error) {
 			break
 		}
 
-		if app.output != "" {
-			// TODO: Save data locally
+		if output != nil {
+			if _, e = output.Write(b); e != nil {
+				return e
+			}
 		}
 
 		off += int64(n)

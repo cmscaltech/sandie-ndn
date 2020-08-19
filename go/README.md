@@ -1,5 +1,7 @@
 # sandie-ndn/go
 
+![](../docs/logo/sandie-gopher.png)
+
 Pure-go developments for the [SANDIE](../README.md) project.
 
 ## Installation

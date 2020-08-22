@@ -28,8 +28,8 @@ type FileInfo struct {
 }
 
 var (
-	dataCh  = make(chan *ndn.Data)
-	errorCh = make(chan error)
+	channelData  = make(chan *ndn.Data)
+	channelError = make(chan error)
 )
 
 // NewConsumer
@@ -67,61 +67,77 @@ func (consumer *Consumer) Close() {
 		_ = consumer.mgmtClient.Close()
 	}
 
-	close(dataCh)
-	close(errorCh)
+	close(channelData)
+	close(channelError)
 }
 
 // onPacket process all packets on Rx channel
 func (consumer *Consumer) onPacket() {
-	for packet := range consumer.face.Rx() {
+	for packet := range consumer.face.Rx() { // Handle Data
 		if packet.Data != nil {
+			log.Debug("Data for packet: ", packet.Data.Name)
+
 			if packet.Data.ContentType != an.ContentNack {
-				dataCh <- packet.Data
+				channelData <- packet.Data
 				continue
 			}
 
 			if contentV, e := utils.ReadNNI(packet.Data.Content); e != nil {
-				errorCh <- e
+				channelError <- e
 			} else {
-				errorCh <- fmt.Errorf(
-					"application-level nack for packet: %s with errcode: %d",
+				channelError <- fmt.Errorf(
+					"application-level NACK for packet: %s with errcode: %d",
 					packet.Data.Name.String(),
 					contentV,
 				)
 			}
-		} else if packet.Nack != nil {
+		} else if packet.Nack != nil { // Handle Nack
+			log.Debug(
+				"NACK with reason ",
+				an.NackReasonString(packet.Nack.Reason),
+				" for packet: ",
+				packet.Nack.Name(),
+			)
+
 			switch packet.Nack.Reason {
-			case an.NackCongestion: // TODO
-			case an.NackDuplicate: // TODO
-			case an.NackNoRoute:
+			case an.NackCongestion:
+				go func(name ndn.Name) {
+					time.Sleep(2 * time.Second)
+					consumer.expressInterest(name)
+				}(packet.Nack.Name())
+			case an.NackDuplicate:
+				consumer.expressInterest(packet.Nack.Name())
 			default:
-				errorCh <- fmt.Errorf(
-					"nack reason %s for packet: %s",
+				channelError <- fmt.Errorf(
+					"NACK with reason %s for packet: %s",
 					an.NackReasonString(packet.Nack.Reason),
 					packet.Nack.Name().String(),
 				)
 			}
 		} else {
-			errorCh <- fmt.Errorf("unsupported packet type")
+			channelError <- fmt.Errorf("unsupported packet type")
 		}
 	}
+}
+
+// expressInterest Put an Interest packet on Tx face
+func (consumer *Consumer) expressInterest(name ndn.Name) {
+	consumer.face.Tx() <- ndn.MakeInterest(name, ndn.NewNonce(), namespace.DefaultInterestLifetime)
 }
 
 // Stat Express Interest type: FILEINFO, for getting Data with Content FileInfo struct for file
 func (consumer *Consumer) Stat(filepath string) (fi FileInfo, e error) {
 	log.Debug("Stat: ", filepath)
-
-	in := ndn.ParseName(namespace.NamePrefixUriFileinfo + filepath)
-	consumer.face.Tx() <- ndn.MakeInterest(in, ndn.NewNonce(), namespace.DefaultInterestLifetime)
+	consumer.expressInterest(ndn.ParseName(namespace.NamePrefixUriFileinfo + filepath))
 
 	select {
-	case data := <-dataCh:
+	case data := <-channelData:
 		{
 			if contentV, e := utils.ReadNNI(data.Content); e == nil {
 				fi.Size = uint64(contentV)
 			}
 		}
-	case e = <-errorCh:
+	case e = <-channelError:
 	}
 
 	return fi, e
@@ -144,13 +160,13 @@ func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e
 			ndn.NameComponent{Element: tlv.MakeElementNNI(an.TtByteOffsetNameComponent, byteOffsetV)},
 		)
 
-		consumer.face.Tx() <- ndn.MakeInterest(name, ndn.NewNonce(), namespace.DefaultInterestLifetime)
+		consumer.expressInterest(name)
 		npkts++
 	}
 
 	for i := 0; i < npkts; i++ {
 		select {
-		case data := <-dataCh:
+		case data := <-channelData:
 			{
 				if len(data.Content) == 0 {
 					continue
@@ -167,7 +183,9 @@ func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e
 					n += copy(b[int64(byteOffsetV)-off:], data.Content)
 				}
 			}
-		case e = <-errorCh:
+		case <-time.After(4 * time.Second):
+			log.Error("Timeout")
+		case e = <-channelError:
 			return n, e
 		}
 	}

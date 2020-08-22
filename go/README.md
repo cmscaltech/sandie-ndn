@@ -1,8 +1,6 @@
-# sandie-ndn/go
+# Pure-go [SANDIE](../README.md)
 
 ![](../docs/logo/sandie-gopher.png)
-
-Pure-go developments for the [SANDIE](../README.md) project.
 
 ## Installation
 
@@ -29,13 +27,13 @@ Main applications for this project. For more information and examples see:
 
 #### `/docker`
 
-Dockerfile and its auxiliary files and directories used for building Docker images to run the main applications of this project
-as well as the [NDN-DPDK](https://github.com/usnistgov/ndn-dpdk) forwarder. For more information see [`/docker`](./docker).
+Dockerfile and auxiliary files used for building Docker images to run the main pure-go applications of this project
+as well as the [NDN-DPDK](https://github.com/usnistgov/ndn-dpdk) forwarder.
 
 #### `/internal`
 
 Internal logic of all main applications in this project as well as auxiliary packages. Parts of code present inside
-[`/internal/pkg`](./internal/pkg) will be exposed as go-gettable package in the future.
+[`/internal/pkg`](./internal/pkg) will eventually be go-gettable.
 
 ## License
 

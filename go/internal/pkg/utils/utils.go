@@ -4,6 +4,8 @@
 package utils
 
 import (
+	"fmt"
+	"github.com/usnistgov/ndn-dpdk/ndn"
 	"github.com/usnistgov/ndn-dpdk/ndn/l3"
 	"github.com/usnistgov/ndn-dpdk/ndn/memiftransport"
 	"github.com/usnistgov/ndn-dpdk/ndn/mgmt/gqlmgmt"
@@ -57,4 +59,18 @@ func ReadNNI(wire []byte) (value tlv.NNI, e error) {
 		return 0, e
 	}
 	return value, nil
+}
+
+// ReadApplicationLevelNackContent Read Content from Application Level Nack
+// marked Data packet and returns it as an error
+func ReadApplicationLevelNackContent(data *ndn.Data) error {
+	if content, e := ReadNNI(data.Content); e != nil {
+		return e
+	} else {
+		return fmt.Errorf(
+			"application-level NACK for packet: %s with errcode: %d",
+			data.Name.String(),
+			content,
+		)
+	}
 }

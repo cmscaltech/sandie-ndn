@@ -78,26 +78,26 @@ func (app *App) GetFile() (e error) {
 		}
 	}()
 
-	fileinfo, e := app.Consumer.Stat(app.input)
+	info, e := app.Consumer.Stat(app.input)
 	if e != nil {
 		return e
 	}
 
 	var progressBar *pb.ProgressBar
 	{
-		progressBar = pb.New64(int64(fileinfo.Size))
+		progressBar = pb.New64(int64(FileInfoGetSize(info)))
 		progressBar.SetWidth(120)
 		progressBar.Set(pb.Bytes, true)
 		progressBar.Set(pb.SIBytesPrefix, true)
 		progressBar.Start()
 	}
 
-	for off, n := int64(0), 0; off < int64(fileinfo.Size); {
+	for off, n := int64(0), 0; off < int64(FileInfoGetSize(info)); {
 		if app.shouldContinue {
 			return nil
 		}
 
-		b := make([]byte, uint64(262144))
+		b := make([]byte, uint64(3145728))
 		if n, e = app.Consumer.ReadAt(b, off, app.input); e != nil {
 			return e
 		}

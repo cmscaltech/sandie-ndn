@@ -119,7 +119,7 @@ func (app *App) GetFile() (e error) {
 	duration := time.Since(progressBar.StartTime())
 	progressBar.Finish()
 
-	throughput := fmt.Sprintf("%.4f", (((float64(progressBar.Current())/1024)/1024)*8)/duration.Seconds())
-	log.Info("Throughput: ", throughput, " Mbps")
+	goodput := fmt.Sprintf("%.4f", (((float64(progressBar.Current())/1024)/1024)*8)/duration.Seconds())
+	log.Info("Goodput: ", goodput, " Mbps")
 	return nil
 }

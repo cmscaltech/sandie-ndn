@@ -5,17 +5,32 @@ package pipeline
 
 import (
 	"github.com/usnistgov/ndn-dpdk/ndn"
-	"github.com/usnistgov/ndn-dpdk/ndn/l3"
 	"time"
 )
 
+// Pipeline represents the congestion and retransmission logic of packets
+// expressed by one consumer
 type Pipeline interface {
-	Face() l3.Face
-
+	// Send returns a channel on which the consumer can express Interest packets
 	Send() chan<- ndn.Interest
+
+	// OnData returns a channel on which Data packets are sent back
 	OnData() <-chan *ndn.Data
+
+	// OnFailure returns a channel to raise errors that might occur during packet
+	// handling over NDN such as: maximum number of timeouts has been exceed, maximum
+	// number of congestion NACKs has been exceeded
 	OnFailure() <-chan error
+
 	Close()
+}
+
+// Entry represents one entry in the pipeline. Used for retransmission logic
+type Entry struct {
+	interest        ndn.Interest
+	nNackCongestion int
+	nNackDuplicate  int
+	nTimeouts       int
 }
 
 var (
@@ -23,10 +38,3 @@ var (
 	MaxCongestionBackoffTime = time.Second * 2
 	MaxTimeoutRetries        = 4
 )
-
-type Entry struct {
-	interest        ndn.Interest
-	nNackCongestion int
-	nNackDuplicate  int
-	nTimeouts       int
-}

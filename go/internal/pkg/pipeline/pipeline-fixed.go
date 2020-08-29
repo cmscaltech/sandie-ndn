@@ -47,14 +47,9 @@ func (pipe *fixed) Close() {
 	log.Debug("Closing fixed window size pipeline")
 
 	pipe.cancel() // close all workers
-
 	close(pipe.onData)
 	close(pipe.onError)
 	close(pipe.windowFlowControl)
-}
-
-func (pipe *fixed) Face() l3.Face {
-	return pipe.face
 }
 
 func (pipe *fixed) Send() chan<- ndn.Interest {
@@ -73,8 +68,6 @@ func (pipe *fixed) sendLoop() {
 	for interest := range pipe.onSend {
 		pipe.windowFlowControl <- true // wait for window to slide
 		pipe.windowEntries.Store(interest.Name.String(), Entry{interest: interest})
-
-		log.Debug("Send Interest packet: ", interest.Name.String())
 		pipe.face.Tx() <- interest
 	}
 
@@ -89,17 +82,20 @@ func (pipe *fixed) receiveLoop() {
 			log.Debug("Stopping fixed window size pipeline receive loop")
 			return
 
-		case packet := <-pipe.Face().Rx():
+		case packet := <-pipe.face.Rx():
 			switch {
 			case packet.Data != nil:
-				log.Debug("Received Data packet: ", packet.Data.Name)
 				<-pipe.windowFlowControl // slide window
-
-				pipe.onData <- packet.Data
 				pipe.windowEntries.Delete(packet.Data.Name.String())
+				pipe.onData <- packet.Data
 
 			case packet.Nack != nil && packet.Nack.Reason == an.NackCongestion:
-				log.Warn("Received ", an.NackReasonString(packet.Nack.Reason), "for packet: ", packet.Nack.Name())
+				log.Warn(
+					"Received ",
+					an.NackReasonString(packet.Nack.Reason),
+					" for packet: ",
+					packet.Nack.Name(),
+				)
 
 				if entry, ok := pipe.windowEntries.Load(packet.Nack.Name().String()); !ok {
 					pipe.onError <- fmt.Errorf("received packet is not present in the window")
@@ -126,7 +122,12 @@ func (pipe *fixed) receiveLoop() {
 				}
 
 			case packet.Nack != nil && packet.Nack.Reason == an.NackDuplicate:
-				log.Warn("Received ", an.NackReasonString(packet.Nack.Reason), "for packet: ", packet.Nack.Name())
+				log.Warn(
+					"Received ",
+					an.NackReasonString(packet.Nack.Reason),
+					" for packet: ",
+					packet.Nack.Name(),
+				)
 
 				if entry, ok := pipe.windowEntries.Load(packet.Nack.Name().String()); !ok {
 					pipe.onError <- fmt.Errorf("received packet is not present in the window")

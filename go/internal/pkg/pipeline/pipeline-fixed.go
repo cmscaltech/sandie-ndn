@@ -9,25 +9,19 @@ import (
 	"github.com/usnistgov/ndn-dpdk/ndn"
 	"github.com/usnistgov/ndn-dpdk/ndn/an"
 	"github.com/usnistgov/ndn-dpdk/ndn/l3"
-	"time"
-
 	"sandie-ndn/go/internal/pkg/namespace"
+	"sync"
+	"time"
 )
 
-func NewFixed(face l3.Face, size int) (Pipeline, error) {
-	if size > 1024 {
-		return nil, fmt.Errorf("fixed window size: %d for pipeline too large", size)
-	}
-
+func NewFixed(face l3.Face) (Pipeline, error) {
 	p := &fixed{
-		face: face,
-
-		onSend:  make(chan ndn.Name, 1024),
-		onData:  make(chan *ndn.Data, 1024),
-		onError: make(chan error),
-		window:  make(chan bool, size), // Fixed window size
+		face:              face,
+		onSend:            make(chan ndn.Interest, 512),
+		onData:            make(chan *ndn.Data, 1024),
+		onError:           make(chan error),
+		windowFlowControl: make(chan bool, 64), // Fixed window size
 	}
-
 	p.ctx, p.cancel = context.WithCancel(context.Background())
 
 	go p.sendLoop()
@@ -38,26 +32,32 @@ func NewFixed(face l3.Face, size int) (Pipeline, error) {
 type fixed struct {
 	face l3.Face
 
-	onSend  chan ndn.Name
+	onSend  chan ndn.Interest
 	onData  chan *ndn.Data
 	onError chan error
-	window  chan bool
+
+	windowFlowControl chan bool
+	windowEntries     sync.Map
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 func (pipe *fixed) Close() {
-	log.Debug("Closing pipeline")
-	pipe.cancel() // Close all background workers
-	close(pipe.window)
+	log.Debug("Closing fixed window size pipeline")
+
+	pipe.cancel() // close all workers
+
+	close(pipe.onData)
+	close(pipe.onError)
+	close(pipe.windowFlowControl)
 }
 
 func (pipe *fixed) Face() l3.Face {
 	return pipe.face
 }
 
-func (pipe *fixed) Send() chan<- ndn.Name {
+func (pipe *fixed) Send() chan<- ndn.Interest {
 	return pipe.onSend
 }
 
@@ -70,63 +70,94 @@ func (pipe *fixed) OnFailure() <-chan error {
 }
 
 func (pipe *fixed) sendLoop() {
-	for name := range pipe.onSend {
-		pipe.window <- true // Wait for available spot in fixed window
-		pipe.face.Tx() <- ndn.MakeInterest(name, ndn.NewNonce(), namespace.DefaultInterestLifetime)
+	for interest := range pipe.onSend {
+		pipe.windowFlowControl <- true // wait for window to slide
+		pipe.windowEntries.Store(interest.Name.String(), Entry{interest: interest})
+
+		log.Debug("Send Interest packet: ", interest.Name.String())
+		pipe.face.Tx() <- interest
 	}
 
+	log.Debug("Stopping fixed window size pipeline send loop")
 	close(pipe.onSend)
 }
 
 func (pipe *fixed) receiveLoop() {
-	for packet := range pipe.Face().Rx() {
-		<-pipe.window // Free one spot in fixed window
+	for {
+		select {
+		case <-pipe.ctx.Done():
+			log.Debug("Stopping fixed window size pipeline receive loop")
+			return
 
-		switch {
-		case packet.Data != nil:
-			log.Debug("Received Data packet: ", packet.Data.Name)
-			pipe.onData <- packet.Data
+		case packet := <-pipe.Face().Rx():
+			switch {
+			case packet.Data != nil:
+				log.Debug("Received Data packet: ", packet.Data.Name)
+				<-pipe.windowFlowControl // slide window
 
-		case packet.Nack != nil && packet.Nack.Reason == an.NackCongestion:
-			log.Warn(
-				"Received ",
-				an.NackReasonString(packet.Nack.Reason),
-				"for packet: ",
-				packet.Nack.Name(),
-			)
-			// Backoff, then send a refresh Interest again
-			go func(ctx context.Context, name ndn.Name) {
-				for {
-					select {
-					case <-ctx.Done():
+				pipe.onData <- packet.Data
+				pipe.windowEntries.Delete(packet.Data.Name.String())
+
+			case packet.Nack != nil && packet.Nack.Reason == an.NackCongestion:
+				log.Warn("Received ", an.NackReasonString(packet.Nack.Reason), "for packet: ", packet.Nack.Name())
+
+				if entry, ok := pipe.windowEntries.Load(packet.Nack.Name().String()); !ok {
+					pipe.onError <- fmt.Errorf("received packet is not present in the window")
+				} else {
+					ent := entry.(Entry)
+					ent.nNackCongestion++
+
+					if ent.nNackCongestion > MaxNackCongestion {
+						pipe.onError <- fmt.Errorf("reached the maximum number of Nack retries: %d", MaxNackCongestion)
 						return
-					case <-time.After(2 * time.Second):
-						pipe.face.Tx() <- ndn.MakeInterest(name, ndn.NewNonce(), namespace.DefaultInterestLifetime)
 					}
+
+					ent.interest.Nonce = ndn.NewNonce()
+					pipe.windowEntries.Store(packet.Nack.Name().String(), ent)
+
+					go func(interest ndn.Interest) { //Backoff and resend Interest packet
+						select {
+						case <-pipe.ctx.Done():
+							return
+						case <-time.After(MaxCongestionBackoffTime):
+							pipe.face.Tx() <- interest
+						}
+					}(ent.interest)
 				}
-			}(pipe.ctx, packet.Nack.Name())
 
-		case packet.Nack != nil && packet.Nack.Reason == an.NackDuplicate:
-			log.Warn(
-				"Received ",
-				an.NackReasonString(packet.Nack.Reason),
-				"for packet: ",
-				packet.Nack.Name(),
-			)
-			pipe.face.Tx() <- ndn.MakeInterest(packet.Nack.Name(), ndn.NewNonce(), namespace.DefaultInterestLifetime)
+			case packet.Nack != nil && packet.Nack.Reason == an.NackDuplicate:
+				log.Warn("Received ", an.NackReasonString(packet.Nack.Reason), "for packet: ", packet.Nack.Name())
 
-		case packet.Nack != nil:
-			pipe.onError <- fmt.Errorf(
-				"unsupported NACK reason %s for packet: %s",
-				an.NackReasonString(packet.Nack.Reason),
-				packet.Nack.Name().String(),
-			)
+				if entry, ok := pipe.windowEntries.Load(packet.Nack.Name().String()); !ok {
+					pipe.onError <- fmt.Errorf("received packet is not present in the window")
+				} else {
+					ent := entry.(Entry)
+					ent.interest.Nonce = ndn.NewNonce()
+					pipe.windowEntries.Store(packet.Nack.Name().String(), ent)
+					pipe.face.Tx() <- ent.interest
+				}
 
-		default:
-			pipe.onError <- fmt.Errorf("unsupported packet type")
+			default:
+				pipe.onError <- fmt.Errorf("unsupported packet type")
+			}
+
+		case <-time.After(namespace.DefaultInterestLifetime):
+			log.Warn("Received timeout")
+
+			pipe.windowEntries.Range(func(key, value interface{}) bool {
+				ent := value.(Entry)
+				ent.nTimeouts++
+
+				if ent.nTimeouts > MaxTimeoutRetries {
+					pipe.onError <- fmt.Errorf("reached the maximum number of timeout retries: %d", MaxTimeoutRetries)
+					return false
+				}
+
+				ent.interest.Nonce = ndn.NewNonce()
+				pipe.windowEntries.Store(key, ent)
+				pipe.face.Tx() <- ent.interest
+				return true
+			})
 		}
 	}
-
-	close(pipe.onData)
-	close(pipe.onError)
 }

@@ -50,17 +50,16 @@ func NewConsumer(config Config) (consumer *Consumer, e error) {
 		return nil, fmt.Errorf("face is nil")
 	}
 
-	consumer.pipeline, _ = pipeline.NewFixed(consumer.face, config.TxQueueSize)
+	consumer.pipeline, _ = pipeline.NewFixed(consumer.face)
 	return consumer, nil
 }
 
 // Close consumer
-// Closing face.Tx() will close RX(), thus onPacket goroutine
 func (consumer *Consumer) Close() {
 	log.Debug("Closing consumer")
 
-	close(consumer.face.Tx())
 	consumer.pipeline.Close()
+	close(consumer.face.Tx())
 
 	if consumer.mgmtClient != nil {
 		time.Sleep(100 * time.Millisecond) // allow time to close face
@@ -71,7 +70,9 @@ func (consumer *Consumer) Close() {
 // Stat Express Interest type: FILEINFO, for getting Data with Content FileInfo struct for file
 func (consumer *Consumer) Stat(filepath string) (*FileInfo, error) {
 	log.Debug("Stat: ", filepath)
-	consumer.pipeline.Send() <- ndn.ParseName(namespace.NamePrefixUriFileinfo + filepath)
+	name := ndn.ParseName(namespace.NamePrefixUriFileinfo + filepath)
+
+	consumer.pipeline.Send() <- ndn.MakeInterest(name, ndn.NewNonce(), namespace.DefaultInterestLifetime)
 
 	select {
 	case data := <-consumer.pipeline.OnData():
@@ -108,7 +109,7 @@ func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e
 			ndn.NameComponent{Element: tlv.MakeElementNNI(an.TtByteOffsetNameComponent, byteOffsetV)},
 		)
 
-		consumer.pipeline.Send() <- name
+		consumer.pipeline.Send() <- ndn.MakeInterest(name, ndn.NewNonce(), namespace.DefaultInterestLifetime)
 		npkts++
 	}
 
@@ -137,9 +138,6 @@ func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e
 		case e = <-consumer.pipeline.OnFailure():
 			return n, e
 		}
-
-		//case <-time.After(8 * time.Second):
-		// TODO
 	}
 
 	return n, nil

@@ -72,10 +72,10 @@ func (consumer *Consumer) Stat(filepath string) (*FileInfo, error) {
 	log.Debug("Stat: ", filepath)
 	name := ndn.ParseName(namespace.NamePrefixUriFileinfo + filepath)
 
-	consumer.pipeline.Send() <- ndn.MakeInterest(name, ndn.NewNonce(), namespace.DefaultInterestLifetime)
+	consumer.pipeline.Send() <- ndn.MakeInterest(name, namespace.DefaultInterestLifetime)
 
 	select {
-	case data := <-consumer.pipeline.OnData():
+	case data := <-consumer.pipeline.Get():
 		if data.ContentType == an.ContentNack {
 			return nil, utils.ReadApplicationLevelNackContent(data)
 		}
@@ -87,7 +87,7 @@ func (consumer *Consumer) Stat(filepath string) (*FileInfo, error) {
 
 		return &FileInfo{size: uint64(content)}, nil
 
-	case e := <-consumer.pipeline.OnFailure():
+	case e := <-consumer.pipeline.Error():
 		return nil, e
 	}
 }
@@ -109,13 +109,13 @@ func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e
 			ndn.NameComponent{Element: tlv.MakeElementNNI(an.TtByteOffsetNameComponent, byteOffsetV)},
 		)
 
-		consumer.pipeline.Send() <- ndn.MakeInterest(name, ndn.NewNonce(), namespace.DefaultInterestLifetime)
+		consumer.pipeline.Send() <- ndn.MakeInterest(name, namespace.DefaultInterestLifetime)
 		npkts++
 	}
 
 	for i := 0; i < npkts; i++ {
 		select {
-		case data := <-consumer.pipeline.OnData():
+		case data := <-consumer.pipeline.Get():
 			if len(data.Content) == 0 {
 				continue
 			}
@@ -135,7 +135,7 @@ func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e
 				n += copy(b[int64(byteOffsetV)-off:], data.Content)
 			}
 
-		case e = <-consumer.pipeline.OnFailure():
+		case e = <-consumer.pipeline.Error():
 			return n, e
 		}
 	}

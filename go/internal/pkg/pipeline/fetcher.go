@@ -92,7 +92,13 @@ type fetcher struct {
 func (f *fetcher) In(interest ndn.Interest) {
 	interest.Nonce = ndn.NewNonce()
 
-	f.entries.Store(interest.Name.String(), Entry{interest: interest, lifetime: time.Now()})
+	f.entries.Store(
+		interest.Name.String(),
+		Entry{
+			interest: interest,
+			lifetime: time.Now(),
+		},
+	)
 	f.face.Tx() <- interest
 }
 
@@ -166,8 +172,6 @@ func (f *fetcher) handleNack(nack *ndn.Nack, onError chan<- error) {
 }
 
 func (f *fetcher) handleTimeout(onError chan<- error) {
-	log.Warn("Timeout reached")
-
 	f.entries.Range(func(key, value interface{}) bool {
 		ent := value.(Entry)
 		if time.Now().Sub(ent.lifetime) < ent.interest.Lifetime { // Interest has not expired

@@ -95,7 +95,10 @@ func (consumer *Consumer) Stat(filepath string) (*FileInfo, error) {
 // ReadAt Express Interest type: READAT, to get Data with Content bytes from file.
 // Always request the same packets no matter the offset in file. Round down to
 // the nearest multiple of MaxPayloadSize
-func (consumer *Consumer) ReadAt(b []byte, off int64, filepath string) (n int, e error) {
+func (consumer *Consumer) ReadAt(b []byte,
+	off int64,
+	filepath string,
+) (n int, e error) {
 	log.Debug("Read@", off, " ", len(b), " bytes from: ", filepath)
 
 	var npkts = 0

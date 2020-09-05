@@ -14,7 +14,9 @@ func New(pkg string) logrus.FieldLogger {
 }
 
 // NewWithPrefix creates a logger with specified prefix.
-func NewWithPrefix(pkg string, prefix string) logrus.FieldLogger {
+func NewWithPrefix(pkg string,
+	prefix string,
+) logrus.FieldLogger {
 	logger := logrus.New()
 	logger.SetLevel(parseLevel(pkg))
 

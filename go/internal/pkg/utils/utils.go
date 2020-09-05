@@ -39,7 +39,9 @@ func CreateFaceLocal(gqluri string) (l3.Face, *gqlmgmt.Client, error) {
 // by-product of NDN-DPDK forwarder developments. In itself, it is NOT a
 // high-performance API, thus by using this type of interface will result in low
 // throughput. Recommended for testing only
-func CreateFaceNet(ifname string, config afpacket.Config) (l3.Face, error) {
+func CreateFaceNet(ifname string,
+	config afpacket.Config,
+) (l3.Face, error) {
 	tr, e := afpacket.New(ifname, config)
 	if e != nil {
 		return nil, e

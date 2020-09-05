@@ -38,7 +38,9 @@ type Entry struct {
 	nTimeouts       int
 }
 
-func NewFetcher(face l3.Face, onError chan<- error) Fetcher {
+func NewFetcher(face l3.Face,
+	onError chan<- error,
+) Fetcher {
 	f := &fetcher{
 		face:    face,
 		timeout: make(chan bool),
@@ -119,13 +121,17 @@ func (f *fetcher) Stop() {
 	f.cancel()
 }
 
-func (f *fetcher) handleData(data *ndn.Data, onError chan<- error) {
+func (f *fetcher) handleData(data *ndn.Data,
+	onError chan<- error,
+) {
 	f.entries.Delete(data.Name.String())
 	f.timeout <- false
 	f.ch <- data
 }
 
-func (f *fetcher) handleNack(nack *ndn.Nack, onError chan<- error) {
+func (f *fetcher) handleNack(nack *ndn.Nack,
+	onError chan<- error,
+) {
 	log.Warn("Received ", an.NackReasonString(nack.Reason), " for packet: ", nack.Name())
 
 	switch nack.Reason {
@@ -172,22 +178,24 @@ func (f *fetcher) handleNack(nack *ndn.Nack, onError chan<- error) {
 }
 
 func (f *fetcher) handleTimeout(onError chan<- error) {
-	f.entries.Range(func(key, value interface{}) bool {
-		ent := value.(Entry)
-		if time.Now().Sub(ent.lifetime) < ent.interest.Lifetime { // Interest has not expired
+	f.entries.Range(
+		func(key, value interface{}) bool {
+			ent := value.(Entry)
+			if time.Now().Sub(ent.lifetime) < ent.interest.Lifetime { // Interest has not expired
+				return true
+			}
+
+			if ent.nTimeouts++; ent.nTimeouts > MaxTimeoutRetries {
+				onError <- fmt.Errorf(
+					"reached the maximum number of timeout retries: %d",
+					MaxTimeoutRetries,
+				)
+				return false
+			}
+
+			log.Warn("Timeout for Interest: ", ent.interest.Name)
+			f.resend(ent)
 			return true
-		}
-
-		if ent.nTimeouts++; ent.nTimeouts > MaxTimeoutRetries {
-			onError <- fmt.Errorf(
-				"reached the maximum number of timeout retries: %d",
-				MaxTimeoutRetries,
-			)
-			return false
-		}
-
-		log.Warn("Timeout for Interest: ", ent.interest.Name)
-		f.resend(ent)
-		return true
-	})
+		},
+	)
 }

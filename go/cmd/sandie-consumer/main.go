@@ -31,7 +31,9 @@ func init() {
 	flag.Var(&remote, "remote", "remote MAC address")
 }
 
-func exit(app *consumer.App, code int) {
+func exit(app *consumer.App,
+	code int,
+) {
 	if e := app.Close(); e != nil {
 		log.WithError(e).Fatal("close error")
 	}

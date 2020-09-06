@@ -178,6 +178,8 @@ func (f *fetcher) handleNack(nack *ndn.Nack,
 }
 
 func (f *fetcher) handleTimeout(onError chan<- error) {
+	log.Warn("Timeout reached")
+
 	f.entries.Range(
 		func(key, value interface{}) bool {
 			ent := value.(Entry)
@@ -193,7 +195,7 @@ func (f *fetcher) handleTimeout(onError chan<- error) {
 				return false
 			}
 
-			log.Warn("Timeout for Interest: ", ent.interest.Name)
+			log.Debug("Timeout for Interest: ", ent.interest.Name)
 			f.resend(ent)
 			return true
 		},

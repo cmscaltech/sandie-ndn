@@ -35,7 +35,7 @@ func CreateFaceLocal(gqluri string) (l3.Face, *gqlmgmt.Client, error) {
 	return f.Face(), c, nil
 }
 
-// CreateFaceNet Create af_packet face to a local interface. NDN-Go API is a
+// CreateFaceNet Create af_packet face to a local interface. NDNgo API is a
 // by-product of NDN-DPDK forwarder developments. In itself, it is NOT a
 // high-performance API, thus by using this type of interface will result in low
 // throughput. Recommended for testing only

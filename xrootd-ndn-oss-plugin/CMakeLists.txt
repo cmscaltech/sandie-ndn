@@ -14,7 +14,9 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Search for required libraries to compile the sources
 find_package(ndn-cxx 0.6.5 REQUIRED)
-find_package(xrootd-utils 4.8.3 REQUIRED)
+if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    find_package(xrootd-utils 4.8.3 REQUIRED)
+endif()
 find_package(Boost 1.69 REQUIRED
              COMPONENTS system
                         log

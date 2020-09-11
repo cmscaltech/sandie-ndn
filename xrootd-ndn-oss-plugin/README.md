@@ -1,6 +1,6 @@
 # The NDN based File System XRootD plugin component for Open Storage System and a suitable NDN producer
 
-The NDN based File System component allows [XRootD](http://xrootd.org/) server to query the [Named Data Networking](https://named-data.net/) (NDN) network via the [Open Storage System](http://xrootd.org/doc/dev49/ofs_config.htm) (OSS) plugin layer. The plugin represents an NDN consumer that composes Interest packets for different system calls and waits for answers (Data packets). In this regard, a suitable NDN producer has been implemented which registers to the local NDN forwarder and is able to answer requests from the XRootD OSS plugin.
+The NDN based File System component allows [XRootD](http://xrootd.org/) server to query the [Named Data Networking](https://named-data.net/) (NDN) network via the [Open Storage System](http://xrootd.org/doc/dev49/ofs_config.htm) (OSS) plugin layer. The plugin represents an NDN consumer that composes Interest packets for different system calls and waits for answers (Data packets). In this regard, a suitable NDN producer has been implemented which registers to the NFD and is able to answer requests from the XRootD OSS plugin.
 
 At the moment the following system calls are supported: **open**, **fstat**, **close** and **read**.
 
@@ -8,11 +8,11 @@ At the moment the following system calls are supported: **open**, **fstat**, **c
 
 This project builds three separate entities: the [NDN based File System XRootD plugin](#the-ndn-based-file-system-xrootd-plugin), the [producer](#the-ndn-producer) and the [consumer](#the-ndn-consumer) embedded in the XRootD OSS plugin. The consumer application is build only for testing purposes.
 
-Prerequisites needed to build this project: CMake >= 3.5, [boost 1.69.0](../packaging/RPMS/x86_64/boost1_69_0/), [ndn-cxx 0.6.6](../packaging/RPMS/x86_64/ndn-cxx-0.6.6/), gcc >= 5.3.0 and xrootd 4.9.0. Please follow the [instruction](../packaging/packaging.md) on how to manually build the prerequisite packages or how to install them from available RPMs on CentOS 7.5 systems.
+Intall latest prerequisites from the [SANDIE repository](https://github.com/cmscaltech/sandie-ndn-repo).
 
 In order to build and install the XRootD OSS plugin, the producer and the consumer from sources, use the following commands:
 
-```bash
+```console
 root@cms:~# mkdir sandie-ndn/xrootd-ndn-oss-plugin/build
 root@cms:~# cd sandie-ndn/xrootd-ndn-oss-plugin/build
 root@cms:~# cmake ../
@@ -24,7 +24,7 @@ root@cms:~# make && make install
 ### Build and install from sources
 In order to build and install the XRootD OSS plugin component from sources, use the following commands:
 
-```bash
+```consoler
 root@cms:~# mkdir sandie-ndn/xrootd-ndn-oss-plugin/build
 root@cms:~# cd sandie-ndn/xrootd-ndn-oss-plugin/build
 root@cms:~# cmake ../
@@ -33,7 +33,7 @@ root@cms:~# make XrdNdnDFS && make install XrdNdnDFS
 
 ### Packaging
 The NDN OSS XRootD plugin component is delivered as an RPM package.\
-The latest release version can be found at [`xrootd-ndn-fs-<version>-<rn>.el7.x86_64.rpm`](../packaging/RPMS/x86_64). It contains the following files:
+The latest release version can be found at [`xrootd-ndn-fs-<version>-<rn>.el7.x86_64.rpm`](https://github.com/cmscaltech/sandie-ndn-repo/tree/master/RPMS/x86_64). It contains the following files:
 
 1. [**/etc/xrootd/xrootd-ndn.sample.cfg**](rpms/XrdNdnFS/xrootd-ndn.sample.cfg) This is a simple sample configuration file to run XRootD with the NDN based OSS plugin as data server. It specifies **libXrdNdnFS.so** as the OSS plugin component for XRootD and explains and sets default parameters for the shared library.
 
@@ -44,11 +44,11 @@ The latest release version can be found at [`xrootd-ndn-fs-<version>-<rn>.el7.x8
 ### Install from RPM: xrootd-ndn-fs-\<version>-\<rn>.el7.x86_64.rpm
 
 The XRootD OSS plugin component package requires the following dependencies:
-* [XRootD Server 4.9.0](https://opensciencegrid.org/docs/data/xrootd/overview/) or later.
-* [NFD 0.6.6](../packaging/RPMS/x86_64/nfd-0.6.6) or later.
+* [XRootD Server 5.0.0](https://opensciencegrid.org/docs/data/xrootd/overview/) or later.
+* [NFD 0.6.6](https://github.com/cmscaltech/sandie-ndn-repo/tree/master/RPMS/x86_64/nfd-0.7.0) or later.
 
-You can download the latest NDN XRootD OSS plugin component package from the [delivery location](../packaging/RPMS/x86_64) and install it using the *rpm* command line tool as follows (this example is for version 0.1.2):
-```bash
+You can download the latest NDN XRootD OSS plugin component package from the [delivery location](https://github.com/cmscaltech/sandie-ndn-repo/tree/master/RPMS/x86_64) and install it using the *rpm* command line tool as follows (this example is for version 0.1.2):
+```console
 root@cms:~# rpm -ivh xrootd-ndn-fs-0.1.2-1.el7.x86_64.rpm
 ```
 
@@ -60,7 +60,7 @@ The shared library accepts arguments, but are not mandatory, for configuring the
 * **interestlifetime**: The lifetime of Interest packets
 * **loglevel**: The log level. Available options: [NONE, TRACE, INFO, WARN, DEBUG, ERROR, FATAL](https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html)
 * **pipelinesize**: The number of concurrent Interest packets expressed at one time in the fixed window size pipeline
-* e.g.: `**ofs.osslib /usr/lib64/libXrdNdnFS.so pipelinesize 64 interestlifetime 512 loglevel INFO**`
+* e.g.: `ofs.osslib /usr/lib64/libXrdNdnFS.so pipelinesize 64 interestlifetime 512 loglevel INFO`
 
 
 ## The NDN producer
@@ -69,7 +69,7 @@ The shared library accepts arguments, but are not mandatory, for configuring the
 
 In order to build and install the NDN producer from sources, use the following commands:
 
-```bash
+```console
 root@cms:~# mkdir sandie-ndn/xrootd-ndn-oss-plugin/build
 root@cms:~# cd sandie-ndn/xrootd-ndn-oss-plugin/build
 root@cms:~# cmake ../
@@ -78,7 +78,7 @@ root@cms:~# make xrdndn-producer && make install xrdndn-producer
 
 ### Packaging
 
-The NDN producer is delivered as an RPM package. The latest release version can be found at [`xrdndn-producer-.<version>-<rn>.el7.x86_64.rpm`](../packaging/RPMS/x86_64). It contains the following files:
+The NDN producer is delivered as an RPM package. The latest release version can be found at [`xrdndn-producer-.<version>-<rn>.el7.x86_64.rpm`](https://github.com/cmscaltech/sandie-ndn-repo/tree/master/RPMS/x86_64). It contains the following files:
 
 1. **/usr/bin/xrdndn-producer** This is the NDN producer that is able to respond to the NDN OSS XRootD plugin Interests.
 
@@ -95,10 +95,10 @@ The NDN producer is delivered as an RPM package. The latest release version can 
 ### Install from RPM: xrdndn-producer-.\<version>-\<rn>.el7.x86_64.rpm
 
 The NDN producer requires the following dependencies:
-* [NFD 0.6.6](../packaging/RPMS/x86_64/nfd-0.6.6/) or later.
+* [NFD 0.7.0](https://github.com/cmscaltech/sandie-ndn-repo/tree/master/RPMS/x86_64/nfd-0.7.0) or later.
 
-You can donwload the latest NDN producer package from the [delivery location](../packaging/RPMS/x86_64) and install it using the *rpm* command line tool as follows (this example is for version 0.1.2):
-```bash
+You can donwload the latest NDN producer package from the [delivery location](https://github.com/cmscaltech/sandie-ndn-repo/tree/master/RPMS/x86_64) and install it using the *rpm* command line tool as follows (this example is for version 0.1.2):
+```console
 root@cms:~# rpm -ivh xrdndn-producer-0.1.2-1.el7.x86_64.rpm
 ```
 
@@ -106,7 +106,7 @@ root@cms:~# rpm -ivh xrdndn-producer-0.1.2-1.el7.x86_64.rpm
 
 The producer is installed as a systemd service. It requires a local NDN forwarder in order to connect to it and register prefixes over NDN network. You can use *service* command line tool to see status, start, restart or stop the service:
 
-```bash
+```console
 root@cms:~# service xrdndn-producer status
 root@cms:~# service xrdndn-producer start
 root@cms:~# service xrdndn-producer restart
@@ -117,31 +117,8 @@ Consult the [/etc/xrdndn-producer/xrdndn-producer.cfg](rpms/xrdndn-producer/xrdn
 
 Although the producer is installed as a systemd service, it can also be used for testing purposes. Because of this, the *xrdndn-producer* binary under the */usr/bin/* directory accepts command line arguments:
 
-```bash
+```console
 root@cms:~# xrdndn-producer -h
-    The suitable NDN Producer for the NDN based filesystem plugin for XRootD.
-    Developed by Caltech@CMS
-
-    Usage: ./xrdndn-producer [options]
-    Note: This application can run without arguments
-
-    Options:
-      --config-file arg                              Configuration file for running xrdndn-producer as a service
-      --disable-signing                              Eliminate signing among authorized partners by signing Data with a
-                                                     dummy signature. By default Data is signed using SHA-256
-      --freshness-period [=arg(=256)] (=256)         Interest packets freshness period in seconds
-      --garbage-collector-timer [=arg(=16)] (=256)   Periodic timer in seconds that will close files that have reached
-                                                     their life time (garbage-collector-lifetime arg). Specify a
-                                                     non-negative integer larger than 16
-      --garbage-collector-lifetime [=arg(=60)] (=60) Life time in seconds that a file will be left open without being
-                                                     accessed. Once the limit is reached and garbage-collector-timer
-                                                     triggers, the file will be closed
-      -h [ --help ]                                  Print this help message and exit
-      --log-level [=arg(=NONE)] (=INFO)              Log level: TRACE, DEBUG, INFO, WARN, ERROR, FATAL. More information
-                                                     can be found at https://named-data.net/doc/ndn-cxx/current/manpages/nd
-                                                     n-log.html
-      --nthreads [=arg(=1)] (=8)                     Number of threads to handle Interest packets concurrently
-      -V [ --version ]                               Show version information and exit
 ```
 
 
@@ -153,7 +130,7 @@ As stated, the NDN base File System plugin component for XRootD OSS uses an NDN 
 
 In order to build and install the NDN consumer from sources, use the following commands:
 
-```bash
+```console
 root@cms:~# mkdir sandie-ndn/xrootd-ndn-oss-plugin/build
 root@cms:~# cd sandie-ndn/xrootd-ndn-oss-plugin/build
 root@cms:~# cmake ../
@@ -163,16 +140,16 @@ root@cms:~# make xrdndn-consumer && make install xrdndn-consumer
 ### Packaging
 
 The NDN consumer is also delivered as an RPM package.
-The latest release version can be found at [`xrdndn-consumer-<version>-<rn>.el7.x86_64.rpm`](../packaging/RPMS/x86_64). It contains only **/usr/bin/xrdndn-consumer** file, which is the binary.
+The latest release version can be found at [`xrdndn-consumer-<version>-<rn>.el7.x86_64.rpm`](https://github.com/cmscaltech/sandie-ndn-repo/tree/master/RPMS/x86_64). It contains only **/usr/bin/xrdndn-consumer** file, which is the binary.
 
 ### Install from RPM: xrdndn-consumer-.\<version>-\<rn>.el7.x86_64.rpm
 
 The NDN consumer requires the following dependencies:
-* [NFD 0.6.6](../packaging/RPMS/x86_64/nfd-0.6.6/) or later.
+* [NFD 0.7.0](https://github.com/cmscaltech/sandie-ndn-repo/tree/master/RPMS/x86_64/nfd-0.7.0) or later.
 
 You cand donwload the latest package from the delivery location and install it using the *rpm* command line tool as follows (this example is for version 0.1.4):
 
-```bash
+```console
 root@cms:~# rpm -ivh xrdndn-consumer-0.1.4-1.el7.x86_64.rpm
 ```
 
@@ -180,23 +157,6 @@ root@cms:~# rpm -ivh xrdndn-consumer-0.1.4-1.el7.x86_64.rpm
 
 The NDN consumer is installed as an application under */usr/bin/* directory. For the moment, it is used for testing only and it's able to request files over NDN network to a local or remote Producer. In order to see the different command line arguments it accepts run the following command in a terminal:
 
-```bash
+```console
 root@cms:~# xrdndn-consumer -h
-    Usage: ./xrdndn-consumer [options]
-    Note: This application needs --input-file argument specified
-
-    Options:
-      --bsize [=arg(=262144)] (=262144)       Read buffer size in bytes. Specify any value between 8KB and 1GB in bytes
-      -h [ --help ]                           Print this help message and exit
-      --input-file arg                        Path to a file to be copied over the NDN network
-      --interest-lifetime [=arg(=256)] (=256) Interest packet lifetime in seconds. Specify a non-negative integer between 4
-                                              and 1024
-      --log-level [=arg(=NONE)] (=INFO)       Log level. Available options: TRACE, DEBUG, INFO, WARN, ERROR, FATAL. More
-                                              information can be found at:
-                                              https://named-data.net/doc/ndn-cxx/current/manpages/ndn-log.html
-      --nthreads [=arg(=1)] (=1)              Number of threads to read the file concurrently. Must be at least 1
-      --output-file [=arg(=./ndnfile.out)]    Path to output file copied over NDN network
-      --pipeline-size [=arg(=64)] (=64)       The number of concurrent Interest packets expressed at one time in the fixed
-                                              window size Pipeline. Specify any value between 1 and 512
-      -V [ --version ]                        Show version information and exit
 ```

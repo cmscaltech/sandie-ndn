@@ -1,4 +1,4 @@
-FROM centos:7.7.1908
+FROM centos:centos7
 ENV HOME /root
 
 RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
@@ -13,19 +13,23 @@ RUN yum -y install sudo vim htop git curl.x86_64 bind-utils.x86_64 \
         xrootd-devel.x86_64 xrootd-libs.x86_64 xrootd-server.x86_64 \
         xrootd-server-devel.x86_64 xrootd-server-libs.x86_64 centos-release-scl
 RUN yum -y install devtoolset-8-gcc*
-RUN echo 'source scl_source enable devtoolset-8' >> ~/.bashrc
+RUN sudo sh -c "printf '\
+export PATH=\$PATH:/opt/rh/devtoolset-8/root/usr/bin\n\
+scl_source enable devtoolset-8\
+' > /etc/profile.d/container.sh"
 
 # Install NDN Software Stack
 WORKDIR ${HOME}
 RUN git clone https://github.com/cmscaltech/sandie-ndn.git
-WORKDIR ${HOME}/sandie-ndn/packaging/RPMS/x86_64/
+RUN git clone https://github.com/cmscaltech/sandie-ndn-repo.git
+
+WORKDIR ${HOME}/sandie-ndn-repo/RPMS/x86_64/
 RUN rpm -i boost1_69_0/boost-license1_69_0-1.69.0-1.x86_64.rpm \
         boost1_69_0/libboost_* boost1_69_0/boost-devel-1.69.0-1.x86_64.rpm \
-        ndn-cxx-0.6.6/libndn-cxx-* ndn-tools-0.6.4/ndn-tools-0.6.4-10.el7.x86_64.rpm \
-        nfd-0.6.6/nfd-0.6.6-24.el7.x86_64.rpm xrdndn-consumer-0.2.0-4.el7.x86_64.rpm \
+        ndn-cxx-0.7.0/libndn-cxx-* ndn-tools-0.7/ndn-tools-0.7-10.el7.x86_64.rpm \
+        nfd-0.7.0/nfd-0.7.0-24.el7.x86_64.rpm xrdndn-consumer-0.2.0-4.el7.x86_64.rpm \
         xrdndn-producer-0.2.0-4.el7.x86_64.rpm xrootd-ndn-fs-0.2.0-4.el7.x86_64.rpm
 WORKDIR ${HOME}/sandie-ndn
-RUN rm -rf packaging cms_topology pub_keys sc19 xrootd-ndn-dpdk-oss-plugin
 
 # Build xrdndn-consumer xrdndn-producer xrdndn-fs
 RUN mkdir -p ${HOME}/sandie-ndn/xrootd-ndn-oss-plugin/build

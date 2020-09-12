@@ -81,7 +81,6 @@ void read(off_t fileSize, off_t off, int threadID) {
         progressBar->add(retRead);
 
         contentStore[offset] = std::make_pair(std::string(buff), retRead);
-
         offset += cmdLineOpts.bsize * cmdLineOpts.nthreads;
     } while (retRead > 0);
 
@@ -110,7 +109,6 @@ int copyFile() {
     }
 
     progressBar = std::make_shared<ProgressBar>(info.st_size, 80);
-
     if (!cmdLineOpts.outfile.empty()) {
         syncWrite = std::make_shared<SynchronizedWrite>(cmdLineOpts.outfile);
     }

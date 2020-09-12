@@ -13,7 +13,7 @@ endif()
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Search for required libraries to compile the sources
-find_package(ndn-cxx 0.6.5 REQUIRED)
+find_package(ndn-cxx 0.7.0 REQUIRED)
 if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     find_package(xrootd-utils 4.8.3 REQUIRED)
 endif()
@@ -26,7 +26,7 @@ find_package(Boost 1.69 REQUIRED
 # Use C++14 to compile
 set(CMAKE_CXX_STANDARD 14)
 
-add_compile_options(-g -Wall -Wextra -Wpedantic -O0)
+add_compile_options(-g -Wall -Wextra -Wpedantic -O2)
 add_definitions(-DBOOST_LOG_DYN_LINK)
 
 include_directories(SYSTEM "${NDN_CXX_INCLUDES}")

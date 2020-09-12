@@ -1,8 +1,8 @@
 // SANDIE: National Science Foundation Award #1659403
 // Copyright (c) 2018-2020 California Institute of Technology
-// 
+//
 // Author: Catalin Iordache <catalin.iordache@cern.ch>
-// 
+//
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
@@ -218,9 +218,9 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen) {
     NDN_LOG_TRACE("Reading " << blen << " bytes @" << offset
                              << " from file: " << m_path);
 
-    off_t firstSegmentIdx = offset / XRDNDN_MAX_NDN_PACKET_SIZE;
+    off_t firstSegmentIdx = offset / XRDNDN_MAX_PAYLOAD_SIZE;
     off_t lastSegmentIdx =
-        ceil((offset + blen) / static_cast<double>(XRDNDN_MAX_NDN_PACKET_SIZE));
+        ceil((offset + blen) / static_cast<double>(XRDNDN_MAX_PAYLOAD_SIZE));
 
     std::vector<FutureType> futures;
     for (auto i = firstSegmentIdx; i < lastSegmentIdx; ++i) {
@@ -279,7 +279,7 @@ Consumer::returnData(void *buff, off_t offset, size_t blen,
 
     auto it = dataStore.begin();
     // Store first bytes in buffer from offset
-    putData(it->second, offset % XRDNDN_MAX_NDN_PACKET_SIZE);
+    putData(it->second, offset % XRDNDN_MAX_PAYLOAD_SIZE);
     it = dataStore.erase(it);
 
     // Store rest of bytes until end

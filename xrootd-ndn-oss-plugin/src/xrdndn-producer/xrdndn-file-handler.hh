@@ -1,8 +1,8 @@
 // SANDIE: National Science Foundation Award #1659403
 // Copyright (c) 2018-2020 California Institute of Technology
-// 
+//
 // Author: Catalin Iordache <catalin.iordache@cern.ch>
-// 
+//
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
@@ -68,13 +68,13 @@ class FileHandler : public std::enable_shared_from_this<FileHandler> {
     std::shared_ptr<ndn::Data> getFstatData(ndn::Name &name);
 
     /**
-     * @brief Read at offset from file XRDNDN_MAX_NDN_PACKET_SIZE bytes
+     * @brief Read at offset from file XRDNDN_MAX_PAYLOAD_SIZE bytes
      *
      * @param name The Name of Data packet. From the name the offset in file
      * were the read will take place is also extracted
      * @return std::shared_ptr<ndn::Data> The resulted Data packet. Integer
      * content in case read failed on the specific file, showing the error
-     * code. The XRDNDN_MAX_NDN_PACKET_SIZE bytes or less, if the read was near
+     * code. The XRDNDN_MAX_PAYLOAD_SIZE bytes or less, if the read was near
      * end of file
      */
     std::shared_ptr<ndn::Data> getReadData(ndn::Name &name);

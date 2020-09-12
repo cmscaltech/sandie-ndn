@@ -1,8 +1,8 @@
 // SANDIE: National Science Foundation Award #1659403
 // Copyright (c) 2018-2020 California Institute of Technology
-// 
+//
 // Author: Catalin Iordache <catalin.iordache@cern.ch>
-// 
+//
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
@@ -28,7 +28,7 @@ namespace xrdndn {
  * @brief Default Data packet size in XRootD NDN based file system plugin
  *
  */
-#define XRDNDN_MAX_NDN_PACKET_SIZE 7168
+#define XRDNDN_MAX_PAYLOAD_SIZE 6144 // 6KB
 
 /**
  * @brief Name prefix for all Interest packets expressed by Consumer

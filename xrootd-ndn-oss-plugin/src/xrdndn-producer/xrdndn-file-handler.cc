@@ -1,8 +1,8 @@
 // SANDIE: National Science Foundation Award #1659403
 // Copyright (c) 2018-2020 California Institute of Technology
-// 
+//
 // Author: Catalin Iordache <catalin.iordache@cern.ch>
-// 
+//
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
@@ -109,10 +109,10 @@ int FileHandler::Fstat(void *buff) {
 std::shared_ptr<ndn::Data> FileHandler::getReadData(ndn::Name &name) {
     accessTime = boost::posix_time::second_clock::local_time();
 
-    std::array<uint8_t, XRDNDN_MAX_NDN_PACKET_SIZE> blockFromFile;
+    std::array<uint8_t, XRDNDN_MAX_PAYLOAD_SIZE> blockFromFile;
     auto retRead =
-        Read(&blockFromFile, XRDNDN_MAX_NDN_PACKET_SIZE,
-             xrdndn::Utils::getSegmentNo(name) * XRDNDN_MAX_NDN_PACKET_SIZE);
+        Read(&blockFromFile, XRDNDN_MAX_PAYLOAD_SIZE,
+             xrdndn::Utils::getSegmentNo(name) * XRDNDN_MAX_PAYLOAD_SIZE);
 
     if (retRead < 0) {
         return m_packager->getPackage(name, retRead);

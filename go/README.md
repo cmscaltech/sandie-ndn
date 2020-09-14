@@ -1,11 +1,4 @@
-<p align="center">
-	<img alt="golangci-lint logo" src="https://github.com/MariaLetta/free-gophers-pack/blob/master/characters/png/37.png" height="150" />
-	<h3 align="center">go <a href="../README.md">sandie()</a></h3>
-	<p align="center"><b>sdn assisted named data networking for data intensive experiments</b></p>
-</p>
-
----
-
+# SANDIE Go
 This directory is part of the SANDIE project developments based on [`NDNgo API`](https://github.com/usnistgov/ndn-dpdk/tree/master/ndn). The goal here is to develop a high-throughput [Named Data Networking](https://named-data.net/) consumer-producer solution for distributing data at CMS.
 
 ## Installation

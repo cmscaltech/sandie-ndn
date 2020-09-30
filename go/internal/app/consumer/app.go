@@ -6,8 +6,8 @@ package consumer
 import (
 	"fmt"
 	"github.com/cheggaaa/pb/v3"
+	. "github.com/cmscaltech/sandie-ndn/go/internal/pkg/consumer"
 	"os"
-	. "sandie-ndn/go/internal/pkg/consumer"
 	"time"
 )
 

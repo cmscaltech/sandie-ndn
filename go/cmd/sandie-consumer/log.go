@@ -4,7 +4,7 @@
 package main
 
 import (
-	"sandie-ndn/go/internal/pkg/logger"
+	"github.com/cmscaltech/sandie-ndn/go/internal/pkg/logger"
 )
 
 var (

@@ -5,14 +5,14 @@ package consumer
 
 import (
 	"fmt"
+	"github.com/cmscaltech/sandie-ndn/go/internal/pkg/namespace"
+	"github.com/cmscaltech/sandie-ndn/go/internal/pkg/pipeline"
+	"github.com/cmscaltech/sandie-ndn/go/internal/pkg/utils"
 	"github.com/usnistgov/ndn-dpdk/ndn"
 	"github.com/usnistgov/ndn-dpdk/ndn/an"
 	"github.com/usnistgov/ndn-dpdk/ndn/l3"
 	"github.com/usnistgov/ndn-dpdk/ndn/mgmt/gqlmgmt"
 	"github.com/usnistgov/ndn-dpdk/ndn/tlv"
-	"sandie-ndn/go/internal/pkg/namespace"
-	"sandie-ndn/go/internal/pkg/pipeline"
-	"sandie-ndn/go/internal/pkg/utils"
 	"time"
 )
 

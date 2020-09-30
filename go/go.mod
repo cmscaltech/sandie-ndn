@@ -1,4 +1,4 @@
-module sandie-ndn/go
+module github.com/cmscaltech/sandie-ndn/go
 
 go 1.15
 

@@ -5,12 +5,12 @@ package main
 
 import (
 	"flag"
+	"github.com/cmscaltech/sandie-ndn/go/internal/app/consumer"
+	"github.com/cmscaltech/sandie-ndn/go/internal/pkg/namespace"
 	"github.com/usnistgov/ndn-dpdk/core/macaddr"
 	"github.com/usnistgov/ndn-dpdk/ndn/l3"
 	"os"
 	"os/signal"
-	"sandie-ndn/go/internal/app/consumer"
-	"sandie-ndn/go/internal/pkg/namespace"
 	"syscall"
 )
 

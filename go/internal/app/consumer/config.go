@@ -4,7 +4,7 @@
 package consumer
 
 import (
-	"sandie-ndn/go/internal/pkg/consumer"
+	"github.com/cmscaltech/sandie-ndn/go/internal/pkg/consumer"
 )
 
 // AppConfig

@@ -41,8 +41,8 @@ RUN sudo yum install -y nodejs
 RUN set -o pipefail && curl -sfL https://github.com/powerman/rpc-codec/releases/download/v1.1.3/jsonrpc2client-linux-x86_64 | \
         sudo install /dev/stdin /usr/local/bin/jsonrpc2client
 
-# Install Golang 1.14
-RUN set -o pipefail && curl -L https://dl.google.com/go/go1.14.linux-amd64.tar.gz | sudo tar -C /usr/local -xz
+# Install Golang 1.15
+RUN set -o pipefail && curl -L https://dl.google.com/go/go1.15.linux-amd64.tar.gz | sudo tar -C /usr/local -xz
 RUN mkdir -p ${HOME}/go/src/
 RUN sudo chown -R ${USER}:${USER} ${HOME}/go
 ENV GOROOT=/usr/local/go
@@ -151,8 +151,8 @@ WORKDIR ${HOME}
 WORKDIR ${GOPATH}/src
 RUN git clone https://github.com/usnistgov/ndn-dpdk.git
 WORKDIR ${GOPATH}/src/ndn-dpdk
-# Use August 14th 2020 commit: 67e5f0fcc9bb49c0b321458dc26d1c89b53e43c9
-RUN git checkout 67e5f0fcc9bb49c0b321458dc26d1c89b53e43c9
+# Use September 17th 2020 commit: 1586ca4294ccb7e1d24844fce7bf6c1856009eb6
+RUN git checkout 1586ca4294ccb7e1d24844fce7bf6c1856009eb6
 RUN npm install webpack@1.11.0
 RUN npm install
 ENV BPFCC=clang-9

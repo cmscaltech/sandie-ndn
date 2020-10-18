@@ -6,7 +6,8 @@ package namespace
 import "time"
 
 const (
-	ESuccess, EFailure = 0, 1
+	ESuccess = 0
+	EFailure = 1
 )
 
 const (
@@ -21,9 +22,15 @@ const (
 )
 
 const (
+	NamePrefixUriComponents = 2
+	NamePrefixUriFileinfoComponents = 3
+	NamePrefixUriFileReadComponents = 3
+)
+
+const (
 	// MaxPayloadSize Maximum payload size inside Data packets
 	MaxPayloadSize = 6144
 
-	// DefaultInterestLifetime Interestlifetime
+	// DefaultInterestLifetime InterestLifetime
 	DefaultInterestLifetime = 8 * time.Second
 )

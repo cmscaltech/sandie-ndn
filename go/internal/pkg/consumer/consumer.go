@@ -5,6 +5,7 @@ package consumer
 
 import (
 	"fmt"
+	"github.com/cmscaltech/sandie-ndn/go/internal/pkg/filesystem"
 	"github.com/cmscaltech/sandie-ndn/go/internal/pkg/namespace"
 	"github.com/cmscaltech/sandie-ndn/go/internal/pkg/pipeline"
 	"github.com/cmscaltech/sandie-ndn/go/internal/pkg/utils"
@@ -21,14 +22,6 @@ type Consumer struct {
 	face       l3.Face
 	mgmtClient *gqlmgmt.Client
 	pipeline   pipeline.Pipeline
-}
-
-type FileInfo struct {
-	size uint64
-}
-
-func FileInfoGetSize(info *FileInfo) uint64 {
-	return info.size
 }
 
 // NewConsumer
@@ -68,8 +61,8 @@ func (consumer *Consumer) Close() {
 }
 
 // Stat Express Interest type: FILEINFO, for getting Data with Content FileInfo struct for file
-func (consumer *Consumer) Stat(filepath string) (*FileInfo, error) {
-	log.Debug("Stat: ", filepath)
+func (consumer *Consumer) FileInfo(filepath string) (filesystem.FileInfo, error) {
+	log.Debug("FileInfo: ", filepath)
 	name := ndn.ParseName(namespace.NamePrefixUriFileinfo + filepath)
 
 	consumer.pipeline.Send() <- ndn.MakeInterest(name, namespace.DefaultInterestLifetime)
@@ -77,18 +70,12 @@ func (consumer *Consumer) Stat(filepath string) (*FileInfo, error) {
 	select {
 	case data := <-consumer.pipeline.Get():
 		if data.ContentType == an.ContentNack {
-			return nil, utils.ReadApplicationLevelNackContent(data)
+			return filesystem.FileInfo{}, utils.ReadApplicationLevelNackContent(data)
 		}
 
-		content, e := utils.ReadNNI(data.Content)
-		if e != nil {
-			return nil, e
-		}
-
-		return &FileInfo{size: uint64(content)}, nil
-
+		return filesystem.UnmarshalFileInfo(data.Content)
 	case e := <-consumer.pipeline.Error():
-		return nil, e
+		return filesystem.FileInfo{}, e
 	}
 }
 

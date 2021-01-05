@@ -20,7 +20,6 @@
 
 #include "../common/xrdndn-logger.hh"
 #include "xrdndn-consumer-options.hh"
-#include "xrdndn-consumer-progress-bar.hh"
 #include "xrdndn-consumer-version.hh"
 #include "xrdndn-consumer.hh"
 
@@ -56,7 +55,6 @@ struct Options consumerOpts;
 
 std::shared_ptr<SynchronizedWrite> syncWrite;
 std::shared_ptr<Consumer> consumer;
-std::shared_ptr<ProgressBar> progressBar;
 
 void read(off_t fileSize, off_t off, int threadID) {
     std::string buff(cmdLineOpts.bsize, '\0');
@@ -78,7 +76,6 @@ void read(off_t fileSize, off_t off, int threadID) {
                                          << "@" << offset);
 
         retRead = consumer->Read(&buff[0], offset, blen);
-        progressBar->add(retRead);
 
         contentStore[offset] = std::make_pair(std::string(buff), retRead);
         offset += cmdLineOpts.bsize * cmdLineOpts.nthreads;
@@ -108,7 +105,6 @@ int copyFile() {
         return 2;
     }
 
-    progressBar = std::make_shared<ProgressBar>(info.st_size, 80);
     if (!cmdLineOpts.outfile.empty()) {
         syncWrite = std::make_shared<SynchronizedWrite>(cmdLineOpts.outfile);
     }
@@ -120,7 +116,6 @@ int copyFile() {
     }
 
     threads.join_all();
-    progressBar->stop();
     consumer->Close();
     return 0;
 }

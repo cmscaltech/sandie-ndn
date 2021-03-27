@@ -368,7 +368,7 @@ SpaceBeforeAssignmentOperators: true
 #   SBPO_Never (in configuration: Never) Never put a space before opening parentheses.
 #   SBPO_ControlStatements (in configuration: ControlStatements) Put a space before opening parentheses only after control statement keywords (for/if/while...).
 #   SBPO_Always (in configuration: Always) Always put a space before opening parentheses, except when it’s prohibited by the syntax rules (in function-like macro definitions) or when determined by other style rules (after unary operators, opening parentheses, etc.)
-SpaceBeforeParens: Always
+SpaceBeforeParens: ControlStatements
 
 # SpaceInEmptyParentheses (bool)
 # If true, spaces may be inserted into ().

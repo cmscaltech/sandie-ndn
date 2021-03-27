@@ -37,60 +37,60 @@ namespace graphql {
 
 class Client {
     public:
-    Client ();
-    ~Client ();
+    Client();
+    ~Client();
 
-    bool openFace (int id = 0, int dataroom = 9000);
-    bool deleteFace ();
-    bool advertiseOnFace (std::string prefix);
+    bool openFace(int id = 0, int dataroom = 9000);
+    bool deleteFace();
+    bool advertiseOnFace(std::string prefix);
 
-    std::string getSocketName () {
+    std::string getSocketName() {
         return m_socketName;
     }
-    std::string getFaceID () {
+    std::string getFaceID() {
         return m_faceID;
     }
-    std::string getFibEntryID () {
+    std::string getFibEntryID() {
         return m_fibEntryID;
     }
 
     private:
-    static size_t writeCallback (char* ptr, size_t size, size_t nmemb, void* userdata) {
-        ((std::string*)userdata)->append ((char*)ptr, size * nmemb);
+    static size_t writeCallback(char* ptr, size_t size, size_t nmemb, void* userdata) {
+        ((std::string*)userdata)->append((char*)ptr, size * nmemb);
         return size * nmemb;
     }
 
-    static CURLcode doOperation (nlohmann::json request, nlohmann::json& response) {
-        curl_global_init (CURL_GLOBAL_ALL);
-        auto curl = curl_easy_init ();
+    static CURLcode doOperation(nlohmann::json request, nlohmann::json& response) {
+        curl_global_init(CURL_GLOBAL_ALL);
+        auto curl = curl_easy_init();
         if (curl == NULL) {
             return CURLE_FAILED_INIT;
         }
 
         struct curl_slist* headers = NULL;
-        headers = curl_slist_append (headers, "Content-Type: application/json");
-        headers = curl_slist_append (headers, "Accept: application/json");
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+        headers = curl_slist_append(headers, "Accept: application/json");
 
-        curl_easy_setopt (curl, CURLOPT_POST, 1L);
-        curl_easy_setopt (curl, CURLOPT_URL, "http://localhost:3030/");
-        curl_easy_setopt (curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt (curl, CURLOPT_POSTFIELDS, strdup (request.dump ().c_str ()));
+        curl_easy_setopt(curl, CURLOPT_POST, 1L);
+        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:3030/");
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, strdup(request.dump().c_str()));
 
-        curl_easy_setopt (curl, CURLOPT_WRITEFUNCTION, writeCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
 
         std::string data;
-        curl_easy_setopt (curl, CURLOPT_WRITEDATA, &data);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
 
-        auto code = curl_easy_perform (curl);
+        auto code = curl_easy_perform(curl);
 
-        curl_easy_cleanup (curl);
-        curl_global_cleanup ();
+        curl_easy_cleanup(curl);
+        curl_global_cleanup();
 
-        if (data.empty ()) {
+        if (data.empty()) {
             return CURLE_RECV_ERROR;
         }
 
-        response = nlohmann::json::parse (data);
+        response = nlohmann::json::parse(data);
         return code;
     }
 

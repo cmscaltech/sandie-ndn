@@ -25,39 +25,63 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_FACE_HH
-#define NDNC_FACE_HH
+#ifndef NDNC_TRANSPORT_HPP
+#define NDNC_TRANSPORT_HPP
 
-#include <memory>
-
-#include "graphql/client.hpp"
-#include "memif.hpp"
+#include <stddef.h>
+#include <stdint.h>
 
 namespace ndnc {
-class Face {
+namespace transport {
+/**
+ * @brief Base class of low-level transport.
+ *
+ */
+class Transport {
+    using RxCallback = void (*)(void* ctx, const uint8_t* pkt, size_t pktLen);
+
     public:
-    Face();
-    ~Face();
+    virtual ~Transport() = default;
 
-    bool isValid();
-    bool advertise(std::string prefix);
+    /** @brief Determine whether transport is connected. */
+    virtual bool isUp() const {
+        return doIsUp();
+    }
 
-    /**
-     * @brief Process periodical events.
-     *
-     * This must be invoked periodically.
-     */
-    void loop();
+    /** @brief Process periodical events, such as receiving packets. */
+    virtual void loop() {
+        doLoop();
+    }
+
+    /** @brief Set incoming packet callback. */
+    void setRxCallback(RxCallback cb, void* ctx) {
+        m_rxCb  = cb;
+        m_rxCtx = ctx;
+    }
+
+    /** @brief Synchronously transmit a packet. */
+    bool send(const uint8_t* pkt, size_t pktLen) {
+        return doSend(pkt, pktLen);
+    }
+
+    protected:
+    /** @brief Invoke incoming packet callback for a received packet. */
+    void invokeRxCallback(const uint8_t* pkt, size_t pktLen) {
+        m_rxCb(m_rxCtx, pkt, pktLen);
+    }
 
     private:
-    void openMemif();
+    virtual bool doIsUp() const = 0;
+
+    virtual void doLoop() = 0;
+
+    virtual bool doSend(const uint8_t* pkt, size_t pktLen) = 0;
 
     private:
-    std::unique_ptr<graphql::Client> m_client;
-    transport::Transport* m_transport;
-
-    bool m_valid;
+    RxCallback m_rxCb = nullptr;
+    void* m_rxCtx     = nullptr;
 };
+}; // namespace transport
 }; // namespace ndnc
 
-#endif // NDNC_FACE_HH
+#endif // NDNC_TRANSPORT_HPP

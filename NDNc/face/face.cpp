@@ -28,9 +28,10 @@
 #include "face.hpp"
 
 namespace ndnc {
-Face::Face () {
+Face::Face() : m_transport(NULL) {
     m_client = std::make_unique<graphql::Client>();
-    m_valid = m_client->openFace();
+    m_valid  = m_client->openFace();
+    this->openMemif();
 }
 
 Face::~Face() {
@@ -44,6 +45,10 @@ bool Face::isValid() {
 }
 
 bool Face::advertise(std::string prefix) {
+    if (NULL == m_transport || !m_transport->isUp()) {
+        return false;
+    }
+
     if (!m_valid || m_client == nullptr) {
         return false;
     }
@@ -51,8 +56,30 @@ bool Face::advertise(std::string prefix) {
     return m_client->advertiseOnFace(prefix);
 }
 
-void Face::openMemif(std::string socketName, int id = 0) {
-
+void Face::loop() {
+    m_transport->loop();
 }
 
+static void transportRx(void* self, const uint8_t* pkt, size_t pktLen) {
+    std::cout << "Received packet of length: " << pktLen << "\n";
+}
+
+void Face::openMemif() {
+    static transport::Memif transport;
+    if (!transport.begin(m_client->getSocketName().c_str(), 0)) {
+        return;
+    }
+
+    this->m_transport = &transport;
+
+    while (true) {
+        if (m_transport->isUp()) {
+            std::cout << "INFO: Transport is UP\n";
+            m_transport->setRxCallback(transportRx, this);
+            break;
+        }
+
+        m_transport->loop();
+    }
+}
 }; // namespace ndnc

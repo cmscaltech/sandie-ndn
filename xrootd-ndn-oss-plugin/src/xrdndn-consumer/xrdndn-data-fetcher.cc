@@ -1,8 +1,8 @@
 // SANDIE: National Science Foundation Award #1659403
 // Copyright (c) 2018-2020 California Institute of Technology
-// 
+//
 // Author: Catalin Iordache <catalin.iordache@cern.ch>
-// 
+//
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
@@ -144,7 +144,9 @@ void DataFetcher::handleTimeout(const Interest &interest) {
 
     Interest newInterest(interest);
     newInterest.refreshNonce();
-    this->expressInterest(newInterest);
+    m_scheduler.schedule(
+        time::milliseconds(500),
+        bind(&DataFetcher::expressInterest, this, newInterest));
 }
 
 void DataFetcher::expressInterest(const Interest &interest) {

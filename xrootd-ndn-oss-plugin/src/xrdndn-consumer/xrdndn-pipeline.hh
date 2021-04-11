@@ -1,8 +1,8 @@
 // SANDIE: National Science Foundation Award #1659403
 // Copyright (c) 2018-2020 California Institute of Technology
-// 
+//
 // Author: Catalin Iordache <catalin.iordache@cern.ch>
-// 
+//
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
@@ -10,7 +10,7 @@
 #define XRDNDN_PIPELINE_HH
 
 #include <atomic>
-#include <unordered_map>
+#include <vector>
 
 #include <ndn-cxx/face.hpp>
 
@@ -81,10 +81,8 @@ class Pipeline {
      * Pipeline
      *
      * @param data Data for expressed Interest
-     * @param pipeNo Task number in Pipeline. Used to keep track of it until
-     * destruction
      */
-    void onTaskCompleteSuccess(const ndn::Data &data, const uint64_t &pipeNo);
+    void onTaskCompleteSuccess(const ndn::Data &data);
 
     /**
      * @brief Callback function when DataFetcher has a failure. The Pipeline
@@ -98,14 +96,14 @@ class Pipeline {
     ndn::Face &m_face;
     size_t m_size;
 
-    std::unordered_map<uint64_t, std::shared_ptr<DataFetcher>> m_window;
+    std::vector<std::shared_ptr<DataFetcher>> m_window;
     boost::condition_variable m_cvWindow;
     boost::mutex m_mtxWindow;
 
     std::atomic<bool> m_stop;
-    std::atomic<uint64_t> m_pipeNo;
     std::atomic<uint64_t> m_nSegmentsReceived;
     std::atomic<uint64_t> m_nBytesReceived;
+    std::atomic<uint64_t> m_windowSize;
 
     ndn::time::steady_clock::TimePoint m_startTime;
     ndn::time::duration<double, ndn::time::milliseconds::period> m_duration;

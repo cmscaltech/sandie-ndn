@@ -72,8 +72,8 @@ void read(off_t fileSize, off_t off, int threadID) {
         else
             blen = cmdLineOpts.bsize;
 
-        NDN_LOG_TRACE("[main]: [Thread " << threadID << "] Reading " << blen
-                                         << "@" << offset);
+        NDN_LOG_INFO("[main]: [Thread " << threadID << "] Reading " << blen
+                                        << "@" << offset);
 
         retRead = consumer->Read(&buff[0], offset, blen);
 

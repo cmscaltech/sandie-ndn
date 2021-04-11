@@ -85,7 +85,7 @@ const Interest Consumer::getInterest(ndn::Name prefix, uint64_t segmentNo) {
 
     Interest interest(name);
     interest.setInterestLifetime(m_interestLifetime);
-    interest.setMustBeFresh(true);
+    interest.setMustBeFresh(false);
     interest.setDefaultCanBePrefix(false);
     return interest;
 }
@@ -235,25 +235,37 @@ ssize_t Consumer::Read(void *buff, off_t offset, size_t blen) {
         }
     }
 
-    std::map<uint64_t, const ndn::Block> dataStore;
-    for (auto it = futures.begin(); it != futures.end(); ++it) {
-        try {
-            auto readResult = it->get();
-            auto retRead =
-                validateData(std::get<0>(readResult), std::get<1>(readResult),
-                             std::get<2>(readResult));
+    auto nFutures = futures.size();
 
-            if (retRead != XRDNDN_ESUCCESS) {
-                return retRead;
+    std::map<uint64_t, const ndn::Block> dataStore;
+    while (dataStore.size() < nFutures) {
+        for (auto it = futures.begin(); it != futures.end();) {
+            if (it->wait_for(std::chrono::milliseconds(10)) ==
+                std::future_status::ready) {
+                try {
+                    auto readResult = it->get();
+                    auto retRead = validateData(std::get<0>(readResult),
+                                                std::get<1>(readResult),
+                                                std::get<2>(readResult));
+
+                    if (retRead != XRDNDN_ESUCCESS) {
+                        return retRead;
+                    }
+                    dataStore.insert(std::pair<uint64_t, const Block>(
+                        xrdndn::Utils::getSegmentNo(
+                            std::get<2>(readResult).getName()),
+                        std::get<2>(readResult).getContent()));
+                } catch (const std::exception &e) {
+                    NDN_LOG_ERROR(
+                        "Catch exception: "
+                        << e.what()
+                        << " while waiting for future on read request");
+                    return -ECONNABORTED;
+                }
+                it = futures.erase(it);
+            } else {
+                ++it;
             }
-            dataStore.insert(std::pair<uint64_t, const Block>(
-                xrdndn::Utils::getSegmentNo(std::get<2>(readResult).getName()),
-                std::get<2>(readResult).getContent()));
-        } catch (const std::exception &e) {
-            NDN_LOG_ERROR("Catch exception: "
-                          << e.what()
-                          << " while waiting for future on read request");
-            return -ECONNABORTED;
         }
     }
 

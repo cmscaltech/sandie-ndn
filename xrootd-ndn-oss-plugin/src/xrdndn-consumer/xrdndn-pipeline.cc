@@ -1,8 +1,8 @@
 // SANDIE: National Science Foundation Award #1659403
 // Copyright (c) 2018-2020 California Institute of Technology
-// 
+//
 // Author: Catalin Iordache <catalin.iordache@cern.ch>
-// 
+//
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
@@ -15,7 +15,7 @@ using namespace ndn;
 
 namespace xrdndnconsumer {
 Pipeline::Pipeline(Face &face, size_t size)
-    : m_face(face), m_size(size), m_stop(false), m_pipeNo(0),
+    : m_face(face), m_size(size), m_stop(false), m_windowSize(0),
       m_nSegmentsReceived(0), m_nBytesReceived(0), m_duration(0) {
     NDN_LOG_TRACE("Alloc fixed window size " << m_size << " pipeline");
     m_startTime = ndn::time::steady_clock::now();
@@ -32,21 +32,12 @@ void Pipeline::stop() {
     m_stop = true;
     m_duration += ndn::time::steady_clock::now() - m_startTime;
 
-    {
-        boost::unique_lock<boost::mutex> lock(m_mtxWindow);
-        for (auto it = m_window.begin(); it != m_window.end();
-             it = m_window.erase(it)) {
-            if (it->second->isFetching())
-                it->second->stop();
-        }
-    }
     m_cvWindow.notify_all();
 }
 
 Pipeline::FutureType Pipeline::insert(const ndn::Interest &interest) {
     boost::unique_lock<boost::mutex> lock(m_mtxWindow);
-    m_cvWindow.wait(lock,
-                    [&]() { return (m_window.size() < m_size) || m_stop; });
+    m_cvWindow.wait(lock, [&]() { return (m_windowSize < m_size) || m_stop; });
 
     if (m_stop) {
         NDN_LOG_TRACE("Pipeline will stop. Interest: "
@@ -54,10 +45,8 @@ Pipeline::FutureType Pipeline::insert(const ndn::Interest &interest) {
         return FutureType();
     }
 
-    uint64_t pipeNo = m_pipeNo++;
     auto fetcher = DataFetcher::getDataFetcher(
-        m_face, interest,
-        std::bind(&Pipeline::onTaskCompleteSuccess, this, _1, pipeNo),
+        m_face, interest, std::bind(&Pipeline::onTaskCompleteSuccess, this, _1),
         std::bind(&Pipeline::onTaskCompleteFailure, this));
 
     if (!fetcher) {
@@ -67,31 +56,22 @@ Pipeline::FutureType Pipeline::insert(const ndn::Interest &interest) {
     }
 
     NDN_LOG_TRACE("Processing Interest: " << interest);
-    m_window.emplace(
-        std::pair<uint64_t, std::shared_ptr<DataFetcher>>(pipeNo, fetcher));
-    auto future = m_window[pipeNo]->get_future();
-    m_window[pipeNo]->fetch();
 
-    return future;
+    m_window.push_back(fetcher);
+    fetcher->fetch();
+    ++m_windowSize;
+
+    return fetcher->get_future();
 }
 
-void Pipeline::onTaskCompleteSuccess(const ndn::Data &data,
-                                     const uint64_t &pipeNo) {
+void Pipeline::onTaskCompleteSuccess(const ndn::Data &data) {
     m_nSegmentsReceived++;
     m_nBytesReceived += data.getContent().value_size();
 
     if (m_stop)
         return;
 
-    {
-        boost::unique_lock<boost::mutex> lock(m_mtxWindow);
-        m_window.erase(pipeNo);
-
-        if (m_window.empty()) {
-            m_duration += ndn::time::steady_clock::now() - m_startTime;
-            m_startTime = ndn::time::steady_clock::now();
-        }
-    }
+    m_windowSize--;
     m_cvWindow.notify_one();
 }
 

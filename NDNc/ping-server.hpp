@@ -25,49 +25,15 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_FACE_HH
-#define NDNC_FACE_HH
-
-#include <memory>
-
-#include "graphql/client.hpp"
-#include "memif.hpp"
+#include "face/packet-handler.hpp"
 
 namespace ndnc {
-class PacketHandler;
-};
-#include "packet-handler.hpp"
-
-namespace ndnc {
-
-class Face {
+class PingServer : public PacketHandler, public std::enable_shared_from_this<PingServer> {
     public:
-    Face();
-    ~Face();
+    explicit PingServer(std::shared_ptr<Face> face);
 
-    bool addHandler(PacketHandler& h);
-    bool removeHandler();
-
-    bool isValid();
-    bool advertise(std::string prefix);
-    void loop();
 
     private:
-    void openMemif();
-
-    static void transportRx(void* self, const uint8_t* pkt, size_t pktLen) {
-        reinterpret_cast<Face*>(self)->transportRx(pkt, pktLen);
-    }
-
-    void transportRx(const uint8_t* pkt, size_t pktLen);
-
-    private:
-    std::unique_ptr<graphql::Client> m_client;
-    transport::Transport* m_transport;
-    PacketHandler* m_packetHandler;
-
-    bool m_valid;
+    bool processInterest(std::shared_ptr<ndn::Interest>& interest) final;
 };
 }; // namespace ndnc
-
-#endif // NDNC_FACE_HH

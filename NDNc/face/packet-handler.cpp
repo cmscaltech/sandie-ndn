@@ -25,49 +25,27 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_FACE_HH
-#define NDNC_FACE_HH
-
-#include <memory>
-
-#include "graphql/client.hpp"
-#include "memif.hpp"
-
-namespace ndnc {
-class PacketHandler;
-};
 #include "packet-handler.hpp"
 
 namespace ndnc {
+PacketHandler::PacketHandler(std::shared_ptr<Face> face) {
+    face->addHandler(*this);
+}
 
-class Face {
-    public:
-    Face();
-    ~Face();
-
-    bool addHandler(PacketHandler& h);
-    bool removeHandler();
-
-    bool isValid();
-    bool advertise(std::string prefix);
-    void loop();
-
-    private:
-    void openMemif();
-
-    static void transportRx(void* self, const uint8_t* pkt, size_t pktLen) {
-        reinterpret_cast<Face*>(self)->transportRx(pkt, pktLen);
+PacketHandler::~PacketHandler() {
+    if (m_face != nullptr) {
+        m_face->removeHandler();
     }
+}
 
-    void transportRx(const uint8_t* pkt, size_t pktLen);
+void PacketHandler::loop() {
+}
 
-    private:
-    std::unique_ptr<graphql::Client> m_client;
-    transport::Transport* m_transport;
-    PacketHandler* m_packetHandler;
+bool PacketHandler::processInterest(std::shared_ptr<ndn::Interest>& interest) {
+    return false;
+}
 
-    bool m_valid;
-};
+bool PacketHandler::processData(std::shared_ptr<ndn::Data>& data) {
+    return false
+}
 }; // namespace ndnc
-
-#endif // NDNC_FACE_HH

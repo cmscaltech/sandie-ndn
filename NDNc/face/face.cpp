@@ -25,6 +25,13 @@
  * SOFTWARE.
  */
 
+#include <boost/lexical_cast.hpp>
+#include <ndn-cxx/encoding/buffer.hpp>
+#include <ndn-cxx/interest.hpp>
+#include <ndn-cxx/lp/nack.hpp>
+#include <ndn-cxx/lp/packet.hpp>
+#include <ndn-cxx/lp/pit-token.hpp>
+
 #include "face.hpp"
 
 namespace ndnc {
@@ -60,8 +67,59 @@ void Face::loop() {
     m_transport->loop();
 }
 
-static void transportRx(void* self, const uint8_t* pkt, size_t pktLen) {
-    std::cout << "Received packet of length: " << pktLen << "\n";
+bool Face::addHandler(PacketHandler& h) {
+    m_packetHandler = &h;
+    return true;
+}
+
+bool Face::removeHandler() {
+    m_packetHandler = NULL;
+    return true;
+}
+
+void Face::transportRx(const uint8_t* pkt, size_t pktLen) {
+    ndn::Block wire;
+    bool isOk;
+
+    std::tie(isOk, wire) = ndn::Block::fromBuffer(pkt, pktLen);
+    if (!isOk) {
+        return;
+    }
+
+    ndn::lp::Packet lpPacket;
+    try {
+        lpPacket = ndn::lp::Packet(wire);
+    } catch (...) {
+        return;
+    }
+
+    ndn::Buffer::const_iterator begin, end;
+    std::tie(begin, end) = lpPacket.get<ndn::lp::FragmentField>();
+
+    ndn::Block netPacket(&*begin, std::distance(begin, end));
+    switch (netPacket.type()) {
+    case ndn::tlv::Interest: {
+        auto interest = std::make_shared<ndn::Interest>(netPacket);
+
+        if (lpPacket.has<ndn::lp::NackField>()) {
+            auto nack = std::make_shared<ndn::lp::Nack>(std::move(*interest));
+            std::cout << "Recieved NACK\n";
+        } else {
+            if (NULL != m_packetHandler) {
+                m_packetHandler->processInterest(interest);
+            }
+            // std::cout << "[" << boost::lexical_cast<std::string>(ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>())) << "] ";
+            // std::cout << "Interest Name: " << interest->getName().toUri() << "\n";
+        }
+        break;
+    }
+
+    case ndn::tlv::Data:
+    default: {
+        std::cout << "WARNING: Unexpected packet type " << netPacket.type() << "\n";
+        break;
+    }
+    }
 }
 
 void Face::openMemif() {

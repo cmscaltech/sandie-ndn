@@ -25,49 +25,55 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_FACE_HH
-#define NDNC_FACE_HH
+#ifndef NDNC_PACKET_HANDLER_HH
+#define NDNC_PACKET_HANDLER_HH
 
-#include <memory>
-
-#include "graphql/client.hpp"
-#include "memif.hpp"
+#include <ndn-cxx/data.hpp>
+#include <ndn-cxx/interest.hpp>
 
 namespace ndnc {
-class PacketHandler;
-};
-#include "packet-handler.hpp"
+class Face;
+}
+#include "face.hpp"
 
 namespace ndnc {
-
-class Face {
+class PacketHandler : public std::enable_shared_from_this<PacketHandler> {
     public:
-    Face();
-    ~Face();
+    explicit PacketHandler() = default;
+    explicit PacketHandler(std::shared_ptr<Face> face);
 
-    bool addHandler(PacketHandler& h);
-    bool removeHandler();
-
-    bool isValid();
-    bool advertise(std::string prefix);
-    void loop();
+    protected:
+    virtual ~PacketHandler();
 
     private:
-    void openMemif();
+    /** @brief Override to be invoked periodically. */
+    virtual void loop();
 
-    static void transportRx(void* self, const uint8_t* pkt, size_t pktLen) {
-        reinterpret_cast<Face*>(self)->transportRx(pkt, pktLen);
-    }
+    public:
+    /**
+     * @brief Override to receive Interest packets.
+     * @retval true packet has been accepted by this handler.
+     * @retval false packet is not accepted, and should go to the next handler.
+     */
+    virtual bool processInterest(std::shared_ptr<ndn::Interest>& interest);
 
-    void transportRx(const uint8_t* pkt, size_t pktLen);
+    /**
+     * @brief Override to receive Data packets.
+     * @retval true packet has been accepted by this handler.
+     * @retval false packet is not accepted, and should go to the next handler.
+     */
+    virtual bool processData(std::shared_ptr<ndn::Data>& data);
+
+    /**
+     * @brief Override to receive Nack packets.
+     * @retval true packet has been accepted by this handler.
+     * @retval false packet is not accepted, and should go to the next handler.
+     */
+    // virtual bool processNack(Nack);
 
     private:
-    std::unique_ptr<graphql::Client> m_client;
-    transport::Transport* m_transport;
-    PacketHandler* m_packetHandler;
-
-    bool m_valid;
+    std::shared_ptr<Face> m_face;
 };
 }; // namespace ndnc
 
-#endif // NDNC_FACE_HH
+#endif // NDNC_PACKET_HANDLER_HH

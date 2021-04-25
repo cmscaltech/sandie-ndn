@@ -33,7 +33,12 @@
 #include <ndn-cxx/lp/pit-token.hpp>
 
 #include "graphql/client.hpp"
+
+#ifndef __APPLE__
 #include "memif.hpp"
+#else
+#include "transport.hpp"
+#endif
 
 namespace ndnc {
 class PacketHandler;
@@ -50,14 +55,14 @@ class Face {
     bool addHandler(PacketHandler &h);
     bool removeHandler();
 
-    bool advertise(std::string prefix);
+    bool isValid();
     void loop();
+    bool advertise(std::string prefix);
 
     bool send(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
     bool send(std::shared_ptr<const ndn::Interest> interest);
 
   private:
-    bool isValid();
     void openMemif();
 
     void transportRx(const uint8_t *pkt, size_t pktLen);
@@ -69,7 +74,7 @@ class Face {
 
   private:
     std::unique_ptr<graphql::Client> m_client;
-    transport::Transport *m_transport;
+    Transport *m_transport;
     PacketHandler *m_packetHandler;
 
     bool m_valid;

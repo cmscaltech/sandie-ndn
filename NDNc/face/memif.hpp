@@ -43,7 +43,6 @@ extern "C" {
 #endif
 
 namespace ndnc {
-namespace transport {
 
 static inline const std::array<uint8_t, 14> ethernetHDR = {
     0xF2, 0x6C, 0xE6, 0x8D, 0x9E, 0x34, // dst
@@ -223,7 +222,6 @@ class Memif : public virtual Transport {
     bool m_init = false;
     bool m_isUp = false;
 };
-}; // namespace transport
 }; // namespace ndnc
 
 #endif // NDNC_TRANSPORT_MEMIF

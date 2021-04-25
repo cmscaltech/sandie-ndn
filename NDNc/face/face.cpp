@@ -25,19 +25,23 @@
  * SOFTWARE.
  */
 
-#include "ndn-cxx/lp/packet.hpp"
-#include "ndn-cxx/lp/tags.hpp"
+#include <iostream>
+
 #include <ndn-cxx/encoding/buffer.hpp>
 #include <ndn-cxx/interest.hpp>
 #include <ndn-cxx/lp/nack.hpp>
+#include <ndn-cxx/lp/packet.hpp>
+#include <ndn-cxx/lp/tags.hpp>
 
 #include "face.hpp"
 
 namespace ndnc {
-Face::Face() : m_transport(NULL), m_pitToken(0) {
+Face::Face() : m_transport(NULL), m_pitToken(0), m_valid(false) {
     m_client = std::make_unique<graphql::Client>();
+#ifndef __APPLE__
     m_valid = m_client->openFace();
     this->openMemif();
+#endif
 }
 
 Face::~Face() {
@@ -47,6 +51,8 @@ Face::~Face() {
     } else {
         std::cout << "WARN: Unable to delete face\n";
     }
+
+    m_transport = NULL;
 }
 
 bool Face::isValid() {
@@ -58,7 +64,7 @@ bool Face::advertise(std::string prefix) {
         return false;
     }
 
-    if (!m_valid || m_client == nullptr) {
+    if (!isValid() || m_client == nullptr) {
         return false;
     }
 
@@ -159,12 +165,14 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
 }
 
 void Face::openMemif() {
-    static transport::Memif transport;
+#ifndef __APPLE__
+    static Memif transport;
     if (!transport.begin(m_client->getSocketName().c_str(), 1)) {
         return;
     }
 
     this->m_transport = &transport;
+#endif
 
     while (true) {
         if (m_transport->isUp()) {

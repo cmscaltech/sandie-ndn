@@ -32,56 +32,46 @@
 #include <stdint.h>
 
 namespace ndnc {
-namespace transport {
 /**
  * @brief Base class of low-level transport.
  *
  */
 class Transport {
-    using RxCallback = void (*)(void* ctx, const uint8_t* pkt, size_t pktLen);
+    using RxCallback = void (*)(void *ctx, const uint8_t *pkt, size_t pktLen);
 
-    public:
+  public:
     virtual ~Transport() = default;
 
     /** @brief Determine whether transport is connected. */
-    virtual bool isUp() const {
-        return doIsUp();
-    }
+    virtual bool isUp() const { return doIsUp(); }
 
     /** @brief Process periodical events, such as receiving packets. */
-    virtual void loop() {
-        doLoop();
-    }
+    virtual void loop() { doLoop(); }
 
     /** @brief Set incoming packet callback. */
-    void setRxCallback(RxCallback cb, void* ctx) {
-        m_rxCb  = cb;
+    void setRxCallback(RxCallback cb, void *ctx) {
+        m_rxCb = cb;
         m_rxCtx = ctx;
     }
 
     /** @brief Synchronously transmit a packet. */
-    bool send(const uint8_t* pkt, size_t pktLen) {
-        return doSend(pkt, pktLen);
-    }
+    bool send(const uint8_t *pkt, size_t pktLen) { return doSend(pkt, pktLen); }
 
-    protected:
+  protected:
     /** @brief Invoke incoming packet callback for a received packet. */
-    void invokeRxCallback(const uint8_t* pkt, size_t pktLen) {
-        m_rxCb(m_rxCtx, pkt, pktLen);
-    }
+    void invokeRxCallback(const uint8_t *pkt, size_t pktLen) { m_rxCb(m_rxCtx, pkt, pktLen); }
 
-    private:
+  private:
     virtual bool doIsUp() const = 0;
 
     virtual void doLoop() = 0;
 
-    virtual bool doSend(const uint8_t* pkt, size_t pktLen) = 0;
+    virtual bool doSend(const uint8_t *pkt, size_t pktLen) = 0;
 
-    private:
+  private:
     RxCallback m_rxCb = nullptr;
-    void* m_rxCtx     = nullptr;
+    void *m_rxCtx = nullptr;
 };
-}; // namespace transport
 }; // namespace ndnc
 
 #endif // NDNC_TRANSPORT_HPP

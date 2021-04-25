@@ -28,6 +28,11 @@ int main(int argc, char *argv[]) {
     signal(SIGABRT, handler);
 
     ndnc::Face *face = new ndnc::Face();
+    if (!face->isValid()) {
+        std::cout << "ERROR: Could not create face obj\n";
+        return -1;
+    }
+
     if (strcmp(argv[1], "client") == 0) {
         ndnc::PingClient *client = new ndnc::PingClient(*face);
         loop = true;

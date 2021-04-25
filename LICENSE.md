@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2020 Caltech Group at LHC's Compact Muon Solenoid (CMS) Experiment
+Copyright (c) 2021 Caltech Group at LHC's Compact Muon Solenoid (CMS) Experiment
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

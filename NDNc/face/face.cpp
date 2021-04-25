@@ -139,6 +139,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
 
         if (lpPacket.has<ndn::lp::NackField>()) {
             auto nack = std::make_shared<ndn::lp::Nack>(std::move(*interest));
+            m_packetHandler->processNack(nack);
             std::cout << "Recieved NACK\n";
         } else {
             if (NULL != m_packetHandler) {
@@ -149,13 +150,13 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     }
 
     case ndn::tlv::Data: {
-        auto data = std::make_shared<ndn::Data>(netPacket);
-
         if (NULL != m_packetHandler) {
+            auto data = std::make_shared<ndn::Data>(netPacket);
             m_packetHandler->processData(data);
         }
         break;
     }
+
     default: {
         // TODO: Throw error
         std::cout << "WARNING: Unexpected packet type " << netPacket.type() << "\n";

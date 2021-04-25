@@ -42,23 +42,48 @@ class Transport {
   public:
     virtual ~Transport() = default;
 
-    /** @brief Determine whether transport is connected. */
+    /**
+     * @brief Determine whether transport is connected
+     *
+     * @return true
+     * @return false
+     */
     virtual bool isUp() const { return doIsUp(); }
 
-    /** @brief Process periodical events, such as receiving packets. */
+    /**
+     * @brief Process periodical events, such as receiving packets
+     *
+     */
     virtual void loop() { doLoop(); }
 
-    /** @brief Set incoming packet callback. */
+    /**
+     * @brief Set the Rx Callback objectSet incoming packet callback
+     *
+     * @param cb
+     * @param ctx
+     */
     void setRxCallback(RxCallback cb, void *ctx) {
         m_rxCb = cb;
         m_rxCtx = ctx;
     }
 
-    /** @brief Synchronously transmit a packet. */
+    /**
+     * @brief Synchronously transmit a packet
+     *
+     * @param pkt
+     * @param pktLen
+     * @return true
+     * @return false
+     */
     bool send(const uint8_t *pkt, size_t pktLen) { return doSend(pkt, pktLen); }
 
   protected:
-    /** @brief Invoke incoming packet callback for a received packet. */
+    /**
+     * @brief Invoke incoming packet callback for a received packet
+     *
+     * @param pkt
+     * @param pktLen
+     */
     void invokeRxCallback(const uint8_t *pkt, size_t pktLen) { m_rxCb(m_rxCtx, pkt, pktLen); }
 
   private:

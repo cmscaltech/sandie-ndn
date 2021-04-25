@@ -51,4 +51,6 @@ bool PacketHandler::putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken 
 void PacketHandler::processInterest(std::shared_ptr<ndn::Interest> &, ndn::lp::PitToken) {}
 
 void PacketHandler::processData(std::shared_ptr<ndn::Data> &) {}
+
+void PacketHandler::processNack(std::shared_ptr<ndn::lp::Nack> &nack) {}
 }; // namespace ndnc

@@ -30,6 +30,7 @@
 
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/interest.hpp>
+#include <ndn-cxx/lp/nack.hpp>
 #include <ndn-cxx/lp/pit-token.hpp>
 
 namespace ndnc {
@@ -67,7 +68,7 @@ class PacketHandler {
      * @brief Override to send Data packets
      *
      * @param data the Data packet to send
-     * @param pitToken the PIT of the Interest that this Data packet satisfies
+     * @param pitToken the PIT token of the Interest that this Data packet satisfies
      * @return true
      * @return false
      */
@@ -89,11 +90,11 @@ class PacketHandler {
     virtual void processData(std::shared_ptr<ndn::Data> &data);
 
     /**
-     * @brief Override to receive Nack packets.
-     * @retval true packet has been accepted by this handler.
-     * @retval false packet is not accepted, and should go to the next handler.
+     * @brief Override to receive NACK packets
+     *
+     * @param nack the NACK packet
      */
-    // virtual bool processNack(Nack);
+    virtual void processNack(std::shared_ptr<ndn::lp::Nack> &nack);
 
   private:
     Face &m_face;

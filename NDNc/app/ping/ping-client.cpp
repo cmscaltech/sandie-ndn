@@ -25,6 +25,7 @@
  * SOFTWARE.
  */
 
+#include <iostream>
 #include <boost/format.hpp>
 #include <random>
 

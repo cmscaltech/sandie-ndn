@@ -56,16 +56,13 @@ static inline const std::array<uint8_t, 14> ethernetHDR = {
  *
  */
 class Memif : public virtual Transport {
-    public:
-    explicit Memif(uint16_t maxPacketLength = 8800)
-    : m_maxPktLen(maxPacketLength) {
-    }
+  public:
+    explicit Memif(uint16_t maxPacketLength = 8800) : m_maxPktLen(maxPacketLength) {}
 
-    bool begin(const char* socketName, uint32_t id) {
+    bool begin(const char *socketName, uint32_t id) {
         end();
 
-        int err = memif_init(nullptr, const_cast<char*>("NDNcBasedApp"),
-                             nullptr, nullptr, nullptr);
+        int err = memif_init(nullptr, const_cast<char *>("NDNcBasedApp"), nullptr, nullptr, nullptr);
         if (err != MEMIF_ERR_SUCCESS) {
             std::cout << "ERROR: memif_init\n";
             return false;
@@ -79,11 +76,10 @@ class Memif : public virtual Transport {
         }
 
         memif_conn_args_t args = {};
-        args.socket            = m_sock;
-        args.interface_id      = id;
-        args.buffer_size       = ethernetHDR.size() + m_maxPktLen;
-        err = memif_create(&m_conn, &args, Memif::handleConnect,
-                           Memif::handleDisconnect, Memif::handleInterrupt, this);
+        args.socket = m_sock;
+        args.interface_id = id;
+        args.buffer_size = ethernetHDR.size() + m_maxPktLen;
+        err = memif_create(&m_conn, &args, Memif::handleConnect, Memif::handleDisconnect, Memif::handleInterrupt, this);
         if (err != MEMIF_ERR_SUCCESS) {
             std::cout << "ERROR: memif_create\n";
             return false;
@@ -120,10 +116,8 @@ class Memif : public virtual Transport {
         return true;
     }
 
-    private:
-    bool doIsUp() const final {
-        return m_isUp;
-    }
+  private:
+    bool doIsUp() const final { return m_isUp; }
 
     void doLoop() final {
         if (!m_init) {
@@ -137,7 +131,7 @@ class Memif : public virtual Transport {
         }
     }
 
-    bool doSend(const uint8_t* pkt, size_t pktLen) final {
+    bool doSend(const uint8_t *pkt, size_t pktLen) final {
         if (!m_isUp) {
             std::cout << "ERROR: Memif send drop=transport-disconnected\n";
             return false;
@@ -149,20 +143,19 @@ class Memif : public virtual Transport {
         }
 
         memif_buffer_t b = {};
-        uint16_t nAlloc  = 0;
+        uint16_t nAlloc = 0;
         int err = memif_buffer_alloc(m_conn, 0, &b, 1, &nAlloc, pktLen);
         if (err != MEMIF_ERR_SUCCESS || nAlloc != 1) {
             std::cout << "ERROR: memif_buffer_alloc\n";
             return false;
         }
 
-        uint8_t* p = std::copy(ethernetHDR.begin(), ethernetHDR.end(),
-                               static_cast<uint8_t*>(b.data));
-        p          = std::copy_n(pkt, pktLen, p);
-        b.len      = std::distance(static_cast<uint8_t*>(b.data), p);
+        uint8_t *p = std::copy(ethernetHDR.begin(), ethernetHDR.end(), static_cast<uint8_t *>(b.data));
+        p = std::copy_n(pkt, pktLen, p);
+        b.len = std::distance(static_cast<uint8_t *>(b.data), p);
 
         uint16_t nTx = 0;
-        err          = memif_tx_burst(m_conn, 0, &b, 1, &nTx);
+        err = memif_tx_burst(m_conn, 0, &b, 1, &nTx);
         if (err != MEMIF_ERR_SUCCESS || nTx != 1) {
             std::cout << "ERROR: memif_tx_burst\n";
             return false;
@@ -170,8 +163,8 @@ class Memif : public virtual Transport {
         return true;
     }
 
-    static int handleConnect(memif_conn_handle_t conn, void* self0) {
-        Memif* self = reinterpret_cast<Memif*>(self0);
+    static int handleConnect(memif_conn_handle_t conn, void *self0) {
+        Memif *self = reinterpret_cast<Memif *>(self0);
         assert(self->m_conn == conn);
         self->m_isUp = true;
 
@@ -186,8 +179,8 @@ class Memif : public virtual Transport {
         return 0;
     }
 
-    static int handleDisconnect(memif_conn_handle_t conn, void* self0) {
-        Memif* self = reinterpret_cast<Memif*>(self0);
+    static int handleDisconnect(memif_conn_handle_t conn, void *self0) {
+        Memif *self = reinterpret_cast<Memif *>(self0);
         assert(self->m_conn == conn);
         self->m_isUp = false;
 
@@ -195,8 +188,8 @@ class Memif : public virtual Transport {
         return 0;
     }
 
-    static int handleInterrupt(memif_conn_handle_t conn, void* self0, uint16_t qid) {
-        Memif* self = reinterpret_cast<Memif*>(self0);
+    static int handleInterrupt(memif_conn_handle_t conn, void *self0, uint16_t qid) {
+        Memif *self = reinterpret_cast<Memif *>(self0);
         assert(self->m_conn == conn);
 
         std::array<memif_buffer_t, NDNC_MEMIF_RXBURST> burst;
@@ -208,12 +201,11 @@ class Memif : public virtual Transport {
         }
 
         for (uint16_t i = 0; i < nRx; ++i) {
-            const memif_buffer_t& b = burst[i];
+            const memif_buffer_t &b = burst[i];
             if (b.len <= ethernetHDR.size()) {
                 continue;
             }
-            self->invokeRxCallback(std::next(static_cast<const uint8_t*>(b.data),
-                                             ethernetHDR.size()),
+            self->invokeRxCallback(std::next(static_cast<const uint8_t *>(b.data), ethernetHDR.size()),
                                    b.len - ethernetHDR.size());
         }
 
@@ -224,9 +216,9 @@ class Memif : public virtual Transport {
         return 0;
     }
 
-    public:
+  public:
     memif_socket_handle_t m_sock = nullptr;
-    memif_conn_handle_t m_conn   = nullptr;
+    memif_conn_handle_t m_conn = nullptr;
     uint16_t m_maxPktLen;
     bool m_init = false;
     bool m_isUp = false;

@@ -29,6 +29,8 @@
 #define NDNC_FACE_HH
 
 #include <memory>
+#include <ndn-cxx/data.hpp>
+#include <ndn-cxx/lp/pit-token.hpp>
 
 #include "graphql/client.hpp"
 #include "memif.hpp"
@@ -41,32 +43,37 @@ class PacketHandler;
 namespace ndnc {
 
 class Face {
-    public:
+  public:
     Face();
     ~Face();
 
-    bool addHandler(PacketHandler& h);
+    bool addHandler(PacketHandler &h);
     bool removeHandler();
 
-    bool isValid();
     bool advertise(std::string prefix);
     void loop();
 
-    private:
+    bool send(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
+    bool send(std::shared_ptr<const ndn::Interest> interest);
+
+  private:
+    bool isValid();
     void openMemif();
 
-    static void transportRx(void* self, const uint8_t* pkt, size_t pktLen) {
-        reinterpret_cast<Face*>(self)->transportRx(pkt, pktLen);
+    void transportRx(const uint8_t *pkt, size_t pktLen);
+
+  private:
+    static void transportRx(void *self, const uint8_t *pkt, size_t pktLen) {
+        reinterpret_cast<Face *>(self)->transportRx(pkt, pktLen);
     }
 
-    void transportRx(const uint8_t* pkt, size_t pktLen);
-
-    private:
+  private:
     std::unique_ptr<graphql::Client> m_client;
-    transport::Transport* m_transport;
-    PacketHandler* m_packetHandler;
+    transport::Transport *m_transport;
+    PacketHandler *m_packetHandler;
 
     bool m_valid;
+    uint64_t m_pitToken;
 };
 }; // namespace ndnc
 

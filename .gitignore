@@ -1,6 +1,7 @@
 *.DS_Store
 *.idea
 *.vscode
+workspace.code-workspace
 
 xrootd-ndn-oss-plugin/build/*
 xrootd-ndn-dpdk-oss-plugin/libs/*

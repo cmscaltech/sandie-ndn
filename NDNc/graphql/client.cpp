@@ -37,24 +37,22 @@ namespace ndnc {
 namespace graphql {
 Client::Client() {
     m_socketName = "/tmp/ndnc-memif-" + std::to_string(getpid()) + ".sock";
-    m_faceID     = "";
+    m_faceID = "";
 }
 
-Client::~Client() {
-}
+Client::~Client() {}
 
 bool Client::openFace(int id, int dataroom) {
     std::cout << "INFO: Open face\n";
 
     auto request = json_helper::getOperation(
-    "\
+        "\
     mutation createFace($locator: JSON!) {\n\
       createFace(locator: $locator) {\n\
         id\n\
       }\n\
     }",
-    "createFace",
-    nlohmann::json{ { "locator", json_helper::createFace{ this->m_socketName, id, dataroom } } });
+        "createFace", nlohmann::json{{"locator", json_helper::createFace{this->m_socketName, id, dataroom}}});
 
     json response;
     if (auto code = doOperation(request, response); CURLE_OK != code) {
@@ -72,8 +70,7 @@ bool Client::openFace(int id, int dataroom) {
         return false;
     }
 
-    if (response["data"]["createFace"] == nullptr ||
-        response["data"]["createFace"]["id"] == nullptr) {
+    if (response["data"]["createFace"] == nullptr || response["data"]["createFace"]["id"] == nullptr) {
         return false;
     }
 
@@ -86,12 +83,11 @@ bool Client::openFace(int id, int dataroom) {
 bool Client::deleteFace() {
     std::cout << "INFO: Deleting face: " << this->m_faceID << "\n";
 
-    auto request =
-    json_helper::getOperation("\
+    auto request = json_helper::getOperation("\
     mutation delete($id: ID!) {\n\
       delete(id: $id)\n\
     }",
-                              "delete", json_helper::deleteFace{ this->m_faceID });
+                                             "delete", json_helper::deleteFace{this->m_faceID});
 
     json response;
     if (auto code = doOperation(request, response); CURLE_OK != code) {
@@ -109,15 +105,13 @@ bool Client::deleteFace() {
 bool Client::advertiseOnFace(std::string prefix) {
     std::cout << "INFO: Advertising name: " << prefix << "\n";
 
-    auto request =
-    json_helper::getOperation("\
+    auto request = json_helper::getOperation("\
     mutation insertFibEntry($name: Name!, $nexthops: [ID!]!, $strategy: ID) {\n\
         insertFibEntry(name: $name, nexthops: $nexthops, strategy: $strategy) {\n\
             id\n\
         }\n\
     }",
-                              "insertFibEntry",
-                              json_helper::insertFibEntry{ prefix, { this->m_faceID } });
+                                             "insertFibEntry", json_helper::insertFibEntry{prefix, {this->m_faceID}});
 
     json response;
     if (auto code = doOperation(request, response); CURLE_OK != code) {
@@ -135,8 +129,7 @@ bool Client::advertiseOnFace(std::string prefix) {
         return false;
     }
 
-    if (response["data"]["insertFibEntry"] == nullptr ||
-        response["data"]["insertFibEntry"]["id"] == nullptr ||
+    if (response["data"]["insertFibEntry"] == nullptr || response["data"]["insertFibEntry"]["id"] == nullptr ||
         response["data"]["insertFibEntry"]["id"].empty()) {
         std::cout << "ERROR: Unable to advertise prefix\n";
         return false;

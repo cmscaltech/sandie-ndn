@@ -51,48 +51,42 @@ struct operation {
     nlohmann::json variables;
 };
 
-void to_json(nlohmann::json& json, const operation& req) {
-    json = nlohmann::json{ { "query", req.query },
-                           { "operationName", req.operationName },
-                           { "variables", req.variables } };
+void to_json(nlohmann::json &json, const operation &req) {
+    json = nlohmann::json{{"query", req.query}, {"operationName", req.operationName}, {"variables", req.variables}};
 }
 
-void from_json(const nlohmann::json& json, operation& req) {
+void from_json(const nlohmann::json &json, operation &req) {
     json.at("query").get_to(req.query);
     json.at("operationName").get_to(req.operationName);
     json.at("variables").get_to(req.variables);
 }
 
 nlohmann::json getOperation(std::string query, std::string name, nlohmann::json variables) {
-    return operation{ query, name, variables };
+    return operation{query, name, variables};
 }
-
 
 /**
  * @brief Query variables: createFace mutation
  *
  */
 struct createFace {
-    std::string socketName;    // Socket name
-    int id;                    // Face ID
-    int dataroom       = 9000; // Dataroom size
+    std::string socketName; // Socket name
+    int id;                 // Face ID
+    int dataroom = 9000;    // Dataroom size
     std::string scheme = "memif";
 };
 
-void to_json(nlohmann::json& json, const createFace& loc) {
-    json = nlohmann::json{ { "dataroom", loc.dataroom },
-                           { "id", loc.id },
-                           { "socketName", loc.socketName },
-                           { "scheme", loc.scheme } };
+void to_json(nlohmann::json &json, const createFace &loc) {
+    json = nlohmann::json{
+        {"dataroom", loc.dataroom}, {"id", loc.id}, {"socketName", loc.socketName}, {"scheme", loc.scheme}};
 }
 
-void from_json(const nlohmann::json& json, createFace& loc) {
+void from_json(const nlohmann::json &json, createFace &loc) {
     json.at("dataroom").get_to(loc.dataroom);
     json.at("id").get_to(loc.id);
     json.at("socketName").get_to(loc.socketName);
     json.at("scheme").get_to(loc.scheme);
 }
-
 
 /**
  * @brief Query variable: delete mutation
@@ -102,14 +96,13 @@ struct deleteFace {
     std::string id; // Face ID on the forwarder side
 };
 
-void to_json(nlohmann::json& json, const deleteFace& vars) {
-    json = nlohmann::json{ { "id", vars.id } };
+void to_json(nlohmann::json &json, const deleteFace &vars) {
+    json = nlohmann::json{{"id", vars.id}};
 }
 
-void from_json(const nlohmann::json& json, deleteFace& vars) {
+void from_json(const nlohmann::json &json, deleteFace &vars) {
     json.at("id").get_to(vars.id);
 }
-
 
 /**
  * @brief Query variables: insertFibEntry mutation
@@ -121,11 +114,11 @@ struct insertFibEntry {
     // int strategy;
 };
 
-void to_json(nlohmann::json& json, const insertFibEntry& vars) {
-    json = nlohmann::json{ { "name", vars.name }, { "nexthops", vars.nextHops } };
+void to_json(nlohmann::json &json, const insertFibEntry &vars) {
+    json = nlohmann::json{{"name", vars.name}, {"nexthops", vars.nextHops}};
 }
 
-void from_json(const nlohmann::json& json, insertFibEntry& vars) {
+void from_json(const nlohmann::json &json, insertFibEntry &vars) {
     json.at("name").get_to(vars.name);
     json.at("nexthops").get_to(vars.nextHops);
 }

@@ -25,25 +25,27 @@
  * SOFTWARE.
  */
 
-#include <boost/lexical_cast.hpp>
+#include "ndn-cxx/lp/packet.hpp"
+#include "ndn-cxx/lp/tags.hpp"
 #include <ndn-cxx/encoding/buffer.hpp>
 #include <ndn-cxx/interest.hpp>
 #include <ndn-cxx/lp/nack.hpp>
-#include <ndn-cxx/lp/packet.hpp>
-#include <ndn-cxx/lp/pit-token.hpp>
 
 #include "face.hpp"
 
 namespace ndnc {
-Face::Face() : m_transport(NULL) {
+Face::Face() : m_transport(NULL), m_pitToken(0) {
     m_client = std::make_unique<graphql::Client>();
-    m_valid  = m_client->openFace();
+    m_valid = m_client->openFace();
     this->openMemif();
 }
 
 Face::~Face() {
     if (m_client != nullptr) {
+        std::cout << "INFO: Deleting face\n";
         m_client->deleteFace();
+    } else {
+        std::cout << "WARN: Unable to delete face\n";
     }
 }
 
@@ -67,7 +69,7 @@ void Face::loop() {
     m_transport->loop();
 }
 
-bool Face::addHandler(PacketHandler& h) {
+bool Face::addHandler(PacketHandler &h) {
     m_packetHandler = &h;
     return true;
 }
@@ -77,7 +79,35 @@ bool Face::removeHandler() {
     return true;
 }
 
-void Face::transportRx(const uint8_t* pkt, size_t pktLen) {
+bool Face::send(std::shared_ptr<const ndn::Interest> interest) {
+    auto wire = interest->wireEncode();
+
+    if (wire.size() > ndn::MAX_NDN_PACKET_SIZE) {
+        std::cout << "ERROR: Maximum packet size breach\n";
+        return false;
+    }
+
+    m_transport->send(wire.wire(), wire.size());
+    return true;
+}
+
+bool Face::send(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken) {
+    ndn::lp::Packet lpPacket(data->wireEncode());
+    lpPacket.add<ndn::lp::PitTokenField>(pitToken);
+
+    auto wire = lpPacket.wireEncode();
+
+    // TODO: Common send function that throws error
+    if (wire.size() > ndn::MAX_NDN_PACKET_SIZE) {
+        std::cout << "ERROR: Maximum packet size breach\n";
+        return false;
+    }
+
+    m_transport->send(wire.wire(), wire.size());
+    return true;
+}
+
+void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     ndn::Block wire;
     bool isOk;
 
@@ -106,16 +136,22 @@ void Face::transportRx(const uint8_t* pkt, size_t pktLen) {
             std::cout << "Recieved NACK\n";
         } else {
             if (NULL != m_packetHandler) {
-                m_packetHandler->processInterest(interest);
+                m_packetHandler->processInterest(interest, ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
             }
-            // std::cout << "[" << boost::lexical_cast<std::string>(ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>())) << "] ";
-            // std::cout << "Interest Name: " << interest->getName().toUri() << "\n";
         }
         break;
     }
 
-    case ndn::tlv::Data:
+    case ndn::tlv::Data: {
+        auto data = std::make_shared<ndn::Data>(netPacket);
+
+        if (NULL != m_packetHandler) {
+            m_packetHandler->processData(data);
+        }
+        break;
+    }
     default: {
+        // TODO: Throw error
         std::cout << "WARNING: Unexpected packet type " << netPacket.type() << "\n";
         break;
     }
@@ -124,7 +160,7 @@ void Face::transportRx(const uint8_t* pkt, size_t pktLen) {
 
 void Face::openMemif() {
     static transport::Memif transport;
-    if (!transport.begin(m_client->getSocketName().c_str(), 0)) {
+    if (!transport.begin(m_client->getSocketName().c_str(), 1)) {
         return;
     }
 

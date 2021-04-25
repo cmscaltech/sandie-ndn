@@ -30,6 +30,7 @@
 
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/interest.hpp>
+#include <ndn-cxx/lp/pit-token.hpp>
 
 namespace ndnc {
 class Face;
@@ -37,32 +38,55 @@ class Face;
 #include "face.hpp"
 
 namespace ndnc {
-class PacketHandler : public std::enable_shared_from_this<PacketHandler> {
-    public:
+class PacketHandler {
+  public:
     explicit PacketHandler() = default;
-    explicit PacketHandler(std::shared_ptr<Face> face);
+    explicit PacketHandler(Face &face);
 
-    protected:
+  protected:
     virtual ~PacketHandler();
 
-    private:
-    /** @brief Override to be invoked periodically. */
+  private:
+    /**
+     * @brief Override to be invoked periodically
+     *
+     */
     virtual void loop();
 
-    public:
+  public:
     /**
-     * @brief Override to receive Interest packets.
-     * @retval true packet has been accepted by this handler.
-     * @retval false packet is not accepted, and should go to the next handler.
+     * @brief Override to send Interest packets
+     *
+     * @param interest the Interest packet to send
+     * @return true packet has been sent
+     * @return false packet could not be sent
      */
-    virtual bool processInterest(std::shared_ptr<ndn::Interest>& interest);
+    virtual bool expressInterest(std::shared_ptr<const ndn::Interest> interest);
 
     /**
-     * @brief Override to receive Data packets.
-     * @retval true packet has been accepted by this handler.
-     * @retval false packet is not accepted, and should go to the next handler.
+     * @brief Override to send Data packets
+     *
+     * @param data the Data packet to send
+     * @param pitToken the PIT of the Interest that this Data packet satisfies
+     * @return true
+     * @return false
      */
-    virtual bool processData(std::shared_ptr<ndn::Data>& data);
+    virtual bool putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
+
+    /**
+     * @brief Override to receive Interest packets
+     *
+     * @param interest the Interest packet
+     * @param pitToken the PIT token of this Interest
+     */
+    virtual void processInterest(std::shared_ptr<ndn::Interest> &interest, ndn::lp::PitToken pitToken);
+
+    /**
+     * @brief Override to receive Data packets
+     *
+     * @param data the Data packet
+     */
+    virtual void processData(std::shared_ptr<ndn::Data> &data);
 
     /**
      * @brief Override to receive Nack packets.
@@ -71,8 +95,8 @@ class PacketHandler : public std::enable_shared_from_this<PacketHandler> {
      */
     // virtual bool processNack(Nack);
 
-    private:
-    std::shared_ptr<Face> m_face;
+  private:
+    Face &m_face;
 };
 }; // namespace ndnc
 

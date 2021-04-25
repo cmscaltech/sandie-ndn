@@ -25,16 +25,35 @@
  * SOFTWARE.
  */
 
-#include "ping-server.hpp"
-
+#include <boost/lexical_cast.hpp>
 #include <iostream>
 
+#include <ndn-cxx/signature-info.hpp>
+#include <ndn-cxx/util/sha256.hpp>
+
+#include "ping-server.hpp"
+
 namespace ndnc {
-PingServer::PingServer(std::shared_ptr<Face> face) : PacketHandler(face) {
+PingServer::PingServer(Face &face) : PacketHandler(face) {
+    auto buff = std::make_shared<ndn::Buffer>();
+    buff->assign(5, 'a');
+    m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
 }
 
-bool PingServer::processInterest(std::shared_ptr<ndn::Interest>& interest) {
+void PingServer::processInterest(std::shared_ptr<ndn::Interest> &interest, ndn::lp::PitToken pitToken) {
+    std::cout << "[" << boost::lexical_cast<std::string>(pitToken) << "] ";
     std::cout << "Interest Name: " << interest->getName().toUri() << "\n";
-    return true;
+
+    auto data = std::make_shared<ndn::Data>(interest->getName());
+    data->setContent(m_payload);
+    data->setContentType(ndn::tlv::ContentType_Blob);
+
+    ndn::SignatureInfo signatureInfo;
+    signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
+
+    data->setSignatureInfo(signatureInfo);
+    data->setSignatureValue(std::make_shared<ndn::Buffer>());
+
+    putData(data, pitToken);
 }
 }; // namespace ndnc

@@ -25,15 +25,19 @@
  * SOFTWARE.
  */
 
+#include <ndn-cxx/encoding/block.hpp>
+
 #include "face/packet-handler.hpp"
 
 namespace ndnc {
 class PingServer : public PacketHandler, public std::enable_shared_from_this<PingServer> {
-    public:
-    explicit PingServer(std::shared_ptr<Face> face);
+  public:
+    explicit PingServer(Face &face);
 
+  private:
+    void processInterest(std::shared_ptr<ndn::Interest> &interest, ndn::lp::PitToken pitToken) final;
 
-    private:
-    bool processInterest(std::shared_ptr<ndn::Interest>& interest) final;
+  private:
+    ndn::Block m_payload;
 };
 }; // namespace ndnc

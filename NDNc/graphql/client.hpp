@@ -36,38 +36,32 @@ namespace ndnc {
 namespace graphql {
 
 class Client {
-    public:
+  public:
     Client();
     ~Client();
 
-    bool openFace(int id = 0, int dataroom = 9000);
+    bool openFace(int id = 1, int dataroom = 9000);
     bool deleteFace();
     bool advertiseOnFace(std::string prefix);
 
-    std::string getSocketName() {
-        return m_socketName;
-    }
-    std::string getFaceID() {
-        return m_faceID;
-    }
-    std::string getFibEntryID() {
-        return m_fibEntryID;
-    }
+    std::string getSocketName() { return m_socketName; }
+    std::string getFaceID() { return m_faceID; }
+    std::string getFibEntryID() { return m_fibEntryID; }
 
-    private:
-    static size_t writeCallback(char* ptr, size_t size, size_t nmemb, void* userdata) {
-        ((std::string*)userdata)->append((char*)ptr, size * nmemb);
+  private:
+    static size_t writeCallback(char *ptr, size_t size, size_t nmemb, void *userdata) {
+        ((std::string *)userdata)->append((char *)ptr, size * nmemb);
         return size * nmemb;
     }
 
-    static CURLcode doOperation(nlohmann::json request, nlohmann::json& response) {
+    static CURLcode doOperation(nlohmann::json request, nlohmann::json &response) {
         curl_global_init(CURL_GLOBAL_ALL);
         auto curl = curl_easy_init();
         if (curl == NULL) {
             return CURLE_FAILED_INIT;
         }
 
-        struct curl_slist* headers = NULL;
+        struct curl_slist *headers = NULL;
         headers = curl_slist_append(headers, "Content-Type: application/json");
         headers = curl_slist_append(headers, "Accept: application/json");
 
@@ -94,7 +88,7 @@ class Client {
         return code;
     }
 
-    private:
+  private:
     std::string m_socketName;
     std::string m_faceID;
     std::string m_fibEntryID;

@@ -41,7 +41,6 @@ class Face;
 namespace ndnc {
 class PacketHandler {
   public:
-    explicit PacketHandler() = default;
     explicit PacketHandler(Face &face);
 
   protected:
@@ -97,7 +96,8 @@ class PacketHandler {
     virtual void processNack(std::shared_ptr<ndn::lp::Nack> &nack);
 
   private:
-    Face &m_face;
+    Face *m_face;
+    friend Face;
 };
 }; // namespace ndnc
 

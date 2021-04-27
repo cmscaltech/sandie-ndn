@@ -28,24 +28,26 @@
 #include "packet-handler.hpp"
 
 namespace ndnc {
-PacketHandler::PacketHandler(Face &face) : m_face(face) {
+PacketHandler::PacketHandler(Face &face) {
     face.addHandler(*this);
 }
 
 PacketHandler::~PacketHandler() {
-    m_face.removeHandler();
+    if (m_face != nullptr) {
+        m_face->removeHandler();
+    }
 }
 
 void PacketHandler::loop() {
-    m_face.loop();
+    m_face->loop();
 }
 
 bool PacketHandler::expressInterest(std::shared_ptr<const ndn::Interest> interest) {
-    return m_face.send(interest);
+    return m_face != nullptr && m_face->send(interest);
 }
 
 bool PacketHandler::putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken) {
-    return m_face.send(data, pitToken);
+    return m_face != nullptr && m_face->send(data, pitToken);
 }
 
 void PacketHandler::processInterest(std::shared_ptr<ndn::Interest> &, ndn::lp::PitToken) {}

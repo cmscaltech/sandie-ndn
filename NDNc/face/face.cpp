@@ -36,7 +36,7 @@
 #include "face.hpp"
 
 namespace ndnc {
-Face::Face() : m_transport(NULL), m_pitToken(0), m_valid(false) {
+Face::Face() : m_transport(NULL), m_valid(false) {
     m_client = std::make_unique<graphql::Client>();
 #ifndef __APPLE__
     m_valid = m_client->openFace();
@@ -77,6 +77,7 @@ void Face::loop() {
 
 bool Face::addHandler(PacketHandler &h) {
     m_packetHandler = &h;
+    m_packetHandler->m_face = this;
     return true;
 }
 

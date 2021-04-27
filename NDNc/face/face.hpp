@@ -78,7 +78,6 @@ class Face {
     PacketHandler *m_packetHandler;
 
     bool m_valid;
-    uint64_t m_pitToken;
 };
 }; // namespace ndnc
 

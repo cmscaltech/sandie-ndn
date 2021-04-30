@@ -67,11 +67,14 @@ class Face {
     bool send(const uint8_t *pkt, size_t pktLen); // TODO: Throw error
 
     void transportRx(const uint8_t *pkt, size_t pktLen);
+    void onPeerDisconnect();
 
   private:
     static void transportRx(void *self, const uint8_t *pkt, size_t pktLen) {
         reinterpret_cast<Face *>(self)->transportRx(pkt, pktLen);
     }
+
+    static void onPeerDisconnect(void *self) { reinterpret_cast<Face *>(self)->onPeerDisconnect(); }
 
   private:
     std::unique_ptr<graphql::Client> m_client;

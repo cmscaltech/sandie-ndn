@@ -38,8 +38,13 @@ PacketHandler::~PacketHandler() {
     }
 }
 
-void PacketHandler::loop() {
-    m_face->loop();
+bool PacketHandler::loop() {
+    if (m_face != nullptr && m_face->isValid()) {
+        m_face->loop();
+        return true;
+    }
+
+    return false;
 }
 
 bool PacketHandler::expressInterest(std::shared_ptr<const ndn::Interest> interest) {

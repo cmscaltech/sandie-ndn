@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
         ndnc::PingClient *client = new ndnc::PingClient(*face);
         loop = true;
 
-        while (loop) {
+        while (loop && face->isValid()) {
             sleep(1);
             client->sendInterest("/ndn/xrootd/");
             face->loop();
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
         face->advertise("/ndn/xrootd");
 
         loop = true;
-        while (loop) {
+        while (loop && face->isValid()) {
             usleep(5000);
             face->loop();
         }

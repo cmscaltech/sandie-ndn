@@ -160,6 +160,11 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     }
 }
 
+void Face::onPeerDisconnect() {
+    std::cout << "WARN: Peer disconnected\n";
+    this->m_valid = false;
+}
+
 void Face::openMemif() {
     if (!isValid()) {
         std::cout << "WARN: Invalid face\n";
@@ -179,6 +184,7 @@ void Face::openMemif() {
         if (m_transport->isUp()) {
             std::cout << "INFO: Transport is UP\n";
             m_transport->setRxCallback(transportRx, this);
+            m_transport->setDisconnectCallback(onPeerDisconnect, this);
             break;
         }
 

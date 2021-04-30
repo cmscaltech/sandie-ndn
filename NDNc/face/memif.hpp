@@ -184,6 +184,7 @@ class Memif : public virtual Transport {
         self->m_isUp = false;
 
         std::cout << "INFO: Memif disconnected\n";
+        self->invokeDisconnectCallback();
         return 0;
     }
 

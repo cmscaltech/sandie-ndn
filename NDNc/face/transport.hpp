@@ -38,6 +38,7 @@ namespace ndnc {
  */
 class Transport {
     using RxCallback = void (*)(void *ctx, const uint8_t *pkt, size_t pktLen);
+    using DisconnectCallback = void (*)(void *ctx);
 
   public:
     virtual ~Transport() = default;
@@ -77,6 +78,11 @@ class Transport {
      */
     bool send(const uint8_t *pkt, size_t pktLen) { return doSend(pkt, pktLen); }
 
+    void setDisconnectCallback(DisconnectCallback cb, void *ctx) {
+        m_disconnectCb = cb;
+        m_disconnectCtx = ctx;
+    }
+
   protected:
     /**
      * @brief Invoke incoming packet callback for a received packet
@@ -85,6 +91,8 @@ class Transport {
      * @param pktLen
      */
     void invokeRxCallback(const uint8_t *pkt, size_t pktLen) { m_rxCb(m_rxCtx, pkt, pktLen); }
+
+    void invokeDisconnectCallback() { m_disconnectCb(m_disconnectCtx); }
 
   private:
     virtual bool doIsUp() const = 0;
@@ -95,7 +103,10 @@ class Transport {
 
   private:
     RxCallback m_rxCb = nullptr;
+    DisconnectCallback m_disconnectCb = nullptr;
+
     void *m_rxCtx = nullptr;
+    void *m_disconnectCtx = nullptr;
 };
 }; // namespace ndnc
 

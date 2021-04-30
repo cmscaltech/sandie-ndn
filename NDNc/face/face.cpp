@@ -86,32 +86,26 @@ bool Face::removeHandler() {
     return true;
 }
 
-bool Face::send(std::shared_ptr<const ndn::Interest> interest) {
-    auto wire = interest->wireEncode();
-
-    if (wire.size() > ndn::MAX_NDN_PACKET_SIZE) {
+bool Face::send(const uint8_t *pkt, size_t pktLen) {
+    if (pktLen > ndn::MAX_NDN_PACKET_SIZE) {
         std::cout << "ERROR: Maximum packet size breach\n";
         return false;
     }
 
-    m_transport->send(wire.wire(), wire.size());
-    return true;
+    return m_transport->send(pkt, pktLen);
 }
 
-bool Face::send(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken) {
+bool Face::expressInterest(std::shared_ptr<const ndn::Interest> interest) {
+    auto wire = interest->wireEncode();
+    return this->send(wire.wire(), wire.size());
+}
+
+bool Face::putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken) {
     ndn::lp::Packet lpPacket(data->wireEncode());
     lpPacket.add<ndn::lp::PitTokenField>(pitToken);
 
     auto wire = lpPacket.wireEncode();
-
-    // TODO: Common send function that throws error
-    if (wire.size() > ndn::MAX_NDN_PACKET_SIZE) {
-        std::cout << "ERROR: Maximum packet size breach\n";
-        return false;
-    }
-
-    m_transport->send(wire.wire(), wire.size());
-    return true;
+    return this->send(wire.wire(), wire.size());
 }
 
 void Face::transportRx(const uint8_t *pkt, size_t pktLen) {

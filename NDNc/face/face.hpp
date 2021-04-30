@@ -59,11 +59,12 @@ class Face {
     void loop();
     bool advertise(std::string prefix);
 
-    bool send(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
-    bool send(std::shared_ptr<const ndn::Interest> interest);
+    bool expressInterest(std::shared_ptr<const ndn::Interest> interest);
+    bool putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
 
   private:
     void openMemif();
+    bool send(const uint8_t *pkt, size_t pktLen); // TODO: Throw error
 
     void transportRx(const uint8_t *pkt, size_t pktLen);
 

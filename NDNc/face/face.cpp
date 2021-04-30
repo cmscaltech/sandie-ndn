@@ -167,6 +167,11 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
 }
 
 void Face::openMemif() {
+    if (!isValid()) {
+        std::cout << "WARN: Invalid face\n";
+        return;
+    }
+
 #ifndef __APPLE__
     static Memif transport;
     if (!transport.begin(m_client->getSocketName().c_str(), 1)) {

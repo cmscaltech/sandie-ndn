@@ -25,35 +25,52 @@
  * SOFTWARE.
  */
 
-#include <boost/lexical_cast.hpp>
-#include <iostream>
+#include <ndn-cxx/encoding/block.hpp>
 
-#include <ndn-cxx/signature-info.hpp>
-#include <ndn-cxx/util/sha256.hpp>
-
-#include "ping-server.hpp"
+#include "face/packet-handler.hpp"
 
 namespace ndnc {
-PingServer::PingServer(Face &face) : PacketHandler(face) {
-    auto buff = std::make_shared<ndn::Buffer>();
-    buff->assign(5, 'a');
-    m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
-}
+namespace ping {
+namespace server {
 
-void PingServer::processInterest(std::shared_ptr<ndn::Interest> &interest, ndn::lp::PitToken pitToken) {
-    std::cout << "[" << boost::lexical_cast<std::string>(pitToken) << "] ";
-    std::cout << "Interest Name: " << interest->getName().toUri() << "\n";
+struct Options {
+    /**
+     * @brief Name prefix
+     *
+     */
+    std::string prefix;
 
-    auto data = std::make_shared<ndn::Data>(interest->getName());
-    data->setContent(m_payload);
-    data->setContentType(ndn::tlv::ContentType_Blob);
+    /**
+     * @brief Data packet freshness period
+     *
+     */
+    ndn::time::milliseconds freshnessPeriod = ndn::time::seconds{1};
 
-    ndn::SignatureInfo signatureInfo;
-    signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
+    /**
+     * @brief Payload size
+     *
+     */
+    size_t payloadSize = 1024;
+};
 
-    data->setSignatureInfo(signatureInfo);
-    data->setSignatureValue(std::make_shared<ndn::Buffer>());
+struct Stats {
+    uint64_t nInterest = 0;
+    uint64_t nData = 0;
+};
 
-    putData(data, pitToken);
-}
+class Runner : public PacketHandler, public std::enable_shared_from_this<Runner> {
+  public:
+    explicit Runner(Face &face, Options opts);
+    Stats getStatistics();
+
+  private:
+    void processInterest(std::shared_ptr<ndn::Interest> &interest, ndn::lp::PitToken pitToken) final;
+
+  private:
+    ndn::Block m_payload;
+    Options m_options;
+    Stats m_stats;
+};
+}; // namespace server
+}; // namespace ping
 }; // namespace ndnc

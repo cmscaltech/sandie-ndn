@@ -25,34 +25,47 @@
  * SOFTWARE.
  */
 
-#include <iostream>
-#include <boost/format.hpp>
-#include <random>
-
-#include <ndn-cxx/data.hpp>
-#include <ndn-cxx/interest.hpp>
-
-#include "ping-client.hpp"
+#include "face/packet-handler.hpp"
 
 namespace ndnc {
-PingClient::PingClient(Face &face) : PacketHandler(face) {
-    std::random_device rd;
-    std::mt19937_64 gen(rd());
-    std::uniform_int_distribution<uint64_t> dist;
 
-    m_sequence = dist(gen);
-}
+namespace ping {
 
-void PingClient::sendInterest(std::string prefix) {
-    std::shared_ptr<ndn::Interest> interest =
-        std::make_shared<ndn::Interest>(prefix + (boost::format("%016X") % m_sequence).str());
-    ++m_sequence;
+namespace client {
 
-    std::cout << "Sending: " << interest->getName() << "\n";
-    expressInterest(interest);
-}
+struct Options {
+    /**
+     * @brief Name prefix
+     *
+     */
+    std::string prefix;
 
-void PingClient::processData(std::shared_ptr<ndn::Data> &data) {
-    std::cout << "Received: " << data->getName() << "\n";
-}
+    /**
+     * @brief Interval between Interests
+     *
+     */
+    ndn::time::milliseconds interval = ndn::time::milliseconds{100};
+
+    /**
+     * @brief Interest lifetime
+     *
+     */
+    ndn::time::milliseconds lifetime = ndn::time::seconds{1};
+};
+
+class Runner : public PacketHandler, public std::enable_shared_from_this<Runner> {
+  public:
+    explicit Runner(Face &face, Options options);
+
+    void sendInterest(std::string prefix); // TODO: expressInterest and putData
+
+  private:
+    void processData(std::shared_ptr<ndn::Data> &) final;
+
+  private:
+    Options m_options;
+    uint32_t m_sequence;
+};
+}; // namespace client
+}; // namespace ping
 }; // namespace ndnc

@@ -25,19 +25,36 @@
  * SOFTWARE.
  */
 
-#include "face/packet-handler.hpp"
+#include <iostream>
+#include <random>
+
+#include <ndn-cxx/data.hpp>
+#include <ndn-cxx/interest.hpp>
+
+#include "ping-client.hpp"
 
 namespace ndnc {
-class PingClient : public PacketHandler, public std::enable_shared_from_this<PingClient> {
-  public:
-    explicit PingClient(Face &face);
+namespace ping {
+namespace client {
+Runner::Runner(Face &face, Options options) : PacketHandler(face), m_options{options} {
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    std::uniform_int_distribution<uint64_t> dist;
 
-    void sendInterest(std::string prefix); // TODO: expressInterest and putData
+    m_sequence = dist(gen);
+}
 
-  private:
-    void processData(std::shared_ptr<ndn::Data> &) final;
+void Runner::sendInterest(std::string prefix) {
+    std::shared_ptr<ndn::Interest> interest = std::make_shared<ndn::Interest>(prefix + std::to_string(m_sequence));
+    ++m_sequence;
 
-  private:
-    uint32_t m_sequence;
-};
+    std::cout << "Sending: " << interest->getName() << "\n";
+    expressInterest(interest);
+}
+
+void Runner::processData(std::shared_ptr<ndn::Data> &data) {
+    std::cout << "Received: " << data->getName() << "\n";
+}
+}; // namespace client
+}; // namespace ping
 }; // namespace ndnc

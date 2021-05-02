@@ -41,12 +41,6 @@ struct Options {
     std::string prefix;
 
     /**
-     * @brief Data packet freshness period
-     *
-     */
-    ndn::time::milliseconds freshnessPeriod = ndn::time::seconds{1};
-
-    /**
      * @brief Payload size
      *
      */
@@ -60,7 +54,7 @@ struct Stats {
 
 class Runner : public PacketHandler, public std::enable_shared_from_this<Runner> {
   public:
-    explicit Runner(Face &face, Options opts);
+    explicit Runner(Face &face, Options options);
     Stats getStatistics();
 
   private:

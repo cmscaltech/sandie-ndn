@@ -30,5 +30,3 @@
 
 #include <ndn-cxx/encoding/tlv.hpp>
 #include <ndn-cxx/util/time.hpp>
-
-using namespace std::chrono_literals;

@@ -50,7 +50,6 @@ void Runner::processInterest(std::shared_ptr<ndn::Interest> &interest, ndn::lp::
     auto data = std::make_shared<ndn::Data>(interest->getName());
     data->setContent(m_payload);
     data->setContentType(ndn::tlv::ContentType_Blob);
-    data->setFreshnessPeriod(m_options.freshnessPeriod);
 
     ndn::SignatureInfo signatureInfo;
     signatureInfo.setSignatureType(ndn::tlv::DigestSha256);

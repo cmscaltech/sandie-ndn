@@ -28,7 +28,6 @@
 #include <fstream>
 #include <iostream>
 
-#include <boost/config.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
@@ -36,8 +35,8 @@
 #include "../common.hpp"
 #include "ping-server.hpp"
 
-namespace po = boost::program_options;
 using namespace std;
+namespace po = boost::program_options;
 
 static bool faceLoop = true;
 
@@ -45,17 +44,15 @@ void handler(sig_atomic_t signal) {
     faceLoop = false;
 }
 
-static void usage(ostream &os, const string &programName, const po::options_description &desc) {
-    os << "Usage: " << programName << " [options]\nNote: This application needs --prefix argument specified\n\n"
-       << desc;
+static void usage(ostream &os, const string &app, const po::options_description &desc) {
+    os << "Usage: " << app << " [options]\nNote: This application needs --prefix argument specified\n\n" << desc;
 }
 
 int main(int argc, char **argv) {
     ndnc::ping::server::Options opts;
 
     po::options_description description("Options", 120);
-    description.add_options()("freshness-period,f", po::value<ndn::time::milliseconds::rep>(),
-                              "Freshness period of Data packets in milliseconds. Specify a non-negative value")(
+    description.add_options()(
         "payload-size,s", po::value<size_t>(&opts.payloadSize)->default_value(opts.payloadSize),
         string("The payload size expressed in bytes of each NDN Data packet. Specify a non-negative integer "
                "smaller or equal to " +
@@ -78,37 +75,30 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    string programName = argv[0];
+    string app = argv[0];
 
     if (vm.count("help") > 0) {
-        usage(cout, programName, description);
+        usage(cout, app, description);
         return 0;
     }
 
     if (vm.count("prefix") == 0) {
-        usage(cerr, programName, description);
+        usage(cerr, app, description);
         cerr << "\nERROR: Please specify the NDN prefix this applications advertises\n";
         return 2;
     }
 
     if (vm.count("payload-size") > 0) {
         if (opts.payloadSize < 0 || opts.payloadSize > ndn::MAX_NDN_PACKET_SIZE) {
-            usage(cout, programName, description);
+            usage(cout, app, description);
             cerr << "\nERROR: Invalid payload size. Please specify a non-negative integer smaller or eqaul to "
                  << ndn::MAX_NDN_PACKET_SIZE << "\n";
             return 2;
         }
     }
 
-    opts.freshnessPeriod = ndn::time::milliseconds(vm["freshness-period"].as<ndn::time::milliseconds::rep>());
-    if (opts.freshnessPeriod < ndn::time::milliseconds{0}) {
-        cerr << "\nERROR: FreshnessPeriod cannot be negative\n";
-        usage(cout, programName, description);
-        return 2;
-    }
-
     std::cout << "Running NDNc Ping Server application with {prefix: " << opts.prefix
-              << "}, {payload-size: " << opts.payloadSize << "}, {freshness-period: " << opts.freshnessPeriod << "}\n";
+              << "}, {payload-size: " << opts.payloadSize << "}\n";
 
     signal(SIGINT, handler);
     signal(SIGABRT, handler);
@@ -119,7 +109,7 @@ int main(int argc, char **argv) {
     }
 
     ndnc::ping::server::Runner *server = new ndnc::ping::server::Runner(*face, opts);
-    face->advertise("/ndn/xrootd");
+    face->advertise(opts.prefix);
 
     while (faceLoop && face->isValid()) {
         face->loop();

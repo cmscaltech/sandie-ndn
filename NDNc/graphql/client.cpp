@@ -103,7 +103,7 @@ bool Client::deleteFace() {
 }
 
 bool Client::advertiseOnFace(std::string prefix) {
-    std::cout << "INFO: Advertising name: " << prefix << "\n";
+    std::cout << "TRACE: Advertising Name prefix: " << prefix << "\n";
 
     auto request = json_helper::getOperation("\
     mutation insertFibEntry($name: Name!, $nexthops: [ID!]!, $strategy: ID) {\n\
@@ -136,7 +136,7 @@ bool Client::advertiseOnFace(std::string prefix) {
     }
 
     this->m_fibEntryID = response["data"]["insertFibEntry"]["id"];
-    std::cout << "INFO: Advertise prefix: " << this->m_fibEntryID << "\n";
+    std::cout << "TRACE: FIB entry: " << this->m_fibEntryID << " for Name prefix: " << prefix << "\n";
 
     return true;
 }

@@ -97,8 +97,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    std::cout << "Running NDNc Ping Server application with {prefix: " << opts.prefix
-              << "}, {payload-size: " << opts.payloadSize << "}\n";
+    std::cout << "TRACE: Starting NDNc Ping Server...\n";
 
     signal(SIGINT, handler);
     signal(SIGABRT, handler);

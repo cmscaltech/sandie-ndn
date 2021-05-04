@@ -108,8 +108,7 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
-    std::cout << "Running NDNc Ping Client application with {prefix: " << opts.prefix
-              << "}, {interval: " << opts.interval << "}, {lifetime: " << opts.lifetime << "}\n";
+    std::cout << "TRACE: Starting NDNc Ping Client...\n";
 
     signal(SIGINT, handler);
     signal(SIGABRT, handler);

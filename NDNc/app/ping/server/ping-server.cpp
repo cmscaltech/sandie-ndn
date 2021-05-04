@@ -25,8 +25,9 @@
  * SOFTWARE.
  */
 
-#include <boost/lexical_cast.hpp>
 #include <iostream>
+
+#include <boost/lexical_cast.hpp>
 
 #include <ndn-cxx/signature-info.hpp>
 #include <ndn-cxx/util/sha256.hpp>
@@ -44,7 +45,8 @@ Runner::Runner(Face &face, Options options) : PacketHandler(face), m_options{opt
 
 void Runner::processInterest(std::shared_ptr<ndn::Interest> &interest, ndn::lp::PitToken pitToken) {
     ++m_counters.nRxInterests;
-    std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " " << interest->getName() << "\n";
+    std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
+              << boost::lexical_cast<std::string>(pitToken) << " " << interest->getName() << "\n";
 
     auto data = std::make_shared<ndn::Data>(interest->getName());
     data->setContent(m_payload);

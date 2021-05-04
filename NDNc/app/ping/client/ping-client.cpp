@@ -36,24 +36,63 @@
 namespace ndnc {
 namespace ping {
 namespace client {
-Runner::Runner(Face &face, Options options) : PacketHandler(face), m_options{options} {
+Runner::Runner(Face &face, Options options) : PacketHandler(face), m_options{options}, m_counters{} {
     std::random_device rd;
     std::mt19937_64 gen(rd());
     std::uniform_int_distribution<uint64_t> dist;
 
     m_sequence = dist(gen);
+    m_next = ndn::time::system_clock::now() + m_options.interval;
 }
 
-void Runner::sendInterest(std::string prefix) {
-    std::shared_ptr<ndn::Interest> interest = std::make_shared<ndn::Interest>(prefix + std::to_string(m_sequence));
-    ++m_sequence;
+void Runner::loop() {
+    auto now = ndn::time::system_clock::now();
+    if (m_next > now) {
+        return;
+    }
 
-    std::cout << "Sending: " << interest->getName() << "\n";
-    expressInterest(interest);
+    if (this->sendInterest()) {
+        m_next = now + m_options.interval;
+    }
+}
+
+bool Runner::sendInterest() {
+    auto name = ndn::Name(m_options.prefix);
+    name.appendSegment(m_sequence);
+
+    std::shared_ptr<ndn::Interest> interest = std::make_shared<ndn::Interest>();
+    interest->setName(name);
+    interest->setInterestLifetime(m_options.lifetime);
+
+    if (expressInterest(interest)) {
+        m_pendingInterests[m_sequence] = ndn::time::system_clock::now();
+
+        ++m_sequence;
+        ++m_counters.nTxInterests;
+        return true;
+    }
+
+    return false;
 }
 
 void Runner::processData(std::shared_ptr<ndn::Data> &data) {
-    std::cout << "Received: " << data->getName() << "\n";
+    ++m_counters.nRxData;
+
+    auto now = ndn::time::system_clock::now();
+    auto seq = data->getName().at(-1).toSegment();
+    auto rtt = ndn::time::duration_cast<ndn::time::microseconds>(now - m_pendingInterests[seq]);
+
+    std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " " << data->getName() << "\t" << rtt << "\n";
+}
+
+void Runner::processNack(std::shared_ptr<ndn::lp::Nack> &nack) {
+    ++m_counter.nRxNacks;
+    std::cout << "WARN: Received NACK for Interest " << nack->getInterest().getName()
+              << " with reason: " << nack->getReason() << "\n";
+}
+
+Runner::Counters Runner::readCounters() {
+    return this->m_counters;
 }
 }; // namespace client
 }; // namespace ping

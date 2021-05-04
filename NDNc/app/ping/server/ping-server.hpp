@@ -44,18 +44,19 @@ struct Options {
      * @brief Payload size
      *
      */
-    size_t payloadSize = 1024;
-};
-
-struct Stats {
-    uint64_t nInterest = 0;
-    uint64_t nData = 0;
+    size_t payloadSize = 128;
 };
 
 class Runner : public PacketHandler, public std::enable_shared_from_this<Runner> {
   public:
     explicit Runner(Face &face, Options options);
-    Stats getStatistics();
+
+    struct Counters {
+        uint32_t nRxInterests = 0;
+        uint32_t nTxData = 0;
+    };
+
+    Counters readCounters();
 
   private:
     void processInterest(std::shared_ptr<ndn::Interest> &interest, ndn::lp::PitToken pitToken) final;
@@ -63,7 +64,7 @@ class Runner : public PacketHandler, public std::enable_shared_from_this<Runner>
   private:
     ndn::Block m_payload;
     Options m_options;
-    Stats m_stats;
+    Counters m_counters;
 };
 }; // namespace server
 }; // namespace ping

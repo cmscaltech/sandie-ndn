@@ -108,6 +108,9 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
+    std::cout << "Running NDNc Ping Client application with {prefix: " << opts.prefix
+              << "}, {interval: " << opts.interval << "}, {lifetime: " << opts.lifetime << "}\n";
+
     signal(SIGINT, handler);
     signal(SIGABRT, handler);
 
@@ -117,17 +120,15 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    ndnc::ping::client::Runner *client = new ndnc::ping::client::Runner(*face, {});
+    ndnc::ping::client::Runner *client = new ndnc::ping::client::Runner(*face, opts);
 
-    // TODO: inside client?
     while (faceLoop && face->isValid()) {
-        sleep(1); // sleep for interval
-                  // store pending interests
-                  // compute rtt when you get back
-                  // at timeout you drop the pending interest
-        client->sendInterest("/ndn/xrootd/");
         face->loop();
     }
+
+    cout << "\n"
+         << client->readCounters().nTxInterests << " packets transmitted, " << client->readCounters().nRxData
+         << " packets received\n";
 
     if (NULL != client) {
         delete client;

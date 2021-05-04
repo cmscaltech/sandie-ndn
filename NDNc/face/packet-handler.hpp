@@ -51,7 +51,7 @@ class PacketHandler {
      * @brief Override to be invoked periodically
      *
      */
-    virtual bool loop();
+    virtual void loop();
 
   public:
     /**

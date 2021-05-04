@@ -115,9 +115,9 @@ int main(int argc, char **argv) {
         face->loop();
     }
 
-    cout << "INFO: Stopping...\n";
-    cout << "{nInterest: " << server->getStatistics().nInterest << "}, {nData: " << server->getStatistics().nInterest
-         << "}\n";
+    cout << "\n"
+         << server->readCounters().nTxData << " packets transmitted, " << server->readCounters().nRxInterests
+         << " packets received\n";
 
     if (NULL != server) {
         delete server;

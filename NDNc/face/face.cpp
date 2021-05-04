@@ -46,10 +46,9 @@ Face::Face() : m_transport(NULL), m_valid(false) {
 
 Face::~Face() {
     if (m_client != nullptr) {
-        std::cout << "INFO: Deleting face\n";
-        m_client->deleteFace();
-    } else {
-        std::cout << "WARN: Unable to delete face\n";
+        if (!m_client->deleteFace()) {
+            std::cout << "WARN: Unable to delete face\n";
+        }
     }
 
     m_transport = NULL;
@@ -73,6 +72,10 @@ bool Face::advertise(std::string prefix) {
 
 void Face::loop() {
     m_transport->loop();
+
+    if (m_packetHandler != nullptr) {
+        m_packetHandler->loop();
+    }
 }
 
 bool Face::addHandler(PacketHandler &h) {
@@ -86,6 +89,7 @@ bool Face::removeHandler() {
     return true;
 }
 
+// TODO: Throw error
 bool Face::send(const uint8_t *pkt, size_t pktLen) {
     if (pktLen > ndn::MAX_NDN_PACKET_SIZE) {
         std::cout << "ERROR: Maximum packet size breach\n";
@@ -135,7 +139,6 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
         if (lpPacket.has<ndn::lp::NackField>()) {
             auto nack = std::make_shared<ndn::lp::Nack>(std::move(*interest));
             m_packetHandler->processNack(nack);
-            std::cout << "Recieved NACK\n";
         } else {
             if (NULL != m_packetHandler) {
                 m_packetHandler->processInterest(interest, ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));

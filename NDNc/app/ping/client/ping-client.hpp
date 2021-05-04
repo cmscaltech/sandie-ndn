@@ -25,6 +25,8 @@
  * SOFTWARE.
  */
 
+#include <unordered_map>
+
 #include "face/packet-handler.hpp"
 
 namespace ndnc {
@@ -57,14 +59,28 @@ class Runner : public PacketHandler, public std::enable_shared_from_this<Runner>
   public:
     explicit Runner(Face &face, Options options);
 
-    void sendInterest(std::string prefix); // TODO: expressInterest and putData
+    struct Counters {
+        uint32_t nTxInterests = 0;
+        uint32_t nRxNacks = 0;
+        uint32_t nRxData = 0;
+    };
+
+    Counters readCounters();
 
   private:
+    void loop() final;
+
+    bool sendInterest();
     void processData(std::shared_ptr<ndn::Data> &) final;
+    void processNack(std::shared_ptr<ndn::lp::Nack> &nack) final;
 
   private:
     Options m_options;
+    Counters m_counters;
+    std::unordered_map<uint32_t, ndn::time::system_clock::time_point> m_pendingInterests;
+
     uint32_t m_sequence;
+    ndn::time::system_clock::time_point m_next;
 };
 }; // namespace client
 }; // namespace ping

@@ -43,7 +43,7 @@ Client::Client() {
 Client::~Client() {}
 
 bool Client::openFace(int id, int dataroom) {
-    std::cout << "INFO: Open face\n";
+    std::cout << "TRACE: Opening face\n";
 
     auto request = json_helper::getOperation(
         "\
@@ -81,7 +81,7 @@ bool Client::openFace(int id, int dataroom) {
 }
 
 bool Client::deleteFace() {
-    std::cout << "INFO: Deleting face: " << this->m_faceID << "\n";
+    std::cout << "TRACE: Deleting face\n";
 
     auto request = json_helper::getOperation("\
     mutation delete($id: ID!) {\n\

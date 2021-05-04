@@ -59,7 +59,7 @@ class Face {
     void loop();
     bool advertise(std::string prefix);
 
-    bool expressInterest(std::shared_ptr<const ndn::Interest> interest);
+    bool expressInterest(std::shared_ptr<const ndn::Interest> interest, ndn::lp::PitToken pitToken);
     bool putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
 
   private:

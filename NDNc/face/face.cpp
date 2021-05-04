@@ -34,6 +34,7 @@
 #include <ndn-cxx/lp/tags.hpp>
 
 #include "face.hpp"
+#include "lp/pit-token.hpp"
 
 namespace ndnc {
 Face::Face() : m_transport(NULL), m_valid(false) {
@@ -99,8 +100,11 @@ bool Face::send(const uint8_t *pkt, size_t pktLen) {
     return m_transport->send(pkt, pktLen);
 }
 
-bool Face::expressInterest(std::shared_ptr<const ndn::Interest> interest) {
-    auto wire = interest->wireEncode();
+bool Face::expressInterest(std::shared_ptr<const ndn::Interest> interest, ndn::lp::PitToken pitToken) {
+    ndn::lp::Packet lpPacket(interest->wireEncode());
+    lpPacket.add<ndn::lp::PitTokenField>(pitToken);
+
+    auto wire = lpPacket.wireEncode();
     return this->send(wire.wire(), wire.size());
 }
 
@@ -150,7 +154,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     case ndn::tlv::Data: {
         if (NULL != m_packetHandler) {
             auto data = std::make_shared<ndn::Data>(netPacket);
-            m_packetHandler->processData(data);
+            m_packetHandler->processData(data, ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
         }
         break;
     }

@@ -28,6 +28,7 @@
 #include <unordered_map>
 
 #include "face/packet-handler.hpp"
+#include "lp/pit-token.hpp"
 
 namespace ndnc {
 
@@ -71,15 +72,17 @@ class Runner : public PacketHandler, public std::enable_shared_from_this<Runner>
     void loop() final;
 
     bool sendInterest();
-    void processData(std::shared_ptr<ndn::Data> &) final;
+    void processData(std::shared_ptr<ndn::Data> &, ndn::lp::PitToken pitToken) final;
     void processNack(std::shared_ptr<ndn::lp::Nack> &nack) final;
 
   private:
     Options m_options;
     Counters m_counters;
-    std::unordered_map<uint32_t, ndn::time::system_clock::time_point> m_pendingInterests;
 
-    uint32_t m_sequence;
+    ndnc::lp::PitTokenGenerator m_pitGenerator;
+    std::unordered_map<uint64_t, ndn::time::system_clock::time_point> m_pendingInterests;
+
+    uint64_t m_sequence;
     ndn::time::system_clock::time_point m_next;
 };
 }; // namespace client

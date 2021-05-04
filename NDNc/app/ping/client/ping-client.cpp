@@ -28,6 +28,8 @@
 #include <iostream>
 #include <random>
 
+#include <boost/lexical_cast.hpp>
+
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/interest.hpp>
 
@@ -36,7 +38,7 @@
 namespace ndnc {
 namespace ping {
 namespace client {
-Runner::Runner(Face &face, Options options) : PacketHandler(face), m_options{options}, m_counters{} {
+Runner::Runner(Face &face, Options options) : PacketHandler(face), m_options{options}, m_counters{}, m_pitGenerator{} {
     std::random_device rd;
     std::mt19937_64 gen(rd());
     std::uniform_int_distribution<uint64_t> dist;
@@ -64,8 +66,8 @@ bool Runner::sendInterest() {
     interest->setName(name);
     interest->setInterestLifetime(m_options.lifetime);
 
-    if (expressInterest(interest)) {
-        m_pendingInterests[m_sequence] = ndn::time::system_clock::now();
+    if (expressInterest(interest, m_pitGenerator.getNext())) {
+        m_pendingInterests[m_pitGenerator.getSequenceValue()] = ndn::time::system_clock::now();
 
         ++m_sequence;
         ++m_counters.nTxInterests;
@@ -75,21 +77,24 @@ bool Runner::sendInterest() {
     return false;
 }
 
-void Runner::processData(std::shared_ptr<ndn::Data> &data) {
+void Runner::processData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken) {
     ++m_counters.nRxData;
 
     auto now = ndn::time::system_clock::now();
-    auto seq = data->getName().at(-1).toSegment();
+    auto seq = lp::PitTokenGenerator::getPitValue(pitToken);
     auto rtt = ndn::time::duration_cast<ndn::time::microseconds>(now - m_pendingInterests[seq]);
 
-    std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " " << data->getName() << "\t" << rtt << "\n";
+    std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
+              << boost::lexical_cast<std::string>(pitToken) << " " << data->getName() << "\t" << rtt << "\n";
 }
 
 void Runner::processNack(std::shared_ptr<ndn::lp::Nack> &nack) {
-    ++m_counter.nRxNacks;
+    ++m_counters.nRxNacks;
     std::cout << "WARN: Received NACK for Interest " << nack->getInterest().getName()
               << " with reason: " << nack->getReason() << "\n";
 }
+
+// TODO: Handle timeout
 
 Runner::Counters Runner::readCounters() {
     return this->m_counters;

@@ -40,8 +40,8 @@ PacketHandler::~PacketHandler() {
 
 void PacketHandler::loop() {}
 
-bool PacketHandler::expressInterest(std::shared_ptr<const ndn::Interest> interest) {
-    return m_face != nullptr && m_face->expressInterest(interest);
+bool PacketHandler::expressInterest(std::shared_ptr<const ndn::Interest> interest, ndn::lp::PitToken pitToken) {
+    return m_face != nullptr && m_face->expressInterest(interest, pitToken);
 }
 
 bool PacketHandler::putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken) {
@@ -50,7 +50,7 @@ bool PacketHandler::putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken 
 
 void PacketHandler::processInterest(std::shared_ptr<ndn::Interest> &, ndn::lp::PitToken) {}
 
-void PacketHandler::processData(std::shared_ptr<ndn::Data> &) {}
+void PacketHandler::processData(std::shared_ptr<ndn::Data> &, ndn::lp::PitToken) {}
 
-void PacketHandler::processNack(std::shared_ptr<ndn::lp::Nack> &nack) {}
+void PacketHandler::processNack(std::shared_ptr<ndn::lp::Nack> &) {}
 }; // namespace ndnc

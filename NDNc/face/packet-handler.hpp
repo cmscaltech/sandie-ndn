@@ -61,7 +61,7 @@ class PacketHandler {
      * @return true packet has been sent
      * @return false packet could not be sent
      */
-    virtual bool expressInterest(std::shared_ptr<const ndn::Interest> interest);
+    virtual bool expressInterest(std::shared_ptr<const ndn::Interest> interest, ndn::lp::PitToken pitToken);
 
     /**
      * @brief Override to send Data packets
@@ -86,7 +86,7 @@ class PacketHandler {
      *
      * @param data the Data packet
      */
-    virtual void processData(std::shared_ptr<ndn::Data> &data);
+    virtual void processData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
 
     /**
      * @brief Override to receive NACK packets

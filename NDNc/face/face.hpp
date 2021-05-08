@@ -65,7 +65,7 @@ class Face {
 
   private:
     void openMemif();
-    bool send(const uint8_t *pkt, size_t pktLen); // TODO: Throw error
+    bool send(const uint8_t *pkt, size_t pktLen);
 
     void transportRx(const uint8_t *pkt, size_t pktLen);
     void onPeerDisconnect();

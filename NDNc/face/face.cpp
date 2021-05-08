@@ -90,10 +90,9 @@ bool Face::removeHandler() {
     return true;
 }
 
-// TODO: Throw error
 bool Face::send(const uint8_t *pkt, size_t pktLen) {
     if (pktLen > ndn::MAX_NDN_PACKET_SIZE) {
-        std::cout << "ERROR: Maximum packet size breach\n";
+        throw std::length_error("maximum NDN packet size breach");
         return false;
     }
 
@@ -166,7 +165,6 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     }
 
     default: {
-        // TODO: Throw error
         std::cout << "WARNING: Unexpected packet type " << netPacket.type()
                   << "\n";
         break;

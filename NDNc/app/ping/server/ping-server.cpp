@@ -63,6 +63,8 @@ void Runner::processInterest(std::shared_ptr<ndn::Interest> &interest,
 
     if (putData(data, pitToken)) {
         ++m_counters.nTxData;
+    } else {
+        std::cout << "ERROR: Unable to put Data\n";
     }
 }
 

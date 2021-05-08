@@ -56,6 +56,8 @@ void Runner::loop() {
 
     if (this->sendInterest()) {
         m_next = now + m_options.interval;
+    } else {
+        std::cout << "ERROR: Unable to send Interest\n";
     }
 }
 

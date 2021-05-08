@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_PACKET_HANDLER_HH
-#define NDNC_PACKET_HANDLER_HH
+#ifndef NDNC_FACE_PACKET_HANDLER_HPP
+#define NDNC_FACE_PACKET_HANDLER_HPP
 
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/interest.hpp>
@@ -61,17 +61,20 @@ class PacketHandler {
      * @return true packet has been sent
      * @return false packet could not be sent
      */
-    virtual bool expressInterest(std::shared_ptr<const ndn::Interest> interest, ndn::lp::PitToken pitToken);
+    virtual bool expressInterest(std::shared_ptr<const ndn::Interest> interest,
+                                 ndn::lp::PitToken pitToken);
 
     /**
      * @brief Override to send Data packets
      *
      * @param data the Data packet to send
-     * @param pitToken the PIT token of the Interest that this Data packet satisfies
+     * @param pitToken the PIT token of the Interest that this Data packet
+     * satisfies
      * @return true
      * @return false
      */
-    virtual bool putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
+    virtual bool putData(std::shared_ptr<ndn::Data> &data,
+                         ndn::lp::PitToken pitToken);
 
     /**
      * @brief Override to receive Interest packets
@@ -79,14 +82,16 @@ class PacketHandler {
      * @param interest the Interest packet
      * @param pitToken the PIT token of this Interest
      */
-    virtual void processInterest(std::shared_ptr<ndn::Interest> &interest, ndn::lp::PitToken pitToken);
+    virtual void processInterest(std::shared_ptr<ndn::Interest> &interest,
+                                 ndn::lp::PitToken pitToken);
 
     /**
      * @brief Override to receive Data packets
      *
      * @param data the Data packet
      */
-    virtual void processData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
+    virtual void processData(std::shared_ptr<ndn::Data> &data,
+                             ndn::lp::PitToken pitToken);
 
     /**
      * @brief Override to receive NACK packets
@@ -101,4 +106,4 @@ class PacketHandler {
 };
 }; // namespace ndnc
 
-#endif // NDNC_PACKET_HANDLER_HH
+#endif // NDNC_FACE_PACKET_HANDLER_HPP

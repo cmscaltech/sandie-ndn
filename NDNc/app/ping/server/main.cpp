@@ -6,15 +6,15 @@
  *
  * Copyright (c) 2021 California Institute of Technology
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -44,8 +44,12 @@ void handler(sig_atomic_t signal) {
     faceLoop = false;
 }
 
-static void usage(ostream &os, const string &app, const po::options_description &desc) {
-    os << "Usage: " << app << " [options]\nNote: This application needs --prefix argument specified\n\n" << desc;
+static void usage(ostream &os, const string &app,
+                  const po::options_description &desc) {
+    os << "Usage: " << app
+       << " [options]\nNote: This application needs --prefix argument "
+          "specified\n\n"
+       << desc;
 }
 
 int main(int argc, char **argv) {
@@ -53,19 +57,25 @@ int main(int argc, char **argv) {
 
     po::options_description description("Options", 120);
     description.add_options()(
-        "payload-size,s", po::value<size_t>(&opts.payloadSize)->default_value(opts.payloadSize),
-        string("The payload size expressed in bytes of each NDN Data packet. Specify a non-negative integer "
-               "smaller or equal to " +
-               to_string(ndn::MAX_NDN_PACKET_SIZE) + ". Note that the NDN maximum packet size is " +
+        "payload-size,s",
+        po::value<size_t>(&opts.payloadSize)->default_value(opts.payloadSize),
+        string("The payload size expressed in bytes of each NDN Data packet. "
+               "Specify a non-negative integer smaller or equal to " +
                to_string(ndn::MAX_NDN_PACKET_SIZE) +
-               " bytes which counts for the Name, Payload and Signing information.")
-            .c_str())("prefix,p", po::value<string>(&opts.prefix),
-                      "The NDN prefix this application advertises. All packet Names with this prefix will be processed "
-                      "by this application.")("help,h", "Print this help message and exit");
+               ". Note that the NDN maximum packet size is " +
+               to_string(ndn::MAX_NDN_PACKET_SIZE) +
+               " bytes which counts for the Name, Payload and Signing "
+               "information.")
+            .c_str())(
+        "prefix,p", po::value<string>(&opts.prefix),
+        "The NDN prefix this application advertises. All packet Names with "
+        "this prefix will be processed "
+        "by this application.")("help,h", "Print this help message and exit");
 
     po::variables_map vm;
     try {
-        po::store(po::command_line_parser(argc, argv).options(description).run(), vm);
+        po::store(
+            po::command_line_parser(argc, argv).options(description).run(), vm);
         po::notify(vm);
     } catch (const po::error &e) {
         cerr << "ERROR: " << e.what() << "\n";
@@ -84,14 +94,17 @@ int main(int argc, char **argv) {
 
     if (vm.count("prefix") == 0) {
         usage(cerr, app, description);
-        cerr << "\nERROR: Please specify the NDN prefix this applications advertises\n";
+        cerr << "\nERROR: Please specify the NDN prefix this applications "
+                "advertises\n";
         return 2;
     }
 
     if (vm.count("payload-size") > 0) {
-        if (opts.payloadSize < 0 || opts.payloadSize > ndn::MAX_NDN_PACKET_SIZE) {
+        if (opts.payloadSize < 0 ||
+            opts.payloadSize > ndn::MAX_NDN_PACKET_SIZE) {
             usage(cout, app, description);
-            cerr << "\nERROR: Invalid payload size. Please specify a non-negative integer smaller or eqaul to "
+            cerr << "\nERROR: Invalid payload size. Please specify a "
+                    "non-negative integer smaller or eqaul to "
                  << ndn::MAX_NDN_PACKET_SIZE << "\n";
             return 2;
         }
@@ -107,7 +120,8 @@ int main(int argc, char **argv) {
         cerr << "ERROR: Could not create face\n";
     }
 
-    ndnc::ping::server::Runner *server = new ndnc::ping::server::Runner(*face, opts);
+    ndnc::ping::server::Runner *server =
+        new ndnc::ping::server::Runner(*face, opts);
     face->advertise(opts.prefix);
 
     while (faceLoop && face->isValid()) {
@@ -115,8 +129,8 @@ int main(int argc, char **argv) {
     }
 
     cout << "\n"
-         << server->readCounters().nTxData << " packets transmitted, " << server->readCounters().nRxInterests
-         << " packets received\n";
+         << server->readCounters().nTxData << " packets transmitted, "
+         << server->readCounters().nRxInterests << " packets received\n";
 
     if (NULL != server) {
         delete server;

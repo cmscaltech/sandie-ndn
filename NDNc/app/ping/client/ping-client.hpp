@@ -6,15 +6,15 @@
  *
  * Copyright (c) 2021 California Institute of Technology
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -24,6 +24,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+#ifndef NDNC_APP_PING_CLIENT_HPP
+#define NDNC_APP_PING_CLIENT_HPP
 
 #include <unordered_map>
 
@@ -56,7 +59,8 @@ struct Options {
     ndn::time::milliseconds lifetime = ndn::time::seconds{1};
 };
 
-class Runner : public PacketHandler, public std::enable_shared_from_this<Runner> {
+class Runner : public PacketHandler,
+               public std::enable_shared_from_this<Runner> {
   public:
     explicit Runner(Face &face, Options options);
 
@@ -72,7 +76,8 @@ class Runner : public PacketHandler, public std::enable_shared_from_this<Runner>
     void loop() final;
 
     bool sendInterest();
-    void processData(std::shared_ptr<ndn::Data> &, ndn::lp::PitToken pitToken) final;
+    void processData(std::shared_ptr<ndn::Data> &,
+                     ndn::lp::PitToken pitToken) final;
     void processNack(std::shared_ptr<ndn::lp::Nack> &nack) final;
 
   private:
@@ -80,7 +85,8 @@ class Runner : public PacketHandler, public std::enable_shared_from_this<Runner>
     Counters m_counters;
 
     ndnc::lp::PitTokenGenerator m_pitGenerator;
-    std::unordered_map<uint64_t, ndn::time::system_clock::time_point> m_pendingInterests;
+    std::unordered_map<uint64_t, ndn::time::system_clock::time_point>
+        m_pendingInterests;
 
     uint64_t m_sequence;
     ndn::time::system_clock::time_point m_next;
@@ -88,3 +94,5 @@ class Runner : public PacketHandler, public std::enable_shared_from_this<Runner>
 }; // namespace client
 }; // namespace ping
 }; // namespace ndnc
+
+#endif // NDNC_APP_PING_CLIENT_HPP

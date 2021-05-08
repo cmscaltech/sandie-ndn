@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_GRAPHQL_CLIENT_HH
-#define NDNC_GRAPHQL_CLIENT_HH
+#ifndef NDNC_GRAPHQL_CLIENT_HPP
+#define NDNC_GRAPHQL_CLIENT_HPP
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
@@ -49,12 +49,14 @@ class Client {
     std::string getFibEntryID() { return m_fibEntryID; }
 
   private:
-    static size_t writeCallback(char *ptr, size_t size, size_t nmemb, void *userdata) {
+    static size_t writeCallback(char *ptr, size_t size, size_t nmemb,
+                                void *userdata) {
         ((std::string *)userdata)->append((char *)ptr, size * nmemb);
         return size * nmemb;
     }
 
-    static CURLcode doOperation(nlohmann::json request, nlohmann::json &response) {
+    static CURLcode doOperation(nlohmann::json request,
+                                nlohmann::json &response) {
         curl_global_init(CURL_GLOBAL_ALL);
         auto curl = curl_easy_init();
         if (curl == NULL) {
@@ -68,7 +70,8 @@ class Client {
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
         curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:3030/");
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, strdup(request.dump().c_str()));
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS,
+                         strdup(request.dump().c_str()));
 
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
 
@@ -96,4 +99,4 @@ class Client {
 }; // namespace graphql
 }; // namespace ndnc
 
-#endif // NDNC_GRAPHQL_CLIENT_HH
+#endif // NDNC_GRAPHQL_CLIENT_HPP

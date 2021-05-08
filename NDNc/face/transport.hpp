@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_TRANSPORT_HPP
-#define NDNC_TRANSPORT_HPP
+#ifndef NDNC_FACE_TRANSPORT_HPP
+#define NDNC_FACE_TRANSPORT_HPP
 
 #include <stddef.h>
 #include <stdint.h>
@@ -90,7 +90,9 @@ class Transport {
      * @param pkt
      * @param pktLen
      */
-    void invokeRxCallback(const uint8_t *pkt, size_t pktLen) { m_rxCb(m_rxCtx, pkt, pktLen); }
+    void invokeRxCallback(const uint8_t *pkt, size_t pktLen) {
+        m_rxCb(m_rxCtx, pkt, pktLen);
+    }
 
     void invokeDisconnectCallback() { m_disconnectCb(m_disconnectCtx); }
 
@@ -110,4 +112,4 @@ class Transport {
 };
 }; // namespace ndnc
 
-#endif // NDNC_TRANSPORT_HPP
+#endif // NDNC_FACE_TRANSPORT_HPP

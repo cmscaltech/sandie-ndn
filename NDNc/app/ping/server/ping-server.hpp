@@ -25,6 +25,9 @@
  * SOFTWARE.
  */
 
+#ifndef NDNC_APP_PING_SERVER_HPP
+#define NDNC_APP_PING_SERVER_HPP
+
 #include <ndn-cxx/encoding/block.hpp>
 
 #include "face/packet-handler.hpp"
@@ -47,7 +50,8 @@ struct Options {
     size_t payloadSize = 128;
 };
 
-class Runner : public PacketHandler, public std::enable_shared_from_this<Runner> {
+class Runner : public PacketHandler,
+               public std::enable_shared_from_this<Runner> {
   public:
     explicit Runner(Face &face, Options options);
 
@@ -59,7 +63,8 @@ class Runner : public PacketHandler, public std::enable_shared_from_this<Runner>
     Counters readCounters();
 
   private:
-    void processInterest(std::shared_ptr<ndn::Interest> &interest, ndn::lp::PitToken pitToken) final;
+    void processInterest(std::shared_ptr<ndn::Interest> &interest,
+                         ndn::lp::PitToken pitToken) final;
 
   private:
     ndn::Block m_payload;
@@ -69,3 +74,5 @@ class Runner : public PacketHandler, public std::enable_shared_from_this<Runner>
 }; // namespace server
 }; // namespace ping
 }; // namespace ndnc
+
+#endif // NDNC_APP_PING_SERVER_HPP

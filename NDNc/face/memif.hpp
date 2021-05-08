@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_TRANSPORT_MEMIF
-#define NDNC_TRANSPORT_MEMIF
+#ifndef NDNC_FACE_TRANSPORT_MEMIF_HPP
+#define NDNC_FACE_TRANSPORT_MEMIF_HPP
 
 #include <array>
 #include <iostream>
@@ -56,12 +56,14 @@ static inline const std::array<uint8_t, 14> ethernetHDR = {
  */
 class Memif : public virtual Transport {
   public:
-    explicit Memif(uint16_t maxPacketLength = 8800) : m_maxPktLen(maxPacketLength) {}
+    explicit Memif(uint16_t maxPacketLength = 8800)
+        : m_maxPktLen(maxPacketLength) {}
 
     bool begin(const char *socketName, uint32_t id) {
         end();
 
-        int err = memif_init(nullptr, const_cast<char *>("NDNcBasedApp"), nullptr, nullptr, nullptr);
+        int err = memif_init(nullptr, const_cast<char *>("NDNcBasedApp"),
+                             nullptr, nullptr, nullptr);
         if (err != MEMIF_ERR_SUCCESS) {
             std::cout << "ERROR: memif_init\n";
             return false;
@@ -78,7 +80,9 @@ class Memif : public virtual Transport {
         args.socket = m_sock;
         args.interface_id = id;
         args.buffer_size = ethernetHDR.size() + m_maxPktLen;
-        err = memif_create(&m_conn, &args, Memif::handleConnect, Memif::handleDisconnect, Memif::handleInterrupt, this);
+        err =
+            memif_create(&m_conn, &args, Memif::handleConnect,
+                         Memif::handleDisconnect, Memif::handleInterrupt, this);
         if (err != MEMIF_ERR_SUCCESS) {
             std::cout << "ERROR: memif_create\n";
             return false;
@@ -137,7 +141,8 @@ class Memif : public virtual Transport {
         }
 
         if (pktLen > m_maxPktLen) {
-            std::cout << "ERROR: Memif send drop=pkt-too-long len= " << pktLen << "\n";
+            std::cout << "ERROR: Memif send drop=pkt-too-long len= " << pktLen
+                      << "\n";
             return false;
         }
 
@@ -149,7 +154,8 @@ class Memif : public virtual Transport {
             return false;
         }
 
-        uint8_t *p = std::copy(ethernetHDR.begin(), ethernetHDR.end(), static_cast<uint8_t *>(b.data));
+        uint8_t *p = std::copy(ethernetHDR.begin(), ethernetHDR.end(),
+                               static_cast<uint8_t *>(b.data));
         p = std::copy_n(pkt, pktLen, p);
         b.len = std::distance(static_cast<uint8_t *>(b.data), p);
 
@@ -188,7 +194,8 @@ class Memif : public virtual Transport {
         return 0;
     }
 
-    static int handleInterrupt(memif_conn_handle_t conn, void *self0, uint16_t qid) {
+    static int handleInterrupt(memif_conn_handle_t conn, void *self0,
+                               uint16_t qid) {
         Memif *self = reinterpret_cast<Memif *>(self0);
         assert(self->m_conn == conn);
 
@@ -205,8 +212,10 @@ class Memif : public virtual Transport {
             if (b.len <= ethernetHDR.size()) {
                 continue;
             }
-            self->invokeRxCallback(std::next(static_cast<const uint8_t *>(b.data), ethernetHDR.size()),
-                                   b.len - ethernetHDR.size());
+            self->invokeRxCallback(
+                std::next(static_cast<const uint8_t *>(b.data),
+                          ethernetHDR.size()),
+                b.len - ethernetHDR.size());
         }
 
         err = memif_refill_queue(conn, qid, nRx, 0);
@@ -225,4 +234,4 @@ class Memif : public virtual Transport {
 };
 }; // namespace ndnc
 
-#endif // NDNC_TRANSPORT_MEMIF
+#endif // NDNC_FACE_TRANSPORT_MEMIF_HPP

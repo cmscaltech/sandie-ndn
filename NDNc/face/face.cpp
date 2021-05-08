@@ -100,7 +100,8 @@ bool Face::send(const uint8_t *pkt, size_t pktLen) {
     return m_transport->send(pkt, pktLen);
 }
 
-bool Face::expressInterest(std::shared_ptr<const ndn::Interest> interest, ndn::lp::PitToken pitToken) {
+bool Face::expressInterest(std::shared_ptr<const ndn::Interest> interest,
+                           ndn::lp::PitToken pitToken) {
     ndn::lp::Packet lpPacket(interest->wireEncode());
     lpPacket.add<ndn::lp::PitTokenField>(pitToken);
 
@@ -108,7 +109,8 @@ bool Face::expressInterest(std::shared_ptr<const ndn::Interest> interest, ndn::l
     return this->send(wire.wire(), wire.size());
 }
 
-bool Face::putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken) {
+bool Face::putData(std::shared_ptr<ndn::Data> &data,
+                   ndn::lp::PitToken pitToken) {
     ndn::lp::Packet lpPacket(data->wireEncode());
     lpPacket.add<ndn::lp::PitTokenField>(pitToken);
 
@@ -145,7 +147,9 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
             m_packetHandler->processNack(nack);
         } else {
             if (NULL != m_packetHandler) {
-                m_packetHandler->processInterest(interest, ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
+                m_packetHandler->processInterest(
+                    interest,
+                    ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
             }
         }
         break;
@@ -154,14 +158,17 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     case ndn::tlv::Data: {
         if (NULL != m_packetHandler) {
             auto data = std::make_shared<ndn::Data>(netPacket);
-            m_packetHandler->processData(data, ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
+            m_packetHandler->processData(
+                data,
+                ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
         }
         break;
     }
 
     default: {
         // TODO: Throw error
-        std::cout << "WARNING: Unexpected packet type " << netPacket.type() << "\n";
+        std::cout << "WARNING: Unexpected packet type " << netPacket.type()
+                  << "\n";
         break;
     }
     }

@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_FACE_HH
-#define NDNC_FACE_HH
+#ifndef NDNC_FACE_HPP
+#define NDNC_FACE_HPP
 
 #include <memory>
 #include <ndn-cxx/data.hpp>
@@ -59,7 +59,8 @@ class Face {
     void loop();
     bool advertise(std::string prefix);
 
-    bool expressInterest(std::shared_ptr<const ndn::Interest> interest, ndn::lp::PitToken pitToken);
+    bool expressInterest(std::shared_ptr<const ndn::Interest> interest,
+                         ndn::lp::PitToken pitToken);
     bool putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
 
   private:
@@ -74,7 +75,9 @@ class Face {
         reinterpret_cast<Face *>(self)->transportRx(pkt, pktLen);
     }
 
-    static void onPeerDisconnect(void *self) { reinterpret_cast<Face *>(self)->onPeerDisconnect(); }
+    static void onPeerDisconnect(void *self) {
+        reinterpret_cast<Face *>(self)->onPeerDisconnect();
+    }
 
   private:
     std::unique_ptr<graphql::Client> m_client;
@@ -85,4 +88,4 @@ class Face {
 };
 }; // namespace ndnc
 
-#endif // NDNC_FACE_HH
+#endif // NDNC_FACE_HPP

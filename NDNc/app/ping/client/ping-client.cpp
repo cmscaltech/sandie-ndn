@@ -6,15 +6,15 @@
  *
  * Copyright (c) 2021 California Institute of Technology
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -38,7 +38,8 @@
 namespace ndnc {
 namespace ping {
 namespace client {
-Runner::Runner(Face &face, Options options) : PacketHandler(face), m_options{options}, m_counters{}, m_pitGenerator{} {
+Runner::Runner(Face &face, Options options)
+    : PacketHandler(face), m_options{options}, m_counters{}, m_pitGenerator{} {
     std::random_device rd;
     std::mt19937_64 gen(rd());
     std::uniform_int_distribution<uint64_t> dist;
@@ -67,7 +68,8 @@ bool Runner::sendInterest() {
     interest->setInterestLifetime(m_options.lifetime);
 
     if (expressInterest(interest, m_pitGenerator.getNext())) {
-        m_pendingInterests[m_pitGenerator.getSequenceValue()] = ndn::time::system_clock::now();
+        m_pendingInterests[m_pitGenerator.getSequenceValue()] =
+            ndn::time::system_clock::now();
 
         ++m_sequence;
         ++m_counters.nTxInterests;
@@ -77,20 +79,24 @@ bool Runner::sendInterest() {
     return false;
 }
 
-void Runner::processData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken) {
+void Runner::processData(std::shared_ptr<ndn::Data> &data,
+                         ndn::lp::PitToken pitToken) {
     ++m_counters.nRxData;
 
     auto now = ndn::time::system_clock::now();
     auto seq = lp::PitTokenGenerator::getPitValue(pitToken);
-    auto rtt = ndn::time::duration_cast<ndn::time::microseconds>(now - m_pendingInterests[seq]);
+    auto rtt = ndn::time::duration_cast<ndn::time::microseconds>(
+        now - m_pendingInterests[seq]);
 
     std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
-              << boost::lexical_cast<std::string>(pitToken) << " " << data->getName() << "\t" << rtt << "\n";
+              << boost::lexical_cast<std::string>(pitToken) << " "
+              << data->getName() << "\t" << rtt << "\n";
 }
 
 void Runner::processNack(std::shared_ptr<ndn::lp::Nack> &nack) {
     ++m_counters.nRxNacks;
-    std::cout << "WARN: Received NACK for Interest " << nack->getInterest().getName()
+    std::cout << "WARN: Received NACK for Interest "
+              << nack->getInterest().getName()
               << " with reason: " << nack->getReason() << "\n";
 }
 

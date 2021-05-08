@@ -37,16 +37,19 @@
 namespace ndnc {
 namespace ping {
 namespace server {
-Runner::Runner(Face &face, Options options) : PacketHandler(face), m_options{options}, m_counters{} {
+Runner::Runner(Face &face, Options options)
+    : PacketHandler(face), m_options{options}, m_counters{} {
     auto buff = std::make_shared<ndn::Buffer>();
     buff->assign(m_options.payloadSize, 'a');
     m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
 }
 
-void Runner::processInterest(std::shared_ptr<ndn::Interest> &interest, ndn::lp::PitToken pitToken) {
+void Runner::processInterest(std::shared_ptr<ndn::Interest> &interest,
+                             ndn::lp::PitToken pitToken) {
     ++m_counters.nRxInterests;
     std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
-              << boost::lexical_cast<std::string>(pitToken) << " " << interest->getName() << "\n";
+              << boost::lexical_cast<std::string>(pitToken) << " "
+              << interest->getName() << "\n";
 
     auto data = std::make_shared<ndn::Data>(interest->getName());
     data->setContent(m_payload);

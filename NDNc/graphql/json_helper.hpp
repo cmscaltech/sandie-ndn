@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_GRAPHQL_JSON_HELPER_HH
-#define NDNC_GRAPHQL_JSON_HELPER_HH
+#ifndef NDNC_GRAPHQL_JSON_HELPER_HPP
+#define NDNC_GRAPHQL_JSON_HELPER_HPP
 
 #include <nlohmann/json.hpp>
 #include <set>
@@ -34,7 +34,8 @@
 namespace ndnc {
 namespace graphql {
 /**
- * @brief GraphQL documents for executing operations on the GraphQL server (NDN-DPDK forwarder)
+ * @brief GraphQL documents for executing operations on the GraphQL server
+ * (NDN-DPDK forwarder)
  *
  */
 namespace json_helper {
@@ -52,7 +53,9 @@ struct operation {
 };
 
 void to_json(nlohmann::json &json, const operation &req) {
-    json = nlohmann::json{{"query", req.query}, {"operationName", req.operationName}, {"variables", req.variables}};
+    json = nlohmann::json{{"query", req.query},
+                          {"operationName", req.operationName},
+                          {"variables", req.variables}};
 }
 
 void from_json(const nlohmann::json &json, operation &req) {
@@ -61,7 +64,8 @@ void from_json(const nlohmann::json &json, operation &req) {
     json.at("variables").get_to(req.variables);
 }
 
-nlohmann::json getOperation(std::string query, std::string name, nlohmann::json variables) {
+nlohmann::json getOperation(std::string query, std::string name,
+                            nlohmann::json variables) {
     return operation{query, name, variables};
 }
 
@@ -77,8 +81,10 @@ struct createFace {
 };
 
 void to_json(nlohmann::json &json, const createFace &loc) {
-    json = nlohmann::json{
-        {"dataroom", loc.dataroom}, {"id", loc.id}, {"socketName", loc.socketName}, {"scheme", loc.scheme}};
+    json = nlohmann::json{{"dataroom", loc.dataroom},
+                          {"id", loc.id},
+                          {"socketName", loc.socketName},
+                          {"scheme", loc.scheme}};
 }
 
 void from_json(const nlohmann::json &json, createFace &loc) {
@@ -127,4 +133,4 @@ void from_json(const nlohmann::json &json, insertFibEntry &vars) {
 }; // namespace graphql
 }; // namespace ndnc
 
-#endif // NDNC_GRAPHQL_JSON_HELPER_HH
+#endif // NDNC_GRAPHQL_JSON_HELPER_HPP

@@ -6,15 +6,15 @@
  *
  * Copyright (c) 2021 California Institute of Technology
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
- * of the Software, and to permit persons to whom the Software is furnished to do
- * so, subject to the following conditions:
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_PIT_TOKEN_HH
-#define NDNC_PIT_TOKEN_HH
+#ifndef NDNC_LP_PIT_TOKEN_HPP
+#define NDNC_LP_PIT_TOKEN_HPP
 
 #include <random>
 
@@ -44,17 +44,20 @@ class PitTokenGenerator {
     PitTokenGenerator() {
         std::random_device rd;
         std::mt19937_64 gen(rd());
-        std::uniform_int_distribution<uint64_t> dist(std::numeric_limits<uint32_t>::max(),
-                                                     std::numeric_limits<uint64_t>::max());
+        std::uniform_int_distribution<uint64_t> dist(
+            std::numeric_limits<uint32_t>::max(),
+            std::numeric_limits<uint64_t>::max());
 
         m_sequence = dist(gen);
     }
 
     ndn::lp::PitToken getNext() {
         ++m_sequence;
-        auto block = ndn::encoding::makeNonNegativeIntegerBlock(ndn::lp::tlv::PitToken, m_sequence);
-        auto blockV = std::make_pair<ndn::Buffer::const_iterator, ndn::Buffer::const_iterator>(block.value_begin(),
-                                                                                               block.value_end());
+        auto block = ndn::encoding::makeNonNegativeIntegerBlock(
+            ndn::lp::tlv::PitToken, m_sequence);
+        auto blockV = std::make_pair<ndn::Buffer::const_iterator,
+                                     ndn::Buffer::const_iterator>(
+            block.value_begin(), block.value_end());
 
         return ndn::lp::PitToken(blockV);
     }
@@ -63,10 +66,14 @@ class PitTokenGenerator {
 
   public:
     inline static uint64_t getPitValue(ndn::lp::PitToken pitToken) {
-        return (((uint64_t)(pitToken.data()[7]) << 0) + ((uint64_t)(pitToken.data()[6]) << 8) +
-                ((uint64_t)(pitToken.data()[5]) << 16) + ((uint64_t)(pitToken.data()[4]) << 24) +
-                ((uint64_t)(pitToken.data()[3]) << 32) + ((uint64_t)(pitToken.data()[2]) << 40) +
-                ((uint64_t)(pitToken.data()[1]) << 48) + ((uint64_t)(pitToken.data()[0]) << 56));
+        return (((uint64_t)(pitToken.data()[7]) << 0) +
+                ((uint64_t)(pitToken.data()[6]) << 8) +
+                ((uint64_t)(pitToken.data()[5]) << 16) +
+                ((uint64_t)(pitToken.data()[4]) << 24) +
+                ((uint64_t)(pitToken.data()[3]) << 32) +
+                ((uint64_t)(pitToken.data()[2]) << 40) +
+                ((uint64_t)(pitToken.data()[1]) << 48) +
+                ((uint64_t)(pitToken.data()[0]) << 56));
     }
 
   private:
@@ -76,4 +83,4 @@ class PitTokenGenerator {
 }; // namespace lp
 }; // namespace ndnc
 
-#endif // NDNC_PIT_TOKEN_HH
+#endif // NDNC_LP_PIT_TOKEN_HPP

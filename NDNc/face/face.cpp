@@ -157,7 +157,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     case ndn::tlv::Data: {
         if (NULL != m_packetHandler) {
             auto data = std::make_shared<ndn::Data>(netPacket);
-            m_packetHandler->processData(
+            m_packetHandler->onData(
                 data,
                 ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
         }

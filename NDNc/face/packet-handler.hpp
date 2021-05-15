@@ -33,6 +33,8 @@
 #include <ndn-cxx/lp/nack.hpp>
 #include <ndn-cxx/lp/pit-token.hpp>
 
+#include "lp/pit-token.hpp"
+
 namespace ndnc {
 class Face;
 }
@@ -47,6 +49,8 @@ class PacketHandler {
     virtual ~PacketHandler();
 
   private:
+    void onData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
+
     /**
      * @brief Override to be invoked periodically
      *
@@ -61,8 +65,8 @@ class PacketHandler {
      * @return true packet has been sent
      * @return false packet could not be sent
      */
-    virtual bool expressInterest(std::shared_ptr<const ndn::Interest> interest,
-                                 ndn::lp::PitToken pitToken);
+    virtual uint64_t
+    expressInterest(std::shared_ptr<const ndn::Interest> interest);
 
     /**
      * @brief Override to send Data packets
@@ -89,9 +93,10 @@ class PacketHandler {
      * @brief Override to receive Data packets
      *
      * @param data the Data packet
+     * @param pitToken the PIT token of this Data
      */
     virtual void processData(std::shared_ptr<ndn::Data> &data,
-                             ndn::lp::PitToken pitToken);
+                             uint64_t pitToken);
 
     /**
      * @brief Override to receive NACK packets
@@ -102,6 +107,8 @@ class PacketHandler {
 
   private:
     Face *m_face;
+    ndnc::lp::PitTokenGenerator m_pitGenerator;
+
     friend Face;
 };
 }; // namespace ndnc

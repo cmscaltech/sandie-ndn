@@ -31,7 +31,6 @@
 #include <unordered_map>
 
 #include "face/packet-handler.hpp"
-#include "lp/pit-token.hpp"
 
 namespace ndnc {
 
@@ -76,15 +75,13 @@ class Runner : public PacketHandler,
     void loop() final;
 
     bool sendInterest();
-    void processData(std::shared_ptr<ndn::Data> &,
-                     ndn::lp::PitToken pitToken) final;
+    void processData(std::shared_ptr<ndn::Data> &, uint64_t pitToken) final;
     void processNack(std::shared_ptr<ndn::lp::Nack> &nack) final;
 
   private:
     Options m_options;
     Counters m_counters;
 
-    ndnc::lp::PitTokenGenerator m_pitGenerator;
     std::unordered_map<uint64_t, ndn::time::system_clock::time_point>
         m_pendingInterests;
 

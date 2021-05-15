@@ -28,7 +28,7 @@
 #include "packet-handler.hpp"
 
 namespace ndnc {
-PacketHandler::PacketHandler(Face &face) {
+PacketHandler::PacketHandler(Face &face) : m_pitGenerator{} {
     face.addHandler(*this);
 }
 
@@ -40,9 +40,15 @@ PacketHandler::~PacketHandler() {
 
 void PacketHandler::loop() {}
 
-bool PacketHandler::expressInterest(
-    std::shared_ptr<const ndn::Interest> interest, ndn::lp::PitToken pitToken) {
-    return m_face != nullptr && m_face->expressInterest(interest, pitToken);
+uint64_t
+PacketHandler::expressInterest(std::shared_ptr<const ndn::Interest> interest) {
+    if (m_face != nullptr &&
+        m_face->expressInterest(interest, m_pitGenerator.getNext())) {
+        return m_pitGenerator.getSequenceValue();
+    }
+
+    throw std::runtime_error("unable to express Interest on face");
+    return 0;
 }
 
 bool PacketHandler::putData(std::shared_ptr<ndn::Data> &data,
@@ -53,8 +59,12 @@ bool PacketHandler::putData(std::shared_ptr<ndn::Data> &data,
 void PacketHandler::processInterest(std::shared_ptr<ndn::Interest> &,
                                     ndn::lp::PitToken) {}
 
-void PacketHandler::processData(std::shared_ptr<ndn::Data> &,
-                                ndn::lp::PitToken) {}
+void PacketHandler::processData(std::shared_ptr<ndn::Data> &, uint64_t) {}
 
 void PacketHandler::processNack(std::shared_ptr<ndn::lp::Nack> &) {}
+
+void PacketHandler::onData(std::shared_ptr<ndn::Data> &data,
+                           ndn::lp::PitToken pitToken) {
+    this->processData(data, lp::PitTokenGenerator::getPitValue(pitToken));
+}
 }; // namespace ndnc

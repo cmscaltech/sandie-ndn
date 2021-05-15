@@ -25,10 +25,13 @@
  * SOFTWARE.
  */
 
+#include <iostream>
+
 #include "packet-handler.hpp"
 
 namespace ndnc {
-PacketHandler::PacketHandler(Face &face) : m_pitGenerator{} {
+PacketHandler::PacketHandler(Face &face)
+    : m_pitGenerator{}, m_pitToInterestLifetime{}, m_interestLifetimeToPit{} {
     face.addHandler(*this);
 }
 
@@ -38,13 +41,46 @@ PacketHandler::~PacketHandler() {
     }
 }
 
+bool PacketHandler::removePendingInterestEntry(uint64_t pitToken) {
+    if (m_pitToInterestLifetime.count(pitToken) == 0) {
+        std::cout << "WARN: Received unexpected Data\n";
+        return false;
+    }
+
+    m_interestLifetimeToPit.erase(m_pitToInterestLifetime[pitToken]);
+    m_pitToInterestLifetime.erase(pitToken);
+    return true;
+}
+
+void PacketHandler::doLoop() {
+    if (!m_interestLifetimeToPit.empty()) {
+        auto entry = *m_interestLifetimeToPit.begin();
+
+        if (ndn::time::system_clock::now() > entry.first) {
+            if (this->removePendingInterestEntry(entry.second)) {
+                this->onTimeout(entry.second);
+            }
+        }
+    }
+
+    this->loop();
+}
+
 void PacketHandler::loop() {}
 
 uint64_t
 PacketHandler::expressInterest(std::shared_ptr<const ndn::Interest> interest) {
     if (m_face != nullptr &&
         m_face->expressInterest(interest, m_pitGenerator.getNext())) {
-        return m_pitGenerator.getSequenceValue();
+
+        uint64_t key = m_pitGenerator.getSequenceValue();
+        auto value =
+            ndn::time::system_clock::now() + interest->getInterestLifetime();
+
+        m_pitToInterestLifetime[key] = value;
+        m_interestLifetimeToPit[value] = key;
+
+        return key;
     }
 
     throw std::runtime_error("unable to express Interest on face");
@@ -56,6 +92,15 @@ bool PacketHandler::putData(std::shared_ptr<ndn::Data> &data,
     return m_face != nullptr && m_face->putData(data, pitToken);
 }
 
+void PacketHandler::onData(std::shared_ptr<ndn::Data> &data,
+                           ndn::lp::PitToken pitToken) {
+    auto pit = lp::PitTokenGenerator::getPitValue(pitToken);
+
+    if (removePendingInterestEntry(pit)) {
+        this->processData(data, pit);
+    }
+}
+
 void PacketHandler::processInterest(std::shared_ptr<ndn::Interest> &,
                                     ndn::lp::PitToken) {}
 
@@ -63,8 +108,5 @@ void PacketHandler::processData(std::shared_ptr<ndn::Data> &, uint64_t) {}
 
 void PacketHandler::processNack(std::shared_ptr<ndn::lp::Nack> &) {}
 
-void PacketHandler::onData(std::shared_ptr<ndn::Data> &data,
-                           ndn::lp::PitToken pitToken) {
-    this->processData(data, lp::PitTokenGenerator::getPitValue(pitToken));
-}
+void PacketHandler::onTimeout(uint64_t pitToken) {}
 }; // namespace ndnc

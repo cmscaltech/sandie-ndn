@@ -67,6 +67,7 @@ class Runner : public PacketHandler,
         uint32_t nTxInterests = 0;
         uint32_t nRxNacks = 0;
         uint32_t nRxData = 0;
+        uint32_t nTimeout = 0;
     };
 
     Counters readCounters();
@@ -77,6 +78,7 @@ class Runner : public PacketHandler,
     bool sendInterest();
     void processData(std::shared_ptr<ndn::Data> &, uint64_t pitToken) final;
     void processNack(std::shared_ptr<ndn::lp::Nack> &nack) final;
+    void onTimeout(uint64_t pitToken) final;
 
   private:
     Options m_options;

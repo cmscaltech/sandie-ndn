@@ -98,7 +98,10 @@ void Runner::processNack(std::shared_ptr<ndn::lp::Nack> &nack) {
               << " with reason: " << nack->getReason() << "\n";
 }
 
-// TODO: Handle timeout
+void Runner::onTimeout(uint64_t pitToken) {
+    std::cout << "WARN: timeout\n";
+    ++m_counters.nTimeout;
+}
 
 Runner::Counters Runner::readCounters() {
     return this->m_counters;

@@ -75,7 +75,7 @@ void Face::loop() {
     m_transport->loop();
 
     if (m_packetHandler != nullptr) {
-        m_packetHandler->loop();
+        m_packetHandler->doLoop();
     }
 }
 

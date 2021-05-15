@@ -137,9 +137,14 @@ int main(int argc, char *argv[]) {
         face->loop();
     }
 
+    auto lossRation = (1.0 - ((double)client->readCounters().nRxData /
+                              (double)client->readCounters().nTxInterests)) *
+                      100;
+
     cout << "\n"
          << client->readCounters().nTxInterests << " packets transmitted, "
-         << client->readCounters().nRxData << " packets received\n";
+         << client->readCounters().nRxData << " packets received, "
+         << lossRation << "% packet loss\n";
 
     if (NULL != client) {
         delete client;

@@ -28,6 +28,9 @@
 #ifndef NDNC_FACE_PACKET_HANDLER_HPP
 #define NDNC_FACE_PACKET_HANDLER_HPP
 
+#include <map>
+#include <unordered_map>
+
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/interest.hpp>
 #include <ndn-cxx/lp/nack.hpp>
@@ -47,17 +50,19 @@ class PacketHandler {
 
   protected:
     virtual ~PacketHandler();
+    bool removePendingInterestEntry(uint64_t pitToken);
 
   private:
     void onData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
+    void doLoop();
 
+  public:
     /**
      * @brief Override to be invoked periodically
      *
      */
     virtual void loop();
 
-  public:
     /**
      * @brief Override to send Interest packets
      *
@@ -105,9 +110,21 @@ class PacketHandler {
      */
     virtual void processNack(std::shared_ptr<ndn::lp::Nack> &nack);
 
+    /**
+     * @brief Override to receive timeout notifications
+     *
+     * @param pitToken  the PIT token of Interest that timeouts
+     */
+    virtual void onTimeout(uint64_t pitToken);
+
   private:
     Face *m_face;
     ndnc::lp::PitTokenGenerator m_pitGenerator;
+
+    std::unordered_map<uint64_t, ndn::time::system_clock::time_point>
+        m_pitToInterestLifetime;
+    std::map<ndn::time::system_clock::time_point, uint64_t>
+        m_interestLifetimeToPit;
 
     friend Face;
 };

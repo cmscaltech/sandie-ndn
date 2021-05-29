@@ -38,6 +38,11 @@
 
 namespace ndnc {
 namespace lp {
+/**
+ * @brief Helper class to generate random PIT Token objects and decode their
+ * value
+ *
+ */
 class PitTokenGenerator {
   public:
     PitTokenGenerator() {
@@ -50,6 +55,11 @@ class PitTokenGenerator {
         m_sequence = dist(gen);
     }
 
+    /**
+     * @brief Get the PIT Token object
+     *
+     * @return auto PIT Token
+     */
     auto getToken() {
         auto block = ndn::encoding::makeNonNegativeIntegerBlock(
             ndn::lp::tlv::PitToken, ++m_sequence);
@@ -58,6 +68,11 @@ class PitTokenGenerator {
             std::make_pair(block.value_begin(), block.value_end()));
     }
 
+    /**
+     * @brief Get the Sequence Value object
+     *
+     * @return auto Last generated PIT Token value
+     */
     auto getSequenceValue() { return m_sequence; }
 
   public:

@@ -45,7 +45,7 @@ Runner::Runner(Face &face, Options options)
 }
 
 void Runner::processInterest(std::shared_ptr<ndn::Interest> &interest,
-                             ndn::lp::PitToken pitToken) {
+                             const ndn::lp::PitToken &pitToken) {
     ++m_counters.nRxInterests;
     std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
               << boost::lexical_cast<std::string>(pitToken) << " "

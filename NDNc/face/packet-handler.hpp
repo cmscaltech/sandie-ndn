@@ -83,7 +83,7 @@ class PacketHandler {
      * @return false
      */
     virtual bool putData(std::shared_ptr<ndn::Data> &data,
-                         ndn::lp::PitToken pitToken);
+                         const ndn::lp::PitToken &pitToken);
 
     /**
      * @brief Override to receive Interest packets
@@ -92,7 +92,7 @@ class PacketHandler {
      * @param pitToken the PIT token of this Interest
      */
     virtual void processInterest(std::shared_ptr<ndn::Interest> &interest,
-                                 ndn::lp::PitToken pitToken);
+                                 const ndn::lp::PitToken &pitToken);
 
     /**
      * @brief Override to receive Data packets
@@ -119,7 +119,7 @@ class PacketHandler {
 
   private:
     Face *m_face;
-    ndnc::lp::PitTokenGenerator m_pitGenerator;
+    std::shared_ptr<ndnc::lp::PitTokenGenerator> m_pitTokenGen;
 
     std::unordered_map<uint64_t, ndn::time::system_clock::time_point>
         m_pitToInterestLifetime;

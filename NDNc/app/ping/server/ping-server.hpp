@@ -64,7 +64,7 @@ class Runner : public PacketHandler,
 
   private:
     void processInterest(std::shared_ptr<ndn::Interest> &interest,
-                         ndn::lp::PitToken pitToken) final;
+                         const ndn::lp::PitToken &pitToken) final;
 
   private:
     ndn::Block m_payload;

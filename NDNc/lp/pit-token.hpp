@@ -38,7 +38,6 @@
 
 namespace ndnc {
 namespace lp {
-
 class PitTokenGenerator {
   public:
     PitTokenGenerator() {
@@ -51,35 +50,27 @@ class PitTokenGenerator {
         m_sequence = dist(gen);
     }
 
-    ndn::lp::PitToken getNext() {
-        ++m_sequence;
+    auto getToken() {
         auto block = ndn::encoding::makeNonNegativeIntegerBlock(
-            ndn::lp::tlv::PitToken, m_sequence);
-        auto blockV = std::make_pair<ndn::Buffer::const_iterator,
-                                     ndn::Buffer::const_iterator>(
-            block.value_begin(), block.value_end());
+            ndn::lp::tlv::PitToken, ++m_sequence);
 
-        return ndn::lp::PitToken(blockV);
+        return ndn::lp::PitToken(
+            std::make_pair(block.value_begin(), block.value_end()));
     }
 
-    uint64_t getSequenceValue() { return m_sequence; }
+    auto getSequenceValue() { return m_sequence; }
 
   public:
-    inline static uint64_t getPitValue(ndn::lp::PitToken pitToken) {
-        return (((uint64_t)(pitToken.data()[7]) << 0) +
-                ((uint64_t)(pitToken.data()[6]) << 8) +
-                ((uint64_t)(pitToken.data()[5]) << 16) +
-                ((uint64_t)(pitToken.data()[4]) << 24) +
-                ((uint64_t)(pitToken.data()[3]) << 32) +
-                ((uint64_t)(pitToken.data()[2]) << 40) +
-                ((uint64_t)(pitToken.data()[1]) << 48) +
-                ((uint64_t)(pitToken.data()[0]) << 56));
+    inline static uint64_t getTokenValue(const uint8_t *data) {
+        return (((uint64_t)(data[7]) << 0) + ((uint64_t)(data[6]) << 8) +
+                ((uint64_t)(data[5]) << 16) + ((uint64_t)(data[4]) << 24) +
+                ((uint64_t)(data[3]) << 32) + ((uint64_t)(data[2]) << 40) +
+                ((uint64_t)(data[1]) << 48) + ((uint64_t)(data[0]) << 56));
     }
 
   private:
     uint64_t m_sequence;
 };
-
 }; // namespace lp
 }; // namespace ndnc
 

@@ -60,8 +60,9 @@ class Face {
     bool advertise(std::string prefix);
 
     bool expressInterest(std::shared_ptr<const ndn::Interest> interest,
-                         ndn::lp::PitToken pitToken);
-    bool putData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
+                         const ndn::lp::PitToken &pitToken);
+    bool putData(std::shared_ptr<ndn::Data> &data,
+                 const ndn::lp::PitToken &pitToken);
 
   private:
     void openMemif();

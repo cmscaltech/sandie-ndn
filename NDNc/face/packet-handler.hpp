@@ -53,8 +53,10 @@ class PacketHandler {
     bool removePendingInterestEntry(uint64_t pitToken);
 
   private:
-    void onData(std::shared_ptr<ndn::Data> &data, ndn::lp::PitToken pitToken);
     void doLoop();
+
+    void onData(const std::shared_ptr<const ndn::Data> &data,
+                const ndn::lp::PitToken &pitToken);
 
   public:
     /**
@@ -91,8 +93,9 @@ class PacketHandler {
      * @param interest the Interest packet
      * @param pitToken the PIT token of this Interest
      */
-    virtual void processInterest(std::shared_ptr<ndn::Interest> &interest,
-                                 const ndn::lp::PitToken &pitToken);
+    virtual void
+    processInterest(const std::shared_ptr<const ndn::Interest> &interest,
+                    const ndn::lp::PitToken &pitToken);
 
     /**
      * @brief Override to receive Data packets
@@ -100,7 +103,7 @@ class PacketHandler {
      * @param data the Data packet
      * @param pitToken the PIT token of this Data
      */
-    virtual void processData(std::shared_ptr<ndn::Data> &data,
+    virtual void processData(const std::shared_ptr<const ndn::Data> &data,
                              uint64_t pitToken);
 
     /**
@@ -108,7 +111,7 @@ class PacketHandler {
      *
      * @param nack the NACK packet
      */
-    virtual void processNack(std::shared_ptr<ndn::lp::Nack> &nack);
+    virtual void processNack(const std::shared_ptr<const ndn::lp::Nack> &nack);
 
     /**
      * @brief Override to receive timeout notifications

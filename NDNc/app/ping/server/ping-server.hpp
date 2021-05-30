@@ -63,7 +63,7 @@ class Runner : public PacketHandler,
     Counters readCounters();
 
   private:
-    void processInterest(std::shared_ptr<ndn::Interest> &interest,
+    void processInterest(const std::shared_ptr<const ndn::Interest> &interest,
                          const ndn::lp::PitToken &pitToken) final;
 
   private:

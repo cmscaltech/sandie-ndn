@@ -94,8 +94,8 @@ bool PacketHandler::putData(const ndn::Data &&data,
            m_face->putData(std::forward<const ndn::Data>(data), pitToken);
 }
 
-void PacketHandler::onData(std::shared_ptr<ndn::Data> &data,
-                           ndn::lp::PitToken pitToken) {
+void PacketHandler::onData(const std::shared_ptr<const ndn::Data> &data,
+                           const ndn::lp::PitToken &pitToken) {
     auto pit = lp::PitTokenGenerator::getTokenValue(pitToken.data());
 
     if (removePendingInterestEntry(pit)) {
@@ -103,12 +103,13 @@ void PacketHandler::onData(std::shared_ptr<ndn::Data> &data,
     }
 }
 
-void PacketHandler::processInterest(std::shared_ptr<ndn::Interest> &,
-                                    const ndn::lp::PitToken &) {}
+void PacketHandler::processInterest(
+    const std::shared_ptr<const ndn::Interest> &, const ndn::lp::PitToken &) {}
 
-void PacketHandler::processData(std::shared_ptr<ndn::Data> &, uint64_t) {}
+void PacketHandler::processData(const std::shared_ptr<const ndn::Data> &,
+                                uint64_t) {}
 
-void PacketHandler::processNack(std::shared_ptr<ndn::lp::Nack> &) {}
+void PacketHandler::processNack(const std::shared_ptr<const ndn::lp::Nack> &) {}
 
 void PacketHandler::onTimeout(uint64_t) {}
 }; // namespace ndnc

@@ -76,8 +76,9 @@ class Runner : public PacketHandler,
     void loop() final;
 
     bool sendInterest();
-    void processData(std::shared_ptr<ndn::Data> &, uint64_t pitToken) final;
-    void processNack(std::shared_ptr<ndn::lp::Nack> &nack) final;
+    void processData(const std::shared_ptr<const ndn::Data> &data,
+                     uint64_t pitToken) final;
+    void processNack(const std::shared_ptr<const ndn::lp::Nack> &nack) final;
     void onTimeout(uint64_t pitToken) final;
 
   private:

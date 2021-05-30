@@ -73,7 +73,8 @@ bool Runner::sendInterest() {
     return true;
 }
 
-void Runner::processData(std::shared_ptr<ndn::Data> &data, uint64_t pitToken) {
+void Runner::processData(const std::shared_ptr<const ndn::Data> &data,
+                         uint64_t pitToken) {
     ++m_counters.nRxData;
 
     auto now = ndn::time::system_clock::now();
@@ -85,7 +86,7 @@ void Runner::processData(std::shared_ptr<ndn::Data> &data, uint64_t pitToken) {
               << data->getName() << "\t" << rtt << "\n";
 }
 
-void Runner::processNack(std::shared_ptr<ndn::lp::Nack> &nack) {
+void Runner::processNack(const std::shared_ptr<const ndn::lp::Nack> &nack) {
     ++m_counters.nRxNacks;
 
     std::cout << "WARN: Received NACK for Interest "
@@ -99,7 +100,7 @@ void Runner::onTimeout(uint64_t pitToken) {
 }
 
 Runner::Counters Runner::readCounters() {
-    return this->m_counters;
+    return m_counters;
 }
 }; // namespace client
 }; // namespace ping

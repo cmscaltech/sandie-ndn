@@ -46,12 +46,12 @@ Runner::Runner(Face &face, Options options)
     m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
 }
 
-void Runner::processInterest(std::shared_ptr<ndn::Interest> &interest,
-                             const ndn::lp::PitToken &pitToken) {
+void Runner::processInterest(
+    const std::shared_ptr<const ndn::Interest> &interest,
+    const ndn::lp::PitToken &pitToken) {
     std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
               << boost::lexical_cast<std::string>(pitToken) << " "
               << interest->getName() << "\n";
-    ++m_counters.nRxInterests;
 
     auto data = ndn::Data(interest->getName());
     data.setContent(m_payload);
@@ -64,10 +64,12 @@ void Runner::processInterest(std::shared_ptr<ndn::Interest> &interest,
     } else {
         std::cout << "ERROR: Unable to put Data\n";
     }
+
+    ++m_counters.nRxInterests;
 }
 
 Runner::Counters Runner::readCounters() {
-    return this->m_counters;
+    return m_counters;
 }
 }; // namespace server
 }; // namespace ping

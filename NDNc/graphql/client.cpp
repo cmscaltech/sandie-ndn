@@ -107,7 +107,7 @@ bool Client::deleteFace() {
     return response["data"]["delete"];
 }
 
-bool Client::advertiseOnFace(std::string prefix) {
+bool Client::advertiseOnFace(const std::string prefix) {
     std::cout << "TRACE: Advertising Name prefix: " << prefix << "\n";
 
     auto request = json_helper::getOperation(

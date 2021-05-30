@@ -57,7 +57,7 @@ class Face {
 
     bool isValid();
     void loop();
-    bool advertise(std::string prefix);
+    bool advertise(const std::string prefix);
 
     bool expressInterest(std::shared_ptr<const ndn::Interest> interest,
                          const ndn::lp::PitToken &pitToken);

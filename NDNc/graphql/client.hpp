@@ -42,7 +42,7 @@ class Client {
 
     bool openFace(int id = 1, int dataroom = 9000);
     bool deleteFace();
-    bool advertiseOnFace(std::string prefix);
+    bool advertiseOnFace(const std::string prefix);
 
     std::string getSocketName() { return m_socketName; }
     std::string getFaceID() { return m_faceID; }
@@ -55,7 +55,7 @@ class Client {
         return size * nmemb;
     }
 
-    static CURLcode doOperation(nlohmann::json request,
+    static CURLcode doOperation(const nlohmann::json request,
                                 nlohmann::json &response) {
         curl_global_init(CURL_GLOBAL_ALL);
         auto curl = curl_easy_init();

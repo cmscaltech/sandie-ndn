@@ -59,7 +59,7 @@ bool Face::isValid() {
     return m_valid;
 }
 
-bool Face::advertise(std::string prefix) {
+bool Face::advertise(const std::string prefix) {
     if (NULL == m_transport || !m_transport->isUp()) {
         return false;
     }

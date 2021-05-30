@@ -62,19 +62,14 @@ void Runner::loop() {
 }
 
 bool Runner::sendInterest() {
-    auto name = ndn::Name(m_options.prefix);
-    name.appendSegment(m_sequence);
+    auto interest = std::make_shared<const ndn::Interest>(
+        ndn::Name(m_options.prefix).appendSegment(++m_sequence),
+        m_options.lifetime);
 
-    std::shared_ptr<ndn::Interest> interest = std::make_shared<ndn::Interest>();
-    interest->setName(name);
-    interest->setInterestLifetime(m_options.lifetime);
-
-    m_pendingInterests[expressInterest(interest)] =
-        ndn::time::system_clock::now();
-
-    ++m_sequence;
+    auto pit = expressInterest(interest);
     ++m_counters.nTxInterests;
 
+    m_pendingInterests[pit] = ndn::time::system_clock::now();
     return true;
 }
 

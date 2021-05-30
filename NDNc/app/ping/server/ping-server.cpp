@@ -38,30 +38,28 @@ namespace ndnc {
 namespace ping {
 namespace server {
 Runner::Runner(Face &face, Options options)
-    : PacketHandler(face), m_options{options}, m_counters{} {
-    auto buff = std::make_shared<ndn::Buffer>();
+    : PacketHandler(face), m_signatureInfo{}, m_options{options}, m_counters{} {
+    m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
+
+    auto buff = std::make_unique<ndn::Buffer>();
     buff->assign(m_options.payloadSize, 'a');
     m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
 }
 
 void Runner::processInterest(std::shared_ptr<ndn::Interest> &interest,
                              const ndn::lp::PitToken &pitToken) {
-    ++m_counters.nRxInterests;
     std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
               << boost::lexical_cast<std::string>(pitToken) << " "
               << interest->getName() << "\n";
+    ++m_counters.nRxInterests;
 
-    auto data = std::make_shared<ndn::Data>(interest->getName());
-    data->setContent(m_payload);
-    data->setContentType(ndn::tlv::ContentType_Blob);
+    auto data = ndn::Data(interest->getName());
+    data.setContent(m_payload);
+    data.setContentType(ndn::tlv::ContentType_Blob);
+    data.setSignatureInfo(m_signatureInfo);
+    data.setSignatureValue(std::make_shared<ndn::Buffer>());
 
-    ndn::SignatureInfo signatureInfo;
-    signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
-
-    data->setSignatureInfo(signatureInfo);
-    data->setSignatureValue(std::make_shared<ndn::Buffer>());
-
-    if (putData(data, pitToken)) {
+    if (putData(std::move(data), pitToken)) {
         ++m_counters.nTxData;
     } else {
         std::cout << "ERROR: Unable to put Data\n";

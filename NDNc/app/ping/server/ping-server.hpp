@@ -68,6 +68,8 @@ class Runner : public PacketHandler,
 
   private:
     ndn::Block m_payload;
+    ndn::SignatureInfo m_signatureInfo;
+
     Options m_options;
     Counters m_counters;
 };

@@ -99,7 +99,7 @@ bool Face::send(const uint8_t *pkt, size_t pktLen) {
     return m_transport->send(pkt, pktLen);
 }
 
-bool Face::expressInterest(std::shared_ptr<const ndn::Interest> interest,
+bool Face::expressInterest(const std::shared_ptr<const ndn::Interest> &interest,
                            const ndn::lp::PitToken &pitToken) {
     ndn::lp::Packet lpPacket(interest->wireEncode());
     lpPacket.add<ndn::lp::PitTokenField>(pitToken);
@@ -108,9 +108,8 @@ bool Face::expressInterest(std::shared_ptr<const ndn::Interest> interest,
     return this->send(wire.wire(), wire.size());
 }
 
-bool Face::putData(std::shared_ptr<ndn::Data> &data,
-                   const ndn::lp::PitToken &pitToken) {
-    ndn::lp::Packet lpPacket(data->wireEncode());
+bool Face::putData(const ndn::Data &&data, const ndn::lp::PitToken &pitToken) {
+    ndn::lp::Packet lpPacket(data.wireEncode());
     lpPacket.add<ndn::lp::PitTokenField>(pitToken);
 
     auto wire = lpPacket.wireEncode();

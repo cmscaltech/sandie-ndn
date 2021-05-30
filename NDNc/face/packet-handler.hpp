@@ -71,7 +71,7 @@ class PacketHandler {
      * @return false packet could not be sent
      */
     virtual uint64_t
-    expressInterest(std::shared_ptr<const ndn::Interest> interest);
+    expressInterest(const std::shared_ptr<const ndn::Interest> &interest);
 
     /**
      * @brief Override to send Data packets
@@ -82,7 +82,7 @@ class PacketHandler {
      * @return true
      * @return false
      */
-    virtual bool putData(std::shared_ptr<ndn::Data> &data,
+    virtual bool putData(const ndn::Data &&data,
                          const ndn::lp::PitToken &pitToken);
 
     /**

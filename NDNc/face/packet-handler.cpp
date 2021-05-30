@@ -69,8 +69,8 @@ void PacketHandler::doLoop() {
 
 void PacketHandler::loop() {}
 
-uint64_t
-PacketHandler::expressInterest(std::shared_ptr<const ndn::Interest> interest) {
+uint64_t PacketHandler::expressInterest(
+    const std::shared_ptr<const ndn::Interest> &interest) {
     if (m_face != nullptr &&
         m_face->expressInterest(interest, m_pitTokenGen->getToken())) {
 
@@ -88,9 +88,10 @@ PacketHandler::expressInterest(std::shared_ptr<const ndn::Interest> interest) {
     return 0;
 }
 
-bool PacketHandler::putData(std::shared_ptr<ndn::Data> &data,
+bool PacketHandler::putData(const ndn::Data &&data,
                             const ndn::lp::PitToken &pitToken) {
-    return m_face != nullptr && m_face->putData(data, pitToken);
+    return m_face != nullptr &&
+           m_face->putData(std::forward<const ndn::Data>(data), pitToken);
 }
 
 void PacketHandler::onData(std::shared_ptr<ndn::Data> &data,
@@ -109,5 +110,5 @@ void PacketHandler::processData(std::shared_ptr<ndn::Data> &, uint64_t) {}
 
 void PacketHandler::processNack(std::shared_ptr<ndn::lp::Nack> &) {}
 
-void PacketHandler::onTimeout(uint64_t pitToken) {}
+void PacketHandler::onTimeout(uint64_t) {}
 }; // namespace ndnc

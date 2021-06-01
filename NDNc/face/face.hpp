@@ -46,8 +46,20 @@ class PacketHandler;
 #include "packet-handler.hpp"
 
 namespace ndnc {
-
 class Face {
+  public:
+    /**
+     * @brief Face counters - enabled for debug builds only
+     *
+     */
+    struct Counters {
+        uint64_t nTxPackets = 0;
+        uint64_t nRxPackets = 0;
+        uint64_t nTxBytes = 0;
+        uint64_t nRxBytes = 0;
+        uint16_t nErrors = 0;
+    };
+
   public:
     Face();
     ~Face();
@@ -63,21 +75,44 @@ class Face {
                          const ndn::lp::PitToken &pitToken);
     bool putData(const ndn::Data &&data, const ndn::lp::PitToken &pitToken);
 
+    Counters readCounters();
+
   private:
+    /**
+     * @brief Open memif face between application and local NDN-DPDK forwarder
+     *
+     */
     void openMemif();
-    bool send(const uint8_t *pkt, size_t pktLen);
 
-    void transportRx(const uint8_t *pkt, size_t pktLen);
+    /**
+     * @brief Handle peer disconnect events by gracefully closing memif face
+     *
+     */
     void onPeerDisconnect();
+    static void onPeerDisconnect(void *self) {
+        reinterpret_cast<Face *>(self)->onPeerDisconnect();
+    }
 
-  private:
+    /**
+     * @brief Handle memif interupts - packets arrival
+     *
+     * @param pkt Received packet over memif face
+     * @param pktLen Size of received packet
+     */
+    void transportRx(const uint8_t *pkt, size_t pktLen);
     static void transportRx(void *self, const uint8_t *pkt, size_t pktLen) {
         reinterpret_cast<Face *>(self)->transportRx(pkt, pktLen);
     }
 
-    static void onPeerDisconnect(void *self) {
-        reinterpret_cast<Face *>(self)->onPeerDisconnect();
-    }
+    /**
+     * @brief Send packet over memif face
+     *
+     * @param pkt Packet to send
+     * @param pktLen Size of packet to send
+     * @return true Packet was successfully sent
+     * @return false Packet could not be sent
+     */
+    bool send(const uint8_t *pkt, size_t pktLen);
 
   private:
     std::unique_ptr<graphql::Client> m_client;
@@ -85,6 +120,7 @@ class Face {
     PacketHandler *m_packetHandler;
 
     bool m_valid;
+    Counters m_counters;
 };
 }; // namespace ndnc
 

@@ -128,6 +128,11 @@ int main(int argc, char **argv) {
         face->loop();
     }
 
+#ifdef DEBUG
+    cout << "face counters: ";
+    face->readCounters();
+#endif // DEBUG
+
     cout << "\n"
          << server->readCounters().nTxData << " packets transmitted, "
          << server->readCounters().nRxInterests << " packets received\n";

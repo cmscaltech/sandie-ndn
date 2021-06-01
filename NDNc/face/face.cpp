@@ -37,7 +37,7 @@
 #include "lp/pit-token.hpp"
 
 namespace ndnc {
-Face::Face() : m_transport(NULL), m_valid(false) {
+Face::Face() : m_transport(NULL), m_valid(false), m_counters{} {
     m_client = std::make_unique<graphql::Client>();
 #ifndef __APPLE__
     m_valid = m_client->openFace();
@@ -48,6 +48,9 @@ Face::Face() : m_transport(NULL), m_valid(false) {
 Face::~Face() {
     if (m_client != nullptr) {
         if (!m_client->deleteFace()) {
+#ifdef DEBUG
+            ++m_counters.nErrors;
+#endif // DEBUG
             std::cout << "WARN: Unable to delete face\n";
         }
     }
@@ -61,14 +64,30 @@ bool Face::isValid() {
 
 bool Face::advertise(const std::string prefix) {
     if (NULL == m_transport || !m_transport->isUp()) {
+#ifdef DEBUG
+        ++m_counters.nErrors;
+#endif // DEBUG
         return false;
     }
 
     if (!isValid() || m_client == nullptr) {
+#ifdef DEBUG
+        ++m_counters.nErrors;
+#endif // DEBUG
         return false;
     }
 
     return m_client->advertiseOnFace(prefix);
+}
+
+Face::Counters Face::readCounters() {
+    std::cout << "nTxPackets: " << m_counters.nTxPackets
+              << " nTxBytes: " << m_counters.nTxBytes
+              << " nRxPackets: " << m_counters.nRxPackets
+              << " nRxBytes: " << m_counters.nRxBytes
+              << " nErros: " << m_counters.nErrors << "\n";
+
+    return this->m_counters;
 }
 
 void Face::loop() {
@@ -80,6 +99,13 @@ void Face::loop() {
 }
 
 bool Face::addHandler(PacketHandler &h) {
+    if (m_packetHandler == nullptr) {
+#ifdef DEBUG
+        ++m_counters.nErrors;
+#endif // DEBUG
+        return false;
+    }
+
     m_packetHandler = &h;
     m_packetHandler->m_face = this;
     return true;
@@ -91,7 +117,15 @@ bool Face::removeHandler() {
 }
 
 bool Face::send(const uint8_t *pkt, size_t pktLen) {
+#ifdef DEBUG
+    ++m_counters.nTxPackets;
+    m_counters.nTxBytes += pktLen;
+#endif // DEBUG
+
     if (pktLen > ndn::MAX_NDN_PACKET_SIZE) {
+#ifdef DEBUG
+        ++m_counters.nErrors;
+#endif // DEBUG
         throw std::length_error("maximum NDN packet size breach");
         return false;
     }
@@ -117,11 +151,19 @@ bool Face::putData(const ndn::Data &&data, const ndn::lp::PitToken &pitToken) {
 }
 
 void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
+#ifdef DEBUG
+    ++m_counters.nRxPackets;
+    m_counters.nRxBytes += pktLen;
+#endif // DEBUG
+
     ndn::Block wire;
     bool isOk;
 
     std::tie(isOk, wire) = ndn::Block::fromBuffer(pkt, pktLen);
     if (!isOk) {
+#ifdef DEBUG
+        ++m_counters.nErrors;
+#endif // DEBUG
         return;
     }
 
@@ -129,6 +171,9 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     try {
         lpPacket = ndn::lp::Packet(wire);
     } catch (...) {
+#ifdef DEBUG
+        ++m_counters.nErrors;
+#endif // DEBUG
         return;
     }
 
@@ -170,11 +215,6 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     }
 }
 
-void Face::onPeerDisconnect() {
-    std::cout << "WARN: Peer disconnected\n";
-    this->m_valid = false;
-}
-
 void Face::openMemif() {
     if (!isValid()) {
         std::cout << "WARN: Invalid face\n";
@@ -200,5 +240,10 @@ void Face::openMemif() {
 
         m_transport->loop();
     }
+}
+
+void Face::onPeerDisconnect() {
+    std::cout << "WARN: Peer disconnected\n";
+    this->m_valid = false;
 }
 }; // namespace ndnc

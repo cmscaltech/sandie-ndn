@@ -141,6 +141,11 @@ int main(int argc, char *argv[]) {
                               (double)client->readCounters().nTxInterests)) *
                       100;
 
+#ifdef DEBUG
+    cout << "face counters: ";
+    face->readCounters();
+#endif // DEBUG
+
     cout << "\n"
          << client->readCounters().nTxInterests << " packets transmitted, "
          << client->readCounters().nRxData << " packets received, "

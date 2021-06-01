@@ -48,7 +48,7 @@ static void usage(ostream &os, const string &app,
                   const po::options_description &desc) {
     os << "Usage: " << app
        << " [options]\nNote: This application needs --prefix argument "
-          "specified\n\n"
+          "to be specified\n\n"
        << desc;
 }
 
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     description.add_options()(
         "payload-size,s",
         po::value<size_t>(&opts.payloadSize)->default_value(opts.payloadSize),
-        string("The payload size expressed in bytes of each NDN Data packet. "
+        string("The payload size of each NDN Data packet expressed in bytes. "
                "Specify a non-negative integer smaller or equal to " +
                to_string(ndn::MAX_NDN_PACKET_SIZE) +
                ". Note that the NDN maximum packet size is " +

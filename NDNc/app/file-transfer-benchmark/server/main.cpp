@@ -47,7 +47,7 @@ static void usage(ostream &os, const string &app,
                   const po::options_description &desc) {
     os << "Usage: " << app
        << " [options]\nNote: This application needs --prefix argument "
-          " to be specified\n\n"
+          "to be specified\n\n"
        << desc;
 }
 

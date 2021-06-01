@@ -33,9 +33,7 @@
 #include "face/packet-handler.hpp"
 
 namespace ndnc {
-
 namespace ping {
-
 namespace client {
 
 struct Options {

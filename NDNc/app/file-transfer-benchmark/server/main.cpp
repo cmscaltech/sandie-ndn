@@ -27,6 +27,8 @@
 
 #include <fstream>
 #include <iostream>
+#include <signal.h>
+#include <unistd.h>
 
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>

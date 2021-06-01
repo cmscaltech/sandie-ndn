@@ -143,7 +143,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef DEBUG
     cout << "face counters: ";
-    face->readCounters();
+    face->printCounters();
 #endif // DEBUG
 
     cout << "\n"

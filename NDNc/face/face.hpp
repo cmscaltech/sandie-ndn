@@ -76,6 +76,7 @@ class Face {
     bool putData(const ndn::Data &&data, const ndn::lp::PitToken &pitToken);
 
     Counters readCounters();
+    void printCounters();
 
   private:
     /**

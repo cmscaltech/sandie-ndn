@@ -81,13 +81,15 @@ bool Face::advertise(const std::string prefix) {
 }
 
 Face::Counters Face::readCounters() {
+    return this->m_counters;
+}
+
+void Face::printCounters() {
     std::cout << "nTxPackets: " << m_counters.nTxPackets
               << " nTxBytes: " << m_counters.nTxBytes
               << " nRxPackets: " << m_counters.nRxPackets
               << " nRxBytes: " << m_counters.nRxBytes
               << " nErros: " << m_counters.nErrors << "\n";
-
-    return this->m_counters;
 }
 
 void Face::loop() {

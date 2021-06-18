@@ -35,6 +35,6 @@ WORKDIR ${HOME}/sandie-ndn
 RUN mkdir -p ${HOME}/sandie-ndn/xrootd-ndn-oss-plugin/build
 WORKDIR ${HOME}/sandie-ndn/xrootd-ndn-oss-plugin/build
 RUN source ~/.bashrc && cmake3 ../
-RUN make
+RUN make install
 
 WORKDIR ${HOME}

@@ -26,13 +26,17 @@
  */
 
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <signal.h>
+#include <sstream>
 #include <unistd.h>
 
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
+
+#include <nlohmann/json.hpp>
 
 #include "file-transfer-client.hpp"
 
@@ -50,8 +54,8 @@ void handler(sig_atomic_t signal) {
 static void usage(ostream &os, const string &app,
                   const po::options_description &desc) {
     os << "Usage: " << app
-       << " [options]\nNote: This application needs --prefix, --filepath and "
-          "--filesize arguments to be specified\n\n"
+       << " [options]\nNote: This application needs --prefix, --file-path and "
+          "--file-size arguments to be specified\n\n"
        << desc;
 }
 
@@ -60,40 +64,41 @@ int main(int argc, char *argv[]) {
 
     po::options_description description("Options", 120);
     description.add_options()(
-        "lifetime,l",
+        "interest-lifetime,l",
         po::value<ndn::time::milliseconds::rep>()
             ->default_value(1000)
             ->implicit_value(1000),
-        "Interests lifetime in milliseconds. Specify a non-negative value");
+        "Interest lifetime in milliseconds. Specify a non-negative value");
     description.add_options()("prefix,p", po::value<string>(&opts.prefix),
                               "The NDN Name prefix of all Interests expressed "
                               "by this consumer. Specify a non-empty string");
-    description.add_options()("filepath,f", po::value<string>(&opts.filepath),
+    description.add_options()("file-path,f", po::value<string>(&opts.filePath),
                               "The path to the file to be copied over NDN. "
                               "Specify a non-empty string");
-    description.add_options()("filesize,s", po::value<uint64_t>(&opts.filesize),
+    description.add_options()("file-size,s",
+                              po::value<uint64_t>(&opts.fileSize),
                               "The file size in bytes to be copied over NDN. "
                               "Specify a non-negative value");
     description.add_options()("payload-size,l",
-                              po::value<size_t>(&opts.payloadSize)
-                                  ->default_value(opts.payloadSize)
-                                  ->implicit_value(opts.payloadSize),
+                              po::value<size_t>(&opts.dataPayloadSize)
+                                  ->default_value(opts.dataPayloadSize)
+                                  ->implicit_value(opts.dataPayloadSize),
                               "The producer's payload size. Used by this "
                               "consumer to compute Interests");
     description.add_options()(
-        "chunk,c",
-        po::value<uint64_t>(&opts.readChunk)
-            ->default_value(opts.readChunk)
-            ->implicit_value(opts.readChunk),
+        "read-chunk,c",
+        po::value<uint64_t>(&opts.fileReadChunk)
+            ->default_value(opts.fileReadChunk)
+            ->implicit_value(opts.fileReadChunk),
         "The number of bytes to be read in one request. Specify "
-        "a non-negative integer");
+        "a non-negative integer higher than 0");
     description.add_options()(
         "nthreads,t",
-        po::value<uint16_t>(&opts.nthreads)
-            ->default_value(opts.nthreads)
-            ->implicit_value(opts.nthreads),
+        po::value<uint16_t>(&opts.nThreads)
+            ->default_value(opts.nThreads)
+            ->implicit_value(opts.nThreads),
         "The number of threads to concurrently read the file. Specify a "
-        "non-negative value higher than 1");
+        "non-negative value higher than 0");
     description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
@@ -127,36 +132,40 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
-    if (vm.count("filepath") == 0) {
+    if (vm.count("file-path") == 0) {
         usage(cerr, app, description);
-        cerr << "\nERROR: the option '--filepath' is required but missing\n";
+        cerr << "\nERROR: the option '--file-path' is required but missing\n";
         return 2;
     }
 
-    if (opts.filepath.empty()) {
-        cerr << "\nERROR: invalid value for option '--filepath'\n";
+    if (opts.filePath.empty()) {
+        cerr << "\nERROR: invalid value for option '--file-path'\n";
         return 2;
     }
 
-    if (vm.count("filesize") == 0) {
+    if (vm.count("file-size") == 0) {
         usage(cerr, app, description);
-        cerr << "\nERROR: the option '--filesize' is required but missing\n";
+        cerr << "\nERROR: the option '--file-size' is required but missing\n";
         return 2;
     }
 
-    if (opts.filesize == 0) {
-        cerr << "\nERROR: invalid value for option '--filesize'\n";
+    if (opts.fileSize == 0) {
+        cerr << "\nERROR: invalid value for option '--file-size'\n";
         return 2;
     }
 
-    if (vm.count("lifetime") > 0) {
-        opts.lifetime = ndn::time::milliseconds(
-            vm["lifetime"].as<ndn::time::milliseconds::rep>());
+    if (vm.count("interest-lifetime") > 0) {
+        opts.interestLifetime = ndn::time::milliseconds(
+            vm["interest-lifetime"].as<ndn::time::milliseconds::rep>());
     }
 
-    if (opts.lifetime < ndn::time::milliseconds{0}) {
-        cerr << "\nERROR: onvalid value for option '--lifetime'\n";
+    if (opts.interestLifetime < ndn::time::milliseconds{0}) {
+        cerr << "\nERROR: invalid value for option '--interest-lifetime'\n";
         return 2;
+    }
+
+    if (opts.fileReadChunk <= 0) {
+        cerr << "\nERROR: invalid value for option '--read-chunk'\n";
     }
 
     signal(SIGINT, handler);
@@ -175,6 +184,38 @@ int main(int argc, char *argv[]) {
 
     client->run();
     client->wait();
+
+    std::stringstream ss;
+    ss << "{\n";
+
+    if (NULL != client) {
+        ss << "\"client counters\": { ";
+        ss << "\"nInterest\": " << client->readCounters().nInterest << ", ";
+        ss << "\"nData\": " << client->readCounters().nData << " },\n";
+    }
+
+    if (NULL != face) {
+        ss << "\"face counters\": { ";
+        ss << "\"nTxPackets\": " << face->readCounters().nTxPackets << ", ";
+        ss << "\"nTxBytes\": " << face->readCounters().nTxBytes << ", ";
+        ss << "\"nRxPackets\": " << face->readCounters().nRxPackets << ", ";
+        ss << "\"nRxBytes\": " << face->readCounters().nRxBytes << ", ";
+        ss << "\"nErrors\": " << face->readCounters().nErrors << " },\n";
+    }
+
+    ss << "\"client options\": { ";
+    ss << "\"nThreads\": " << opts.nThreads << ", ";
+    ss << "\"prefix\": \"" << opts.prefix << "\", ";
+    ss << "\"interest lifetime\": " << opts.interestLifetime.count() << ", ";
+    ss << "\"payload size\": " << opts.dataPayloadSize << ", ";
+    ss << "\"file path\": \"" << opts.filePath << "\", ";
+    ss << "\"file size\": " << opts.fileSize << ", ";
+    ss << "\"file read chunk\": " << opts.fileReadChunk << " }\n";
+    ss << "}\n";
+
+    cout << std::setfill('*') << std::setw(80) << "\n";
+    cout << nlohmann::json::parse(ss.str()).dump(4) << "\n";
+    cout << std::setfill('*') << std::setw(80) << "\n";
 
     if (NULL != client) {
         delete client;

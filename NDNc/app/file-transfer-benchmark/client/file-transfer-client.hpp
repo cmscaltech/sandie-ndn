@@ -28,6 +28,7 @@
 #ifndef NDNC_APP_FILE_TRANSFER_BENCHMARK_CLIENT
 #define NDNC_APP_FILE_TRANSFER_BENCHMARK_CLIENT
 
+#include <atomic>
 #include <vector>
 
 #include "face/pipeline-interests.hpp"
@@ -38,52 +39,62 @@ namespace fileTransferClient {
 
 struct Options {
     /**
-     * @brief Name prefix
+     * @brief Number of threads to read the file
+     *
+     */
+
+    uint16_t nThreads = 1;
+
+    /**
+     * @brief NDN Name prefix
      *
      */
     std::string prefix;
 
     /**
-     * @brief File name
+     * @brief Interest lifetime
      *
      */
-    std::string filepath;
-
-    /**
-     * @brief File size in bytest
-     *
-     */
-
-    uint64_t filesize = 0;
-
-    /**
-     * @brief Reading step. How much bytes to be read by a thread at once.
-     *
-     */
-    uint64_t readChunk = 262144;
+    ndn::time::milliseconds interestLifetime = ndn::time::seconds{1};
 
     /**
      * @brief Producer payload size
      *
      */
-    size_t payloadSize = 1024;
+    size_t dataPayloadSize = 1024;
 
     /**
-     * @brief Number of threads to read the file
+     * @brief File name
+     *
+     */
+    std::string filePath;
+
+    /**
+     * @brief File size in bytes
      *
      */
 
-    uint16_t nthreads = 1;
+    uint64_t fileSize = 0;
 
     /**
-     * @brief Interest lifetime
+     * @brief Reading step. How much bytes to be read by a thread at once.
      *
      */
-    ndn::time::milliseconds lifetime = ndn::time::seconds{1};
+    uint64_t fileReadChunk = 262144;
 };
 
 class Runner : public std::enable_shared_from_this<Runner> {
     using RxQueue = moodycamel::BlockingConcurrentQueue<ndn::Data>;
+
+  public:
+    /**
+     * @brief Consumer counters
+     *
+     */
+    struct Counters {
+        std::atomic<uint64_t> nInterest = 0;
+        std::atomic<uint64_t> nData = 0;
+    };
 
   public:
     Runner(Face &face, Options options);
@@ -93,12 +104,15 @@ class Runner : public std::enable_shared_from_this<Runner> {
     void wait();
     void stop();
 
+    Counters &readCounters();
+
   private:
     void transfer(int index);
     int expressInterests(uint64_t offset, RxQueue *rxQueue);
 
   private:
     Options m_options;
+    Counters m_counters;
 
     std::vector<std::thread> m_workers;
     std::atomic_bool m_stop;

@@ -28,6 +28,7 @@
 #ifndef NDNC_LP_PIT_TOKEN_HPP
 #define NDNC_LP_PIT_TOKEN_HPP
 
+#include <atomic>
 #include <random>
 
 #include <ndn-cxx/encoding/block-helpers.hpp>
@@ -58,25 +59,27 @@ class PitTokenGenerator {
     /**
      * @brief Get the PIT Token object
      *
+     * @param value PIT Token value
      * @return auto PIT Token
      */
-    auto getToken() {
+    auto getToken(uint64_t &value) {
+        value = m_sequence.fetch_add(1, std::memory_order_acq_rel);
+
         auto block = ndn::encoding::makeNonNegativeIntegerBlock(
-            ndn::lp::tlv::PitToken, ++m_sequence);
+            ndn::lp::tlv::PitToken, value);
 
         return ndn::lp::PitToken(
             std::make_pair(block.value_begin(), block.value_end()));
     }
 
-    /**
-     * @brief Get the Sequence Value object
-     *
-     * @return auto Last generated PIT Token value
-     */
-    auto getSequenceValue() { return m_sequence; }
-
   public:
-    inline static uint64_t getTokenValue(const uint8_t *data) {
+    /**
+     * @brief Decode PIT Token value
+     *
+     * @param data PIT Token as array of bytes
+     * @return uint64_t PIT Token decoded value
+     */
+    inline static uint64_t getValue(const uint8_t *data) {
         return (((uint64_t)(data[7]) << 0) + ((uint64_t)(data[6]) << 8) +
                 ((uint64_t)(data[5]) << 16) + ((uint64_t)(data[4]) << 24) +
                 ((uint64_t)(data[3]) << 32) + ((uint64_t)(data[2]) << 40) +
@@ -84,7 +87,7 @@ class PitTokenGenerator {
     }
 
   private:
-    uint64_t m_sequence;
+    std::atomic<uint64_t> m_sequence;
 };
 }; // namespace lp
 }; // namespace ndnc

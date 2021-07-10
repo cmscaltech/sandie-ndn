@@ -61,7 +61,7 @@ void Pipeline::run() {
         m_face->loop();
 
         if (!this->processTxQueue()) {
-            m_stop = true;
+            m_hasError = true;
             return;
         }
     }

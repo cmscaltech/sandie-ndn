@@ -25,6 +25,7 @@
  * SOFTWARE.
  */
 
+#include <algorithm>
 #include <iostream>
 
 #include <ndn-cxx/data.hpp>
@@ -36,29 +37,74 @@ namespace ndnc {
 namespace benchmark {
 namespace fileTransferClient {
 Runner::Runner(Face &face, Options options)
-    : PacketHandler(face), m_options{options} {}
-
-void Runner::loop() {
-    // TODO
-    // this->sendInterest();
+    : m_options(options), m_stop(false) {
+    m_pipeline = new Pipeline(face);
 }
 
-bool Runner::sendInterest() {
-    // TODO
-    return true;
+Runner::~Runner() {
+    m_stop = true;
+    wait();
+
+    if (NULL != m_pipeline) {
+        delete m_pipeline;
+    }
 }
 
-void Runner::processData(const std::shared_ptr<const ndn::Data> &data,
-                         uint64_t pitToken) {
-    // TODO
+void Runner::run() {
+    for (auto i = 0; i < m_options.nthreads; ++i) {
+        m_workers.push_back(std::thread(&Runner::transfer, this, i));
+    }
 }
 
-void Runner::processNack(const std::shared_ptr<const ndn::lp::Nack> &nack) {
-    // TODO
+void Runner::wait() {
+    for (auto i = 0; i < m_options.nthreads; ++i) {
+        if (m_workers[i].joinable()) {
+            m_workers[i].join();
+        }
+    }
 }
 
-void Runner::onTimeout(uint64_t pitToken) {
-    // TODO
+void Runner::stop() {
+    m_stop = true;
+}
+
+void Runner::transfer(int index) {
+    uint64_t offset = 0;
+    RxQueue rxQueue;
+
+    while (!m_stop && m_pipeline->isValid() && offset < m_options.filesize) {
+        auto nPackets = expressInterests(offset, &rxQueue);
+        if (nPackets == 0) {
+            return;
+        }
+
+        for (int i = 0; i < nPackets; ++i) {
+            ndn::Data data;
+            rxQueue.wait_dequeue(data);
+        }
+
+        offset += m_options.readChunk;
+    }
+}
+
+int Runner::expressInterests(uint64_t offset, RxQueue *rxQueue) {
+    auto firstSegment = offset / m_options.payloadSize;
+    auto lastSegment = ceil((offset + m_options.readChunk) /
+                            static_cast<double>(m_options.payloadSize));
+
+    for (auto i = firstSegment; i < lastSegment; ++i) {
+        auto interest = std::make_shared<const ndn::Interest>(
+            ndn::Name(m_options.prefix + m_options.filepath).appendSegment(i),
+            m_options.lifetime);
+
+        if (!m_pipeline->enqueueInterestPacket(std::move(interest), rxQueue)) {
+            std::cout << "ERROR: unable to enqueue Interest packet\n";
+            m_stop = true;
+            return 0;
+        }
+    }
+
+    return lastSegment - firstSegment;
 }
 }; // namespace fileTransferClient
 }; // namespace benchmark

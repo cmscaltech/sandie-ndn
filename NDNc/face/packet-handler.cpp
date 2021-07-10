@@ -25,91 +25,35 @@
  * SOFTWARE.
  */
 
+#include "packet-handler.hpp"
 #include <iostream>
 
-#include "packet-handler.hpp"
-
 namespace ndnc {
-PacketHandler::PacketHandler(Face &face)
-    : m_pitTokenGen(new ndnc::lp::PitTokenGenerator), m_pitToInterestLifetime{},
-      m_interestLifetimeToPit{} {
+PacketHandler::PacketHandler(Face &face) {
     face.addHandler(*this);
 }
 
-PacketHandler::~PacketHandler() {
-    if (m_face != nullptr) {
-        m_face->removeHandler();
-    }
-}
+PacketHandler::~PacketHandler() {}
 
-bool PacketHandler::removePendingInterestEntry(uint64_t pitToken) {
-    if (m_pitToInterestLifetime.count(pitToken) == 0) {
-        std::cout << "WARN: Received unexpected Data\n";
-        return false;
-    }
-
-    m_interestLifetimeToPit.erase(m_pitToInterestLifetime[pitToken]);
-    m_pitToInterestLifetime.erase(pitToken);
+bool PacketHandler::enqueueInterestPacket(
+    const std::shared_ptr<const ndn::Interest> &interest, void *rxQueue) {
     return true;
 }
 
-void PacketHandler::doLoop() {
-    if (!m_interestLifetimeToPit.empty()) {
-        auto entry = *m_interestLifetimeToPit.begin();
+void PacketHandler::dequeueDataPacket(
+    const std::shared_ptr<const ndn::Data> &data,
+    const ndn::lp::PitToken &pitToken) {}
 
-        if (ndn::time::system_clock::now() > entry.first) {
-            if (this->removePendingInterestEntry(entry.second)) {
-                this->onTimeout(entry.second);
-            }
-        }
-    }
-
-    this->loop();
-}
-
-void PacketHandler::loop() {}
-
-uint64_t PacketHandler::expressInterest(
-    const std::shared_ptr<const ndn::Interest> &interest) {
-    if (m_face != nullptr &&
-        m_face->expressInterest(interest, m_pitTokenGen->getToken())) {
-
-        uint64_t key = m_pitTokenGen->getSequenceValue();
-        auto value =
-            ndn::time::system_clock::now() + interest->getInterestLifetime();
-
-        m_pitToInterestLifetime[key] = value;
-        m_interestLifetimeToPit[value] = key;
-
-        return key;
-    }
-
-    throw std::runtime_error("unable to express Interest on face");
-    return 0;
-}
-
-bool PacketHandler::putData(const ndn::Data &&data,
-                            const ndn::lp::PitToken &pitToken) {
+bool PacketHandler::enqueueDataPacket(const ndn::Data &&data,
+                                      const ndn::lp::PitToken &pitToken) {
     return m_face != nullptr &&
            m_face->putData(std::forward<const ndn::Data>(data), pitToken);
 }
 
-void PacketHandler::onData(const std::shared_ptr<const ndn::Data> &data,
-                           const ndn::lp::PitToken &pitToken) {
-    auto pit = lp::PitTokenGenerator::getTokenValue(pitToken.data());
+void PacketHandler::dequeueInterestPacket(
+    const std::shared_ptr<const ndn::Interest> &interest,
+    const ndn::lp::PitToken &pitToken) {}
 
-    if (removePendingInterestEntry(pit)) {
-        this->processData(data, pit);
-    }
-}
-
-void PacketHandler::processInterest(
-    const std::shared_ptr<const ndn::Interest> &, const ndn::lp::PitToken &) {}
-
-void PacketHandler::processData(const std::shared_ptr<const ndn::Data> &,
-                                uint64_t) {}
-
-void PacketHandler::processNack(const std::shared_ptr<const ndn::lp::Nack> &) {}
-
-void PacketHandler::onTimeout(uint64_t) {}
+void PacketHandler::dequeueNackPacket(
+    const std::shared_ptr<const ndn::lp::Nack> &nack) {}
 }; // namespace ndnc

@@ -94,10 +94,6 @@ void Face::printCounters() {
 
 void Face::loop() {
     m_transport->loop();
-
-    if (m_packetHandler != nullptr) {
-        m_packetHandler->doLoop();
-    }
 }
 
 bool Face::addHandler(PacketHandler &h) {
@@ -169,15 +165,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
         return;
     }
 
-    ndn::lp::Packet lpPacket;
-    try {
-        lpPacket = ndn::lp::Packet(wire);
-    } catch (...) {
-#ifdef DEBUG
-        ++m_counters.nErrors;
-#endif // DEBUG
-        return;
-    }
+    ndn::lp::Packet lpPacket = ndn::lp::Packet(wire);
 
     ndn::Buffer::const_iterator begin, end;
     std::tie(begin, end) = lpPacket.get<ndn::lp::FragmentField>();
@@ -188,11 +176,11 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
         auto interest = std::make_shared<const ndn::Interest>(netPacket);
 
         if (lpPacket.has<ndn::lp::NackField>()) {
-            m_packetHandler->processNack(
+            m_packetHandler->dequeueNackPacket(
                 std::make_shared<const ndn::lp::Nack>(std::move(*interest)));
         } else {
             if (NULL != m_packetHandler) {
-                m_packetHandler->processInterest(
+                m_packetHandler->dequeueInterestPacket(
                     interest,
                     ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
             }
@@ -202,7 +190,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
 
     case ndn::tlv::Data: {
         if (NULL != m_packetHandler) {
-            m_packetHandler->onData(
+            m_packetHandler->dequeueDataPacket(
                 std::make_shared<const ndn::Data>(netPacket),
                 ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
         }
@@ -210,7 +198,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     }
 
     default: {
-        std::cout << "WARNING: Unexpected packet type " << netPacket.type()
+        std::cout << "WARN: Unexpected packet type " << netPacket.type()
                   << "\n";
         break;
     }

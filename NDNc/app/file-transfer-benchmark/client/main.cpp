@@ -39,17 +39,19 @@
 using namespace std;
 namespace po = boost::program_options;
 
-static bool faceLoop = true;
+static ndnc::benchmark::fileTransferClient::Runner *client;
 
 void handler(sig_atomic_t signal) {
-    faceLoop = false;
+    if (NULL != client) {
+        client->stop();
+    }
 }
 
 static void usage(ostream &os, const string &app,
                   const po::options_description &desc) {
     os << "Usage: " << app
-       << " [options]\nNote: This application needs --prefix argument "
-          "to be specified\n\n"
+       << " [options]\nNote: This application needs --prefix, --filepath and "
+          "--filesize arguments to be specified\n\n"
        << desc;
 }
 
@@ -59,14 +61,40 @@ int main(int argc, char *argv[]) {
     po::options_description description("Options", 120);
     description.add_options()(
         "lifetime,l",
-        po::value<ndn::time::milliseconds::rep>()->default_value(1000),
-        "Interest lifetime in milliseconds. Specify a non-negative value")(
-        "prefix,p", po::value<string>(&opts.prefix),
-        "The NDN prefix this application advertises. All packet Names with "
-        "this prefix will be processed by this application.")("help,h",
-                                                              "Print this help "
-                                                              "message and "
-                                                              "exit");
+        po::value<ndn::time::milliseconds::rep>()
+            ->default_value(1000)
+            ->implicit_value(1000),
+        "Interests lifetime in milliseconds. Specify a non-negative value");
+    description.add_options()("prefix,p", po::value<string>(&opts.prefix),
+                              "The NDN Name prefix of all Interests expressed "
+                              "by this consumer. Specify a non-empty string");
+    description.add_options()("filepath,f", po::value<string>(&opts.filepath),
+                              "The path to the file to be copied over NDN. "
+                              "Specify a non-empty string");
+    description.add_options()("filesize,s", po::value<uint64_t>(&opts.filesize),
+                              "The file size in bytes to be copied over NDN. "
+                              "Specify a non-negative value");
+    description.add_options()("payload-size,l",
+                              po::value<size_t>(&opts.payloadSize)
+                                  ->default_value(opts.payloadSize)
+                                  ->implicit_value(opts.payloadSize),
+                              "The producer's payload size. Used by this "
+                              "consumer to compute Interests");
+    description.add_options()(
+        "chunk,c",
+        po::value<uint64_t>(&opts.readChunk)
+            ->default_value(opts.readChunk)
+            ->implicit_value(opts.readChunk),
+        "The number of bytes to be read in one request. Specify "
+        "a non-negative integer");
+    description.add_options()(
+        "nthreads,t",
+        po::value<uint16_t>(&opts.nthreads)
+            ->default_value(opts.nthreads)
+            ->implicit_value(opts.nthreads),
+        "The number of threads to concurrently read the file. Specify a "
+        "non-negative value higher than 1");
+    description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
     try {
@@ -90,8 +118,34 @@ int main(int argc, char *argv[]) {
 
     if (vm.count("prefix") == 0) {
         usage(cerr, app, description);
-        cerr << "\nERROR: Please specify the NDN prefix of Interest packets "
-                "expressed by this application\n";
+        cerr << "\nERROR: the option '--prefix' is required but missing\n";
+        return 2;
+    }
+
+    if (opts.prefix.empty()) {
+        cerr << "\nERROR: invalid value for option '--prefix'\n";
+        return 2;
+    }
+
+    if (vm.count("filepath") == 0) {
+        usage(cerr, app, description);
+        cerr << "\nERROR: the option '--filepath' is required but missing\n";
+        return 2;
+    }
+
+    if (opts.filepath.empty()) {
+        cerr << "\nERROR: invalid value for option '--filepath'\n";
+        return 2;
+    }
+
+    if (vm.count("filesize") == 0) {
+        usage(cerr, app, description);
+        cerr << "\nERROR: the option '--filesize' is required but missing\n";
+        return 2;
+    }
+
+    if (opts.filesize == 0) {
+        cerr << "\nERROR: invalid value for option '--filesize'\n";
         return 2;
     }
 
@@ -101,16 +155,15 @@ int main(int argc, char *argv[]) {
     }
 
     if (opts.lifetime < ndn::time::milliseconds{0}) {
-        cerr << "\nERROR: Interests lifetime cannot be negative\n";
-        usage(cout, app, description);
+        cerr << "\nERROR: onvalid value for option '--lifetime'\n";
         return 2;
     }
 
-    std::cout
-        << "TRACE: Starting NDNc File Transfer Client for benchmarking...\n";
-
     signal(SIGINT, handler);
     signal(SIGABRT, handler);
+
+    std::cout
+        << "TRACE: Starting NDNc File Transfer Client benchmarking tool...\n";
 
     ndnc::Face *face = new ndnc::Face();
     if (!face->isValid()) {
@@ -118,12 +171,10 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    ndnc::benchmark::fileTransferClient::Runner *client =
-        new ndnc::benchmark::fileTransferClient::Runner(*face, opts);
+    client = new ndnc::benchmark::fileTransferClient::Runner(*face, opts);
 
-    while (faceLoop && face->isValid()) {
-        face->loop();
-    }
+    client->run();
+    client->wait();
 
     if (NULL != client) {
         delete client;

@@ -25,6 +25,13 @@
  * SOFTWARE.
  */
 
+#include <iostream>
+
+#include <boost/lexical_cast.hpp>
+
+#include <ndn-cxx/signature-info.hpp>
+#include <ndn-cxx/util/sha256.hpp>
+
 #include "file-transfer-server.hpp"
 
 namespace ndnc {
@@ -35,14 +42,26 @@ Runner::Runner(Face &face, Options options)
     m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
 
     auto buff = std::make_unique<ndn::Buffer>();
-    buff->assign(m_options.payloadSize, 'b');
+    buff->assign(m_options.payloadSize, 't');
     m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
 }
 
-void Runner::processInterest(
+void Runner::dequeueInterestPacket(
     const std::shared_ptr<const ndn::Interest> &interest,
     const ndn::lp::PitToken &pitToken) {
-    // TODO
+    std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
+              << boost::lexical_cast<std::string>(pitToken) << " "
+              << interest->getName() << "\n";
+
+    auto data = ndn::Data(interest->getName());
+    data.setContent(m_payload);
+    data.setContentType(ndn::tlv::ContentType_Blob);
+    data.setSignatureInfo(m_signatureInfo);
+    data.setSignatureValue(std::make_shared<ndn::Buffer>());
+
+    if (!enqueueDataPacket(std::move(data), pitToken)) {
+        std::cout << "ERROR: Unable to put Data\n";
+    }
 }
 }; // namespace fileTransferServer
 }; // namespace benchmark

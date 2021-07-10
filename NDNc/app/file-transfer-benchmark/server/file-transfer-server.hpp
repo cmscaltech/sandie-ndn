@@ -41,7 +41,7 @@ struct Options {
      * @brief Name prefix
      *
      */
-    std::string prefix;
+    std::string prefix = "/ndnc/transfer";
 
     /**
      * @brief Payload size
@@ -56,8 +56,9 @@ class Runner : public PacketHandler,
     explicit Runner(Face &face, Options options);
 
   private:
-    void processInterest(const std::shared_ptr<const ndn::Interest> &interest,
-                         const ndn::lp::PitToken &pitToken) final;
+    void
+    dequeueInterestPacket(const std::shared_ptr<const ndn::Interest> &interest,
+                          const ndn::lp::PitToken &pitToken) final;
 
   private:
     Options m_options;

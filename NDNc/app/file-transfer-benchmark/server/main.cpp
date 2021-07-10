@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
 
     po::options_description description("Options", 120);
     description.add_options()(
-        "payload-size,s",
+        "payload-size,l",
         po::value<size_t>(&opts.payloadSize)->default_value(opts.payloadSize),
         string("The payload size of each NDN Data packet expressed in bytes. "
                "Specify a non-negative integer smaller or equal to " +
@@ -67,11 +67,13 @@ int main(int argc, char **argv) {
                to_string(ndn::MAX_NDN_PACKET_SIZE) +
                " bytes which counts for the Name, Payload and Signing "
                "information.")
-            .c_str())(
+            .c_str());
+    description.add_options()(
         "prefix,p", po::value<string>(&opts.prefix),
         "The NDN prefix this application advertises. All packet Names with "
         "this prefix will be processed "
-        "by this application.")("help,h", "Print this help message and exit");
+        "by this application.");
+    description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
     try {

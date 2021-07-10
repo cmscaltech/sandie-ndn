@@ -28,9 +28,9 @@
 #ifndef NDNC_APP_FILE_TRANSFER_BENCHMARK_CLIENT
 #define NDNC_APP_FILE_TRANSFER_BENCHMARK_CLIENT
 
-#include <unordered_map>
+#include <vector>
 
-#include "face/packet-handler.hpp"
+#include "face/pipeline-interests.hpp"
 
 namespace ndnc {
 namespace benchmark {
@@ -44,32 +44,65 @@ struct Options {
     std::string prefix;
 
     /**
+     * @brief File name
+     *
+     */
+    std::string filepath;
+
+    /**
+     * @brief File size in bytest
+     *
+     */
+
+    uint64_t filesize = 0;
+
+    /**
+     * @brief Reading step. How much bytes to be read by a thread at once.
+     *
+     */
+    uint64_t readChunk = 262144;
+
+    /**
+     * @brief Producer payload size
+     *
+     */
+    size_t payloadSize = 1024;
+
+    /**
+     * @brief Number of threads to read the file
+     *
+     */
+
+    uint16_t nthreads = 1;
+
+    /**
      * @brief Interest lifetime
      *
      */
     ndn::time::milliseconds lifetime = ndn::time::seconds{1};
 };
 
-class Runner : public PacketHandler,
-               public std::enable_shared_from_this<Runner> {
+class Runner : public std::enable_shared_from_this<Runner> {
+    using RxQueue = moodycamel::BlockingConcurrentQueue<ndn::Data>;
 
   public:
-    explicit Runner(Face &face, Options options);
+    Runner(Face &face, Options options);
+    ~Runner();
+
+    void run();
+    void wait();
+    void stop();
 
   private:
-    void loop() final;
-
-    bool sendInterest();
-
-    void processData(const std::shared_ptr<const ndn::Data> &data,
-                     uint64_t pitToken) final;
-    void processNack(const std::shared_ptr<const ndn::lp::Nack> &nack) final;
-    void onTimeout(uint64_t pitToken) final;
+    void transfer(int index);
+    int expressInterests(uint64_t offset, RxQueue *rxQueue);
 
   private:
     Options m_options;
-    std::unordered_map<uint64_t, ndn::time::system_clock::time_point>
-        m_pendingInterests;
+
+    std::vector<std::thread> m_workers;
+    std::atomic_bool m_stop;
+    Pipeline *m_pipeline;
 };
 }; // namespace fileTransferClient
 }; // namespace benchmark

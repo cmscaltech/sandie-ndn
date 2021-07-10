@@ -28,15 +28,10 @@
 #ifndef NDNC_FACE_PACKET_HANDLER_HPP
 #define NDNC_FACE_PACKET_HANDLER_HPP
 
-#include <map>
-#include <unordered_map>
-
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/interest.hpp>
 #include <ndn-cxx/lp/nack.hpp>
 #include <ndn-cxx/lp/pit-token.hpp>
-
-#include "lp/pit-token.hpp"
 
 namespace ndnc {
 class Face;
@@ -50,85 +45,65 @@ class PacketHandler {
 
   protected:
     virtual ~PacketHandler();
-    bool removePendingInterestEntry(uint64_t pitToken);
-
-  private:
-    void doLoop();
-
-    void onData(const std::shared_ptr<const ndn::Data> &data,
-                const ndn::lp::PitToken &pitToken);
 
   public:
     /**
-     * @brief Override to be invoked periodically
+     * @brief
+     * Consumer flow
      *
-     */
-    virtual void loop();
-
-    /**
-     * @brief Override to send Interest packets
-     *
-     * @param interest the Interest packet to send
-     * @return true packet has been sent
-     * @return false packet could not be sent
-     */
-    virtual uint64_t
-    expressInterest(const std::shared_ptr<const ndn::Interest> &interest);
-
-    /**
-     * @brief Override to send Data packets
-     *
-     * @param data the Data packet to send
-     * @param pitToken the PIT token of the Interest that this Data packet
-     * satisfies
+     * @param interest
+     * @param rxQueue
      * @return true
      * @return false
      */
-    virtual bool putData(const ndn::Data &&data,
-                         const ndn::lp::PitToken &pitToken);
+    virtual bool
+    enqueueInterestPacket(const std::shared_ptr<const ndn::Interest> &interest,
+                          void *rxQueue);
 
     /**
-     * @brief Override to receive Interest packets
+     * @brief
+     * Consumer flow
      *
-     * @param interest the Interest packet
-     * @param pitToken the PIT token of this Interest
+     * @param data
+     * @param pitToken
+     */
+    virtual void dequeueDataPacket(const std::shared_ptr<const ndn::Data> &data,
+                                   const ndn::lp::PitToken &pitToken);
+
+    /**
+     * @brief
+     * Producer flow
+     *
+     * @param data
+     * @param pitToken
+     * @return true
+     * @return false
+     */
+    virtual bool enqueueDataPacket(const ndn::Data &&data,
+                                   const ndn::lp::PitToken &pitToken);
+
+    /**
+     * @brief
+     * Producer flow
+     *
+     * @param interest
+     * @param pitToken
      */
     virtual void
-    processInterest(const std::shared_ptr<const ndn::Interest> &interest,
-                    const ndn::lp::PitToken &pitToken);
+    dequeueInterestPacket(const std::shared_ptr<const ndn::Interest> &interest,
+                          const ndn::lp::PitToken &pitToken);
 
     /**
-     * @brief Override to receive Data packets
+     * @brief
+     * Consumer flow
      *
-     * @param data the Data packet
-     * @param pitToken the PIT token of this Data
+     * @param nack
      */
-    virtual void processData(const std::shared_ptr<const ndn::Data> &data,
-                             uint64_t pitToken);
+    virtual void
+    dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &nack);
 
-    /**
-     * @brief Override to receive NACK packets
-     *
-     * @param nack the NACK packet
-     */
-    virtual void processNack(const std::shared_ptr<const ndn::lp::Nack> &nack);
-
-    /**
-     * @brief Override to receive timeout notifications
-     *
-     * @param pitToken  the PIT token of Interest that timeouts
-     */
-    virtual void onTimeout(uint64_t pitToken);
-
-  private:
+  protected:
     Face *m_face;
-    std::shared_ptr<ndnc::lp::PitTokenGenerator> m_pitTokenGen;
-
-    std::unordered_map<uint64_t, ndn::time::system_clock::time_point>
-        m_pitToInterestLifetime;
-    std::map<ndn::time::system_clock::time_point, uint64_t>
-        m_interestLifetimeToPit;
-
     friend Face;
 };
 }; // namespace ndnc

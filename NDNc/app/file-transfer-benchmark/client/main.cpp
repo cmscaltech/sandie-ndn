@@ -222,8 +222,8 @@ int main(int argc, char *argv[]) {
     client->wait();
 
     auto duration = std::chrono::high_resolution_clock::now() - start_time;
-    double throughput =
-        ((double)totalProgress * 8.0) / (duration / std::chrono::seconds(1));
+    double throughput = ((double)totalProgress * 8.0) /
+                        (duration / std::chrono::nanoseconds(1)) * 1000000000;
 
     std::stringstream ss;
     ss << "{\n";

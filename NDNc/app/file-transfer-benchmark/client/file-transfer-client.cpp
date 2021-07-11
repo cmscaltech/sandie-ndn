@@ -50,9 +50,10 @@ Runner::~Runner() {
     }
 }
 
-void Runner::run() {
+void Runner::run(NotifyProgressStatus onProgress) {
     for (auto i = 0; i < m_options.nThreads; ++i) {
-        m_workers.push_back(std::thread(&Runner::transfer, this, i));
+        m_workers.push_back(
+            std::thread(&Runner::transfer, this, i, onProgress));
     }
 }
 
@@ -68,7 +69,7 @@ void Runner::stop() {
     m_stop = true;
 }
 
-void Runner::transfer(int index) {
+void Runner::transfer(int index, NotifyProgressStatus onProgress) {
     uint64_t offset = 0;
     RxQueue rxQueue;
 
@@ -78,13 +79,16 @@ void Runner::transfer(int index) {
             return;
         }
 
+        uint64_t nBytes = 0;
         for (int i = 0; i < nPackets; ++i) {
             ndn::Data data;
             rxQueue.wait_dequeue(data);
+            nBytes += data.getContent().value_size();
             m_counters.nData.fetch_add(1, std::memory_order_release);
         }
 
         offset += m_options.fileReadChunk;
+        onProgress(nBytes);
     }
 }
 

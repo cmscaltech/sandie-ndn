@@ -85,6 +85,7 @@ struct Options {
 
 class Runner : public std::enable_shared_from_this<Runner> {
     using RxQueue = moodycamel::BlockingConcurrentQueue<ndn::Data>;
+    using NotifyProgressStatus = std::function<void(uint64_t)>;
 
   public:
     /**
@@ -100,14 +101,14 @@ class Runner : public std::enable_shared_from_this<Runner> {
     Runner(Face &face, Options options);
     ~Runner();
 
-    void run();
+    void run(NotifyProgressStatus onProgress);
     void wait();
     void stop();
 
     Counters &readCounters();
 
   private:
-    void transfer(int index);
+    void transfer(int index, NotifyProgressStatus onProgress);
     int expressInterests(uint64_t offset, RxQueue *rxQueue);
 
   private:

@@ -25,6 +25,8 @@
  * SOFTWARE.
  */
 
+#include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -39,8 +41,10 @@
 #include <nlohmann/json.hpp>
 
 #include "file-transfer-client.hpp"
+#include "indicators.hpp"
 
 using namespace std;
+using namespace indicators;
 namespace po = boost::program_options;
 
 static ndnc::benchmark::fileTransferClient::Runner *client;
@@ -49,6 +53,20 @@ void handler(sig_atomic_t signal) {
     if (NULL != client) {
         client->stop();
     }
+}
+
+static std::string humanReadableSize(double bytes, char suffix = 'B') {
+    static char output[1024];
+    for (auto unit : {"", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"}) {
+        if (abs(bytes) < 1024.0) {
+            sprintf(output, "%3.1f %s%c", bytes, unit, suffix);
+            return std::string(output);
+        }
+        bytes /= 1024.0;
+    }
+
+    sprintf(output, "%.1f Yi%c", bytes, suffix);
+    return std::string(output);
 }
 
 static void usage(ostream &os, const string &app,
@@ -181,9 +199,31 @@ int main(int argc, char *argv[]) {
     }
 
     client = new ndnc::benchmark::fileTransferClient::Runner(*face, opts);
+    BlockProgressBar bar{
+        option::BarWidth{80},
+        option::MaxProgress{opts.fileSize},
+        option::PrefixText{"Downloading "},
+        option::ShowPercentage{true},
+    };
 
-    client->run();
+    auto start_time = std::chrono::high_resolution_clock::now();
+    std::atomic<uint64_t> totalProgress = 0;
+
+    client->run([&](uint64_t progress) {
+        totalProgress.fetch_add(progress, std::memory_order_release);
+        // totalProgress += progress;
+        // bar.set_progress(progress);
+        // bar.set_option(option::PostfixText{humanReadableSize(totalProgress) +
+        //                                    "/" +
+        //                                    humanReadableSize(opts.fileSize)});
+        // bar.tick();
+    });
+
     client->wait();
+
+    auto duration = std::chrono::high_resolution_clock::now() - start_time;
+    double throughput =
+        ((double)totalProgress * 8.0) / (duration / std::chrono::seconds(1));
 
     std::stringstream ss;
     ss << "{\n";
@@ -191,9 +231,11 @@ int main(int argc, char *argv[]) {
     if (NULL != client) {
         ss << "\"client counters\": { ";
         ss << "\"nInterest\": " << client->readCounters().nInterest << ", ";
-        ss << "\"nData\": " << client->readCounters().nData << " },\n";
+        ss << "\"nData\": " << client->readCounters().nData << ", ";
+        ss << "\"Throughput\": \"" << humanReadableSize(throughput, 'b')
+           << "/s\" },\n";
     }
-
+#ifdef DEBUG
     if (NULL != face) {
         ss << "\"face counters\": { ";
         ss << "\"nTxPackets\": " << face->readCounters().nTxPackets << ", ";
@@ -202,15 +244,18 @@ int main(int argc, char *argv[]) {
         ss << "\"nRxBytes\": " << face->readCounters().nRxBytes << ", ";
         ss << "\"nErrors\": " << face->readCounters().nErrors << " },\n";
     }
+#endif // DEBUG
 
     ss << "\"client options\": { ";
     ss << "\"nThreads\": " << opts.nThreads << ", ";
     ss << "\"prefix\": \"" << opts.prefix << "\", ";
     ss << "\"interest lifetime\": " << opts.interestLifetime.count() << ", ";
-    ss << "\"payload size\": " << opts.dataPayloadSize << ", ";
+    ss << "\"payload size\": \"" << humanReadableSize(opts.dataPayloadSize)
+       << "\", ";
     ss << "\"file path\": \"" << opts.filePath << "\", ";
-    ss << "\"file size\": " << opts.fileSize << ", ";
-    ss << "\"file read chunk\": " << opts.fileReadChunk << " }\n";
+    ss << "\"file size\": \"" << humanReadableSize(opts.fileSize) << "\", ";
+    ss << "\"file read chunk\": \"" << humanReadableSize(opts.fileReadChunk)
+       << "\" }\n";
     ss << "}\n";
 
     cout << std::setfill('*') << std::setw(80) << "\n";

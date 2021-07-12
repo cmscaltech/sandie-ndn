@@ -222,8 +222,13 @@ int main(int argc, char *argv[]) {
     client->wait();
 
     auto duration = std::chrono::high_resolution_clock::now() - start_time;
-    double throughput = ((double)totalProgress * 8.0) /
+    double goodput = ((double)totalProgress * 8.0) /
+                     (duration / std::chrono::nanoseconds(1)) * 1000000000;
+
+#ifdef DEBUG
+    double throughput = ((double)face->readCounters().nRxBytes * 8.0) /
                         (duration / std::chrono::nanoseconds(1)) * 1000000000;
+#endif
 
     std::stringstream ss;
     ss << "{\n";
@@ -232,8 +237,11 @@ int main(int argc, char *argv[]) {
         ss << "\"client counters\": { ";
         ss << "\"nInterest\": " << client->readCounters().nInterest << ", ";
         ss << "\"nData\": " << client->readCounters().nData << ", ";
-        ss << "\"Throughput\": \"" << humanReadableSize(throughput, 'b')
-           << "/s\" },\n";
+        ss << "\"Goodput\": \"" << humanReadableSize(goodput, 'b');
+#ifdef DEBUG
+        ss << "/s\", \"Throughput\": \"" << humanReadableSize(throughput, 'b');
+#endif
+        ss << "/s\" },\n";
     }
 #ifdef DEBUG
     if (NULL != face) {
@@ -260,6 +268,8 @@ int main(int argc, char *argv[]) {
 
     cout << std::setfill('*') << std::setw(80) << "\n";
     cout << nlohmann::json::parse(ss.str()).dump(4) << "\n";
+    cout << totalProgress << "\n";
+    cout << duration / std::chrono::nanoseconds(1) << "\n";
     cout << std::setfill('*') << std::setw(80) << "\n";
 
     if (NULL != client) {

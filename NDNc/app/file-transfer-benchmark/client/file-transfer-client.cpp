@@ -83,7 +83,7 @@ void Runner::transfer(int index, NotifyProgressStatus onProgress) {
         for (int i = 0; i < nPackets; ++i) {
             ndn::Data data;
             rxQueue.wait_dequeue(data);
-            nBytes += data.getContent().value_size();
+            nBytes += data.getContent().size();
             m_counters.nData.fetch_add(1, std::memory_order_release);
         }
 

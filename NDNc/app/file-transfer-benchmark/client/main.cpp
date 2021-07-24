@@ -268,8 +268,8 @@ int main(int argc, char *argv[]) {
 
     cout << std::setfill('*') << std::setw(80) << "\n";
     cout << nlohmann::json::parse(ss.str()).dump(4) << "\n";
-    cout << totalProgress << "\n";
-    cout << duration / std::chrono::nanoseconds(1) << "\n";
+    // cout << totalProgress << "\n";
+    // cout << duration / std::chrono::nanoseconds(1) << "\n";
     cout << std::setfill('*') << std::setw(80) << "\n";
 
     if (NULL != client) {

@@ -70,7 +70,7 @@ void Runner::stop() {
 }
 
 void Runner::transfer(int index, NotifyProgressStatus onProgress) {
-    uint64_t offset = 0;
+    uint64_t offset = index * m_options.fileReadChunk;
     RxQueue rxQueue;
 
     while (!m_stop && m_pipeline->isValid() && offset < m_options.fileSize) {
@@ -87,7 +87,7 @@ void Runner::transfer(int index, NotifyProgressStatus onProgress) {
             m_counters.nData.fetch_add(1, std::memory_order_release);
         }
 
-        offset += m_options.fileReadChunk;
+        offset += m_options.fileReadChunk * m_options.nThreads;
         onProgress(nBytes);
     }
 }

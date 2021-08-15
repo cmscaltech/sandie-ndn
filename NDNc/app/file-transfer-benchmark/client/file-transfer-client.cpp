@@ -80,11 +80,17 @@ void Runner::transfer(int index, NotifyProgressStatus onProgress) {
         }
 
         uint64_t nBytes = 0;
-        for (int i = 0; i < nPackets; ++i) {
+        for (int i = 0; i < nPackets && !m_stop;) {
             ndn::Data data;
-            rxQueue.wait_dequeue(data);
+
+            if (!rxQueue.wait_dequeue_timed(data, 1000000)) {
+                std::cout << "WARN: TIMEOUT (" << i << "/" << nPackets << ")\n";
+                continue;
+            }
+
             nBytes += data.getContent().size();
             m_counters.nData.fetch_add(1, std::memory_order_release);
+            ++i;
         }
 
         offset += m_options.fileReadChunk * m_options.nThreads;

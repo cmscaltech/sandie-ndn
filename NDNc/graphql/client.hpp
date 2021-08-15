@@ -68,10 +68,11 @@ class Client {
         headers = curl_slist_append(headers, "Accept: application/json");
 
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
+        // curl_easy_setopt(curl, CURLOPT_URL, "http://172.17.0.2:3030/"); // TODO address should be configurable
         curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:3030/");
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS,
-                         strdup(request.dump().c_str()));
+        auto postFields = strdup(request.dump().c_str());
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields);
 
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
 
@@ -82,6 +83,7 @@ class Client {
 
         curl_easy_cleanup(curl);
         curl_global_cleanup();
+        free(postFields);
 
         if (data.empty()) {
             return CURLE_RECV_ERROR;

@@ -57,7 +57,7 @@ Pipeline::~Pipeline() {
 
 void Pipeline::run() {
     while (!m_stop && !m_hasError) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        // std::this_thread::sleep_for(std::chrono::nanoseconds(10));
         m_face->loop();
 
         if (!this->processTxQueue()) {

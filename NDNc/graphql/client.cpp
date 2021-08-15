@@ -36,6 +36,7 @@ using json = nlohmann::json;
 namespace ndnc {
 namespace graphql {
 Client::Client() {
+    // m_socketName = "/run/ndn/ndnc-memif-" + std::to_string(getpid()) + ".sock"; // TODO: Socket name root should be configurable
     m_socketName = "/tmp/ndnc-memif-" + std::to_string(getpid()) + ".sock";
     m_faceID = "";
 }

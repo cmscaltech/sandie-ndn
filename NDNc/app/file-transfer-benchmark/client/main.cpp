@@ -41,10 +41,8 @@
 #include <nlohmann/json.hpp>
 
 #include "file-transfer-client.hpp"
-#include "indicators.hpp"
 
 using namespace std;
-using namespace indicators;
 namespace po = boost::program_options;
 
 static ndnc::benchmark::fileTransferClient::Runner *client;
@@ -193,30 +191,22 @@ int main(int argc, char *argv[]) {
         << "TRACE: Starting NDNc File Transfer Client benchmarking tool...\n";
 
     ndnc::Face *face = new ndnc::Face();
+#ifndef __APPLE__
+    face->openMemif(9000, "ndnc-benchmark-test", "http://172.17.0.2:3030/");
+#endif
+
     if (!face->isValid()) {
         cerr << "ERROR: Could not create face\n";
         return -1;
     }
 
     client = new ndnc::benchmark::fileTransferClient::Runner(*face, opts);
-    BlockProgressBar bar{
-        option::BarWidth{80},
-        option::MaxProgress{opts.fileSize},
-        option::PrefixText{"Downloading "},
-        option::ShowPercentage{true},
-    };
 
     auto start_time = std::chrono::high_resolution_clock::now();
     std::atomic<uint64_t> totalProgress = 0;
 
     client->run([&](uint64_t progress) {
         totalProgress.fetch_add(progress, std::memory_order_release);
-        // totalProgress += progress;
-        // bar.set_progress(progress);
-        // bar.set_option(option::PostfixText{humanReadableSize(totalProgress) +
-        //                                    "/" +
-        //                                    humanReadableSize(opts.fileSize)});
-        // bar.tick();
     });
 
     client->wait();
@@ -268,8 +258,6 @@ int main(int argc, char *argv[]) {
 
     cout << std::setfill('*') << std::setw(80) << "\n";
     cout << nlohmann::json::parse(ss.str()).dump(4) << "\n";
-    // cout << totalProgress << "\n";
-    // cout << duration / std::chrono::nanoseconds(1) << "\n";
     cout << std::setfill('*') << std::setw(80) << "\n";
 
     if (NULL != client) {

@@ -120,6 +120,10 @@ int main(int argc, char **argv) {
     signal(SIGABRT, handler);
 
     ndnc::Face *face = new ndnc::Face();
+#ifndef __APPLE__
+    face->openMemif(9000, "ndnc-benchmark-test", "http://172.17.0.2:3030/");
+#endif
+
     if (!face->isValid()) {
         cerr << "ERROR: Could not create face\n";
     }

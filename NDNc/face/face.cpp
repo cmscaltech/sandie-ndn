@@ -39,13 +39,11 @@
 namespace ndnc {
 Face::Face() : m_transport(NULL), m_valid(false), m_counters{} {
     m_client = std::make_unique<graphql::Client>();
-#ifndef __APPLE__
-    m_valid = m_client->openFace();
-    this->openMemif();
-#endif
 }
 
 Face::~Face() {
+    m_valid = false;
+
     if (m_client != nullptr) {
         if (!m_client->deleteFace()) {
 #ifdef DEBUG
@@ -56,6 +54,7 @@ Face::~Face() {
     }
 
     m_transport = NULL;
+    m_packetHandler = NULL;
 }
 
 bool Face::isValid() {
@@ -84,14 +83,6 @@ Face::Counters Face::readCounters() {
     return this->m_counters;
 }
 
-void Face::printCounters() {
-    std::cout << "nTxPackets: " << m_counters.nTxPackets
-              << " nTxBytes: " << m_counters.nTxBytes
-              << " nRxPackets: " << m_counters.nRxPackets
-              << " nRxBytes: " << m_counters.nRxBytes
-              << " nErros: " << m_counters.nErrors << "\n";
-}
-
 void Face::loop() {
     m_transport->loop();
 }
@@ -106,11 +97,6 @@ bool Face::addHandler(PacketHandler &h) {
 
     m_packetHandler = &h;
     m_packetHandler->m_face = this;
-    return true;
-}
-
-bool Face::removeHandler() {
-    m_packetHandler = NULL;
     return true;
 }
 
@@ -205,15 +191,19 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     }
 }
 
-void Face::openMemif() {
-    if (!isValid()) {
+void Face::openMemif(int dataroom, std::string name, std::string gqlserver) {
+    int id = 0;
+    m_valid = m_client->openFace(id, dataroom, gqlserver);
+
+    if (!m_valid) {
         std::cout << "WARN: Invalid face\n";
         return;
     }
 
 #ifndef __APPLE__
     static Memif transport;
-    if (!transport.begin(m_client->getSocketName().c_str(), 1)) {
+    if (!transport.begin(m_client->getSocketName().c_str(), id, name.c_str(),
+                         dataroom)) {
         return;
     }
 

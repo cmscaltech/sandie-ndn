@@ -65,10 +65,11 @@ class Face {
     ~Face();
 
     bool addHandler(PacketHandler &h);
-    bool removeHandler();
-
     bool isValid();
     void loop();
+
+    void openMemif(int dataroom = 9000, std::string name = "",
+                   std::string gqlserver = "");
     bool advertise(const std::string prefix);
 
     bool expressInterest(const std::shared_ptr<const ndn::Interest> &interest,
@@ -76,15 +77,8 @@ class Face {
     bool putData(const ndn::Data &&data, const ndn::lp::PitToken &pitToken);
 
     Counters readCounters();
-    void printCounters();
 
   private:
-    /**
-     * @brief Open memif face between application and local NDN-DPDK forwarder
-     *
-     */
-    void openMemif();
-
     /**
      * @brief Handle peer disconnect events by gracefully closing memif face
      *

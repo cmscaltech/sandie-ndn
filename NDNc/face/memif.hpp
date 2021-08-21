@@ -46,13 +46,17 @@ namespace ndnc {
 /**
  * @brief A transport that communicates via libmemif.
  *
+ * Current implementation only allows one memif transport per process. It is
+ * compatible with NDN-DPDK dataplane.
  */
 class Memif : public virtual Transport {
   public:
-    explicit Memif(uint16_t maxPktLen = 8800) : m_maxPktLen(maxPktLen) {}
+    using DefaultDataroom = std::integral_constant<uint16_t, 2048>;
 
-    bool begin(const char *socketName, uint32_t id) {
+    bool begin(const char *socketName, uint32_t id, const char *name = "",
+               uint16_t maxPktLen = DefaultDataroom::value) {
         end();
+        m_maxPktLen = maxPktLen;
 
         int err = memif_init(nullptr, const_cast<char *>("NDNc"), nullptr,
                              nullptr, nullptr);
@@ -72,6 +76,7 @@ class Memif : public virtual Transport {
         memif_conn_args_t args = {};
         args.socket = m_sock;
         args.interface_id = id;
+        strncpy((char *)args.interface_name, name, strlen(name));
         for (args.buffer_size = 64; args.buffer_size < m_maxPktLen;) {
             args.buffer_size <<= 1;
             // libmemif internally assumes buffer_size to be power of two
@@ -149,6 +154,7 @@ class Memif : public virtual Transport {
 
         memif_buffer_t b = {};
         uint16_t nAlloc = 0;
+
         int err = memif_buffer_alloc(m_conn, 0, &b, 1, &nAlloc, pktLen);
         if (err != MEMIF_ERR_SUCCESS || nAlloc != 1) {
             std::cout << "ERROR: memif_buffer_alloc: " << memif_strerror(err)
@@ -170,7 +176,7 @@ class Memif : public virtual Transport {
     }
 
     static int handleConnect(memif_conn_handle_t conn, void *self0) {
-        Memif *self = reinterpret_cast<Memif *>(self0);
+        auto self = reinterpret_cast<Memif *>(self0);
         assert(self->m_conn == conn);
         self->m_isUp = true;
 
@@ -198,7 +204,7 @@ class Memif : public virtual Transport {
 
     static int handleInterrupt(memif_conn_handle_t conn, void *self0,
                                uint16_t qid) {
-        Memif *self = reinterpret_cast<Memif *>(self0);
+        auto self = reinterpret_cast<Memif *>(self0);
         assert(self->m_conn == conn);
 
         std::array<memif_buffer_t, NDNC_MEMIF_RXBURST> burst{};
@@ -226,7 +232,7 @@ class Memif : public virtual Transport {
   public:
     memif_socket_handle_t m_sock = nullptr;
     memif_conn_handle_t m_conn = nullptr;
-    uint16_t m_maxPktLen;
+    uint16_t m_maxPktLen = 0;
     bool m_init = false;
     bool m_isUp = false;
 };

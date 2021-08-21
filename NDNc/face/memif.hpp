@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_FACE_TRANSPORT_MEMIF_HPP
-#define NDNC_FACE_TRANSPORT_MEMIF_HPP
+#ifndef NDNC_FACE_MEMIF_HPP
+#define NDNC_FACE_MEMIF_HPP
 
 #include <array>
 #include <iostream>
@@ -65,14 +65,15 @@ class Memif : public virtual Transport {
         int err = memif_init(nullptr, const_cast<char *>("NDNcBasedApp"),
                              nullptr, nullptr, nullptr);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_init\n";
+            std::cout << "ERROR: memif_init: " << memif_strerror(err) << "\n";
             return false;
         }
         m_init = true;
 
         err = memif_create_socket(&m_sock, socketName, nullptr);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_create_socket\n";
+            std::cout << "ERROR: memif_create_socket: " << memif_strerror(err)
+                      << "\n";
             return false;
         }
 
@@ -84,7 +85,7 @@ class Memif : public virtual Transport {
             memif_create(&m_conn, &args, Memif::handleConnect,
                          Memif::handleDisconnect, Memif::handleInterrupt, this);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_create\n";
+            std::cout << "ERROR: memif_create: " << memif_strerror(err) << "\n";
             return false;
         }
 
@@ -95,7 +96,8 @@ class Memif : public virtual Transport {
         if (m_conn != nullptr) {
             int err = memif_delete(&m_conn);
             if (err != MEMIF_ERR_SUCCESS) {
-                std::cout << "ERROR: memif_delete\n";
+                std::cout << "ERROR: memif_delete: " << memif_strerror(err)
+                          << "\n";
                 return false;
             }
         }
@@ -103,7 +105,8 @@ class Memif : public virtual Transport {
         if (m_sock != nullptr) {
             int err = memif_delete_socket(&m_sock);
             if (err != MEMIF_ERR_SUCCESS) {
-                std::cout << "ERROR: memif_delete_socket\n";
+                std::cout << "ERROR: memif_delete_socket: "
+                          << memif_strerror(err) << "\n";
                 return false;
             }
         }
@@ -111,7 +114,8 @@ class Memif : public virtual Transport {
         if (m_init) {
             int err = memif_cleanup();
             if (err != MEMIF_ERR_SUCCESS) {
-                std::cout << "ERROR: memif_cleanup\n";
+                std::cout << "ERROR: memif_cleanup: " << memif_strerror(err)
+                          << "\n";
                 return false;
             }
             m_init = false;
@@ -124,13 +128,14 @@ class Memif : public virtual Transport {
 
     void doLoop() final {
         if (!m_init) {
-            std::cout << "Error m_init is null\n";
+            std::cout << "ERROR: m_init is null\n";
             return;
         }
 
         int err = memif_poll_event(0);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_poll_event\n";
+            std::cout << "ERROR: memif_poll_event: " << memif_strerror(err)
+                      << "\n";
         }
     }
 
@@ -150,7 +155,8 @@ class Memif : public virtual Transport {
         uint16_t nAlloc = 0;
         int err = memif_buffer_alloc(m_conn, 0, &b, 1, &nAlloc, pktLen);
         if (err != MEMIF_ERR_SUCCESS || nAlloc != 1) {
-            std::cout << "ERROR: memif_buffer_alloc\n";
+            std::cout << "ERROR: memif_buffer_alloc: " << memif_strerror(err)
+                      << "\n";
             return false;
         }
 
@@ -162,7 +168,8 @@ class Memif : public virtual Transport {
         uint16_t nTx = 0;
         err = memif_tx_burst(m_conn, 0, &b, 1, &nTx);
         if (err != MEMIF_ERR_SUCCESS || nTx != 1) {
-            std::cout << "ERROR: memif_tx_burst\n";
+            std::cout << "ERROR: memif_tx_burst: " << memif_strerror(err)
+                      << "\n";
             return false;
         }
         return true;
@@ -177,7 +184,8 @@ class Memif : public virtual Transport {
 
         int err = memif_refill_queue(conn, 0, -1, 0);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_refill_queue\n";
+            std::cout << "ERROR: memif_refill_queue: " << memif_strerror(err)
+                      << "\n";
             return -1;
         }
 
@@ -203,7 +211,8 @@ class Memif : public virtual Transport {
         uint16_t nRx = 0;
         int err = memif_rx_burst(conn, qid, burst.data(), burst.size(), &nRx);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_rx_burst\n";
+            std::cout << "ERROR: memif_rx_burst: " << memif_strerror(err)
+                      << "\n";
             return 0;
         }
 
@@ -220,7 +229,8 @@ class Memif : public virtual Transport {
 
         err = memif_refill_queue(conn, qid, nRx, 0);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_rx_burst\n";
+            std::cout << "ERROR: memif_refill_queue: " << memif_strerror(err)
+                      << "\n";
         }
         return 0;
     }
@@ -234,4 +244,4 @@ class Memif : public virtual Transport {
 };
 }; // namespace ndnc
 
-#endif // NDNC_FACE_TRANSPORT_MEMIF_HPP
+#endif // NDNC_FACE_MEMIF_HPP

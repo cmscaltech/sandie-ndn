@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_PIPELINE_INTERESTS_HPP
-#define NDNC_PIPELINE_INTERESTS_HPP
+#ifndef NDNC_FACE_PIPELINE_INTERESTS_HPP
+#define NDNC_FACE_PIPELINE_INTERESTS_HPP
 
 #include <thread>
 #include <unordered_map>
@@ -89,4 +89,4 @@ class Pipeline : public PacketHandler {
 };
 }; // namespace ndnc
 
-#endif // NDNC_PIPELINE_INTERESTS_HPP
+#endif // NDNC_FACE_PIPELINE_INTERESTS_HPP

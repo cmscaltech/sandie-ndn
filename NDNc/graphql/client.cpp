@@ -25,6 +25,7 @@
  * SOFTWARE.
  */
 
+#include <chrono>
 #include <iostream>
 #include <unistd.h>
 
@@ -35,16 +36,20 @@ using json = nlohmann::json;
 
 namespace ndnc {
 namespace graphql {
-Client::Client() {
-    // m_socketName = "/run/ndn/ndnc-memif-" + std::to_string(getpid()) + ".sock"; // TODO: Socket name root should be configurable
-    m_socketName = "/tmp/ndnc-memif-" + std::to_string(getpid()) + ".sock";
-    m_faceID = "";
+Client::Client() : m_faceID(""), m_gqlserver("http://localhost:3030/") {
+    auto pid = std::to_string(getpid());
+    auto timestamp = std::to_string(
+        std::chrono::system_clock::now().time_since_epoch().count());
+
+    m_socketName = "/run/ndn/ndnc-memif-" + pid + "-" + timestamp + ".sock";
 }
 
 Client::~Client() {}
 
-bool Client::openFace(int id, int dataroom) {
-    std::cout << "TRACE: Opening face\n";
+bool Client::openFace(int id, int dataroom, std::string gqlserver) {
+    if (!gqlserver.empty()) {
+        this->m_gqlserver = gqlserver;
+    }
 
     auto request = json_helper::getOperation(
         "\
@@ -54,12 +59,14 @@ bool Client::openFace(int id, int dataroom) {
       }\n\
     }",
         "createFace",
-        nlohmann::json{{"locator", json_helper::createFace{this->m_socketName,
-                                                           id, dataroom}}});
+        nlohmann::json{
+            {"locator", json_helper::createFace{m_socketName, id, dataroom}}});
 
     json response;
-    if (auto code = doOperation(request, response); CURLE_OK != code) {
-        std::cout << "ERROR: " << curl_easy_strerror(code) << "\n";
+    if (auto code = doOperation(request, response, m_gqlserver);
+        CURLE_OK != code) {
+        std::cout << "ERROR: createFace POST: " << curl_easy_strerror(code)
+                  << "\n";
         return false;
     }
 
@@ -96,8 +103,9 @@ bool Client::deleteFace() {
         "delete", json_helper::deleteFace{this->m_faceID});
 
     json response;
-    if (auto code = doOperation(request, response); CURLE_OK != code) {
-        std::cout << "ERROR: " << curl_easy_strerror(code) << "\n";
+    if (auto code = doOperation(request, response, m_gqlserver);
+        CURLE_OK != code) {
+        std::cout << "ERROR: delete POST: " << curl_easy_strerror(code) << "\n";
         return false;
     }
 
@@ -122,8 +130,10 @@ bool Client::advertiseOnFace(const std::string prefix) {
         json_helper::insertFibEntry{prefix, {this->m_faceID}});
 
     json response;
-    if (auto code = doOperation(request, response); CURLE_OK != code) {
-        std::cout << "ERROR: " << curl_easy_strerror(code) << "\n";
+    if (auto code = doOperation(request, response, m_gqlserver);
+        CURLE_OK != code) {
+        std::cout << "ERROR: insertFibEntry POST: " << curl_easy_strerror(code)
+                  << "\n";
         return false;
     }
 

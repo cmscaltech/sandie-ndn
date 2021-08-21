@@ -40,7 +40,7 @@ class Client {
     Client();
     ~Client();
 
-    bool openFace(int id = 1, int dataroom = 9000);
+    bool openFace(int id, int dataroom, std::string gqlserver);
     bool deleteFace();
     bool advertiseOnFace(const std::string prefix);
 
@@ -56,10 +56,11 @@ class Client {
     }
 
     static CURLcode doOperation(const nlohmann::json request,
-                                nlohmann::json &response) {
+                                nlohmann::json &response,
+                                std::string gqlserver) {
         curl_global_init(CURL_GLOBAL_ALL);
         auto curl = curl_easy_init();
-        if (curl == NULL) {
+        if (NULL == curl) {
             return CURLE_FAILED_INIT;
         }
 
@@ -68,8 +69,7 @@ class Client {
         headers = curl_slist_append(headers, "Accept: application/json");
 
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
-        // curl_easy_setopt(curl, CURLOPT_URL, "http://172.17.0.2:3030/"); // TODO address should be configurable
-        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:3030/");
+        curl_easy_setopt(curl, CURLOPT_URL, gqlserver.c_str());
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
         auto postFields = strdup(request.dump().c_str());
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields);
@@ -97,6 +97,7 @@ class Client {
     std::string m_socketName;
     std::string m_faceID;
     std::string m_fibEntryID;
+    std::string m_gqlserver;
 };
 }; // namespace graphql
 }; // namespace ndnc

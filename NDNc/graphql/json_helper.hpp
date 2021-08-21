@@ -76,7 +76,7 @@ nlohmann::json getOperation(std::string query, std::string name,
 struct createFace {
     std::string socketName; // Socket name
     int id;                 // Face ID
-    int dataroom = 9000;    // Dataroom size
+    int dataroom;           // Dataroom size
     std::string scheme = "memif";
 };
 

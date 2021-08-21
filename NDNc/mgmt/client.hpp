@@ -40,8 +40,32 @@ class Client {
     Client();
     ~Client();
 
+    /**
+     * @brief Configure server (NDN-DPDK forwarder): create face
+     *
+     * @param id Local face id
+     * @param dataroom Dataroom size
+     * @param gqlserver GraphQL server address used in POST
+     * @return true Successfully create a new face
+     * @return false Unable to create a new face
+     */
     bool openFace(int id, int dataroom, std::string gqlserver);
+
+    /**
+     * @brief Configure server (NDN-DPDK forwarder): create face
+     *
+     * @return true Successfully deleted previously created face
+     * @return false Unable to deleted previously created face
+     */
     bool deleteFace();
+
+    /**
+     * @brief Advertise NDN Name prefix on NDN-DPDK face
+     *
+     * @param prefix Name prefix
+     * @return true Successfully advertise prefix on previously created face
+     * @return false Unable to advertise prefix on previously created face
+     */
     bool advertiseOnFace(const std::string prefix);
 
     std::string getSocketName() { return m_socketName; }

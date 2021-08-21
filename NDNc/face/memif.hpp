@@ -43,27 +43,19 @@ extern "C" {
 #endif
 
 namespace ndnc {
-
-static inline const std::array<uint8_t, 14> ethernetHDR = {
-    0xF2, 0x6C, 0xE6, 0x8D, 0x9E, 0x34, // dst
-    0xF2, 0x71, 0x7E, 0x76, 0x5D, 0x1C, // src
-    0x86, 0x24,                         // ethertype
-};
-
 /**
  * @brief A transport that communicates via libmemif.
  *
  */
 class Memif : public virtual Transport {
   public:
-    explicit Memif(uint16_t maxPacketLength = 8800)
-        : m_maxPktLen(maxPacketLength) {}
+    explicit Memif(uint16_t maxPktLen = 8800) : m_maxPktLen(maxPktLen) {}
 
     bool begin(const char *socketName, uint32_t id) {
         end();
 
-        int err = memif_init(nullptr, const_cast<char *>("NDNcBasedApp"),
-                             nullptr, nullptr, nullptr);
+        int err = memif_init(nullptr, const_cast<char *>("NDNc"), nullptr,
+                             nullptr, nullptr);
         if (err != MEMIF_ERR_SUCCESS) {
             std::cout << "ERROR: memif_init: " << memif_strerror(err) << "\n";
             return false;
@@ -80,7 +72,11 @@ class Memif : public virtual Transport {
         memif_conn_args_t args = {};
         args.socket = m_sock;
         args.interface_id = id;
-        args.buffer_size = ethernetHDR.size() + m_maxPktLen;
+        for (args.buffer_size = 64; args.buffer_size < m_maxPktLen;) {
+            args.buffer_size <<= 1;
+            // libmemif internally assumes buffer_size to be power of two
+            // https://github.com/FDio/vpp/blob/v21.06/extras/libmemif/src/main.c#L2406
+        }
         err =
             memif_create(&m_conn, &args, Memif::handleConnect,
                          Memif::handleDisconnect, Memif::handleInterrupt, this);
@@ -160,10 +156,8 @@ class Memif : public virtual Transport {
             return false;
         }
 
-        uint8_t *p = std::copy(ethernetHDR.begin(), ethernetHDR.end(),
-                               static_cast<uint8_t *>(b.data));
-        p = std::copy_n(pkt, pktLen, p);
-        b.len = std::distance(static_cast<uint8_t *>(b.data), p);
+        std::copy_n(pkt, pktLen, static_cast<uint8_t *>(b.data));
+        b.len = pktLen;
 
         uint16_t nTx = 0;
         err = memif_tx_burst(m_conn, 0, &b, 1, &nTx);
@@ -207,7 +201,7 @@ class Memif : public virtual Transport {
         Memif *self = reinterpret_cast<Memif *>(self0);
         assert(self->m_conn == conn);
 
-        std::array<memif_buffer_t, NDNC_MEMIF_RXBURST> burst;
+        std::array<memif_buffer_t, NDNC_MEMIF_RXBURST> burst{};
         uint16_t nRx = 0;
         int err = memif_rx_burst(conn, qid, burst.data(), burst.size(), &nRx);
         if (err != MEMIF_ERR_SUCCESS) {
@@ -218,13 +212,7 @@ class Memif : public virtual Transport {
 
         for (uint16_t i = 0; i < nRx; ++i) {
             const memif_buffer_t &b = burst[i];
-            if (b.len <= ethernetHDR.size()) {
-                continue;
-            }
-            self->invokeRxCallback(
-                std::next(static_cast<const uint8_t *>(b.data),
-                          ethernetHDR.size()),
-                b.len - ethernetHDR.size());
+            self->invokeRxCallback(static_cast<const uint8_t *>(b.data), b.len);
         }
 
         err = memif_refill_queue(conn, qid, nRx, 0);

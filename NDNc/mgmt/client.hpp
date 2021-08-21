@@ -60,11 +60,11 @@ class Client {
                                 std::string gqlserver) {
         curl_global_init(CURL_GLOBAL_ALL);
         auto curl = curl_easy_init();
-        if (NULL == curl) {
+        if (curl == nullptr) {
             return CURLE_FAILED_INIT;
         }
 
-        struct curl_slist *headers = NULL;
+        struct curl_slist *headers = nullptr;
         headers = curl_slist_append(headers, "Content-Type: application/json");
         headers = curl_slist_append(headers, "Accept: application/json");
 

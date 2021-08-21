@@ -37,7 +37,7 @@
 #include "lp/pit-token.hpp"
 
 namespace ndnc {
-Face::Face() : m_transport(NULL), m_valid(false), m_counters{} {
+Face::Face() : m_transport(nullptr), m_valid(false), m_counters{} {
     m_client = std::make_unique<mgmt::Client>();
 }
 
@@ -53,8 +53,8 @@ Face::~Face() {
         }
     }
 
-    m_transport = NULL;
-    m_packetHandler = NULL;
+    m_transport = nullptr;
+    m_packetHandler = nullptr;
 }
 
 bool Face::isValid() {
@@ -62,7 +62,7 @@ bool Face::isValid() {
 }
 
 bool Face::advertise(const std::string prefix) {
-    if (NULL == m_transport || !m_transport->isUp()) {
+    if (m_transport == nullptr || !m_transport->isUp()) {
 #ifdef DEBUG
         ++m_counters.nErrors;
 #endif // DEBUG
@@ -165,7 +165,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
             m_packetHandler->dequeueNackPacket(
                 std::make_shared<const ndn::lp::Nack>(std::move(*interest)));
         } else {
-            if (NULL != m_packetHandler) {
+            if (m_packetHandler != nullptr) {
                 m_packetHandler->dequeueInterestPacket(
                     interest,
                     ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
@@ -175,7 +175,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     }
 
     case ndn::tlv::Data: {
-        if (NULL != m_packetHandler) {
+        if (m_packetHandler != nullptr) {
             m_packetHandler->dequeueDataPacket(
                 std::make_shared<const ndn::Data>(netPacket),
                 ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));

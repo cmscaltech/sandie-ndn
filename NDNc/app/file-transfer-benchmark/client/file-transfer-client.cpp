@@ -45,7 +45,7 @@ Runner::~Runner() {
     m_stop = true;
     wait();
 
-    if (NULL != m_pipeline) {
+    if (m_pipeline == nullptr) {
         delete m_pipeline;
     }
 }
@@ -107,6 +107,7 @@ int Runner::expressInterests(uint64_t offset, RxQueue *rxQueue) {
         auto interest = std::make_shared<const ndn::Interest>(
             ndn::Name(m_options.prefix + m_options.filePath).appendSegment(i),
             m_options.interestLifetime);
+        interest->setDefaultCanBePrefix(false);
 
         if (!m_pipeline->enqueueInterestPacket(std::move(interest), rxQueue)) {
             std::cout << "ERROR: unable to enqueue Interest packet\n";

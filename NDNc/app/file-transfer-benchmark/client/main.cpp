@@ -48,7 +48,7 @@ namespace po = boost::program_options;
 static ndnc::benchmark::fileTransferClient::Runner *client;
 
 void handler(sig_atomic_t signal) {
-    if (NULL != client) {
+    if (client == nullptr) {
         client->stop();
     }
 }
@@ -223,7 +223,7 @@ int main(int argc, char *argv[]) {
     std::stringstream ss;
     ss << "{\n";
 
-    if (NULL != client) {
+    if (client != nullptr) {
         ss << "\"client counters\": { ";
         ss << "\"nInterest\": " << client->readCounters().nInterest << ", ";
         ss << "\"nData\": " << client->readCounters().nData << ", ";
@@ -234,7 +234,7 @@ int main(int argc, char *argv[]) {
         ss << "/s\" },\n";
     }
 #ifdef DEBUG
-    if (NULL != face) {
+    if (face != nullptr) {
         ss << "\"face counters\": { ";
         ss << "\"nTxPackets\": " << face->readCounters().nTxPackets << ", ";
         ss << "\"nTxBytes\": " << face->readCounters().nTxBytes << ", ";
@@ -260,11 +260,11 @@ int main(int argc, char *argv[]) {
     cout << nlohmann::json::parse(ss.str()).dump(4) << "\n";
     cout << std::setfill('*') << std::setw(80) << "\n";
 
-    if (NULL != client) {
+    if (client == nullptr) {
         delete client;
     }
 
-    if (NULL != face) {
+    if (face != nullptr) {
         delete face;
     }
 

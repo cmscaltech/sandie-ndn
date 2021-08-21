@@ -136,11 +136,11 @@ int main(int argc, char **argv) {
         face->loop();
     }
 
-    if (NULL != server) {
+    if (server != nullptr) {
         delete server;
     }
 
-    if (NULL != face) {
+    if (face != nullptr) {
         delete face;
     }
 

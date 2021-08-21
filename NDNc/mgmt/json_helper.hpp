@@ -25,17 +25,16 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_GRAPHQL_JSON_HELPER_HPP
-#define NDNC_GRAPHQL_JSON_HELPER_HPP
+#ifndef NDNC_MGMT_JSON_HELPER_HPP
+#define NDNC_MGMT_JSON_HELPER_HPP
 
 #include <nlohmann/json.hpp>
 #include <set>
 
 namespace ndnc {
-namespace graphql {
+namespace mgmt {
 /**
- * @brief GraphQL documents for executing operations on the GraphQL server
- * (NDN-DPDK forwarder)
+ * @brief GraphQL documents for NDN-DPDK forwarder configuration
  *
  */
 namespace json_helper {
@@ -130,7 +129,7 @@ void from_json(const nlohmann::json &json, insertFibEntry &vars) {
 }
 
 }; // namespace json_helper
-}; // namespace graphql
+}; // namespace mgmt
 }; // namespace ndnc
 
-#endif // NDNC_GRAPHQL_JSON_HELPER_HPP
+#endif // NDNC_MGMT_JSON_HELPER_HPP

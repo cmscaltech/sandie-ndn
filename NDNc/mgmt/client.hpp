@@ -25,15 +25,15 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_GRAPHQL_CLIENT_HPP
-#define NDNC_GRAPHQL_CLIENT_HPP
+#ifndef NDNC_MGMT_CLIENT_HPP
+#define NDNC_MGMT_CLIENT_HPP
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 #include <string>
 
 namespace ndnc {
-namespace graphql {
+namespace mgmt {
 
 class Client {
   public:
@@ -99,7 +99,7 @@ class Client {
     std::string m_fibEntryID;
     std::string m_gqlserver;
 };
-}; // namespace graphql
+}; // namespace mgmt
 }; // namespace ndnc
 
-#endif // NDNC_GRAPHQL_CLIENT_HPP
+#endif // NDNC_MGMT_CLIENT_HPP

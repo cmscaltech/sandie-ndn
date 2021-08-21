@@ -13,7 +13,7 @@ pipeline-interests.o: face/pipeline-interests.cpp
 	$(CC) $(CPPFLAGS) -c $< $(INCLUDE)
 face.o: face/face.cpp
 	$(CC) $(CPPFLAGS) -c $< $(INCLUDE)
-gqlclient.o: graphql/client.cpp
+gqlclient.o: mgmt/client.cpp
 	$(CC) $(CPPFLAGS) -c $<
 
 file-transfer-client.o: ./app/file-transfer-benchmark/client/file-transfer-client.cpp

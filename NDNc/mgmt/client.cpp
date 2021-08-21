@@ -35,7 +35,7 @@
 using json = nlohmann::json;
 
 namespace ndnc {
-namespace graphql {
+namespace mgmt {
 Client::Client() : m_faceID(""), m_gqlserver("http://localhost:3030/") {
     auto pid = std::to_string(getpid());
     auto timestamp = std::to_string(
@@ -162,5 +162,5 @@ bool Client::advertiseOnFace(const std::string prefix) {
     return true;
 }
 
-}; // namespace graphql
+}; // namespace mgmt
 }; // namespace ndnc

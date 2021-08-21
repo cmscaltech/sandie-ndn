@@ -32,7 +32,7 @@
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/lp/pit-token.hpp>
 
-#include "graphql/client.hpp"
+#include "mgmt/client.hpp"
 
 #ifndef __APPLE__
 #include "memif.hpp"
@@ -110,7 +110,7 @@ class Face {
     bool send(const uint8_t *pkt, size_t pktLen);
 
   private:
-    std::unique_ptr<graphql::Client> m_client;
+    std::unique_ptr<mgmt::Client> m_client;
     Transport *m_transport;
     PacketHandler *m_packetHandler;
 

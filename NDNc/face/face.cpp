@@ -38,7 +38,7 @@
 
 namespace ndnc {
 Face::Face() : m_transport(NULL), m_valid(false), m_counters{} {
-    m_client = std::make_unique<graphql::Client>();
+    m_client = std::make_unique<mgmt::Client>();
 }
 
 Face::~Face() {

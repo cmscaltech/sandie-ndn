@@ -85,7 +85,7 @@ bool Client::openFace(int id, int dataroom, std::string gqlserver) {
     }
 
     this->m_faceID = response["data"]["createFace"]["id"];
-    std::cout << "INFO: Face " << m_faceID << " oppened\n";
+    std::cout << "INFO: Face " << m_faceID << " opened\n";
 
     return true;
 }
@@ -149,7 +149,7 @@ bool Client::advertiseOnFace(const std::string prefix) {
     if (response["data"]["insertFibEntry"] == nullptr ||
         response["data"]["insertFibEntry"]["id"] == nullptr ||
         response["data"]["insertFibEntry"]["id"].empty()) {
-        std::cout << "ERROR: Unable to advertise prefix\n";
+        std::cout << "ERROR: Unable to advertise Name\n";
         return false;
     }
 

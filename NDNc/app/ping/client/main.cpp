@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
-    string app = argv[0];
+    const string app = argv[0];
 
     if (vm.count("help") > 0) {
         usage(cout, app, description);

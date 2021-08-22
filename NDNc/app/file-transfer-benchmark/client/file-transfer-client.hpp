@@ -98,7 +98,7 @@ class Runner : public std::enable_shared_from_this<Runner> {
     };
 
   public:
-    Runner(Face &face, Options options);
+    explicit Runner(Face &face, Options options);
     ~Runner();
 
     void run(NotifyProgressStatus onProgress);

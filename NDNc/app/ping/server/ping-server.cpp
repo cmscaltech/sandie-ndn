@@ -25,9 +25,8 @@
  * SOFTWARE.
  */
 
-#include <iostream>
-
 #include <boost/lexical_cast.hpp>
+#include <iostream>
 
 #include <ndn-cxx/signature-info.hpp>
 #include <ndn-cxx/util/sha256.hpp>
@@ -38,17 +37,23 @@ namespace ndnc {
 namespace ping {
 namespace server {
 Runner::Runner(Face &face, Options options)
-    : PacketHandler(face), m_signatureInfo{}, m_options{options}, m_counters{} {
+    : PacketHandler(face), m_options{options}, m_counters{}, m_signatureInfo{} {
+
     m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
 
     auto buff = std::make_unique<ndn::Buffer>();
-    buff->assign(m_options.payloadSize, 'a');
+    buff->assign(m_options.payloadLength, 'p');
     m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
 }
 
-void Runner::processInterest(
+Runner::~Runner() {}
+
+void Runner::dequeueInterestPacket(
     const std::shared_ptr<const ndn::Interest> &interest,
     const ndn::lp::PitToken &pitToken) {
+
+    ++m_counters.nRxInterests;
+
     std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
               << boost::lexical_cast<std::string>(pitToken) << " "
               << interest->getName() << "\n";
@@ -59,13 +64,12 @@ void Runner::processInterest(
     data.setSignatureInfo(m_signatureInfo);
     data.setSignatureValue(std::make_shared<ndn::Buffer>());
 
-    if (putData(std::move(data), pitToken)) {
-        ++m_counters.nTxData;
-    } else {
-        std::cout << "ERROR: Unable to put Data\n";
+    if (!enqueueDataPacket(std::move(data), pitToken)) {
+        std::cout << "WARN: Unable to put Data packet on face\n";
+        return;
     }
 
-    ++m_counters.nRxInterests;
+    ++m_counters.nTxData;
 }
 
 Runner::Counters Runner::readCounters() {

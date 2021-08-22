@@ -37,41 +37,36 @@ namespace ping {
 namespace server {
 
 struct Options {
-    /**
-     * @brief Name prefix
-     *
-     */
-    std::string prefix;
-
-    /**
-     * @brief Payload size
-     *
-     */
-    size_t payloadSize = 128;
+    size_t mtu = 9000;                                // Dataroom size
+    std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
+    std::string name;                                 // Name prefix
+    size_t payloadLength = 0;                         // Payload length
 };
 
 class Runner : public PacketHandler,
                public std::enable_shared_from_this<Runner> {
   public:
-    explicit Runner(Face &face, Options options);
-
     struct Counters {
         uint32_t nRxInterests = 0;
         uint32_t nTxData = 0;
     };
 
+    explicit Runner(Face &face, Options options);
+    ~Runner();
+
     Counters readCounters();
 
   private:
-    void processInterest(const std::shared_ptr<const ndn::Interest> &interest,
-                         const ndn::lp::PitToken &pitToken) final;
+    void
+    dequeueInterestPacket(const std::shared_ptr<const ndn::Interest> &interest,
+                          const ndn::lp::PitToken &pitToken) final;
 
   private:
-    ndn::Block m_payload;
-    ndn::SignatureInfo m_signatureInfo;
-
     Options m_options;
     Counters m_counters;
+
+    ndn::Block m_payload;
+    ndn::SignatureInfo m_signatureInfo;
 };
 }; // namespace server
 }; // namespace ping

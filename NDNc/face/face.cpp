@@ -191,20 +191,21 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     }
 }
 
-void Face::openMemif(int dataroom, std::string name, std::string gqlserver) {
+bool Face::openMemif(int dataroom, std::string gqlserver, std::string name) {
     int id = 0;
     m_valid = m_client->openFace(id, dataroom, gqlserver);
 
     if (!m_valid) {
-        std::cout << "WARN: Invalid face\n";
-        return;
+        std::cout << "FATAL: Unable to create face\n";
+        return false;
     }
 
 #ifndef __APPLE__
     static Memif transport;
     if (!transport.begin(m_client->getSocketName().c_str(), id, name.c_str(),
                          dataroom)) {
-        return;
+        std::cout << "FATAL: Unable to init face\n";
+        return false;
     }
 
     this->m_transport = &transport;
@@ -212,7 +213,6 @@ void Face::openMemif(int dataroom, std::string name, std::string gqlserver) {
 
     while (true) {
         if (m_transport->isUp()) {
-            std::cout << "INFO: Transport is UP\n";
             m_transport->setRxCallback(transportRx, this);
             m_transport->setDisconnectCallback(onPeerDisconnect, this);
             break;
@@ -220,6 +220,8 @@ void Face::openMemif(int dataroom, std::string name, std::string gqlserver) {
 
         m_transport->loop();
     }
+
+    return true;
 }
 
 void Face::onPeerDisconnect() {

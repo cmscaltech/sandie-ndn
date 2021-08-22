@@ -121,7 +121,10 @@ int main(int argc, char **argv) {
 
     ndnc::Face *face = new ndnc::Face();
 #ifndef __APPLE__
-    face->openMemif(9000, "ndnc-benchmark-test", "http://172.17.0.2:3030/");
+    if (!face->openMemif(9000, "http://172.17.0.2:3030/",
+                         "ndnc-benchmark-server")) {
+        return 2;
+    }
 #endif
 
     if (!face->isValid()) {

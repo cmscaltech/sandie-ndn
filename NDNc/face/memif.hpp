@@ -180,7 +180,7 @@ class Memif : public virtual Transport {
         assert(self->m_conn == conn);
         self->m_isUp = true;
 
-        std::cout << "INFO: Memif connected\n";
+        std::cout << "TRACE: Memif connected\n";
 
         int err = memif_refill_queue(conn, 0, -1, 0);
         if (err != MEMIF_ERR_SUCCESS) {
@@ -197,7 +197,7 @@ class Memif : public virtual Transport {
         assert(self->m_conn == conn);
         self->m_isUp = false;
 
-        std::cout << "INFO: Memif disconnected\n";
+        std::cout << "TRACE: Memif disconnected\n";
         self->invokeDisconnectCallback();
         return 0;
     }

@@ -68,8 +68,7 @@ class Face {
     bool isValid();
     void loop();
 
-    void openMemif(int dataroom = 9000, std::string name = "",
-                   std::string gqlserver = "");
+    bool openMemif(int dataroom, std::string gqlserver, std::string name);
     bool advertise(const std::string prefix);
 
     bool expressInterest(const std::shared_ptr<const ndn::Interest> &interest,

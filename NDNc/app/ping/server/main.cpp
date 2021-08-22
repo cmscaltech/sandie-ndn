@@ -38,39 +38,45 @@
 using namespace std;
 namespace po = boost::program_options;
 
-static bool faceLoop = true;
+static bool shouldRun = true;
 
 void handler(sig_atomic_t signal) {
-    faceLoop = false;
+    shouldRun = false;
 }
 
 static void usage(ostream &os, const string &app,
                   const po::options_description &desc) {
     os << "Usage: " << app
-       << " [options]\nNote: This application needs --prefix argument "
+       << " [options]\nNote: This application needs --name argument "
           "to be specified\n\n"
        << desc;
 }
 
 int main(int argc, char **argv) {
-    ndnc::ping::server::Options opts;
+    signal(SIGINT, handler);
+    signal(SIGABRT, handler);
 
+    ndnc::ping::server::Options opts;
     po::options_description description("Options", 120);
     description.add_options()(
-        "payload-size,s",
-        po::value<size_t>(&opts.payloadSize)->default_value(opts.payloadSize),
-        string("The payload size of each NDN Data packet expressed in bytes. "
-               "Specify a non-negative integer smaller or equal to " +
-               to_string(ndn::MAX_NDN_PACKET_SIZE) +
-               ". Note that the NDN maximum packet size is " +
-               to_string(ndn::MAX_NDN_PACKET_SIZE) +
-               " bytes which counts for the Name, Payload and Signing "
-               "information.")
-            .c_str())(
-        "prefix,p", po::value<string>(&opts.prefix),
-        "The NDN prefix this application advertises. All packet Names with "
-        "this prefix will be processed "
-        "by this application.")("help,h", "Print this help message and exit");
+        "gqlserver",
+        po::value<string>(&opts.gqlserver)->default_value(opts.gqlserver),
+        "GraphQL server address");
+    description.add_options()(
+        "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
+        "Dataroom size. Specify a positive integer between 64 and 9000");
+    description.add_options()(
+        "name", po::value<string>(&opts.name),
+        "The NDN Name prefix that this application advertises");
+    description.add_options()(
+        "payload",
+        po::value<size_t>(&opts.payloadLength)
+            ->default_value(opts.payloadLength),
+        string("The payload length of each NDN Data packet is expressed in "
+               "bytes. Specify a positive integer smaller or equal to " +
+               to_string(ndn::MAX_NDN_PACKET_SIZE))
+            .c_str());
+    description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
     try {
@@ -85,65 +91,76 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    string app = argv[0];
+    const string app = argv[0];
 
     if (vm.count("help") > 0) {
         usage(cout, app, description);
         return 0;
     }
 
-    if (vm.count("prefix") == 0) {
-        usage(cerr, app, description);
-        cerr << "\nERROR: Please specify the NDN prefix this applications "
-                "advertises\n";
-        return 2;
-    }
-
-    if (vm.count("payload-size") > 0) {
-        if (opts.payloadSize < 0 ||
-            opts.payloadSize > ndn::MAX_NDN_PACKET_SIZE) {
+    if (vm.count("mtu") > 0) {
+        if (opts.mtu < 64 || opts.mtu > 9000) {
+            cerr << "ERROR: Invalid MTU size. Please specify a positive "
+                    "integer between 64 and 9000\n\n";
             usage(cout, app, description);
-            cerr << "\nERROR: Invalid payload size. Please specify a "
-                    "non-negative integer smaller or eqaul to "
-                 << ndn::MAX_NDN_PACKET_SIZE << "\n";
             return 2;
         }
     }
 
-    std::cout << "TRACE: Starting NDNc Ping Server...\n";
+    if (vm.count("gqlserver") > 0) {
+        if (opts.gqlserver.empty()) {
+            cerr << "ERROR: Empty gqlserver argument value\n\n";
+            usage(cout, app, description);
+            return 2;
+        }
+    }
 
-    signal(SIGINT, handler);
-    signal(SIGABRT, handler);
+    if (vm.count("name") == 0) {
+        cerr << "ERROR: Please specify the NDN Name prefix that this "
+                "application advertises\n\n";
+        usage(cerr, app, description);
+        return 2;
+    }
+
+    if (vm.count("payload") > 0) {
+        if (opts.payloadLength < 0 ||
+            opts.payloadLength > ndn::MAX_NDN_PACKET_SIZE) {
+            cerr << "ERROR: Invalid payload length. Please specify a "
+                    "positive integer smaller or equal to "
+                 << ndn::MAX_NDN_PACKET_SIZE << "\n\n";
+            usage(cout, app, description);
+            return 2;
+        }
+    }
 
     ndnc::Face *face = new ndnc::Face();
+#ifndef __APPLE__
+    if (!face->openMemif(opts.mtu, opts.gqlserver, "ndnc-ping-server"))
+        return 2;
+#endif
     if (!face->isValid()) {
-        cerr << "ERROR: Could not create face\n";
+        cerr << "ERROR: Invalid face\n";
+        return 2;
     }
 
     ndnc::ping::server::Runner *server =
         new ndnc::ping::server::Runner(*face, opts);
-    face->advertise(opts.prefix);
 
-    while (faceLoop && face->isValid()) {
+    face->advertise(opts.name);
+    while (shouldRun && face->isValid()) {
         face->loop();
     }
 
-#ifdef DEBUG
-    cout << "face counters: ";
-    face->printCounters();
-#endif // DEBUG
-
-    cout << "\n"
+    cout << "\n--- statistics --\n"
          << server->readCounters().nTxData << " packets transmitted, "
          << server->readCounters().nRxInterests << " packets received\n";
 
-    if (NULL != server) {
+    if (server != nullptr) {
         delete server;
     }
 
-    if (NULL != face) {
+    if (face != nullptr) {
         delete face;
     }
-
     return 0;
 }

@@ -38,37 +38,41 @@
 using namespace std;
 namespace po = boost::program_options;
 
-static bool faceLoop = true;
+static bool shouldRun = true;
 
 void handler(sig_atomic_t signal) {
-    faceLoop = false;
+    shouldRun = false;
 }
 
 static void usage(ostream &os, const string &app,
                   const po::options_description &desc) {
     os << "Usage: " << app
-       << " [options]\nNote: This application needs --prefix argument "
+       << " [options]\nNote: This application needs --name argument "
           "to be specified\n\n"
        << desc;
 }
 
 int main(int argc, char *argv[]) {
-    ndnc::ping::client::Options opts;
+    signal(SIGINT, handler);
+    signal(SIGABRT, handler);
 
+    ndnc::ping::client::Options opts;
     po::options_description description("Options", 120);
     description.add_options()(
-        "interval,i",
-        po::value<ndn::time::milliseconds::rep>()->default_value(100),
-        "Interval between Interests in milliseconds. Specify a non-negative "
-        "value")("lifetime,l",
-                 po::value<ndn::time::milliseconds::rep>()->default_value(1000),
-                 "Interest lifetime in milliseconds. Specify a non-negative "
-                 "value")("prefix,p", po::value<string>(&opts.prefix),
-                          "The NDN prefix this application "
-                          "advertises. All packet Names with this "
-                          "prefix will be processed by this "
-                          "application.")("help,h", "Print this help message "
-                                                    "and exit");
+        "gqlserver",
+        po::value<string>(&opts.gqlserver)->default_value(opts.gqlserver),
+        "GraphQL server address");
+    description.add_options()(
+        "lifetime",
+        po::value<ndn::time::milliseconds::rep>()->default_value(1000),
+        "Interest lifetime in milliseconds. Specify a positive integer");
+    description.add_options()(
+        "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
+        "Dataroom size. Specify a positive integer between 64 and 9000");
+    description.add_options()(
+        "name", po::value<string>(&opts.name),
+        "The NDN Name prefix that this application advertises");
+    description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
     try {
@@ -90,21 +94,27 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    if (vm.count("prefix") == 0) {
+    if (vm.count("mtu") > 0) {
+        if (opts.mtu < 64 || opts.mtu > 9000) {
+            cerr << "ERROR: Invalid MTU size. Please specify a positive "
+                    "integer between 64 and 9000\n\n";
+            usage(cout, app, description);
+            return 2;
+        }
+    }
+
+    if (vm.count("gqlserver") > 0) {
+        if (opts.gqlserver.empty()) {
+            cerr << "ERROR: Empty gqlserver argument value\n\n";
+            usage(cout, app, description);
+            return 2;
+        }
+    }
+
+    if (vm.count("name") == 0) {
+        cerr << "ERROR: Please specify the NDN Name prefix that this "
+                "application advertises\n\n";
         usage(cerr, app, description);
-        cerr << "\nERROR: Please specify the NDN prefix of Interest packets "
-                "expressed by this application\n";
-        return 2;
-    }
-
-    if (vm.count("interval") > 0) {
-        opts.interval = ndn::time::milliseconds(
-            vm["interval"].as<ndn::time::milliseconds::rep>());
-    }
-
-    if (opts.interval < ndn::time::milliseconds{0}) {
-        cerr << "\nERROR: Interval between Interests cannot be negative\n";
-        usage(cout, app, description);
         return 2;
     }
 
@@ -114,48 +124,42 @@ int main(int argc, char *argv[]) {
     }
 
     if (opts.lifetime < ndn::time::milliseconds{0}) {
-        cerr << "\nERROR: Interests lifetime cannot be negative\n";
+        cerr << "ERROR: Negative lifetime argument value\n\n";
         usage(cout, app, description);
         return 2;
     }
 
-    std::cout << "TRACE: Starting NDNc Ping Client...\n";
-
-    signal(SIGINT, handler);
-    signal(SIGABRT, handler);
-
     ndnc::Face *face = new ndnc::Face();
+#ifndef __APPLE__
+    if (!face->openMemif(opts.mtu, opts.gqlserver, "ndnc-ping-client"))
+        return 2;
+#endif
     if (!face->isValid()) {
-        cerr << "ERROR: Could not create face\n";
+        cerr << "ERROR: Invalid face\n";
         return -1;
     }
 
     ndnc::ping::client::Runner *client =
         new ndnc::ping::client::Runner(*face, opts);
 
-    while (faceLoop && face->isValid()) {
-        face->loop();
+    while (shouldRun && face->isValid()) {
+        client->run();
     }
 
     auto lossRation = (1.0 - ((double)client->readCounters().nRxData /
                               (double)client->readCounters().nTxInterests)) *
                       100;
 
-#ifdef DEBUG
-    cout << "face counters: ";
-    face->printCounters();
-#endif // DEBUG
-
-    cout << "\n"
+    cout << "\n--- statistics --\n"
          << client->readCounters().nTxInterests << " packets transmitted, "
          << client->readCounters().nRxData << " packets received, "
          << lossRation << "% packet loss\n";
 
-    if (NULL != client) {
+    if (client != nullptr) {
         delete client;
     }
 
-    if (NULL != face) {
+    if (face != nullptr) {
         delete face;
     }
 

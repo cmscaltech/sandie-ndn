@@ -36,7 +36,7 @@ using json = nlohmann::json;
 
 namespace ndnc {
 namespace mgmt {
-Client::Client() : m_faceID(""), m_gqlserver("http://localhost:3030/") {
+Client::Client() : m_faceID{}, m_gqlserver{} {
     auto pid = std::to_string(getpid());
     auto timestamp = std::to_string(
         std::chrono::system_clock::now().time_since_epoch().count());
@@ -47,9 +47,7 @@ Client::Client() : m_faceID(""), m_gqlserver("http://localhost:3030/") {
 Client::~Client() {}
 
 bool Client::openFace(int id, int dataroom, std::string gqlserver) {
-    if (!gqlserver.empty()) {
-        this->m_gqlserver = gqlserver;
-    }
+    this->m_gqlserver = gqlserver;
 
     auto request = json_helper::getOperation(
         "\
@@ -117,7 +115,7 @@ bool Client::deleteFace() {
 }
 
 bool Client::advertiseOnFace(const std::string prefix) {
-    std::cout << "TRACE: Advertising Name prefix: " << prefix << "\n";
+    std::cout << "INFO: Advertising: " << prefix << "\n";
 
     auto request = json_helper::getOperation(
         "\
@@ -157,7 +155,7 @@ bool Client::advertiseOnFace(const std::string prefix) {
 
     this->m_fibEntryID = response["data"]["insertFibEntry"]["id"];
     std::cout << "TRACE: FIB entry: " << this->m_fibEntryID
-              << " for Name prefix: " << prefix << "\n";
+              << " for: " << prefix << "\n";
 
     return true;
 }

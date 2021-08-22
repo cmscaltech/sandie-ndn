@@ -28,39 +28,24 @@
 #ifndef NDNC_APP_PING_CLIENT_HPP
 #define NDNC_APP_PING_CLIENT_HPP
 
-#include <unordered_map>
-
-#include "face/packet-handler.hpp"
+#include "face/pipeline-interests.hpp"
 
 namespace ndnc {
 namespace ping {
 namespace client {
 
 struct Options {
-    /**
-     * @brief Name prefix
-     *
-     */
-    std::string prefix;
-
-    /**
-     * @brief Interval between Interests
-     *
-     */
-    ndn::time::milliseconds interval = ndn::time::milliseconds{100};
-
-    /**
-     * @brief Interest lifetime
-     *
-     */
-    ndn::time::milliseconds lifetime = ndn::time::seconds{1};
+    size_t mtu = 9000;                                // Dataroom size
+    std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
+    std::string name;                                 // Name prefix
+    ndn::time::milliseconds lifetime =
+        ndn::time::seconds{1}; // Interest lifetime
 };
 
-class Runner : public PacketHandler,
-               public std::enable_shared_from_this<Runner> {
-  public:
-    explicit Runner(Face &face, Options options);
+class Runner : public std::enable_shared_from_this<Runner> {
+    using RxQueue = moodycamel::BlockingConcurrentQueue<ndn::Data>;
 
+  public:
     struct Counters {
         uint32_t nTxInterests = 0;
         uint32_t nRxNacks = 0;
@@ -68,26 +53,19 @@ class Runner : public PacketHandler,
         uint32_t nTimeout = 0;
     };
 
+    explicit Runner(Face &face, Options options);
+    ~Runner();
+
+    void run();
     Counters readCounters();
-
-  private:
-    void loop() final;
-
-    bool sendInterest();
-    void processData(const std::shared_ptr<const ndn::Data> &data,
-                     uint64_t pitToken) final;
-    void processNack(const std::shared_ptr<const ndn::lp::Nack> &nack) final;
-    void onTimeout(uint64_t pitToken) final;
 
   private:
     Options m_options;
     Counters m_counters;
 
-    std::unordered_map<uint64_t, ndn::time::system_clock::time_point>
-        m_pendingInterests;
-
+    RxQueue rxQueue;
+    Pipeline *m_pipeline;
     uint64_t m_sequence;
-    ndn::time::system_clock::time_point m_next;
 };
 }; // namespace client
 }; // namespace ping

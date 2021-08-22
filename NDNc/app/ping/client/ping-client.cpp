@@ -39,64 +39,49 @@ namespace ndnc {
 namespace ping {
 namespace client {
 Runner::Runner(Face &face, Options options)
-    : PacketHandler(face), m_options{options}, m_counters{} {
+    : m_options{options}, m_counters{}, rxQueue{} {
+
+    m_pipeline = new Pipeline(face);
+
     std::random_device rd;
     std::mt19937_64 gen(rd());
     std::uniform_int_distribution<uint64_t> dist;
-
     m_sequence = dist(gen);
-    m_next = ndn::time::system_clock::now() + m_options.interval;
 }
 
-void Runner::loop() {
-    auto now = ndn::time::system_clock::now();
-    if (m_next > now) {
+Runner::~Runner() {
+    if (m_pipeline != nullptr) {
+        delete m_pipeline;
+    }
+}
+
+void Runner::run() {
+    auto interest = std::make_shared<const ndn::Interest>(
+        ndn::Name(m_options.name).appendSegment(++m_sequence),
+        m_options.lifetime);
+    interest->setDefaultCanBePrefix(false);
+
+    if (!m_pipeline->enqueueInterestPacket(std::move(interest),
+                                           &this->rxQueue)) {
+        std::cout << "WARN: unable to enqueue Interest packet\n";
         return;
     }
 
-    if (this->sendInterest()) {
-        m_next = now + m_options.interval;
-    } else {
-        std::cout << "ERROR: Unable to send Interest\n";
-    }
-}
-
-bool Runner::sendInterest() {
-    auto interest = std::make_shared<const ndn::Interest>(
-        ndn::Name(m_options.prefix).appendSegment(++m_sequence),
-        m_options.lifetime);
-
-    auto pit = expressInterest(interest);
+    auto start = ndn::time::system_clock::now();
     ++m_counters.nTxInterests;
 
-    m_pendingInterests[pit] = ndn::time::system_clock::now();
-    return true;
-}
+    ndn::Data data;
+    if (!rxQueue.wait_dequeue_timed(data, m_options.lifetime.count() * 1000)) {
+        std::cout << "Request timeout for " << interest->getName() << "\n";
+        return;
+    }
 
-void Runner::processData(const std::shared_ptr<const ndn::Data> &data,
-                         uint64_t pitToken) {
+    auto end = ndn::time::system_clock::now();
     ++m_counters.nRxData;
 
-    auto now = ndn::time::system_clock::now();
-    auto rtt = ndn::time::duration_cast<ndn::time::microseconds>(
-        now - m_pendingInterests[pitToken]);
-
-    std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
-              << boost::lexical_cast<std::string>(pitToken) << " "
-              << data->getName() << "\t" << rtt << "\n";
-}
-
-void Runner::processNack(const std::shared_ptr<const ndn::lp::Nack> &nack) {
-    ++m_counters.nRxNacks;
-
-    std::cout << "WARN: Received NACK for Interest "
-              << nack->getInterest().getName()
-              << " with reason: " << nack->getReason() << "\n";
-}
-
-void Runner::onTimeout(uint64_t pitToken) {
-    std::cout << "WARN: timeout\n";
-    ++m_counters.nTimeout;
+    auto rtt = ndn::time::duration_cast<ndn::time::microseconds>(end - start);
+    std::cout << ndn::time::toString(end) << " " << data.getName() << "\t"
+              << rtt << "\n";
 }
 
 Runner::Counters Runner::readCounters() {

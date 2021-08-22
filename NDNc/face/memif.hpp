@@ -193,7 +193,7 @@ class Memif : public virtual Transport {
     }
 
     static int handleDisconnect(memif_conn_handle_t conn, void *self0) {
-        Memif *self = reinterpret_cast<Memif *>(self0);
+        auto self = reinterpret_cast<Memif *>(self0);
         assert(self->m_conn == conn);
         self->m_isUp = false;
 

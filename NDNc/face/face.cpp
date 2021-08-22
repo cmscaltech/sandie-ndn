@@ -69,7 +69,7 @@ bool Face::advertise(const std::string prefix) {
         return false;
     }
 
-    if (!isValid() || m_client == nullptr) {
+    if (m_client == nullptr || !this->isValid()) {
 #ifdef DEBUG
         ++m_counters.nErrors;
 #endif // DEBUG

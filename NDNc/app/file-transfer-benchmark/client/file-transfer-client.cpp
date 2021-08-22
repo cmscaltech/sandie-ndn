@@ -45,7 +45,7 @@ Runner::~Runner() {
     m_stop = true;
     wait();
 
-    if (m_pipeline == nullptr) {
+    if (m_pipeline != nullptr) {
         delete m_pipeline;
     }
 }

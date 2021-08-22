@@ -48,7 +48,7 @@ namespace po = boost::program_options;
 static ndnc::benchmark::fileTransferClient::Runner *client;
 
 void handler(sig_atomic_t signal) {
-    if (client == nullptr) {
+    if (client != nullptr) {
         client->stop();
     }
 }
@@ -260,7 +260,7 @@ int main(int argc, char *argv[]) {
     cout << nlohmann::json::parse(ss.str()).dump(4) << "\n";
     cout << std::setfill('*') << std::setw(80) << "\n";
 
-    if (client == nullptr) {
+    if (client != nullptr) {
         delete client;
     }
 

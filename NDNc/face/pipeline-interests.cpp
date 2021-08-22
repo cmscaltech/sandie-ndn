@@ -133,8 +133,8 @@ void Pipeline::dequeueDataPacket(const std::shared_ptr<const ndn::Data> &data,
     m_pendingInterestsTable.erase(value);
 }
 
-void Pipeline::dequeueNackPacket(
-    const std::shared_ptr<const ndn::lp::Nack> &nack) {}
+void Pipeline::dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &) {
+}
 
 void Pipeline::processTimeouts() {}
 }; // namespace ndnc

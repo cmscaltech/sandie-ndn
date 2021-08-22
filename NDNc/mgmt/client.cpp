@@ -64,7 +64,7 @@ bool Client::openFace(int id, int dataroom, std::string gqlserver) {
     if (auto code = doOperation(request, response, m_gqlserver);
         CURLE_OK != code) {
         std::cout << "ERROR: createFace POST: " << curl_easy_strerror(code)
-                  << "\n";
+                  << ". Double check gqlserver app argument value\n";
         return false;
     }
 

@@ -40,7 +40,7 @@ namespace po = boost::program_options;
 
 static bool shouldRun = true;
 
-void handler(sig_atomic_t signal) {
+void handler(sig_atomic_t) {
     shouldRun = false;
 }
 

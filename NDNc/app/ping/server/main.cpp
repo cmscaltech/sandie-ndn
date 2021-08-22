@@ -40,7 +40,7 @@ namespace po = boost::program_options;
 
 static bool shouldRun = true;
 
-void handler(sig_atomic_t signal) {
+void handler(sig_atomic_t) {
     shouldRun = false;
 }
 
@@ -123,8 +123,7 @@ int main(int argc, char **argv) {
     }
 
     if (vm.count("payload") > 0) {
-        if (opts.payloadLength < 0 ||
-            opts.payloadLength > ndn::MAX_NDN_PACKET_SIZE) {
+        if (opts.payloadLength > ndn::MAX_NDN_PACKET_SIZE) {
             cerr << "ERROR: Invalid payload length. Please specify a "
                     "positive integer smaller or equal to "
                  << ndn::MAX_NDN_PACKET_SIZE << "\n\n";

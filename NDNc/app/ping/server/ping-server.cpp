@@ -25,8 +25,9 @@
  * SOFTWARE.
  */
 
-#include <boost/lexical_cast.hpp>
 #include <iostream>
+
+#include <boost/lexical_cast.hpp>
 
 #include <ndn-cxx/signature-info.hpp>
 #include <ndn-cxx/util/sha256.hpp>

@@ -1,0 +1,56 @@
+PROJECT(NDNc C CXX)
+
+CMAKE_MINIMUM_REQUIRED(VERSION 3.18)
+SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
+FIND_PACKAGE(memif 3.1 REQUIRED)
+INCLUDE_DIRECTORIES(SYSTEM "${MEMIF_INCLUDES}")
+LINK_LIBRARIES("${MEMIF_LIB}")
+
+FIND_PACKAGE(ndn-cxx 0.7.0 REQUIRED)
+INCLUDE_DIRECTORIES(SYSTEM "${NDN_CXX_INCLUDES}")
+LINK_LIBRARIES("${NDN_CXX_LIB}")
+
+FIND_PACKAGE(Boost 1.74 COMPONENTS program_options system filesystem REQUIRED)
+INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
+
+FIND_PACKAGE(CURL REQUIRED)
+FIND_PACKAGE(Threads REQUIRED)
+find_package(nlohmann_json 3.9.0 REQUIRED)
+
+set(CMAKE_CXX_STANDARD 20)
+
+add_definitions(-D_GNU_SOURCE)
+add_compile_options(-g -Wall -Wextra -Wpedantic -O0)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR})
+
+# compile ndnc.so
+# ADD_LIBRARY(ndnc SHARED face lp mgmt)
+# SET_TARGET_PROPERTIES(ndnc PROPERTIES LINKER_LANGUAGE CXX)
+
+# compile ndncping apps
+ADD_EXECUTABLE(ndncping-client 
+                app/ping/client/main.cpp
+                app/ping/client/ping-client.cpp
+                face/face.cpp
+                face/packet-handler.cpp
+                face/pipeline-interests.cpp
+                mgmt/client.cpp)
+
+TARGET_LINK_LIBRARIES(ndncping-client LINK_PUBLIC ${Boost_LIBRARIES} curl)
+TARGET_LINK_LIBRARIES(ndncping-client PRIVATE nlohmann_json::nlohmann_json)
+TARGET_LINK_LIBRARIES(ndncping-client PRIVATE Threads::Threads)
+SET_TARGET_PROPERTIES(ndncping-client PROPERTIES LINKER_LANGUAGE CXX)
+
+ADD_EXECUTABLE(ndncping-server 
+                app/ping/server/main.cpp
+                app/ping/server/ping-server.cpp
+                face/face.cpp
+                face/packet-handler.cpp
+                face/pipeline-interests.cpp
+                mgmt/client.cpp)
+
+TARGET_LINK_LIBRARIES(ndncping-server LINK_PUBLIC ${Boost_LIBRARIES} curl)
+TARGET_LINK_LIBRARIES(ndncping-server PRIVATE nlohmann_json::nlohmann_json)
+TARGET_LINK_LIBRARIES(ndncping-server PRIVATE Threads::Threads)
+SET_TARGET_PROPERTIES(ndncping-server PROPERTIES LINKER_LANGUAGE CXX)

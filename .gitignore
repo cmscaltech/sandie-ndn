@@ -10,3 +10,6 @@ xrootd-ndn-dpdk-oss-plugin/obj/*
 xrootd-ndn-dpdk-oss-plugin/xrdndndpdkconsumer/cgoflags.go
 xrootd-ndn-dpdk-oss-plugin/xrdndndpdkproducer/cgoflags.go
 xrootd-ndn-dpdk-oss-plugin/xrdndndpdkfilesystem/cgoflags.go
+
+NDNc/build/*
+

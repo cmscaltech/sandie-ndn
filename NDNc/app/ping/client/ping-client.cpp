@@ -80,8 +80,8 @@ void Runner::run() {
     ++m_counters.nRxData;
 
     auto rtt = ndn::time::duration_cast<ndn::time::microseconds>(end - start);
-    std::cout << ndn::time::toString(end) << " " << data.getName() << "\t"
-              << rtt << "\n";
+    std::cout << ndn::time::toString(end) << " " << data.getName() << " " << rtt
+              << "\n";
 }
 
 Runner::Counters Runner::readCounters() {

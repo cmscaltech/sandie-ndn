@@ -34,45 +34,35 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
-#include "file-transfer-server.hpp"
+#include "ft-server.hpp"
 
 using namespace std;
 namespace po = boost::program_options;
 
-static bool faceLoop = true;
+static bool shouldRun = true;
 
-void handler(sig_atomic_t signal) {
-    faceLoop = false;
+void handler(sig_atomic_t) {
+    shouldRun = false;
 }
 
-static void usage(ostream &os, const string &app,
-                  const po::options_description &desc) {
-    os << "Usage: " << app
-       << " [options]\nNote: This application needs --prefix argument "
-          "to be specified\n\n"
-       << desc;
+static void usage(ostream &os, const po::options_description &desc) {
+    os << desc;
 }
 
 int main(int argc, char **argv) {
-    ndnc::benchmark::fileTransferServer::Options opts;
+    signal(SIGINT, handler);
+    signal(SIGABRT, handler);
+
+    ndnc::benchmark::ft::ServerOptions opts;
 
     po::options_description description("Options", 120);
     description.add_options()(
-        "payload-size,l",
-        po::value<size_t>(&opts.payloadSize)->default_value(opts.payloadSize),
-        string("The payload size of each NDN Data packet expressed in bytes. "
-               "Specify a non-negative integer smaller or equal to " +
-               to_string(ndn::MAX_NDN_PACKET_SIZE) +
-               ". Note that the NDN maximum packet size is " +
-               to_string(ndn::MAX_NDN_PACKET_SIZE) +
-               " bytes which counts for the Name, Payload and Signing "
-               "information.")
-            .c_str());
+        "gqlserver",
+        po::value<string>(&opts.gqlserver)->default_value(opts.gqlserver),
+        "GraphQL server address");
     description.add_options()(
-        "prefix,p", po::value<string>(&opts.prefix),
-        "The NDN prefix this application advertises. All packet Names with "
-        "this prefix will be processed "
-        "by this application.");
+        "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
+        "Dataroom size. Specify a positive integer between 64 and 9000");
     description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
@@ -88,56 +78,61 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    string app = argv[0];
-
     if (vm.count("help") > 0) {
-        usage(cout, app, description);
+        usage(cout, description);
         return 0;
     }
 
-    if (vm.count("prefix") == 0) {
-        usage(cerr, app, description);
-        cerr << "\nERROR: Please specify the NDN prefix this applications "
-                "advertises\n";
-        return 2;
-    }
-
-    if (vm.count("payload-size") > 0) {
-        if (opts.payloadSize < 0 ||
-            opts.payloadSize > ndn::MAX_NDN_PACKET_SIZE) {
-            usage(cout, app, description);
-            cerr << "\nERROR: Invalid payload size. Please specify a "
-                    "non-negative integer smaller or eqaul to "
-                 << ndn::MAX_NDN_PACKET_SIZE << "\n";
+    if (vm.count("mtu") > 0) {
+        if (opts.mtu < 64 || opts.mtu > 9000) {
+            cerr << "ERROR: Invalid MTU size. Please specify a positive "
+                    "integer between 64 and 9000\n\n";
+            usage(cout, description);
             return 2;
         }
     }
 
-    std::cout
-        << "TRACE: Starting NDNc File Transfer Server for benchmarking...\n";
+    if (vm.count("gqlserver") > 0) {
+        if (opts.gqlserver.empty()) {
+            cerr << "ERROR: Empty gqlserver argument value\n\n";
+            usage(cout, description);
+            return 2;
+        }
+    }
 
-    signal(SIGINT, handler);
-    signal(SIGABRT, handler);
+    std::cout << "NDNc FILE-TRANSFER BENCHMARKING SERVER APP\n";
 
     ndnc::Face *face = new ndnc::Face();
 #ifndef __APPLE__
-    if (!face->openMemif(9000, "http://172.17.0.2:3030/",
-                         "ndnc-benchmark-server")) {
+    if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncft-server"))
+        return 2;
+#endif
+    if (!face->isValid()) {
+        cerr << "ERROR: Invalid face\n";
         return 2;
     }
-#endif
 
-    if (!face->isValid()) {
-        cerr << "ERROR: Could not create face\n";
-    }
+    ndnc::benchmark::ft::Runner *server =
+        new ndnc::benchmark::ft::Runner(*face, opts);
 
-    ndnc::benchmark::fileTransferServer::Runner *server =
-        new ndnc::benchmark::fileTransferServer::Runner(*face, opts);
-    face->advertise(opts.prefix);
+    face->advertise(ndnc::benchmark::namePrefixUri);
 
-    while (faceLoop && face->isValid()) {
+    while (shouldRun && face->isValid()) {
         face->loop();
     }
+
+    // TODO
+    // #ifdef DEBUG
+    //     if (face != nullptr) {
+    //         ss << "\"face counters\": { ";
+    //         ss << "\"nTxPackets\": " << face->readCounters().nTxPackets << ",
+    //         "; ss << "\"nTxBytes\": " << face->readCounters().nTxBytes << ",
+    //         "; ss << "\"nRxPackets\": " << face->readCounters().nRxPackets <<
+    //         ", "; ss << "\"nRxBytes\": " << face->readCounters().nRxBytes <<
+    //         ", "; ss << "\"nErrors\": " << face->readCounters().nErrors << "
+    //         },\n";
+    //     }
+    // #endif // DEBUG
 
     if (server != nullptr) {
         delete server;

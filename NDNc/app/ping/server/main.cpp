@@ -146,6 +146,7 @@ int main(int argc, char **argv) {
         new ndnc::ping::server::Runner(*face, opts);
 
     face->advertise(opts.name);
+
     while (shouldRun && face->isValid()) {
         face->loop();
     }

@@ -18,9 +18,9 @@ FIND_PACKAGE(CURL REQUIRED)
 FIND_PACKAGE(Threads REQUIRED)
 find_package(nlohmann_json 3.9.1 REQUIRED)
 
-SET(CMAKE_CXX_STANDARD 20)
+SET(CMAKE_CXX_STANDARD 17)
 ADD_DEFINITIONS(-D_GNU_SOURCE)
-ADD_COMPILE_OPTIONS(-g -Wall -Wextra -Wpedantic -O0)
+ADD_COMPILE_OPTIONS(-g -Wall -Wextra -Wpedantic -O0 -DDEBUG)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR})
 
 # compile ndnc.so
@@ -53,3 +53,30 @@ TARGET_LINK_LIBRARIES(ndncping-server LINK_PUBLIC ${Boost_LIBRARIES} curl)
 TARGET_LINK_LIBRARIES(ndncping-server PRIVATE nlohmann_json::nlohmann_json)
 TARGET_LINK_LIBRARIES(ndncping-server PRIVATE Threads::Threads)
 SET_TARGET_PROPERTIES(ndncping-server PROPERTIES LINKER_LANGUAGE CXX)
+
+# compile ndncft apps
+ADD_EXECUTABLE(ndncft-client
+                app/benchmark/client/main.cpp
+                app/benchmark/client/ft-client.cpp
+                face/face.cpp
+                face/packet-handler.cpp
+                face/pipeline-interests.cpp
+                mgmt/client.cpp)
+
+TARGET_LINK_LIBRARIES(ndncft-client LINK_PUBLIC ${Boost_LIBRARIES} curl)
+TARGET_LINK_LIBRARIES(ndncft-client PRIVATE nlohmann_json::nlohmann_json)
+TARGET_LINK_LIBRARIES(ndncft-client PRIVATE Threads::Threads)
+SET_TARGET_PROPERTIES(ndncft-client PROPERTIES LINKER_LANGUAGE CXX)
+
+ADD_EXECUTABLE(ndncft-server
+                app/benchmark/server/main.cpp
+                app/benchmark/server/ft-server.cpp
+                face/face.cpp
+                face/packet-handler.cpp
+                face/pipeline-interests.cpp
+                mgmt/client.cpp)
+
+TARGET_LINK_LIBRARIES(ndncft-server LINK_PUBLIC ${Boost_LIBRARIES} curl)
+TARGET_LINK_LIBRARIES(ndncft-server PRIVATE nlohmann_json::nlohmann_json)
+TARGET_LINK_LIBRARIES(ndncft-server PRIVATE Threads::Threads)
+SET_TARGET_PROPERTIES(ndncft-server PROPERTIES LINKER_LANGUAGE CXX)

@@ -40,14 +40,14 @@
 
 #include <nlohmann/json.hpp>
 
-#include "file-transfer-client.hpp"
+#include "ft-client.hpp"
 
 using namespace std;
 namespace po = boost::program_options;
 
-static ndnc::benchmark::fileTransferClient::Runner *client;
+static ndnc::benchmark::ft::Runner *client;
 
-void handler(sig_atomic_t signal) {
+void handler(sig_atomic_t) {
     if (client != nullptr) {
         client->stop();
     }
@@ -70,51 +70,37 @@ static std::string humanReadableSize(double bytes, char suffix = 'B') {
 static void usage(ostream &os, const string &app,
                   const po::options_description &desc) {
     os << "Usage: " << app
-       << " [options]\nNote: This application needs --prefix, --file-path and "
-          "--file-size arguments to be specified\n\n"
+       << " [options]\nNote: This application needs --file arguments "
+          "to be specified\n\n"
        << desc;
 }
 
 int main(int argc, char *argv[]) {
-    ndnc::benchmark::fileTransferClient::Options opts;
+    signal(SIGINT, handler);
+    signal(SIGABRT, handler);
+
+    ndnc::benchmark::ft::ClientOptions opts;
 
     po::options_description description("Options", 120);
+    description.add_options()("file", po::value<string>(&opts.file),
+                              "The file path");
     description.add_options()(
-        "interest-lifetime,l",
-        po::value<ndn::time::milliseconds::rep>()
-            ->default_value(1000)
-            ->implicit_value(1000),
-        "Interest lifetime in milliseconds. Specify a non-negative value");
-    description.add_options()("prefix,p", po::value<string>(&opts.prefix),
-                              "The NDN Name prefix of all Interests expressed "
-                              "by this consumer. Specify a non-empty string");
-    description.add_options()("file-path,f", po::value<string>(&opts.filePath),
-                              "The path to the file to be copied over NDN. "
-                              "Specify a non-empty string");
-    description.add_options()("file-size,s",
-                              po::value<uint64_t>(&opts.fileSize),
-                              "The file size in bytes to be copied over NDN. "
-                              "Specify a non-negative value");
-    description.add_options()("payload-size,l",
-                              po::value<size_t>(&opts.dataPayloadSize)
-                                  ->default_value(opts.dataPayloadSize)
-                                  ->implicit_value(opts.dataPayloadSize),
-                              "The producer's payload size. Used by this "
-                              "consumer to compute Interests");
+        "gqlserver",
+        po::value<string>(&opts.gqlserver)->default_value(opts.gqlserver),
+        "GraphQL server address");
     description.add_options()(
-        "read-chunk,c",
-        po::value<uint64_t>(&opts.fileReadChunk)
-            ->default_value(opts.fileReadChunk)
-            ->implicit_value(opts.fileReadChunk),
-        "The number of bytes to be read in one request. Specify "
-        "a non-negative integer higher than 0");
+        "lifetime",
+        po::value<ndn::time::milliseconds::rep>()->default_value(1000),
+        "Interest lifetime in milliseconds. Specify a positive integer");
     description.add_options()(
-        "nthreads,t",
-        po::value<uint16_t>(&opts.nThreads)
-            ->default_value(opts.nThreads)
-            ->implicit_value(opts.nThreads),
-        "The number of threads to concurrently read the file. Specify a "
-        "non-negative value higher than 0");
+        "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
+        "Dataroom size. Specify a positive integer between 64 and 9000");
+    description.add_options()(
+        "nthreads",
+        po::value<uint16_t>(&opts.nthreads)
+            ->default_value(opts.nthreads)
+            ->implicit_value(opts.nthreads),
+        "The number of threads/workers to request Data in parallel");
     description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
@@ -130,82 +116,66 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
-    string app = argv[0];
-
+    const string app = argv[0];
     if (vm.count("help") > 0) {
         usage(cout, app, description);
         return 0;
     }
 
-    if (vm.count("prefix") == 0) {
+    if (vm.count("mtu") > 0) {
+        if (opts.mtu < 64 || opts.mtu > 9000) {
+            cerr << "ERROR: Invalid MTU size. Please specify a positive "
+                    "integer between 64 and 9000\n\n";
+            usage(cout, app, description);
+            return 2;
+        }
+    }
+
+    if (vm.count("gqlserver") > 0) {
+        if (opts.gqlserver.empty()) {
+            cerr << "ERROR: Empty gqlserver argument value\n\n";
+            usage(cout, app, description);
+            return 2;
+        }
+    }
+
+    if (vm.count("lifetime") > 0) {
+        opts.lifetime = ndn::time::milliseconds(
+            vm["lifetime"].as<ndn::time::milliseconds::rep>());
+    }
+
+    if (opts.lifetime < ndn::time::milliseconds{0}) {
+        cerr << "ERROR: Negative lifetime argument value\n\n";
+        usage(cout, app, description);
+        return 2;
+    }
+
+    if (vm.count("file") == 0) {
+        cerr << "ERROR: Please specify a file URL to be copied over NDN\n\n";
         usage(cerr, app, description);
-        cerr << "\nERROR: the option '--prefix' is required but missing\n";
         return 2;
     }
 
-    if (opts.prefix.empty()) {
-        cerr << "\nERROR: invalid value for option '--prefix'\n";
+    if (opts.file.empty()) {
+        cerr << "\nERROR: The file URL cannot be an empty string\n";
         return 2;
     }
 
-    if (vm.count("file-path") == 0) {
-        usage(cerr, app, description);
-        cerr << "\nERROR: the option '--file-path' is required but missing\n";
-        return 2;
-    }
-
-    if (opts.filePath.empty()) {
-        cerr << "\nERROR: invalid value for option '--file-path'\n";
-        return 2;
-    }
-
-    if (vm.count("file-size") == 0) {
-        usage(cerr, app, description);
-        cerr << "\nERROR: the option '--file-size' is required but missing\n";
-        return 2;
-    }
-
-    if (opts.fileSize == 0) {
-        cerr << "\nERROR: invalid value for option '--file-size'\n";
-        return 2;
-    }
-
-    if (vm.count("interest-lifetime") > 0) {
-        opts.interestLifetime = ndn::time::milliseconds(
-            vm["interest-lifetime"].as<ndn::time::milliseconds::rep>());
-    }
-
-    if (opts.interestLifetime < ndn::time::milliseconds{0}) {
-        cerr << "\nERROR: invalid value for option '--interest-lifetime'\n";
-        return 2;
-    }
-
-    if (opts.fileReadChunk <= 0) {
-        cerr << "\nERROR: invalid value for option '--read-chunk'\n";
-    }
-
-    signal(SIGINT, handler);
-    signal(SIGABRT, handler);
-
-    std::cout
-        << "TRACE: Starting NDNc File Transfer Client benchmarking tool...\n";
+    std::cout << "NDNc FILE-TRANSFER BENCHMARKING CLIENT\n";
 
     ndnc::Face *face = new ndnc::Face();
 #ifndef __APPLE__
-    if (!face->openMemif(9000, "http://172.17.0.2:3030/",
-                         "ndnc-benchmark-client")) {
+    if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncft-client"))
+        return 2;
+#endif
+    if (!face->isValid()) {
+        cerr << "ERROR: Invalid face\n";
         return 2;
     }
-#endif
 
-    if (!face->isValid()) {
-        cerr << "ERROR: Could not create face\n";
-        return -1;
-    }
+    client = new ndnc::benchmark::ft::Runner(*face, opts);
 
-    client = new ndnc::benchmark::fileTransferClient::Runner(*face, opts);
-
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::high_resolution_clock::now();
     std::atomic<uint64_t> totalProgress = 0;
 
     client->run([&](uint64_t progress) {
@@ -214,7 +184,7 @@ int main(int argc, char *argv[]) {
 
     client->wait();
 
-    auto duration = std::chrono::high_resolution_clock::now() - start_time;
+    auto duration = std::chrono::high_resolution_clock::now() - start;
     double goodput = ((double)totalProgress * 8.0) /
                      (duration / std::chrono::nanoseconds(1)) * 1000000000;
 
@@ -247,17 +217,18 @@ int main(int argc, char *argv[]) {
     }
 #endif // DEBUG
 
-    ss << "\"client options\": { ";
-    ss << "\"nThreads\": " << opts.nThreads << ", ";
-    ss << "\"prefix\": \"" << opts.prefix << "\", ";
-    ss << "\"interest lifetime\": " << opts.interestLifetime.count() << ", ";
-    ss << "\"payload size\": \"" << humanReadableSize(opts.dataPayloadSize)
-       << "\", ";
-    ss << "\"file path\": \"" << opts.filePath << "\", ";
-    ss << "\"file size\": \"" << humanReadableSize(opts.fileSize) << "\", ";
-    ss << "\"file read chunk\": \"" << humanReadableSize(opts.fileReadChunk)
-       << "\" }\n";
-    ss << "}\n";
+    // TODO
+    // ss << "\"client options\": { ";
+    // ss << "\"nThreads\": " << opts.nThreads << ", ";
+    // ss << "\"prefix\": \"" << opts.prefix << "\", ";
+    // ss << "\"interest lifetime\": " << opts.interestLifetime.count() << ", ";
+    // ss << "\"payload size\": \"" << humanReadableSize(opts.dataPayloadSize)
+    //    << "\", ";
+    // ss << "\"file path\": \"" << opts.filePath << "\", ";
+    // ss << "\"file size\": \"" << humanReadableSize(opts.fileSize) << "\", ";
+    // ss << "\"file read chunk\": \"" << humanReadableSize(opts.fileReadChunk)
+    //    << "\" }\n";
+    // ss << "}\n";
 
     cout << std::setfill('*') << std::setw(80) << "\n";
     cout << nlohmann::json::parse(ss.str()).dump(4) << "\n";

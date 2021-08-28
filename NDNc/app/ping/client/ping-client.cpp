@@ -59,7 +59,6 @@ void Runner::run() {
     auto interest = std::make_shared<const ndn::Interest>(
         ndn::Name(m_options.name).appendSegment(++m_sequence),
         m_options.lifetime);
-    interest->setDefaultCanBePrefix(false);
 
     if (!m_pipeline->enqueueInterestPacket(std::move(interest),
                                            &this->rxQueue)) {

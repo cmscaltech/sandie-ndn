@@ -25,80 +25,42 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_APP_FILE_TRANSFER_BENCHMARK_CLIENT
-#define NDNC_APP_FILE_TRANSFER_BENCHMARK_CLIENT
+#ifndef NDNC_APP_BENCHMARK_FT_CLIENT_HPP
+#define NDNC_APP_BENCHMARK_FT_CLIENT_HPP
 
 #include <atomic>
 #include <vector>
 
+#include "../common/file-metadata.hpp"
+#include "../common/naming-scheme.hpp"
 #include "face/pipeline-interests.hpp"
 
 namespace ndnc {
 namespace benchmark {
-namespace fileTransferClient {
+namespace ft {
 
-struct Options {
-    /**
-     * @brief Number of threads to read the file
-     *
-     */
+struct ClientOptions {
+    size_t mtu = 9000;                                // Dataroom size
+    std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
+    ndn::time::milliseconds lifetime =
+        ndn::time::seconds{1}; // Interest lifetime
 
-    uint16_t nThreads = 1;
-
-    /**
-     * @brief NDN Name prefix
-     *
-     */
-    std::string prefix;
-
-    /**
-     * @brief Interest lifetime
-     *
-     */
-    ndn::time::milliseconds interestLifetime = ndn::time::seconds{1};
-
-    /**
-     * @brief Producer payload size
-     *
-     */
-    size_t dataPayloadSize = 1024;
-
-    /**
-     * @brief File name
-     *
-     */
-    std::string filePath;
-
-    /**
-     * @brief File size in bytes
-     *
-     */
-
-    uint64_t fileSize = 0;
-
-    /**
-     * @brief Reading step. How much bytes to be read by a thread at once.
-     *
-     */
-    uint64_t fileReadChunk = 262144;
+    std::string file;      // File path
+    uint16_t nthreads = 1; // Number of worker threads to request packets
 };
 
 class Runner : public std::enable_shared_from_this<Runner> {
+  public:
     using RxQueue = moodycamel::BlockingConcurrentQueue<ndn::Data>;
     using NotifyProgressStatus = std::function<void(uint64_t)>;
 
-  public:
-    /**
-     * @brief Consumer counters
-     *
-     */
     struct Counters {
         std::atomic<uint64_t> nInterest = 0;
         std::atomic<uint64_t> nData = 0;
     };
 
   public:
-    explicit Runner(Face &face, Options options);
+    explicit Runner(Face &face, ClientOptions options);
     ~Runner();
 
     void run(NotifyProgressStatus onProgress);
@@ -108,19 +70,25 @@ class Runner : public std::enable_shared_from_this<Runner> {
     Counters &readCounters();
 
   private:
-    void transfer(int index, NotifyProgressStatus onProgress);
-    int expressInterests(uint64_t offset, RxQueue *rxQueue);
+    bool getFileMetadata();
+    void getFileContent(int tid, NotifyProgressStatus onProgress);
+
+    int expressInterests(std::shared_ptr<const ndn::Interest> interest,
+                         RxQueue *rxQueue);
 
   private:
-    Options m_options;
+    ClientOptions m_options;
     Counters m_counters;
+
+    const struct FileMetadata *m_fileMetadata;
+    uint64_t m_finalBlockId;
 
     std::vector<std::thread> m_workers;
     std::atomic_bool m_stop;
     Pipeline *m_pipeline;
 };
-}; // namespace fileTransferClient
+}; // namespace ft
 }; // namespace benchmark
 }; // namespace ndnc
 
-#endif // NDNC_APP_FILE_TRANSFER_BENCHMARK_CLIENT
+#endif // NDNC_APP_BENCHMARK_FT_CLIENT_HPP

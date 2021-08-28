@@ -25,50 +25,24 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_APP_PING_CLIENT_HPP
-#define NDNC_APP_PING_CLIENT_HPP
+#ifndef NDNC_APP_BENCHMARK_FT_COMMON_FILE_METADATA_HPP
+#define NDNC_APP_BENCHMARK_FT_COMMON_FILE_METADATA_HPP
 
-#include "face/pipeline-interests.hpp"
+#include <cstdint>
+#include <sys/stat.h>
 
 namespace ndnc {
-namespace ping {
-namespace client {
+namespace benchmark {
+struct FileMetadata {
+    uint64_t version; // NDN Name file version
 
-struct Options {
-    size_t mtu = 9000;                                // Dataroom size
-    std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
-    std::string name;                                 // Name prefix
-    ndn::time::milliseconds lifetime =
-        ndn::time::seconds{1}; // Interest lifetime
+    /* POSIX `struct stat` specific data */
+    mode_t st_mode;               // File type and mode
+    off_t st_size;                // Total size, in bytes
+    struct timespec st_mtimespec; // Time of last modification
+    struct timespec st_ctimespec; // Time of last status change
 };
-
-class Runner : public std::enable_shared_from_this<Runner> {
-  public:
-    using RxQueue = moodycamel::BlockingConcurrentQueue<ndn::Data>;
-
-    struct Counters {
-        uint32_t nTxInterests = 0;
-        uint32_t nRxNacks = 0;
-        uint32_t nRxData = 0;
-        uint32_t nTimeout = 0;
-    };
-
-    explicit Runner(Face &face, Options options);
-    ~Runner();
-
-    void run();
-    Counters readCounters();
-
-  private:
-    Options m_options;
-    Counters m_counters;
-
-    RxQueue rxQueue;
-    Pipeline *m_pipeline;
-    uint64_t m_sequence;
-};
-}; // namespace client
-}; // namespace ping
+}; // namespace benchmark
 }; // namespace ndnc
 
-#endif // NDNC_APP_PING_CLIENT_HPP
+#endif // NDNC_APP_BENCHMARK_FT_COMMON_FILE_METADATA_HPP

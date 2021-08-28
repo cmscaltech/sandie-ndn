@@ -25,49 +25,46 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_APP_FILE_TRANSFER_BENCHMARK_SERVER
-#define NDNC_APP_FILE_TRANSFER_BENCHMARK_SERVER
+#ifndef NDNC_APP_BENCHMARK_FT_SERVER_HPP
+#define NDNC_APP_BENCHMARK_FT_SERVER_HPP
 
 #include <ndn-cxx/encoding/block.hpp>
 
+#include "../common/file-metadata.hpp"
+#include "../common/naming-scheme.hpp"
 #include "face/packet-handler.hpp"
 
 namespace ndnc {
 namespace benchmark {
-namespace fileTransferServer {
+namespace ft {
 
-struct Options {
-    /**
-     * @brief Name prefix
-     *
-     */
-    std::string prefix = "/ndnc/transfer";
-
-    /**
-     * @brief Payload size
-     *
-     */
-    size_t payloadSize = 1024;
+struct ServerOptions {
+    size_t mtu = 9000;                                // Dataroom size
+    std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
 };
 
 class Runner : public PacketHandler,
                public std::enable_shared_from_this<Runner> {
   public:
-    explicit Runner(Face &face, Options options);
+    explicit Runner(Face &face, ServerOptions options);
+    ~Runner();
 
   private:
     void
     dequeueInterestPacket(const std::shared_ptr<const ndn::Interest> &interest,
                           const ndn::lp::PitToken &pitToken) final;
 
+    const ndn::Data getMetadataData(const ndn::Name name);
+    const ndn::Data getFileContentData(const ndn::Name name);
+
   private:
-    Options m_options;
+    ServerOptions m_options;
 
     ndn::Block m_payload;
     ndn::SignatureInfo m_signatureInfo;
 };
-}; // namespace fileTransferServer
+}; // namespace ft
 }; // namespace benchmark
 }; // namespace ndnc
 
-#endif // NDNC_APP_FILE_TRANSFER_BENCHMARK_SERVER
+#endif // NDNC_APP_BENCHMARK_FT_SERVER_HPP

@@ -26,43 +26,80 @@
  */
 
 #include <iostream>
+#include <math.h>
 
-#include <boost/lexical_cast.hpp>
-
-#include <ndn-cxx/signature-info.hpp>
-#include <ndn-cxx/util/sha256.hpp>
-
-#include "file-transfer-server.hpp"
+#include "ft-server.hpp"
 
 namespace ndnc {
 namespace benchmark {
-namespace fileTransferServer {
-Runner::Runner(Face &face, Options options)
+namespace ft {
+Runner::Runner(Face &face, ServerOptions options)
     : PacketHandler(face), m_options{options}, m_signatureInfo{} {
-    m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
 
     auto buff = std::make_unique<ndn::Buffer>();
-    buff->assign(m_options.payloadSize, 't');
+    buff->assign(6144, 'p');
     m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
+
+    m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
 }
+
+Runner::~Runner() {}
 
 void Runner::dequeueInterestPacket(
     const std::shared_ptr<const ndn::Interest> &interest,
     const ndn::lp::PitToken &pitToken) {
-    std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
-              << boost::lexical_cast<std::string>(pitToken) << " "
-              << interest->getName() << "\n";
 
-    auto data = ndn::Data(interest->getName());
+    auto name = interest->getName();
+    auto data =
+        isMetadataName(name) ? getMetadataData(name) : getFileContentData(name);
+
+    if (!enqueueDataPacket(std::move(data), pitToken)) {
+        std::cout << "WARN: Unable to put Data packet on face\n";
+    }
+}
+
+const ndn::Data Runner::getMetadataData(const ndn::Name name) {
+    std::cout << "INFO: Received META Interest: " << name.toUri() << "\n";
+
+    struct stat st;
+    auto retStat = stat(getFilePathFromMetadataName(name).c_str(), &st);
+
+    ndn::Data data = ndn::Data(name);
+
+    if (retStat == -1) {
+        std::cout << "WARN: Unable to get stat for file: "
+                  << getFilePathFromMetadataName(name) << "\n";
+        data.setContentType(ndn::tlv::ContentType_Nack);
+    } else {
+        struct FileMetadata content {};
+        content.version = 1;
+        content.st_mode = 0666 | S_IFREG;
+        content.st_size = 1000000000; // st.st_size;
+        content.st_mtimespec = st.st_mtim;
+        content.st_ctimespec = st.st_ctim;
+
+        data.setFinalBlock(ndn::Name::Component::fromSegment(
+            (uint64_t)(ceil(content.st_size / 6144))));
+
+        data.setContent(reinterpret_cast<uint8_t *>(&content),
+                        sizeof(struct FileMetadata));
+        data.setContentType(ndn::tlv::ContentType_Blob);
+    }
+
+    data.setSignatureInfo(m_signatureInfo);
+    data.setSignatureValue(std::make_shared<ndn::Buffer>());
+    return data;
+}
+
+const ndn::Data Runner::getFileContentData(const ndn::Name name) {
+    auto data = ndn::Data(name);
+
     data.setContent(m_payload);
     data.setContentType(ndn::tlv::ContentType_Blob);
     data.setSignatureInfo(m_signatureInfo);
     data.setSignatureValue(std::make_shared<ndn::Buffer>());
-
-    if (!enqueueDataPacket(std::move(data), pitToken)) {
-        std::cout << "ERROR: Unable to put Data\n";
-    }
+    return data;
 }
-}; // namespace fileTransferServer
+}; // namespace ft
 }; // namespace benchmark
 }; // namespace ndnc

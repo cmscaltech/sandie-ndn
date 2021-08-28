@@ -40,11 +40,11 @@ namespace server {
 Runner::Runner(Face &face, Options options)
     : PacketHandler(face), m_options{options}, m_counters{}, m_signatureInfo{} {
 
-    m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
-
     auto buff = std::make_unique<ndn::Buffer>();
     buff->assign(m_options.payloadLength, 'p');
     m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
+
+    m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
 }
 
 Runner::~Runner() {}

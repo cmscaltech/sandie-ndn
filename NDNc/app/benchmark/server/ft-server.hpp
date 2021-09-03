@@ -54,8 +54,8 @@ class Runner : public PacketHandler,
     dequeueInterestPacket(const std::shared_ptr<const ndn::Interest> &interest,
                           const ndn::lp::PitToken &pitToken) final;
 
-    const ndn::Data getMetadataData(const ndn::Name name);
-    const ndn::Data getFileContentData(const ndn::Name name);
+    ndn::Data getMetadataData(const ndn::Name name);
+    ndn::Data getFileContentData(const ndn::Name name);
 
   private:
     ServerOptions m_options;

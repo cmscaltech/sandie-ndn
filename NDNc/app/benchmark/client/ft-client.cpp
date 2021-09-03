@@ -79,6 +79,8 @@ void Runner::stop() {
 bool Runner::getFileMetadata() {
     auto interest =
         std::make_shared<ndn::Interest>(getNameForMetadata(m_options.file));
+    interest->setCanBePrefix(true);
+    interest->setMustBeFresh(true);
 
     // Express Interest
     RxQueue rxQueue;
@@ -136,7 +138,7 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
         ndn::Data data;
         if (!rxQueue.wait_dequeue_timed(data,
                                         m_options.lifetime.count() * 1000)) {
-            std::cout << "Request timeout for META Interest";
+            std::cout << "Request timeout for Interest";
             break;
         }
         m_counters.nData.fetch_add(1, std::memory_order_release);
@@ -148,7 +150,6 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
 
 int Runner::expressInterests(std::shared_ptr<ndn::Interest> interest,
                              RxQueue *rxQueue) {
-    interest->setMustBeFresh(false);
     interest->setInterestLifetime(m_options.lifetime);
 
     if (!m_pipeline->enqueueInterestPacket(std::move(interest), rxQueue)) {

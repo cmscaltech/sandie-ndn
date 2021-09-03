@@ -54,12 +54,15 @@ void Runner::dequeueInterestPacket(
     auto data =
         isMetadataName(name) ? getMetadataData(name) : getFileContentData(name);
 
+    data.setSignatureInfo(m_signatureInfo);
+    data.setSignatureValue(std::make_shared<ndn::Buffer>());
+
     if (!enqueueDataPacket(std::move(data), pitToken)) {
         std::cout << "WARN: Unable to put Data packet on face\n";
     }
 }
 
-const ndn::Data Runner::getMetadataData(const ndn::Name name) {
+ndn::Data Runner::getMetadataData(const ndn::Name name) {
     std::cout << "INFO: Received META Interest: " << name.toUri() << "\n";
 
     ndn::Data data = ndn::Data(name);
@@ -88,18 +91,15 @@ const ndn::Data Runner::getMetadataData(const ndn::Name name) {
         data.setContentType(ndn::tlv::ContentType_Blob);
     }
 
-    data.setSignatureInfo(m_signatureInfo);
-    data.setSignatureValue(std::make_shared<ndn::Buffer>());
+    data.setFreshnessPeriod(ndn::time::milliseconds{2});
     return data;
 }
 
-const ndn::Data Runner::getFileContentData(const ndn::Name name) {
+ndn::Data Runner::getFileContentData(const ndn::Name name) {
     auto data = ndn::Data(name);
 
     data.setContent(m_payload);
     data.setContentType(ndn::tlv::ContentType_Blob);
-    data.setSignatureInfo(m_signatureInfo);
-    data.setSignatureValue(std::make_shared<ndn::Buffer>());
     return data;
 }
 }; // namespace ft

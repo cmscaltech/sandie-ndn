@@ -120,13 +120,14 @@ bool Runner::getFileMetadata() {
     return false;
 }
 
+// TODO: Improve this - express multiple Interests before waiting
 void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
     RxQueue rxQueue;
-    uint64_t segmentNo = 0;
+    uint64_t segmentNo = tid;
 
-    while (segmentNo <= m_finalBlockId) {
+    while (segmentNo < m_finalBlockId) {
         auto interest = std::make_shared<ndn::Interest>(getNameWithSegment(
-            m_options.file, segmentNo++, m_fileMetadata->version));
+            m_options.file, segmentNo, m_fileMetadata->version));
 
         if (expressInterests(interest, &rxQueue) == 0) {
             break;
@@ -141,6 +142,7 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
         m_counters.nData.fetch_add(1, std::memory_order_release);
 
         onProgress(data.getContent().size());
+        segmentNo += m_options.nthreads;
     }
 }
 

@@ -34,10 +34,11 @@ namespace ndnc {
 namespace benchmark {
 namespace ft {
 Runner::Runner(Face &face, ServerOptions options)
-    : PacketHandler(face), m_options{options}, m_signatureInfo{} {
+    : PacketHandler(face), m_options{options},
+      m_payloadLength(6144), m_signatureInfo{} {
 
     auto buff = std::make_unique<ndn::Buffer>();
-    buff->assign(6144, 'p');
+    buff->assign(m_payloadLength, 'p');
     m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
 
     m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
@@ -61,25 +62,26 @@ void Runner::dequeueInterestPacket(
 const ndn::Data Runner::getMetadataData(const ndn::Name name) {
     std::cout << "INFO: Received META Interest: " << name.toUri() << "\n";
 
-    struct stat st;
-    auto retStat = stat(getFilePathFromMetadataName(name).c_str(), &st);
-
     ndn::Data data = ndn::Data(name);
+
+    struct stat sb;
+    auto retStat = stat(getFilePathFromMetadataName(name).c_str(), &sb);
 
     if (retStat == -1) {
         std::cout << "WARN: Unable to get stat for file: "
                   << getFilePathFromMetadataName(name) << "\n";
+
         data.setContentType(ndn::tlv::ContentType_Nack);
+        data.setContent(nullptr, 0);
     } else {
         struct FileMetadata content {};
+        content.payload_length = m_payloadLength;
         content.version = 1;
-        content.st_mode = 0666 | S_IFREG;
-        content.st_size = 1000000000; // st.st_size;
-        content.st_mtimespec = st.st_mtim;
-        content.st_ctimespec = st.st_ctim;
+        content.st_size = 100000000; // sb.st_size;
+        content.st_mtimespec = sb.st_mtime;
 
-        data.setFinalBlock(ndn::Name::Component::fromSegment(
-            (uint64_t)(ceil(content.st_size / 6144))));
+        data.setFinalBlock(ndn::Name::Component::fromSegment((uint64_t)(ceil(
+            (double)content.st_size / (double)m_payloadLength))));
 
         data.setContent(reinterpret_cast<uint8_t *>(&content),
                         sizeof(struct FileMetadata));

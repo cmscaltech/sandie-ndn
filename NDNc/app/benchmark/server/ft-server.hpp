@@ -60,6 +60,7 @@ class Runner : public PacketHandler,
   private:
     ServerOptions m_options;
 
+    uint64_t m_payloadLength;
     ndn::Block m_payload;
     ndn::SignatureInfo m_signatureInfo;
 };

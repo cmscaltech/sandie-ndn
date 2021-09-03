@@ -121,18 +121,14 @@ int main(int argc, char **argv) {
         face->loop();
     }
 
-    // TODO
-    // #ifdef DEBUG
-    //     if (face != nullptr) {
-    //         ss << "\"face counters\": { ";
-    //         ss << "\"nTxPackets\": " << face->readCounters().nTxPackets << ",
-    //         "; ss << "\"nTxBytes\": " << face->readCounters().nTxBytes << ",
-    //         "; ss << "\"nRxPackets\": " << face->readCounters().nRxPackets <<
-    //         ", "; ss << "\"nRxBytes\": " << face->readCounters().nRxBytes <<
-    //         ", "; ss << "\"nErrors\": " << face->readCounters().nErrors << "
-    //         },\n";
-    //     }
-    // #endif // DEBUG
+#ifdef DEBUG
+    cout << "\n--- face statistics --\n"
+         << face->readCounters().nTxPackets << " packets transmitted, "
+         << face->readCounters().nRxPackets << " packets received\n"
+         << face->readCounters().nTxBytes << " bytes transmitted, "
+         << face->readCounters().nRxBytes << " bytes received "
+         << "with " << face->readCounters().nErrors << " errors\n";
+#endif // DEBUG
 
     if (server != nullptr) {
         delete server;

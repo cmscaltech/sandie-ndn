@@ -63,9 +63,11 @@ void Runner::run(NotifyProgressStatus onProgress) {
 }
 
 void Runner::wait() {
-    for (auto i = 0; i < m_options.nthreads; ++i) {
-        if (m_workers[i].joinable()) {
-            m_workers[i].join();
+    if (!m_workers.empty()) {
+        for (auto i = 0; i < m_options.nthreads; ++i) {
+            if (m_workers[i].joinable()) {
+                m_workers[i].join();
+            }
         }
     }
 }
@@ -77,8 +79,6 @@ void Runner::stop() {
 bool Runner::getFileMetadata() {
     auto interest =
         std::make_shared<ndn::Interest>(getNameForMetadata(m_options.file));
-    interest->setMustBeFresh(true);
-    interest->setInterestLifetime(m_options.lifetime);
 
     // Express Interest
     RxQueue rxQueue;
@@ -89,24 +89,35 @@ bool Runner::getFileMetadata() {
     // Wait for Data
     ndn::Data data;
     if (!rxQueue.wait_dequeue_timed(data, m_options.lifetime.count() * 1000)) {
-        std::cout << "Request timeout for META Interest";
+        std::cout << "Request timeout for META Interest\n";
         return false;
     }
 
     m_counters.nData.fetch_add(1, std::memory_order_release);
 
     if (data.getContentType() != ndn::tlv::ContentType_Nack) {
-        std::cout << "INFO: File: " << m_options.file << " opened\n";
         m_fileMetadata = reinterpret_cast<const struct FileMetadata *>(
             (data.getContent().value()));
 
-        m_finalBlockId = data.getFinalBlock().value().toSegment();
+        std::cout << "INFO: " << m_options.file
+                  << " size: " << m_fileMetadata->st_size
+                  << " bytes, mtime: " << m_fileMetadata->st_mtimespec
+                  << ", version: " << m_fileMetadata->version << "\n";
+
+        if (data.getFinalBlock()) {
+            m_finalBlockId = data.getFinalBlock().value().toSegment();
+            std::cout << "INFO: finalBlockId = " << m_finalBlockId << "\n";
+
+            return true;
+        } else {
+            std::cout
+                << "FATAL: Metadata packet does not have FinalBlockId set\n";
+        }
     } else {
         std::cout << "FATAL: Could not open file: " << m_options.file << "\n";
-        return false;
     }
 
-    return true;
+    return false;
 }
 
 void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
@@ -115,9 +126,7 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
 
     while (segmentNo <= m_finalBlockId) {
         auto interest = std::make_shared<ndn::Interest>(getNameWithSegment(
-            m_options.file, segmentNo, m_fileMetadata->version));
-        interest->setMustBeFresh(false);
-        interest->setInterestLifetime(m_options.lifetime);
+            m_options.file, segmentNo++, m_fileMetadata->version));
 
         if (expressInterests(interest, &rxQueue) == 0) {
             break;
@@ -130,12 +139,16 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
             break;
         }
         m_counters.nData.fetch_add(1, std::memory_order_release);
+
         onProgress(data.getContent().size());
     }
 }
 
-int Runner::expressInterests(std::shared_ptr<const ndn::Interest> interest,
+int Runner::expressInterests(std::shared_ptr<ndn::Interest> interest,
                              RxQueue *rxQueue) {
+    interest->setMustBeFresh(false);
+    interest->setInterestLifetime(m_options.lifetime);
+
     if (!m_pipeline->enqueueInterestPacket(std::move(interest), rxQueue)) {
         std::cout << "FATAL: unable to enqueue Interest packet: "
                   << interest->getName() << "\n";

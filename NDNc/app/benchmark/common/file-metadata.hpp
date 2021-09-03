@@ -34,13 +34,12 @@
 namespace ndnc {
 namespace benchmark {
 struct FileMetadata {
-    uint64_t version; // NDN Name file version
+    uint64_t payload_length; // server payload size
+    uint64_t version;        // NDN Name file version
 
     /* POSIX `struct stat` specific data */
-    mode_t st_mode;               // File type and mode
-    off_t st_size;                // Total size, in bytes
-    struct timespec st_mtimespec; // Time of last modification
-    struct timespec st_ctimespec; // Time of last status change
+    uint64_t st_size;    // total size, in bytes
+    time_t st_mtimespec; // time of last modification
 };
 }; // namespace benchmark
 }; // namespace ndnc

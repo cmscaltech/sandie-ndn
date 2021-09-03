@@ -38,8 +38,6 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
-#include <nlohmann/json.hpp>
-
 #include "ft-client.hpp"
 
 using namespace std;
@@ -193,46 +191,24 @@ int main(int argc, char *argv[]) {
                         (duration / std::chrono::nanoseconds(1)) * 1000000000;
 #endif
 
-    std::stringstream ss;
-    ss << "{\n";
-
-    if (client != nullptr) {
-        ss << "\"client counters\": { ";
-        ss << "\"nInterest\": " << client->readCounters().nInterest << ", ";
-        ss << "\"nData\": " << client->readCounters().nData << ", ";
-        ss << "\"Goodput\": \"" << humanReadableSize(goodput, 'b');
+    cout << "\n--- statistics --\n"
+         << client->readCounters().nInterest << " packets transmitted, "
+         << client->readCounters().nData << " packets received\n"
+         << "goodput: " << humanReadableSize(goodput, 'b') << "/s"
 #ifdef DEBUG
-        ss << "/s\", \"Throughput\": \"" << humanReadableSize(throughput, 'b');
+         << ", throughput: " << humanReadableSize(throughput, 'b') << "/s\n";
+#else
+         << "\n";
 #endif
-        ss << "/s\" },\n";
-    }
+
 #ifdef DEBUG
-    if (face != nullptr) {
-        ss << "\"face counters\": { ";
-        ss << "\"nTxPackets\": " << face->readCounters().nTxPackets << ", ";
-        ss << "\"nTxBytes\": " << face->readCounters().nTxBytes << ", ";
-        ss << "\"nRxPackets\": " << face->readCounters().nRxPackets << ", ";
-        ss << "\"nRxBytes\": " << face->readCounters().nRxBytes << ", ";
-        ss << "\"nErrors\": " << face->readCounters().nErrors << " },\n";
-    }
+    cout << "\n--- face statistics --\n"
+         << face->readCounters().nTxPackets << " packets transmitted, "
+         << face->readCounters().nRxPackets << " packets received\n"
+         << face->readCounters().nTxBytes << " bytes transmitted, "
+         << face->readCounters().nRxBytes << " bytes received "
+         << "with " << face->readCounters().nErrors << " errors\n";
 #endif // DEBUG
-
-    // TODO
-    // ss << "\"client options\": { ";
-    // ss << "\"nThreads\": " << opts.nThreads << ", ";
-    // ss << "\"prefix\": \"" << opts.prefix << "\", ";
-    // ss << "\"interest lifetime\": " << opts.interestLifetime.count() << ", ";
-    // ss << "\"payload size\": \"" << humanReadableSize(opts.dataPayloadSize)
-    //    << "\", ";
-    // ss << "\"file path\": \"" << opts.filePath << "\", ";
-    // ss << "\"file size\": \"" << humanReadableSize(opts.fileSize) << "\", ";
-    // ss << "\"file read chunk\": \"" << humanReadableSize(opts.fileReadChunk)
-    //    << "\" }\n";
-    // ss << "}\n";
-
-    cout << std::setfill('*') << std::setw(80) << "\n";
-    cout << nlohmann::json::parse(ss.str()).dump(4) << "\n";
-    cout << std::setfill('*') << std::setw(80) << "\n";
 
     if (client != nullptr) {
         delete client;

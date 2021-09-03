@@ -38,9 +38,8 @@ static const std::string namePrefixUri = std::string("/ndnc/ft");
 static const ndn::Name namePrefix = ndn::Name(namePrefixUri);
 static const uint8_t namePrefixNoComponents = 2;
 
-static const std::string metadataNameSuffixUri = std::string("META");
 static const ndn::Name::Component metadataNameSuffixComponent =
-    ndn::Name::Component::fromEscapedString(metadataNameSuffixUri);
+    ndn::Name::Component::fromEscapedString("32=metadata");
 
 inline static const ndn::Name getNameForMetadata(std::string filePath) {
     return ndn::Name(namePrefixUri + filePath)

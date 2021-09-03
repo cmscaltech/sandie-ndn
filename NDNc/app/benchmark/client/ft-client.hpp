@@ -43,7 +43,7 @@ struct ClientOptions {
     size_t mtu = 9000;                                // Dataroom size
     std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
     ndn::time::milliseconds lifetime =
-        ndn::time::seconds{1}; // Interest lifetime
+        ndn::time::seconds{2}; // Interest lifetime
 
     std::string file;      // File path
     uint16_t nthreads = 1; // Number of worker threads to request packets
@@ -73,7 +73,7 @@ class Runner : public std::enable_shared_from_this<Runner> {
     bool getFileMetadata();
     void getFileContent(int tid, NotifyProgressStatus onProgress);
 
-    int expressInterests(std::shared_ptr<const ndn::Interest> interest,
+    int expressInterests(std::shared_ptr<ndn::Interest> interest,
                          RxQueue *rxQueue);
 
   private:

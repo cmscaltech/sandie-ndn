@@ -38,7 +38,7 @@ namespace benchmark {
 namespace ft {
 Runner::Runner(Face &face, ClientOptions options)
     : m_options(options), m_counters(), m_fileMetadata(nullptr),
-      m_finalBlockId(0), m_stop(false) {
+      m_finalBlockId(0), m_chunk(64), m_stop(false) {
     m_pipeline = new Pipeline(face);
 }
 
@@ -122,29 +122,41 @@ bool Runner::getFileMetadata() {
     return false;
 }
 
-// TODO: Improve this - express multiple Interests before waiting
 void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
     RxQueue rxQueue;
     uint64_t segmentNo = tid;
 
     while (segmentNo < m_finalBlockId) {
-        auto interest = std::make_shared<ndn::Interest>(getNameWithSegment(
-            m_options.file, segmentNo, m_fileMetadata->version));
+        uint8_t nTx = 0;
 
-        if (expressInterests(interest, &rxQueue) == 0) {
-            break;
+        for (auto i = 0; i < m_chunk && segmentNo < m_finalBlockId; ++i) {
+            auto interest = std::make_shared<ndn::Interest>(getNameWithSegment(
+                m_options.file, segmentNo, m_fileMetadata->version));
+            segmentNo += m_options.nthreads;
+
+            if (expressInterests(interest, &rxQueue) == 0) {
+                break;
+            } else {
+                ++nTx;
+            }
         }
 
-        ndn::Data data;
-        if (!rxQueue.wait_dequeue_timed(data,
-                                        m_options.lifetime.count() * 1000)) {
-            std::cout << "Request timeout for Interest";
-            break;
-        }
-        m_counters.nData.fetch_add(1, std::memory_order_release);
+        uint64_t nBytes = 0;
 
-        onProgress(data.getContent().size());
-        segmentNo += m_options.nthreads;
+        for (auto i = 0; i < nTx; ++i) {
+            ndn::Data data;
+            if (!rxQueue.wait_dequeue_timed(data, m_options.lifetime.count() *
+                                                      1000)) {
+                // TODO: Handle timeout
+                std::cout << "WARN: Request timeout for Interest";
+                break;
+            }
+
+            m_counters.nData.fetch_add(1, std::memory_order_release);
+            nBytes += data.getContent().size();
+        }
+
+        onProgress(nBytes);
     }
 }
 

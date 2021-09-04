@@ -82,6 +82,7 @@ class Runner : public std::enable_shared_from_this<Runner> {
 
     const struct FileMetadata *m_fileMetadata;
     uint64_t m_finalBlockId;
+    uint8_t m_chunk;
 
     std::vector<std::thread> m_workers;
     std::atomic_bool m_stop;

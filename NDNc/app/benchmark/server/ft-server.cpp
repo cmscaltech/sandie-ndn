@@ -80,7 +80,7 @@ ndn::Data Runner::getMetadataData(const ndn::Name name) {
         struct FileMetadata content {};
         content.payload_length = m_payloadLength;
         content.version = 1;
-        content.st_size = 100000000; // sb.st_size;
+        content.st_size = 2.5e+9; // sb.st_size;
         content.st_mtimespec = sb.st_mtime;
 
         data.setFinalBlock(ndn::Name::Component::fromSegment((uint64_t)(ceil(

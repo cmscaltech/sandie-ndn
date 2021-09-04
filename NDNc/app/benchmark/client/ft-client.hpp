@@ -57,11 +57,14 @@ class Runner : public std::enable_shared_from_this<Runner> {
     struct Counters {
         std::atomic<uint64_t> nInterest = 0;
         std::atomic<uint64_t> nData = 0;
+        std::atomic<uint64_t> nTimeout = 0;
     };
 
   public:
     explicit Runner(Face &face, ClientOptions options);
     ~Runner();
+
+    uint64_t getFileMetadata();
 
     void run(NotifyProgressStatus onProgress);
     void wait();
@@ -70,7 +73,6 @@ class Runner : public std::enable_shared_from_this<Runner> {
     Counters &readCounters();
 
   private:
-    bool getFileMetadata();
     void getFileContent(int tid, NotifyProgressStatus onProgress);
 
     int expressInterests(std::shared_ptr<ndn::Interest> interest,

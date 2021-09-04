@@ -39,8 +39,10 @@
 #include <boost/program_options/variables_map.hpp>
 
 #include "ft-client.hpp"
+#include "indicators.hpp"
 
 using namespace std;
+using namespace indicators;
 namespace po = boost::program_options;
 
 static ndnc::benchmark::ft::Runner *client;
@@ -88,7 +90,8 @@ int main(int argc, char *argv[]) {
         "GraphQL server address");
     description.add_options()(
         "lifetime",
-        po::value<ndn::time::milliseconds::rep>()->default_value(1000),
+        po::value<ndn::time::milliseconds::rep>()->default_value(
+            opts.lifetime.count()),
         "Interest lifetime in milliseconds. Specify a positive integer");
     description.add_options()(
         "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
@@ -173,11 +176,25 @@ int main(int argc, char *argv[]) {
 
     client = new ndnc::benchmark::ft::Runner(*face, opts);
 
+    auto fileSize = client->getFileMetadata();
+    if (fileSize == 0) {
+        return 0;
+    }
+
+    BlockProgressBar bar{
+        option::BarWidth{80}, option::PrefixText{"Downloading "},
+        option::ShowPercentage{true}, option::MaxProgress{fileSize}};
+    show_console_cursor(true);
+
     auto start = std::chrono::high_resolution_clock::now();
     std::atomic<uint64_t> totalProgress = 0;
 
     client->run([&](uint64_t progress) {
         totalProgress.fetch_add(progress, std::memory_order_release);
+        bar.set_progress(totalProgress);
+        bar.set_option(option::PostfixText{to_string(totalProgress) + "/" +
+                                           to_string(fileSize)});
+        bar.tick();
     });
 
     client->wait();
@@ -193,7 +210,8 @@ int main(int argc, char *argv[]) {
 
     cout << "\n--- statistics --\n"
          << client->readCounters().nInterest << " packets transmitted, "
-         << client->readCounters().nData << " packets received\n"
+         << client->readCounters().nData << " packets received, "
+         << client->readCounters().nTimeout << " timeouts\n"
          << "goodput: " << humanReadableSize(goodput, 'b') << "/s"
 #ifdef DEBUG
          << ", throughput: " << humanReadableSize(throughput, 'b') << "/s\n";

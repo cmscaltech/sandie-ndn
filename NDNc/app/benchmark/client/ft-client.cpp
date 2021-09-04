@@ -52,10 +52,6 @@ Runner::~Runner() {
 }
 
 void Runner::run(NotifyProgressStatus onProgress) {
-    if (!getFileMetadata()) {
-        return;
-    }
-
     for (auto i = 0; i < m_options.nthreads; ++i) {
         m_workers.push_back(
             std::thread(&Runner::getFileContent, this, i, onProgress));
@@ -63,20 +59,22 @@ void Runner::run(NotifyProgressStatus onProgress) {
 }
 
 void Runner::wait() {
-    if (!m_workers.empty()) {
-        for (auto i = 0; i < m_options.nthreads; ++i) {
-            if (m_workers[i].joinable()) {
-                m_workers[i].join();
-            }
+    if (m_workers.empty()) {
+        return;
+    }
+    for (auto i = 0; i < m_options.nthreads; ++i) {
+        if (m_workers[i].joinable()) {
+            m_workers[i].join();
         }
     }
 }
 
 void Runner::stop() {
     m_stop = true;
+    m_pipeline->stop();
 }
 
-bool Runner::getFileMetadata() {
+uint64_t Runner::getFileMetadata() {
     auto interest =
         std::make_shared<ndn::Interest>(getNameForMetadata(m_options.file));
     interest->setCanBePrefix(true);
@@ -85,75 +83,85 @@ bool Runner::getFileMetadata() {
     // Express Interest
     RxQueue rxQueue;
     if (expressInterests(interest, &rxQueue) == 0) {
-        return false;
+        return 0;
+    }
+
+    if (m_stop) {
+        return 0;
     }
 
     // Wait for Data
     ndn::Data data;
     if (!rxQueue.wait_dequeue_timed(data, m_options.lifetime.count() * 1000)) {
         std::cout << "Request timeout for META Interest\n";
-        return false;
-    }
-
-    m_counters.nData.fetch_add(1, std::memory_order_release);
-
-    if (data.getContentType() != ndn::tlv::ContentType_Nack) {
-        m_fileMetadata = reinterpret_cast<const struct FileMetadata *>(
-            (data.getContent().value()));
-
-        std::cout << "INFO: " << m_options.file
-                  << " size: " << m_fileMetadata->st_size
-                  << " bytes, mtime: " << m_fileMetadata->st_mtimespec
-                  << ", version: " << m_fileMetadata->version << "\n";
-
-        if (data.getFinalBlock()) {
-            m_finalBlockId = data.getFinalBlock().value().toSegment();
-            std::cout << "INFO: finalBlockId = " << m_finalBlockId << "\n";
-
-            return true;
-        } else {
-            std::cout
-                << "FATAL: Metadata packet does not have FinalBlockId set\n";
-        }
+        m_counters.nTimeout.fetch_add(1, std::memory_order_release);
+        return 0;
     } else {
-        std::cout << "FATAL: Could not open file: " << m_options.file << "\n";
+        m_counters.nData.fetch_add(1, std::memory_order_release);
     }
 
-    return false;
+    if (data.getContentType() == ndn::tlv::ContentType_Nack) {
+        std::cout << "FATAL: Could not open file: " << m_options.file << "\n";
+        return 0;
+    }
+
+    m_fileMetadata = reinterpret_cast<const struct FileMetadata *>(
+        (data.getContent().value()));
+
+    std::cout << "INFO: " << m_options.file
+              << " size: " << m_fileMetadata->st_size
+              << " bytes, mtime: " << m_fileMetadata->st_mtimespec
+              << ", version: " << m_fileMetadata->version << "\n";
+
+    if (data.getFinalBlock()) {
+        m_finalBlockId = data.getFinalBlock().value().toSegment();
+        std::cout << "INFO: finalBlockId = " << m_finalBlockId << "\n";
+        return m_fileMetadata->st_size;
+    } else {
+        std::cout << "FATAL: Metadata packet does not have FinalBlockId set\n";
+    }
+
+    return 0;
 }
 
 void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
     RxQueue rxQueue;
     uint64_t segmentNo = tid;
 
-    while (segmentNo < m_finalBlockId) {
+    while (segmentNo < m_finalBlockId && !m_stop) {
         uint8_t nTx = 0;
 
-        for (auto i = 0; i < m_chunk && segmentNo < m_finalBlockId; ++i) {
+        for (auto i = 0; i < m_chunk && segmentNo < m_finalBlockId && !m_stop;
+             ++i) {
             auto interest = std::make_shared<ndn::Interest>(getNameWithSegment(
                 m_options.file, segmentNo, m_fileMetadata->version));
-            segmentNo += m_options.nthreads;
 
             if (expressInterests(interest, &rxQueue) == 0) {
                 break;
             } else {
+                segmentNo += m_options.nthreads;
                 ++nTx;
             }
         }
 
+        if (m_stop) {
+            return;
+        }
+
         uint64_t nBytes = 0;
 
-        for (auto i = 0; i < nTx; ++i) {
+        for (auto i = 0; i < nTx && !m_stop; ++i) {
             ndn::Data data;
             if (!rxQueue.wait_dequeue_timed(data, m_options.lifetime.count() *
                                                       1000)) {
                 // TODO: Handle timeout
                 std::cout << "WARN: Request timeout for Interest";
+                m_counters.nTimeout.fetch_add(1, std::memory_order_release);
                 break;
+            } else {
+                m_counters.nData.fetch_add(1, std::memory_order_release);
+                nBytes += data.getContent().value_size();
             }
-
-            m_counters.nData.fetch_add(1, std::memory_order_release);
-            nBytes += data.getContent().size();
         }
 
         onProgress(nBytes);

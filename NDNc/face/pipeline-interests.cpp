@@ -57,7 +57,6 @@ Pipeline::~Pipeline() {
 
 void Pipeline::run() {
     while (!m_stop && !m_hasError) {
-        // std::this_thread::sleep_for(std::chrono::nanoseconds(10));
         m_face->loop();
 
         if (!this->processTxQueue()) {
@@ -98,7 +97,8 @@ bool Pipeline::processTxQueue() {
     }
 
     m_pendingInterestsTable[value] = task.rxQueue;
-    if (!m_face->expressInterest(std::move(task.interest), std::move(token))) {
+    if (!m_stop &&
+        !m_face->expressInterest(std::move(task.interest), std::move(token))) {
         std::cout << "FATAL: unable to express Interest on face\n";
         m_hasError = true;
         m_pendingInterestsTable.erase(value);

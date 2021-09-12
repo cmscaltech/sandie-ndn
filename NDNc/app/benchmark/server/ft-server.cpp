@@ -34,11 +34,10 @@ namespace ndnc {
 namespace benchmark {
 namespace ft {
 Runner::Runner(Face &face, ServerOptions options)
-    : PacketHandler(face), m_options{options},
-      m_payloadLength(6144), m_signatureInfo{} {
+    : PacketHandler(face), m_options{options}, m_signatureInfo{} {
 
     auto buff = std::make_unique<ndn::Buffer>();
-    buff->assign(m_payloadLength, 'p');
+    buff->assign(m_options.segmentSize, 'p');
     m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
 
     m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
@@ -66,7 +65,7 @@ ndn::Data Runner::getMetadataData(const ndn::Name name) {
     std::cout << "INFO: Received META Interest: " << name.toUri() << "\n";
 
     ndn::Data data = ndn::Data(name);
-    FileMetadata metadata{m_payloadLength};
+    FileMetadata metadata{m_options.segmentSize};
 
     if (metadata.prepare(getFilePathFromMetadataName(name))) {
         data.setContent(metadata.encode());

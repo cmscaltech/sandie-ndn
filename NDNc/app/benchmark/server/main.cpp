@@ -63,6 +63,14 @@ int main(int argc, char **argv) {
     description.add_options()(
         "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
         "Dataroom size. Specify a positive integer between 64 and 9000");
+    description.add_options()(
+        "segment-size",
+        po::value<size_t>(&opts.segmentSize)->default_value(opts.segmentSize),
+        string("The maximum segment size of each Data packet that has "
+               "content from a file. Specify a positive integer smaller or "
+               "equal to " +
+               to_string(ndn::MAX_NDN_PACKET_SIZE))
+            .c_str());
     description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
@@ -95,6 +103,14 @@ int main(int argc, char **argv) {
     if (vm.count("gqlserver") > 0) {
         if (opts.gqlserver.empty()) {
             cerr << "ERROR: Empty gqlserver argument value\n\n";
+            usage(cout, description);
+            return 2;
+        }
+    }
+
+    if (vm.count("segment-size") > 0) {
+        if (opts.segmentSize > ndn::MAX_NDN_PACKET_SIZE) {
+            cerr << "ERROR: Invalid segment size value\n\n";
             usage(cout, description);
             return 2;
         }

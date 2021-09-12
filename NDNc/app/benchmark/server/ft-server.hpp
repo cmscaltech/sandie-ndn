@@ -38,6 +38,7 @@ namespace benchmark {
 namespace ft {
 
 struct ServerOptions {
+    size_t segmentSize = 6600;
     size_t mtu = 9000;                                // Dataroom size
     std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
 };
@@ -58,8 +59,6 @@ class Runner : public PacketHandler,
 
   private:
     ServerOptions m_options;
-
-    uint64_t m_payloadLength;
     ndn::Block m_payload;
     ndn::SignatureInfo m_signatureInfo;
 };

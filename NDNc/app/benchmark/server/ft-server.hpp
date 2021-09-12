@@ -31,7 +31,6 @@
 #include <ndn-cxx/encoding/block.hpp>
 
 #include "../common/file-metadata.hpp"
-#include "../common/naming-scheme.hpp"
 #include "face/packet-handler.hpp"
 
 namespace ndnc {

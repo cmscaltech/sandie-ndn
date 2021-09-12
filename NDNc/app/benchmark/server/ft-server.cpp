@@ -66,29 +66,14 @@ ndn::Data Runner::getMetadataData(const ndn::Name name) {
     std::cout << "INFO: Received META Interest: " << name.toUri() << "\n";
 
     ndn::Data data = ndn::Data(name);
+    FileMetadata metadata{m_payloadLength};
 
-    struct stat sb;
-    auto retStat = stat(getFilePathFromMetadataName(name).c_str(), &sb);
-
-    if (retStat == -1) {
-        std::cout << "WARN: Unable to get stat for file: "
-                  << getFilePathFromMetadataName(name) << "\n";
-
-        data.setContentType(ndn::tlv::ContentType_Nack);
-        data.setContent(nullptr, 0);
-    } else {
-        struct FileMetadata content {};
-        content.payload_length = m_payloadLength;
-        content.version = 1;
-        content.st_size = 1536e+6; // sb.st_size;
-        content.st_mtimespec = sb.st_mtime;
-
-        data.setFinalBlock(ndn::Name::Component::fromSegment((uint64_t)(ceil(
-            (double)content.st_size / (double)m_payloadLength))));
-
-        data.setContent(reinterpret_cast<uint8_t *>(&content),
-                        sizeof(struct FileMetadata));
+    if (metadata.prepare(getFilePathFromMetadataName(name))) {
+        data.setContent(metadata.encode());
         data.setContentType(ndn::tlv::ContentType_Blob);
+    } else {
+        data.setContent(nullptr, 0);
+        data.setContentType(ndn::tlv::ContentType_Nack);
     }
 
     data.setFreshnessPeriod(ndn::time::milliseconds{2});

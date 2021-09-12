@@ -32,7 +32,6 @@
 #include <vector>
 
 #include "../common/file-metadata.hpp"
-#include "../common/naming-scheme.hpp"
 #include "face/pipeline-interests.hpp"
 
 namespace ndnc {
@@ -82,8 +81,7 @@ class Runner : public std::enable_shared_from_this<Runner> {
     ClientOptions m_options;
     Counters m_counters;
 
-    const struct FileMetadata *m_fileMetadata;
-    uint64_t m_finalBlockId;
+    FileMetadata m_fileMetadata;
     uint8_t m_chunk;
 
     std::vector<std::thread> m_workers;

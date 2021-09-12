@@ -178,7 +178,8 @@ int main(int argc, char *argv[]) {
 
     auto fileSize = client->getFileMetadata();
     if (fileSize == 0) {
-        return 0;
+        client->stop();
+        return -2;
     }
 
     BlockProgressBar bar{

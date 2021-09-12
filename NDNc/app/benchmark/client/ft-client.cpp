@@ -37,8 +37,7 @@ namespace ndnc {
 namespace benchmark {
 namespace ft {
 Runner::Runner(Face &face, ClientOptions options)
-    : m_options(options), m_counters(), m_fileMetadata(nullptr),
-      m_finalBlockId(0), m_chunk(64), m_stop(false) {
+    : m_options(options), m_counters(), m_chunk(64), m_stop(false) {
     m_pipeline = new Pipeline(face);
 }
 
@@ -100,41 +99,40 @@ uint64_t Runner::getFileMetadata() {
         m_counters.nData.fetch_add(1, std::memory_order_release);
     }
 
-    if (data.getContentType() == ndn::tlv::ContentType_Nack) {
+    if (!data.hasContent() ||
+        data.getContentType() == ndn::tlv::ContentType_Nack) {
         std::cout << "FATAL: Could not open file: " << m_options.file << "\n";
         return 0;
     }
 
-    m_fileMetadata = reinterpret_cast<const struct FileMetadata *>(
-        (data.getContent().value()));
+    m_fileMetadata = FileMetadata(data.getContent());
 
-    std::cout << "INFO: " << m_options.file
-              << " size: " << m_fileMetadata->st_size
-              << " bytes, mtime: " << m_fileMetadata->st_mtimespec
-              << ", version: " << m_fileMetadata->version << "\n";
+    std::cout << "DEBUG: " << m_options.file << "metadata:"
+              << "\nversioned name: " << m_fileMetadata.getVersionedName()
+              << "\nsegment size: " << m_fileMetadata.getSegmentSize()
+              << "\nlast segment: " << m_fileMetadata.getLastSegment()
+              << "\nfile size: " << m_fileMetadata.getFileSize()
+              << "\nfile mode: " << m_fileMetadata.getMode()
+              << "\natime: " << m_fileMetadata.getAtimeAsInt()
+              << "\nbtime: " << m_fileMetadata.getBtimeAsInt()
+              << "\nctime: " << m_fileMetadata.getCtimeAsInt()
+              << "\namtime: " << m_fileMetadata.getMtimeAsInt() << "\n";
 
-    if (data.getFinalBlock()) {
-        m_finalBlockId = data.getFinalBlock().value().toSegment();
-        std::cout << "INFO: finalBlockId = " << m_finalBlockId << "\n";
-        return m_fileMetadata->st_size;
-    } else {
-        std::cout << "FATAL: Metadata packet does not have FinalBlockId set\n";
-    }
-
-    return 0;
+    return m_fileMetadata.getFileSize();
 }
 
 void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
     RxQueue rxQueue;
     uint64_t segmentNo = tid;
 
-    while (segmentNo < m_finalBlockId && !m_stop) {
+    while (segmentNo < m_fileMetadata.getLastSegment() && !m_stop) {
         uint8_t nTx = 0;
 
-        for (auto i = 0; i < m_chunk && segmentNo < m_finalBlockId && !m_stop;
+        for (auto i = 0; i < m_chunk &&
+                         segmentNo < m_fileMetadata.getLastSegment() && !m_stop;
              ++i) {
-            auto interest = std::make_shared<ndn::Interest>(getNameWithSegment(
-                m_options.file, segmentNo, m_fileMetadata->version));
+            auto interest = std::make_shared<ndn::Interest>(
+                m_fileMetadata.getVersionedName().appendSegment(segmentNo));
 
             if (expressInterests(interest, &rxQueue) == 0) {
                 break;

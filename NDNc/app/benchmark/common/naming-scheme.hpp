@@ -46,14 +46,6 @@ inline static const ndn::Name getNameForMetadata(std::string filePath) {
         .append(metadataNameSuffixComponent);
 }
 
-inline static const ndn::Name getNameWithSegment(std::string filePath,
-                                                 uint64_t segmentNo,
-                                                 uint64_t fileVersion) {
-    return ndn::Name(namePrefixUri + filePath)
-        .appendVersion(fileVersion)
-        .appendSegment(segmentNo);
-}
-
 inline static const std::string
 getFilePathFromMetadataName(const ndn::Name name) {
     return name.getPrefix(-1).getSubName(namePrefixNoComponents).toUri();

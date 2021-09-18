@@ -25,7 +25,6 @@
  * SOFTWARE.
  */
 
-#include <algorithm>
 #include <iostream>
 
 #include <ndn-cxx/data.hpp>
@@ -112,11 +111,15 @@ uint64_t Runner::getFileMetadata() {
               << "\nsegment size: " << m_fileMetadata.getSegmentSize()
               << "\nlast segment: " << m_fileMetadata.getLastSegment()
               << "\nfile size: " << m_fileMetadata.getFileSize()
-              << "\nfile mode: " << m_fileMetadata.getMode()
-              << "\natime: " << m_fileMetadata.getAtimeAsInt()
-              << "\nbtime: " << m_fileMetadata.getBtimeAsInt()
-              << "\nctime: " << m_fileMetadata.getCtimeAsInt()
-              << "\namtime: " << m_fileMetadata.getMtimeAsInt() << "\n";
+              << "\nfile mode: " << m_fileMetadata.getMode() << "\natime: "
+              << m_fileMetadata.timestamp_to_string(m_fileMetadata.getAtime())
+              << "\nbtime: "
+              << m_fileMetadata.timestamp_to_string(m_fileMetadata.getBtime())
+              << "\nctime: "
+              << m_fileMetadata.timestamp_to_string(m_fileMetadata.getCtime())
+              << "\nmtime: "
+              << m_fileMetadata.timestamp_to_string(m_fileMetadata.getMtime())
+              << "\n";
 
     return m_fileMetadata.getFileSize();
 }

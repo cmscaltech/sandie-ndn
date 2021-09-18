@@ -67,7 +67,8 @@ class FileMetadata {
         }
 
         this->m_versionedName = getNameForMetadata(path).getPrefix(-1);
-        this->m_versionedName.appendVersion(timestampToNano(m_st.stx_mtime));
+        this->m_versionedName.appendVersion(
+            timestamp_to_uint64(m_st.stx_mtime));
 
         this->m_lastSegment =
             (uint64_t)(ceil((double)m_st.stx_size / m_segmentSize));
@@ -97,19 +98,19 @@ class FileMetadata {
 
         if (has(STATX_ATIME)) {
             content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
-                TtAtime, timestampToNano(this->m_st.stx_atime)));
+                TtAtime, timestamp_to_uint64(this->m_st.stx_atime)));
         }
         if (has(STATX_BTIME)) {
             content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
-                TtBtime, timestampToNano(this->m_st.stx_btime)));
+                TtBtime, timestamp_to_uint64(this->m_st.stx_btime)));
         }
         if (has(STATX_CTIME)) {
             content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
-                TtCtime, timestampToNano(this->m_st.stx_ctime)));
+                TtCtime, timestamp_to_uint64(this->m_st.stx_ctime)));
         }
 
         content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
-            TtMtime, timestampToNano(this->m_st.stx_mtime)));
+            TtMtime, timestamp_to_uint64(this->m_st.stx_mtime)));
 
         content.encode();
         return content;
@@ -131,38 +132,38 @@ class FileMetadata {
         this->m_st.stx_mode = ndn::readNonNegativeInteger(content.get(TtMode));
 
         if (content.find(TtAtime) != content.elements_end()) {
-            this->m_st.stx_atime = nanoToTimestamp(
+            this->m_st.stx_atime = uint64_to_timestamp(
                 ndn::readNonNegativeInteger(content.get(TtAtime)));
         } else {
-            this->m_st.stx_atime = nanoToTimestamp(0);
+            this->m_st.stx_atime = uint64_to_timestamp(0);
         }
 
         if (content.find(TtBtime) != content.elements_end()) {
-            this->m_st.stx_btime = nanoToTimestamp(
+            this->m_st.stx_btime = uint64_to_timestamp(
                 ndn::readNonNegativeInteger(content.get(TtBtime)));
         } else {
-            this->m_st.stx_btime = nanoToTimestamp(0);
+            this->m_st.stx_btime = uint64_to_timestamp(0);
         }
 
         if (content.find(TtCtime) != content.elements_end()) {
-            this->m_st.stx_ctime = nanoToTimestamp(
+            this->m_st.stx_ctime = uint64_to_timestamp(
                 ndn::readNonNegativeInteger(content.get(TtCtime)));
         } else {
-            this->m_st.stx_ctime = nanoToTimestamp(0);
+            this->m_st.stx_ctime = uint64_to_timestamp(0);
         }
 
-        this->m_st.stx_mtime =
-            nanoToTimestamp(ndn::readNonNegativeInteger(content.get(TtMtime)));
+        this->m_st.stx_mtime = uint64_to_timestamp(
+            ndn::readNonNegativeInteger(content.get(TtMtime)));
     }
 
   private:
     bool has(uint32_t bit) const { return (this->m_st.stx_mask & bit) == bit; }
 
-    uint64_t timestampToNano(struct statx_timestamp t) const {
+    uint64_t timestamp_to_uint64(struct statx_timestamp t) const {
         return static_cast<uint64_t>(t.tv_sec) * 1000000000 + t.tv_nsec;
     }
 
-    struct statx_timestamp nanoToTimestamp(uint64_t n) const {
+    struct statx_timestamp uint64_to_timestamp(uint64_t n) const {
         struct statx_timestamp t;
         t.tv_sec = static_cast<int64_t>((n - n % 1000000000) / 1000000000);
         t.tv_nsec = static_cast<uint32_t>(n % 1000000000);
@@ -192,10 +193,10 @@ class FileMetadata {
         return this->m_st.stx_mtime;
     }
 
-    uint64_t getAtimeAsInt() { return timestampToNano(this->m_st.stx_atime); }
-    uint64_t getBtimeAsInt() { return timestampToNano(this->m_st.stx_btime); }
-    uint64_t getCtimeAsInt() { return timestampToNano(this->m_st.stx_ctime); }
-    uint64_t getMtimeAsInt() { return timestampToNano(this->m_st.stx_mtime); }
+    std::string timestamp_to_string(struct statx_timestamp t) {
+        return "tv_sec(" + std::to_string(t.tv_sec) + ") tv_nsec(" +
+               std::to_string(t.tv_nsec) + ")";
+    }
 
   private:
     ndn::Name m_versionedName;

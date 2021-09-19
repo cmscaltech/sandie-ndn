@@ -211,8 +211,7 @@ int main(int argc, char *argv[]) {
 
     cout << "\n--- statistics --\n"
          << client->readCounters().nInterest << " packets transmitted, "
-         << client->readCounters().nData << " packets received, "
-         << client->readCounters().nTimeout << " timeouts\n"
+         << client->readCounters().nData << " packets received\n"
          << "goodput: " << humanReadableSize(goodput, 'b') << "/s"
 #ifdef DEBUG
          << ", throughput: " << humanReadableSize(throughput, 'b') << "/s\n";

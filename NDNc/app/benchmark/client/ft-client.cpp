@@ -92,10 +92,7 @@ uint64_t Runner::getFileMetadata() {
         }
 
         if (result.isError()) {
-            std::cout << "Got error for META Interest\n";
-            // TODO: convert nTimeout to nErrors and get nTimeouts from face
-            // counters
-            m_counters.nTimeout.fetch_add(1, std::memory_order_release);
+            std::cout << "ERROR: while processing META Interest in pipeline\n";
             return 0;
         }
 
@@ -161,8 +158,7 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
             }
 
             if (result.isError()) {
-                std::cout << "Error for read interest\n";
-                m_counters.nTimeout.fetch_add(1, std::memory_order_release);
+                std::cout << "ERROR: while processing Interest in pipeline\n";
                 break;
             }
 

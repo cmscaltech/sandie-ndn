@@ -56,7 +56,6 @@ class Runner : public std::enable_shared_from_this<Runner> {
     struct Counters {
         std::atomic<uint64_t> nInterest = 0;
         std::atomic<uint64_t> nData = 0;
-        std::atomic<uint64_t> nTimeout = 0;
     };
 
   public:

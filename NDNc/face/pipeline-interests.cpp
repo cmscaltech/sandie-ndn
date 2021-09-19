@@ -29,7 +29,8 @@
 
 namespace ndnc {
 Pipeline::Pipeline(Face &face)
-    : PacketHandler(face), m_shouldStop{false}, m_timeoutQueue{} {
+    : PacketHandler(face), m_shouldStop{false}, m_maxFixedPipeSize{256},
+      m_timeoutQueue{} {
 
     m_pitGen = std::make_shared<ndnc::lp::PitTokenGenerator>();
     m_workerT = std::thread(&Pipeline::run, this);
@@ -117,13 +118,15 @@ void Pipeline::run() {
                 m_txQueue.enqueue(task);
             } else {
                 task.rxQueue->enqueue(TaskResult(true));
+                m_pitTable.erase(task.pitTokenValue);
             }
         }
 
         // Process main queue
         m_face->loop();
         PendingTask task;
-        if (!m_txQueue.try_dequeue(task)) {
+        if (m_pitTable.size() > this->m_maxFixedPipeSize || // fixed window size
+            !m_txQueue.try_dequeue(task)) {
             continue;
         }
 

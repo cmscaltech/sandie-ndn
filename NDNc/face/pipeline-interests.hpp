@@ -134,6 +134,7 @@ class Pipeline : public PacketHandler {
     std::atomic_bool m_shouldStop;
     std::thread m_workerT;
     TxQueue m_txQueue;
+    uint64_t m_maxFixedPipeSize;
 
     std::shared_ptr<ndnc::lp::PitTokenGenerator> m_pitGen;
     std::unordered_map<uint64_t, RxQueue *> m_pitTable; // PIT Token -> RxQueue

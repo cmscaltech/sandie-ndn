@@ -28,8 +28,12 @@
 #ifndef NDNC_FACE_PIPELINE_INTERESTS_HPP
 #define NDNC_FACE_PIPELINE_INTERESTS_HPP
 
+#include <chrono>
+#include <iostream>
+#include <queue>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 #include "concurrentqueue/blockingconcurrentqueue.h"
 #include "concurrentqueue/concurrentqueue.h"
@@ -37,30 +41,83 @@
 #include "packet-handler.hpp"
 
 namespace ndnc {
-typedef moodycamel::BlockingConcurrentQueue<ndn::Data> PipelineRxQueue;
-
-class PipelineTask {
+class TaskResult {
   public:
-    PipelineTask();
-    PipelineTask(const std::shared_ptr<const ndn::Interest> &interest,
-                 PipelineRxQueue *rxQueue);
-    ~PipelineTask();
+    TaskResult() {}
+    TaskResult(bool error) : error(error) {}
+    TaskResult(const std::shared_ptr<const ndn::Data> &data)
+        : data(data), error(false) {}
+
+    TaskResult(const std::shared_ptr<const ndn::Data> &data, bool error)
+        : data(data), error(error) {}
+
+    auto getData() { return this->data; }
+    auto isError() { return this->error; }
+
+  private:
+    std::shared_ptr<const ndn::Data> data;
+    bool error;
+};
+// pipeline -> worker
+typedef moodycamel::ConcurrentQueue<TaskResult> RxQueue;
+}; // namespace ndnc
+
+namespace ndnc {
+class PendingTask {
+  public:
+    PendingTask() : expirationTime{0}, nTimeouts{0}, nNacks{0} {}
+
+    PendingTask(const std::shared_ptr<const ndn::Interest> &interest,
+                RxQueue *rxQueue)
+        : interest(interest), expirationTime{0}, nTimeouts{0}, nNacks{0} {
+        this->rxQueue = rxQueue;
+    }
+    ~PendingTask() {}
+
+    void updateExpirationTime() {
+        this->expirationTime =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch())
+                .count() +
+            interest->getInterestLifetime().count();
+    }
+
+    bool hasExpired() const {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::system_clock::now().time_since_epoch())
+                   .count() > static_cast<int64_t>(expirationTime);
+    }
 
   public:
     std::shared_ptr<const ndn::Interest> interest;
-    PipelineRxQueue *rxQueue;
+    RxQueue *rxQueue;
+    uint64_t pitTokenValue;
+    uint64_t expirationTime;
+
+    uint64_t nTimeouts;
+    uint64_t nNacks;
 };
+// worker -> pipeline
+typedef moodycamel::ConcurrentQueue<PendingTask> TxQueue;
 
-typedef moodycamel::ConcurrentQueue<PipelineTask> PipelineTxQueue;
+struct GreaterThanByExpirationTime {
+    bool operator()(PendingTask lhs, PendingTask rhs) const {
+        return lhs.expirationTime > rhs.expirationTime;
+    }
+};
+}; // namespace ndnc
 
+namespace ndnc {
 class Pipeline : public PacketHandler {
   public:
     explicit Pipeline(Face &face);
     virtual ~Pipeline();
 
+    virtual void stop() { this->m_shouldStop = true; }
+    virtual bool isValid() { return !this->m_shouldStop; }
+
+  private:
     virtual void run();
-    virtual void stop();
-    virtual bool isValid();
 
   public:
     bool
@@ -70,22 +127,19 @@ class Pipeline : public PacketHandler {
     void dequeueDataPacket(const std::shared_ptr<const ndn::Data> &data,
                            const ndn::lp::PitToken &pitToken) final;
 
-    void
-    dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &nack) final;
+    void dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &nack,
+                           const ndn::lp::PitToken &pitToken) final;
 
   private:
-    virtual bool processTxQueue();
-    virtual void processTimeouts();
+    std::atomic_bool m_shouldStop;
+    std::thread m_workerT;
+    TxQueue m_txQueue;
 
-  private:
-    std::thread worker;
-
-    std::atomic_bool m_stop;
-    std::atomic_bool m_hasError;
-    std::shared_ptr<ndnc::lp::PitTokenGenerator> m_pitTokenGenerator;
-
-    PipelineTxQueue m_txQueue;
-    std::unordered_map<uint64_t, PipelineRxQueue *> m_pendingInterestsTable;
+    std::shared_ptr<ndnc::lp::PitTokenGenerator> m_pitGen;
+    std::unordered_map<uint64_t, RxQueue *> m_pitTable; // PIT Token -> RxQueue
+    std::priority_queue<PendingTask, std::vector<PendingTask>,
+                        GreaterThanByExpirationTime>
+        m_timeoutQueue;
 };
 }; // namespace ndnc
 

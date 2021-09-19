@@ -53,5 +53,5 @@ void PacketHandler::dequeueInterestPacket(
     const std::shared_ptr<const ndn::Interest> &, const ndn::lp::PitToken &) {}
 
 void PacketHandler::dequeueNackPacket(
-    const std::shared_ptr<const ndn::lp::Nack> &) {}
+    const std::shared_ptr<const ndn::lp::Nack> &, const ndn::lp::PitToken &) {}
 }; // namespace ndnc

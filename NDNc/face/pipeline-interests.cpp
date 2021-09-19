@@ -25,116 +25,122 @@
  * SOFTWARE.
  */
 
-#include <chrono>
-#include <iostream>
-
 #include "pipeline-interests.hpp"
 
 namespace ndnc {
-PipelineTask::PipelineTask() {}
-
-PipelineTask::PipelineTask(const std::shared_ptr<const ndn::Interest> &interest,
-                           PipelineRxQueue *rxQueue)
-    : interest(interest) {
-    this->rxQueue = rxQueue;
-}
-
-PipelineTask::~PipelineTask() {}
-
 Pipeline::Pipeline(Face &face)
-    : PacketHandler(face), m_stop(false), m_hasError(false) {
-    m_pitTokenGenerator = std::make_shared<ndnc::lp::PitTokenGenerator>();
-    worker = std::thread(&Pipeline::run, this);
+    : PacketHandler(face), m_shouldStop{false}, m_timeoutQueue{} {
+
+    m_pitGen = std::make_shared<ndnc::lp::PitTokenGenerator>();
+    m_workerT = std::thread(&Pipeline::run, this);
 }
 
 Pipeline::~Pipeline() {
     this->stop();
 
-    if (worker.joinable()) {
-        worker.join();
+    if (m_workerT.joinable()) {
+        m_workerT.join();
     }
-}
-
-void Pipeline::run() {
-    while (!m_stop && !m_hasError) {
-        m_face->loop();
-
-        if (!this->processTxQueue()) {
-            m_hasError = true;
-            return;
-        }
-    }
-}
-
-void Pipeline::stop() {
-    m_stop = true;
-}
-
-bool Pipeline::isValid() {
-    return !this->m_hasError && !this->m_stop;
-}
-
-bool Pipeline::processTxQueue() {
-    if (m_face == nullptr) {
-        std::cout << "FATAL: face object is null\n";
-        m_hasError = true;
-        return false;
-    }
-
-    PipelineTask task;
-    if (!m_txQueue.try_dequeue(task)) {
-        return true; // continue
-    }
-
-    uint64_t value;
-    auto token = m_pitTokenGenerator->getToken(value);
-
-    if (m_pendingInterestsTable.find(value) != m_pendingInterestsTable.end()) {
-        std::cout
-            << "FATAL: try to express Interest with an existing PIT Token\n";
-        m_hasError = true;
-        return false;
-    }
-
-    m_pendingInterestsTable[value] = task.rxQueue;
-    if (!m_stop &&
-        !m_face->expressInterest(std::move(task.interest), std::move(token))) {
-        std::cout << "FATAL: unable to express Interest on face\n";
-        m_hasError = true;
-        m_pendingInterestsTable.erase(value);
-        return false;
-    }
-
-    return true;
 }
 
 bool Pipeline::enqueueInterestPacket(
     const std::shared_ptr<const ndn::Interest> &interest, void *rxQueue) {
-    if (!m_txQueue.enqueue(PipelineTask(
-            std::move(interest), static_cast<PipelineRxQueue *>(rxQueue)))) {
-        return false;
-    }
 
-    return true;
+    return m_txQueue.enqueue(
+        PendingTask(std::move(interest), static_cast<RxQueue *>(rxQueue)));
 }
 
 void Pipeline::dequeueDataPacket(const std::shared_ptr<const ndn::Data> &data,
                                  const ndn::lp::PitToken &pitToken) {
+
     auto value = lp::PitTokenGenerator::getValue(pitToken.data());
 
-    if (m_pendingInterestsTable.find(value) == m_pendingInterestsTable.end()) {
-        std::cout << "FATAL: received unexpected Data packet with PIT-TOKEN: "
-                  << value << "\n";
-        m_hasError = true;
+    if (m_pitTable.find(value) == m_pitTable.end()) {
+        std::cout << "DEBUG: drop unexpected Data packet\n";
         return;
     }
 
-    m_pendingInterestsTable[value]->enqueue(*data);
-    m_pendingInterestsTable.erase(value);
+    m_pitTable[value]->enqueue(TaskResult(std::move(data)));
+    m_pitTable.erase(value);
 }
 
-void Pipeline::dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &) {
+void Pipeline::dequeueNackPacket(
+    const std::shared_ptr<const ndn::lp::Nack> &nack,
+    const ndn::lp::PitToken &pitToken) {
+
+    auto token = lp::PitTokenGenerator::getValue(pitToken.data());
+
+    switch (nack->getReason()) {
+    case ndn::lp::NackReason::DUPLICATE: {
+        this->enqueueInterestPacket(
+            std::make_shared<const ndn::Interest>(nack->getInterest()),
+            m_pitTable[token]);
+        break;
+    }
+    default:
+        m_pitTable[token]->enqueue(TaskResult(true));
+        break;
+    }
+
+    m_pitTable.erase(token);
 }
 
-void Pipeline::processTimeouts() {}
+void Pipeline::run() {
+    if (m_face == nullptr) {
+        std::cout << "FATAL: face object is null\n";
+        this->stop();
+        return;
+    }
+
+    while (this->isValid() && m_face != nullptr) {
+        // Handle Interests timeout
+        m_face->loop();
+        while (!m_timeoutQueue.empty()) {
+            auto task = m_timeoutQueue.top();
+
+            if (m_pitTable.find(task.pitTokenValue) == m_pitTable.end()) {
+                m_timeoutQueue.pop();
+                continue;
+            }
+
+            if (!task.hasExpired()) {
+                break;
+            }
+
+            m_timeoutQueue.pop();
+            ++task.nTimeouts;
+
+            std::cout << "DEBUG: Interest: " << task.interest->getName()
+                      << " timeout count: " << task.nTimeouts << "\n";
+
+            if (task.nTimeouts < 8) { // hardcoded value for max timeout retries
+                m_txQueue.enqueue(task);
+            } else {
+                task.rxQueue->enqueue(TaskResult(true));
+            }
+        }
+
+        // Process main queue
+        m_face->loop();
+        PendingTask task;
+        if (!m_txQueue.try_dequeue(task)) {
+            continue;
+        }
+
+        uint64_t value;
+        auto token = m_pitGen->getToken(value);
+
+        if (m_face->expressInterest(std::move(task.interest),
+                                    std::move(token))) {
+            m_pitTable[value] = task.rxQueue;
+
+            task.pitTokenValue = value;
+            task.updateExpirationTime();
+            m_timeoutQueue.push(task);
+        } else {
+            std::cout << "FATAL: unable to express Interest on face\n";
+            this->stop();
+        }
+    }
+}
 }; // namespace ndnc

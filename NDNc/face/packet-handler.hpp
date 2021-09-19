@@ -100,7 +100,8 @@ class PacketHandler {
      * @param nack
      */
     virtual void
-    dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &nack);
+    dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &nack,
+                      const ndn::lp::PitToken &pitToken);
 
   protected:
     Face *m_face;

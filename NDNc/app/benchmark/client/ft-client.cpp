@@ -84,27 +84,36 @@ uint64_t Runner::getFileMetadata() {
         return 0;
     }
 
+    // Wait for Data
+    TaskResult result;
+    for (; !m_stop;) {
+        if (!rxQueue.try_dequeue(result)) {
+            continue;
+        }
+
+        if (result.isError()) {
+            std::cout << "Got error for META Interest\n";
+            // TODO: convert nTimeout to nErrors and get nTimeouts from face
+            // counters
+            m_counters.nTimeout.fetch_add(1, std::memory_order_release);
+            return 0;
+        }
+
+        m_counters.nData.fetch_add(1, std::memory_order_release);
+        break;
+    }
+
     if (m_stop) {
         return 0;
     }
 
-    // Wait for Data
-    ndn::Data data;
-    if (!rxQueue.wait_dequeue_timed(data, m_options.lifetime.count() * 1000)) {
-        std::cout << "Request timeout for META Interest\n";
-        m_counters.nTimeout.fetch_add(1, std::memory_order_release);
-        return 0;
-    } else {
-        m_counters.nData.fetch_add(1, std::memory_order_release);
-    }
-
-    if (!data.hasContent() ||
-        data.getContentType() == ndn::tlv::ContentType_Nack) {
+    if (!result.getData()->hasContent() ||
+        result.getData()->getContentType() == ndn::tlv::ContentType_Nack) {
         std::cout << "FATAL: Could not open file: " << m_options.file << "\n";
         return 0;
     }
 
-    m_fileMetadata = FileMetadata(data.getContent());
+    m_fileMetadata = FileMetadata(result.getData()->getContent());
 
     std::cout << "DEBUG: " << m_options.file << "metadata:"
               << "\nversioned name: " << m_fileMetadata.getVersionedName()
@@ -130,7 +139,6 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
 
     while (segmentNo < m_fileMetadata.getLastSegment() && !m_stop) {
         uint8_t nTx = 0;
-
         for (auto i = 0; i < m_chunk &&
                          segmentNo < m_fileMetadata.getLastSegment() && !m_stop;
              ++i) {
@@ -145,24 +153,22 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
             }
         }
 
-        if (m_stop) {
-            return;
-        }
-
         uint64_t nBytes = 0;
+        for (auto i = 0; i < nTx && !m_stop;) {
+            TaskResult result;
+            if (!rxQueue.try_dequeue(result)) { // TODO: try_dequeue_bulk()
+                continue;
+            }
 
-        for (auto i = 0; i < nTx && !m_stop; ++i) {
-            ndn::Data data;
-            if (!rxQueue.wait_dequeue_timed(data, m_options.lifetime.count() *
-                                                      1000)) {
-                // TODO: Handle timeout
-                std::cout << "WARN: Request timeout for Interest";
+            if (result.isError()) {
+                std::cout << "Error for read interest\n";
                 m_counters.nTimeout.fetch_add(1, std::memory_order_release);
                 break;
-            } else {
-                m_counters.nData.fetch_add(1, std::memory_order_release);
-                nBytes += data.getContent().value_size();
             }
+
+            m_counters.nData.fetch_add(1, std::memory_order_release);
+            nBytes += result.getData()->getContent().value_size();
+            ++i;
         }
 
         onProgress(nBytes);

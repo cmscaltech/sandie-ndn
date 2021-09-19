@@ -50,7 +50,7 @@ struct ClientOptions {
 
 class Runner : public std::enable_shared_from_this<Runner> {
   public:
-    using RxQueue = moodycamel::BlockingConcurrentQueue<ndn::Data>;
+    using RxQueue = moodycamel::ConcurrentQueue<TaskResult>;
     using NotifyProgressStatus = std::function<void(uint64_t)>;
 
     struct Counters {

@@ -163,7 +163,8 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
 
         if (lpPacket.has<ndn::lp::NackField>()) {
             m_packetHandler->dequeueNackPacket(
-                std::make_shared<const ndn::lp::Nack>(std::move(*interest)));
+                std::make_shared<const ndn::lp::Nack>(std::move(*interest)),
+                ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
         } else {
             if (m_packetHandler != nullptr) {
                 m_packetHandler->dequeueInterestPacket(

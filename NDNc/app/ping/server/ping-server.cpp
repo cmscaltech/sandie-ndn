@@ -64,6 +64,7 @@ void Runner::dequeueInterestPacket(
     data.setContentType(ndn::tlv::ContentType_Blob);
     data.setSignatureInfo(m_signatureInfo);
     data.setSignatureValue(std::make_shared<ndn::Buffer>());
+    data.setFreshnessPeriod(ndn::time::milliseconds{2});
 
     if (!enqueueDataPacket(std::move(data), pitToken)) {
         std::cout << "WARN: Unable to put Data packet on face\n";

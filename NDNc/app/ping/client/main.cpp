@@ -39,9 +39,14 @@ using namespace std;
 namespace po = boost::program_options;
 
 static bool shouldRun = true;
+static ndnc::ping::client::Runner *client;
 
 void handler(sig_atomic_t) {
     shouldRun = false;
+
+    if (client != nullptr) {
+        client->stop();
+    }
 }
 
 static void usage(ostream &os, const string &app,
@@ -139,9 +144,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    ndnc::ping::client::Runner *client =
-        new ndnc::ping::client::Runner(*face, opts);
-
+    client = new ndnc::ping::client::Runner(*face, opts);
     while (shouldRun && face->isValid()) {
         client->run();
     }

@@ -37,7 +37,11 @@ namespace benchmark {
 namespace ft {
 Runner::Runner(Face &face, ClientOptions options)
     : m_options(options), m_counters(), m_chunk(64), m_stop(false) {
-    m_pipeline = new Pipeline(face);
+    switch (m_options.pipelineType) {
+    case fixed:
+    default:
+        m_pipeline = new PipelineFixed(face, m_options.pipelineSize);
+    }
 }
 
 Runner::~Runner() {

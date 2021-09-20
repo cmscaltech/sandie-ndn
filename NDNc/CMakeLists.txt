@@ -36,6 +36,7 @@ ADD_EXECUTABLE(ndncping-client
                 face/face.cpp
                 face/packet-handler.cpp
                 face/pipeline-interests.cpp
+                face/pipeline-interests-fixed.cpp
                 mgmt/client.cpp)
 
 TARGET_LINK_LIBRARIES(ndncping-client LINK_PUBLIC ${Boost_LIBRARIES} curl)
@@ -63,6 +64,7 @@ ADD_EXECUTABLE(ndncft-client
                 face/face.cpp
                 face/packet-handler.cpp
                 face/pipeline-interests.cpp
+                face/pipeline-interests-fixed.cpp
                 mgmt/client.cpp)
 
 TARGET_LINK_LIBRARIES(ndncft-client LINK_PUBLIC ${Boost_LIBRARIES} curl)

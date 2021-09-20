@@ -80,6 +80,7 @@ int main(int argc, char *argv[]) {
     signal(SIGABRT, handler);
 
     ndnc::benchmark::ft::ClientOptions opts;
+    std::string pipelineType = "fixed";
 
     po::options_description description("Options", 120);
     description.add_options()("file", po::value<string>(&opts.file),
@@ -102,6 +103,14 @@ int main(int argc, char *argv[]) {
             ->default_value(opts.nthreads)
             ->implicit_value(opts.nthreads),
         "The number of threads/workers to request Data in parallel");
+    description.add_options()(
+        "pipeline-type",
+        po::value<string>(&pipelineType)->default_value(pipelineType),
+        "Pipeline type. Available options: fixed");
+    description.add_options()("pipeline-size",
+                              po::value<uint16_t>(&opts.pipelineSize)
+                                  ->default_value(opts.pipelineSize),
+                              "Maximum pipeline size");
     description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
@@ -160,6 +169,18 @@ int main(int argc, char *argv[]) {
     if (opts.file.empty()) {
         cerr << "\nERROR: The file URL cannot be an empty string\n";
         return 2;
+    }
+
+    {
+        if (pipelineType.compare("fixed") == 0) {
+            opts.pipelineType = ndnc::PipelineType::fixed;
+        }
+
+        if (opts.pipelineType == ndnc::PipelineType::undefined) {
+            cerr << "ERROR: Invalid pipeline type\n\n";
+            usage(cout, app, description);
+            return 2;
+        }
     }
 
     std::cout << "NDNc FILE-TRANSFER BENCHMARKING CLIENT\n";

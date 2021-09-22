@@ -97,12 +97,13 @@ void PipelineFixed::run() {
     while (this->isValid() && m_face != nullptr) {
         m_face->loop();
         handleTimeout();
-        m_face->loop();
 
-        if (m_pit.size() > m_maxFixedPipeSize) {
-            std::cout << "DEBUG: Max pipeline size reached\n";
+        if (m_pit.size() == m_maxFixedPipeSize) {
             continue;
         }
+        assert(m_pit.size() < m_maxFixedPipeSize);
+
+        m_face->loop();
 
         PendingTask task;
         if (!m_tasksQueue.try_dequeue(task)) {
@@ -146,8 +147,8 @@ void PipelineFixed::handleTimeout() {
             ++task.nTimeout;
         }
 
-        std::cout << "DEBUG: timeout counter: " << task.nTimeout
-                  << " for Interest: " << task.interest->getName() << "\n";
+        std::cout << "TRACE: Request timeout for " << task.interest->getName()
+                  << " " << task.nTimeout << "\n";
 
         if (task.nTimeout < 8) { // hardcoded value for max timeout retries
             m_pit.erase(task.pitEntry);

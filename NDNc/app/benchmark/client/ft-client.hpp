@@ -88,7 +88,8 @@ class Runner : public std::enable_shared_from_this<Runner> {
     uint8_t m_chunk;
 
     std::vector<std::thread> m_workers;
-    std::atomic_bool m_stop;
+    std::atomic_bool m_shouldStop;
+    std::atomic_bool m_hasError;
     Pipeline *m_pipeline;
 };
 }; // namespace ft

@@ -36,7 +36,8 @@ namespace ndnc {
 namespace benchmark {
 namespace ft {
 Runner::Runner(Face &face, ClientOptions options)
-    : m_options(options), m_counters(), m_chunk(64), m_stop(false) {
+    : m_options(options), m_counters(), m_chunk(64), m_shouldStop(false),
+      m_hasError(false) {
     switch (m_options.pipelineType) {
     case fixed:
     default:
@@ -45,7 +46,7 @@ Runner::Runner(Face &face, ClientOptions options)
 }
 
 Runner::~Runner() {
-    m_stop = true;
+    m_shouldStop = true;
     wait();
 
     if (m_pipeline != nullptr) {
@@ -72,7 +73,7 @@ void Runner::wait() {
 }
 
 void Runner::stop() {
-    m_stop = true;
+    m_shouldStop = true;
     m_pipeline->stop();
 }
 
@@ -85,18 +86,20 @@ uint64_t Runner::getFileMetadata() {
     // Express Interest
     RxQueue rxQueue;
     if (expressInterests(interest, &rxQueue) == 0) {
+        m_hasError = true;
         return 0;
     }
 
     // Wait for Data
     TaskResult result;
-    for (; !m_stop;) {
+    for (; !m_shouldStop && !m_hasError;) {
         if (!rxQueue.try_dequeue(result)) {
             continue;
         }
 
         if (result.isError()) {
-            std::cout << "ERROR: while processing META Interest in pipeline\n";
+            std::cout << "ERROR: network is unrecheable\n";
+            m_hasError = true;
             return 0;
         }
 
@@ -104,32 +107,24 @@ uint64_t Runner::getFileMetadata() {
         break;
     }
 
-    if (m_stop) {
+    if (m_shouldStop || m_hasError) {
         return 0;
     }
 
     if (!result.getData()->hasContent() ||
         result.getData()->getContentType() == ndn::tlv::ContentType_Nack) {
         std::cout << "FATAL: Could not open file: " << m_options.file << "\n";
+        m_hasError = true;
         return 0;
     }
 
     m_fileMetadata = FileMetadata(result.getData()->getContent());
 
-    std::cout << "DEBUG: " << m_options.file << "metadata:"
-              << "\nversioned name: " << m_fileMetadata.getVersionedName()
-              << "\nsegment size: " << m_fileMetadata.getSegmentSize()
-              << "\nlast segment: " << m_fileMetadata.getLastSegment()
-              << "\nfile size: " << m_fileMetadata.getFileSize()
-              << "\nfile mode: " << m_fileMetadata.getMode() << "\natime: "
-              << m_fileMetadata.timestamp_to_string(m_fileMetadata.getAtime())
-              << "\nbtime: "
-              << m_fileMetadata.timestamp_to_string(m_fileMetadata.getBtime())
-              << "\nctime: "
-              << m_fileMetadata.timestamp_to_string(m_fileMetadata.getCtime())
-              << "\nmtime: "
-              << m_fileMetadata.timestamp_to_string(m_fileMetadata.getMtime())
-              << "\n";
+    std::cout << "file " << m_options.file << " of size "
+              << m_fileMetadata.getFileSize() << " bytes ("
+              << m_fileMetadata.getSegmentSize() << "/"
+              << m_fileMetadata.getLastSegment() << ") and latest version="
+              << m_fileMetadata.getVersionedName().get(-1).toVersion() << "\n";
 
     return m_fileMetadata.getFileSize();
 }
@@ -138,16 +133,17 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
     RxQueue rxQueue;
     uint64_t segmentNo = tid;
 
-    while (segmentNo < m_fileMetadata.getLastSegment() && !m_stop) {
+    while (segmentNo < m_fileMetadata.getLastSegment() && !m_shouldStop &&
+           !m_hasError) {
         uint8_t nTx = 0;
-        for (auto i = 0; i < m_chunk &&
-                         segmentNo < m_fileMetadata.getLastSegment() && !m_stop;
-             ++i) {
+        for (auto i = 0;
+             i < m_chunk && segmentNo < m_fileMetadata.getLastSegment(); ++i) {
             auto interest = std::make_shared<ndn::Interest>(
                 m_fileMetadata.getVersionedName().appendSegment(segmentNo));
 
             if (expressInterests(interest, &rxQueue) == 0) {
-                break;
+                m_hasError = true;
+                return;
             } else {
                 segmentNo += m_options.nthreads;
                 ++nTx;
@@ -155,15 +151,16 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
         }
 
         uint64_t nBytes = 0;
-        for (auto i = 0; i < nTx && !m_stop;) {
+        for (auto i = 0; i < nTx && !m_shouldStop && !m_hasError;) {
             TaskResult result;
             if (!rxQueue.try_dequeue(result)) { // TODO: try_dequeue_bulk()
                 continue;
             }
 
             if (result.isError()) {
-                std::cout << "ERROR: while processing Interest in pipeline\n";
-                break;
+                std::cout << "ERROR: network is unrecheable\n";
+                m_hasError = true;
+                return;
             }
 
             m_counters.nData.fetch_add(1, std::memory_order_release);
@@ -182,7 +179,7 @@ int Runner::expressInterests(std::shared_ptr<ndn::Interest> interest,
     if (!m_pipeline->enqueueInterestPacket(std::move(interest), rxQueue)) {
         std::cout << "FATAL: unable to enqueue Interest packet: "
                   << interest->getName() << "\n";
-        m_stop = true;
+        m_hasError = true;
         return 0;
     }
 

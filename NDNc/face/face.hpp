@@ -73,6 +73,11 @@ class Face {
 
     bool expressInterest(const std::shared_ptr<const ndn::Interest> &interest,
                          const ndn::lp::PitToken &pitToken);
+
+    bool expressInterests(
+        const std::vector<std::shared_ptr<const ndn::Interest>> interests,
+        const std::vector<ndn::lp::PitToken> pitTokens);
+
     bool putData(const ndn::Data &&data, const ndn::lp::PitToken &pitToken);
 
     Counters readCounters();
@@ -98,15 +103,8 @@ class Face {
         reinterpret_cast<Face *>(self)->transportRx(pkt, pktLen);
     }
 
-    /**
-     * @brief Send packet over memif face
-     *
-     * @param pkt Packet to send
-     * @param pktLen Size of packet to send
-     * @return true Packet was successfully sent
-     * @return false Packet could not be sent
-     */
-    bool send(const uint8_t *pkt, size_t pktLen);
+    bool send(const ndn::Block);
+    bool send(std::vector<ndn::Block>);
 
   private:
     std::unique_ptr<mgmt::Client> m_client;

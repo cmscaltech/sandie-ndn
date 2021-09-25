@@ -100,21 +100,35 @@ bool Face::addHandler(PacketHandler &h) {
     return true;
 }
 
-bool Face::send(const uint8_t *pkt, size_t pktLen) {
+bool Face::send(const ndn::Block wire) {
 #ifdef DEBUG
     ++m_counters.nTxPackets;
-    m_counters.nTxBytes += pktLen;
+    m_counters.nTxBytes += wire.size();
 #endif // DEBUG
 
-    if (pktLen > ndn::MAX_NDN_PACKET_SIZE) {
+    if (!m_transport->putTxRequest(wire)) {
 #ifdef DEBUG
         ++m_counters.nErrors;
 #endif // DEBUG
-        throw std::length_error("maximum NDN packet size breach");
         return false;
     }
+    return true;
+}
 
-    return m_transport->send(pkt, pktLen);
+bool Face::send(std::vector<ndn::Block> wires) {
+#ifdef DEBUG
+    m_counters.nTxPackets += wires.size();
+    for (auto wire = wires.begin(); wire != wires.end(); ++wire)
+        m_counters.nTxBytes += wire->size();
+#endif // DEBUG
+
+    if (!m_transport->putTxRequests(wires)) {
+#ifdef DEBUG
+        ++m_counters.nErrors;
+#endif // DEBUG
+        return false;
+    }
+    return true;
 }
 
 bool Face::expressInterest(const std::shared_ptr<const ndn::Interest> &interest,
@@ -123,7 +137,23 @@ bool Face::expressInterest(const std::shared_ptr<const ndn::Interest> &interest,
     lpPacket.add<ndn::lp::PitTokenField>(pitToken);
 
     auto wire = lpPacket.wireEncode();
-    return this->send(wire.wire(), wire.size());
+    return this->send(wire);
+}
+
+bool Face::expressInterests(
+    const std::vector<std::shared_ptr<const ndn::Interest>> interests,
+    const std::vector<ndn::lp::PitToken> pitTokens) {
+
+    std::vector<ndn::Block> reqs;
+    for (size_t i = 0; i < interests.size(); ++i) {
+        ndn::lp::Packet lpPacket(interests[i]->wireEncode());
+        lpPacket.add<ndn::lp::PitTokenField>(pitTokens[i]);
+
+        auto wire = lpPacket.wireEncode();
+        reqs.push_back(wire);
+    }
+
+    return this->send(reqs);
 }
 
 bool Face::putData(const ndn::Data &&data, const ndn::lp::PitToken &pitToken) {
@@ -131,7 +161,7 @@ bool Face::putData(const ndn::Data &&data, const ndn::lp::PitToken &pitToken) {
     lpPacket.add<ndn::lp::PitTokenField>(pitToken);
 
     auto wire = lpPacket.wireEncode();
-    return this->send(wire.wire(), wire.size());
+    return this->send(wire);
 }
 
 void Face::transportRx(const uint8_t *pkt, size_t pktLen) {

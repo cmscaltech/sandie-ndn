@@ -28,7 +28,6 @@
 #ifndef NDNC_FACE_MEMIF_HPP
 #define NDNC_FACE_MEMIF_HPP
 
-#include <array>
 #include <iostream>
 
 #include "transport.hpp"
@@ -37,9 +36,9 @@ extern "C" {
 #include <libmemif.h>
 }
 
-#ifndef NDNC_MEMIF_RXBURST
-/** @brief Receive burst size. */
-#define NDNC_MEMIF_RXBURST 256
+#ifndef NDNC_MAX_MEMIF_BUFS
+/** @brief send/receive burst size. */
+#define NDNC_MAX_MEMIF_BUFS 256
 #endif
 
 namespace ndnc {
@@ -58,19 +57,25 @@ class Memif : public virtual Transport {
         end();
         m_maxPktLen = maxPktLen;
 
-        int err = memif_init(nullptr, const_cast<char *>("NDNc"), nullptr,
-                             nullptr, nullptr);
-        if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_init: " << memif_strerror(err) << "\n";
-            return false;
+        {
+            int err = memif_init(nullptr, const_cast<char *>("NDNc"), nullptr,
+                                 nullptr, nullptr);
+            if (err != MEMIF_ERR_SUCCESS) {
+                std::cout << "ERROR: memif_init: " << memif_strerror(err)
+                          << "\n";
+                return false;
+            }
         }
+
         m_init = true;
 
-        err = memif_create_socket(&m_sock, socketName, nullptr);
-        if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_create_socket: " << memif_strerror(err)
-                      << "\n";
-            return false;
+        {
+            int err = memif_create_socket(&m_sock, socketName, nullptr);
+            if (err != MEMIF_ERR_SUCCESS) {
+                std::cout << "ERROR: memif_create_socket: "
+                          << memif_strerror(err) << "\n";
+                return false;
+            }
         }
 
         memif_conn_args_t args = {};
@@ -82,14 +87,22 @@ class Memif : public virtual Transport {
             // libmemif internally assumes buffer_size to be power of two
             // https://github.com/FDio/vpp/blob/v21.06/extras/libmemif/src/main.c#L2406
         }
-        err =
-            memif_create(&m_conn, &args, Memif::handleConnect,
-                         Memif::handleDisconnect, Memif::handleInterrupt, this);
-        if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_create: " << memif_strerror(err) << "\n";
-            return false;
+
+        {
+            int err = memif_create(&m_conn, &args, Memif::handleConnect,
+                                   Memif::handleDisconnect,
+                                   Memif::handleInterrupt, this);
+            if (err != MEMIF_ERR_SUCCESS) {
+                std::cout << "ERROR: memif_create: " << memif_strerror(err)
+                          << "\n";
+                return false;
+            }
         }
 
+        m_tx_bufs = (memif_buffer_t *)malloc(sizeof(memif_buffer_t) *
+                                             NDNC_MAX_MEMIF_BUFS);
+        m_rx_bufs = (memif_buffer_t *)malloc(sizeof(memif_buffer_t) *
+                                             NDNC_MAX_MEMIF_BUFS);
         return true;
     }
 
@@ -121,13 +134,24 @@ class Memif : public virtual Transport {
             }
             m_init = false;
         }
+
+        if (m_tx_bufs != nullptr) {
+            free(m_tx_bufs);
+        }
+        m_tx_bufs = NULL;
+
+        if (m_rx_bufs != nullptr) {
+            free(m_rx_bufs);
+        }
+        m_rx_bufs = NULL;
+
         return true;
     }
 
-  private:
-    bool doIsUp() const final { return m_isUp; }
+  public:
+    bool isUp() const final { return m_isUp; }
 
-    void doLoop() final {
+    void loop() final {
         if (!m_init) {
             std::cout << "ERROR: m_init is null\n";
             return;
@@ -140,41 +164,90 @@ class Memif : public virtual Transport {
         }
     }
 
-    bool doSend(const uint8_t *pkt, size_t pktLen) final {
+    bool putTxRequest(TxRequest req) const final {
         if (!m_isUp) {
             std::cout << "ERROR: Memif send drop=transport-disconnected\n";
             return false;
         }
 
-        if (pktLen > m_maxPktLen) {
-            std::cout << "ERROR: Memif send drop=pkt-too-long len= " << pktLen
-                      << "\n";
+        if (req.size() > m_maxPktLen) {
+            std::cout << "ERROR: Memif send drop=pkt-too-long len="
+                      << req.size() << "\n";
             return false;
         }
 
-        memif_buffer_t b = {};
-        uint16_t nAlloc = 0;
-
-        int err = memif_buffer_alloc(m_conn, 0, &b, 1, &nAlloc, pktLen);
-        if (err != MEMIF_ERR_SUCCESS || nAlloc != 1) {
-            std::cout << "ERROR: memif_buffer_alloc: " << memif_strerror(err)
-                      << "\n";
-            return false;
-        }
-
-        std::copy_n(pkt, pktLen, static_cast<uint8_t *>(b.data));
-        b.len = pktLen;
-
+        memset(m_tx_bufs, 0, sizeof(memif_buffer_t));
         uint16_t nTx = 0;
-        err = memif_tx_burst(m_conn, 0, &b, 1, &nTx);
-        if (err != MEMIF_ERR_SUCCESS || nTx != 1) {
-            std::cout << "ERROR: memif_tx_burst: " << memif_strerror(err)
-                      << "\n";
-            return false;
+
+        {
+            int err =
+                memif_buffer_alloc(m_conn, 0, m_tx_bufs, 1, &nTx, req.size());
+            if (err != MEMIF_ERR_SUCCESS || nTx != 1) {
+                std::cout << "ERROR: memif_buffer_alloc: "
+                          << memif_strerror(err) << "\n";
+                return false;
+            }
         }
+
+        std::copy_n(req.wire(), req.size(),
+                    static_cast<uint8_t *>(m_tx_bufs[0].data));
+        m_tx_bufs[0].len = req.size();
+
+        {
+            int err = memif_tx_burst(m_conn, 0, m_tx_bufs, 1, &nTx);
+            if (err != MEMIF_ERR_SUCCESS || nTx != 1) {
+                std::cout << "ERROR: memif_tx_burst: " << memif_strerror(err)
+                          << "\n";
+                return false;
+            }
+        }
+
         return true;
     }
 
+    bool putTxRequests(std::vector<TxRequest> reqs) const final {
+        if (!m_isUp) {
+            std::cout << "ERROR: Memif send drop=transport-disconnected\n";
+            return false;
+        }
+
+        if (reqs.size() > NDNC_MAX_MEMIF_BUFS) {
+            std::cout << "ERROR: Maximum burts size breached\n";
+            return false;
+        }
+
+        uint16_t nTx = 0;
+        memset(m_tx_bufs, 0, sizeof(memif_buffer_t) * NDNC_MAX_MEMIF_BUFS);
+
+        {
+            int err = memif_buffer_alloc(m_conn, 0, m_tx_bufs, reqs.size(),
+                                         &nTx, m_maxPktLen);
+            if (err != MEMIF_ERR_SUCCESS || nTx != reqs.size()) {
+                std::cout << "ERROR: memif_buffer_alloc: "
+                          << memif_strerror(err) << "\n";
+                return false;
+            }
+        }
+
+        for (size_t i = 0; i < reqs.size(); ++i) {
+            std::copy_n(reqs[i].wire(), reqs[i].size(),
+                        static_cast<uint8_t *>(m_tx_bufs[i].data));
+            m_tx_bufs[i].len = reqs[i].size();
+        }
+
+        {
+            int err = memif_tx_burst(m_conn, 0, m_tx_bufs, reqs.size(), &nTx);
+            if (err != MEMIF_ERR_SUCCESS || nTx != reqs.size()) {
+                std::cout << "ERROR: memif_tx_burst: " << memif_strerror(err)
+                          << "\n";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+  private:
     static int handleConnect(memif_conn_handle_t conn, void *self0) {
         auto self = reinterpret_cast<Memif *>(self0);
         assert(self->m_conn == conn);
@@ -207,34 +280,42 @@ class Memif : public virtual Transport {
         auto self = reinterpret_cast<Memif *>(self0);
         assert(self->m_conn == conn);
 
-        std::array<memif_buffer_t, NDNC_MEMIF_RXBURST> burst{};
         uint16_t nRx = 0;
-        int err = memif_rx_burst(conn, qid, burst.data(), burst.size(), &nRx);
-        if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_rx_burst: " << memif_strerror(err)
-                      << "\n";
-            return 0;
+        {
+            int err = memif_rx_burst(conn, qid, self->m_rx_bufs,
+                                     NDNC_MAX_MEMIF_BUFS, &nRx);
+            if (err != MEMIF_ERR_SUCCESS) {
+                std::cout << "ERROR: memif_rx_burst: " << memif_strerror(err)
+                          << "\n";
+                return 0;
+            }
         }
 
         for (uint16_t i = 0; i < nRx; ++i) {
-            const memif_buffer_t &b = burst[i];
+            auto b = self->m_rx_bufs[i];
             self->invokeRxCallback(static_cast<const uint8_t *>(b.data), b.len);
         }
 
-        err = memif_refill_queue(conn, qid, nRx, 0);
-        if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_refill_queue: " << memif_strerror(err)
-                      << "\n";
+        {
+            int err = memif_refill_queue(conn, qid, nRx, 0);
+            if (err != MEMIF_ERR_SUCCESS) {
+                std::cout << "ERROR: memif_refill_queue: "
+                          << memif_strerror(err) << "\n";
+                return -1;
+            }
         }
         return 0;
     }
 
-  public:
+  private:
     memif_socket_handle_t m_sock = nullptr;
     memif_conn_handle_t m_conn = nullptr;
     uint16_t m_maxPktLen = 0;
     bool m_init = false;
     bool m_isUp = false;
+
+    memif_buffer_t *m_tx_bufs;
+    memif_buffer_t *m_rx_bufs;
 };
 }; // namespace ndnc
 

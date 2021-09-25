@@ -30,85 +30,56 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <vector>
+
+#include <ndn-cxx/interest.hpp>
+#include <ndn-cxx/lp/nack.hpp>
+#include <ndn-cxx/lp/packet.hpp>
+#include <ndn-cxx/lp/tags.hpp>
 
 namespace ndnc {
-/**
- * @brief Base class of low-level transport.
- *
- */
 class Transport {
+  public:
+    using CallbackContext = void *;
     using RxCallback = void (*)(void *ctx, const uint8_t *pkt, size_t pktLen);
     using DisconnectCallback = void (*)(void *ctx);
+
+    using TxRequest = ndn::Block;
+    using RxResponse = const uint8_t *;
 
   public:
     virtual ~Transport() = default;
 
-    /**
-     * @brief Determine whether transport is connected
-     *
-     * @return true
-     * @return false
-     */
-    virtual bool isUp() const { return doIsUp(); }
+    virtual bool isUp() const = 0;
+    virtual void loop() = 0;
 
-    /**
-     * @brief Process periodical events, such as receiving packets
-     *
-     */
-    virtual void loop() { doLoop(); }
+    virtual bool putTxRequest(TxRequest req) const = 0;
+    virtual bool putTxRequests(std::vector<TxRequest> reqs) const = 0;
 
-    /**
-     * @brief Set the Rx Callback objectSet incoming packet callback
-     *
-     * @param cb
-     * @param ctx
-     */
     void setRxCallback(RxCallback cb, void *ctx) {
-        m_rxCb = cb;
-        m_rxCtx = ctx;
+        rxCallback = cb;
+        rxCallbackContext = ctx;
     }
 
-    /**
-     * @brief Synchronously transmit a packet
-     *
-     * @param pkt
-     * @param pktLen
-     * @return true
-     * @return false
-     */
-    bool send(const uint8_t *pkt, size_t pktLen) { return doSend(pkt, pktLen); }
+    void invokeRxCallback(const uint8_t *pkt, size_t pktLen) {
+        rxCallback(rxCallbackContext, pkt, pktLen);
+    }
 
     void setDisconnectCallback(DisconnectCallback cb, void *ctx) {
-        m_disconnectCb = cb;
-        m_disconnectCtx = ctx;
+        disconnectCallback = cb;
+        disconnectCallbackContext = ctx;
     }
 
-  protected:
-    /**
-     * @brief Invoke incoming packet callback for a received packet
-     *
-     * @param pkt
-     * @param pktLen
-     */
-    void invokeRxCallback(const uint8_t *pkt, size_t pktLen) {
-        m_rxCb(m_rxCtx, pkt, pktLen);
+    void invokeDisconnectCallback() {
+        disconnectCallback(disconnectCallbackContext);
     }
 
-    void invokeDisconnectCallback() { m_disconnectCb(m_disconnectCtx); }
-
   private:
-    virtual bool doIsUp() const = 0;
+    RxCallback rxCallback = nullptr;
+    DisconnectCallback disconnectCallback = nullptr;
 
-    virtual void doLoop() = 0;
-
-    virtual bool doSend(const uint8_t *pkt, size_t pktLen) = 0;
-
-  private:
-    RxCallback m_rxCb = nullptr;
-    DisconnectCallback m_disconnectCb = nullptr;
-
-    void *m_rxCtx = nullptr;
-    void *m_disconnectCtx = nullptr;
+    CallbackContext rxCallbackContext = nullptr;
+    CallbackContext disconnectCallbackContext = nullptr;
 };
 }; // namespace ndnc
 

@@ -91,7 +91,7 @@ uint64_t Runner::getFileMetadata() {
     }
 
     // Wait for Data
-    TaskResult result;
+    PendingInterestResult result;
     for (; !m_shouldStop && !m_hasError && m_pipeline->isValid();) {
         if (!rxQueue.try_dequeue(result)) {
             continue;
@@ -153,7 +153,7 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
         uint64_t nBytes = 0;
         for (auto i = 0; i < nTx && !m_shouldStop && !m_hasError &&
                          m_pipeline->isValid();) {
-            TaskResult result;
+            PendingInterestResult result;
             if (!rxQueue.try_dequeue(result)) { // TODO: try_dequeue_bulk()
                 continue;
             }

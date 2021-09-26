@@ -35,22 +35,22 @@
 namespace ndnc {
 class PipelineFixed : public Pipeline {
   public:
-    using PendingInteretsTable = std::map<uint64_t, PendingTask>;
+    using PendingInteretsTable = std::map<uint64_t, PendingInterest>;
 
   public:
     PipelineFixed(Face &face, size_t size);
     ~PipelineFixed();
 
   private:
-    virtual void run() final;
+    void run() final;
 
-    void replyWithError(uint64_t pitTokenValue);
+    void processInterest(PendingInterest pi);
+    void processInterests(std::vector<PendingInterest> pi, size_t n);
+    void processTimeout();
+
     void replyWithData(const std::shared_ptr<const ndn::Data> &data,
                        uint64_t pitTokenValue);
-
-    void handleTimeout();
-    void handleTask(PendingTask task);
-    void handleTasks(std::vector<PendingTask> tasks, size_t n);
+    void replyWithError(uint64_t pitTokenValue);
 
   public:
     bool

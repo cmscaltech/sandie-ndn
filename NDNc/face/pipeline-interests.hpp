@@ -38,14 +38,17 @@
 #include "packet-handler.hpp"
 
 namespace ndnc {
-class TaskResult {
+class PendingInterestResult {
   public:
-    TaskResult() {}
-    TaskResult(bool error) : error(error) {}
-    TaskResult(const std::shared_ptr<const ndn::Data> &data)
+    PendingInterestResult() {}
+
+    PendingInterestResult(bool error) : error(error) {}
+
+    PendingInterestResult(const std::shared_ptr<const ndn::Data> &data)
         : data(data), error(false) {}
 
-    TaskResult(const std::shared_ptr<const ndn::Data> &data, bool error)
+    PendingInterestResult(const std::shared_ptr<const ndn::Data> &data,
+                          bool error)
         : data(data), error(error) {}
 
     auto getData() { return this->data; }
@@ -56,24 +59,24 @@ class TaskResult {
     bool error;
 };
 // pipeline -> worker
-typedef moodycamel::ConcurrentQueue<TaskResult> RxQueue;
+typedef moodycamel::ConcurrentQueue<PendingInterestResult> RxQueue;
 }; // namespace ndnc
 
 namespace ndnc {
-class PendingTask {
+class PendingInterest {
   public:
-    PendingTask() : rxQueue(nullptr), expirationTime{0}, nTimeout{0} {}
+    PendingInterest() : rxQueue(nullptr), expirationDate{0}, nTimeout{0} {}
 
-    PendingTask(const std::shared_ptr<const ndn::Interest> &interest,
-                RxQueue *rxQueue)
-        : interest(interest), expirationTime{0}, nTimeout{0} {
+    PendingInterest(const std::shared_ptr<const ndn::Interest> &interest,
+                    RxQueue *rxQueue)
+        : interest(interest), expirationDate{0}, nTimeout{0} {
         this->rxQueue = rxQueue;
     }
 
-    ~PendingTask() {}
+    ~PendingInterest() {}
 
     void markAsExpressed() {
-        this->expirationTime =
+        this->expirationDate =
             std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now().time_since_epoch())
                 .count() +
@@ -83,24 +86,17 @@ class PendingTask {
     bool expired() const {
         return std::chrono::duration_cast<std::chrono::milliseconds>(
                    std::chrono::system_clock::now().time_since_epoch())
-                   .count() > static_cast<int64_t>(expirationTime);
+                   .count() > static_cast<int64_t>(expirationDate);
     }
 
   public:
     std::shared_ptr<const ndn::Interest> interest;
     RxQueue *rxQueue;
-
-    uint64_t expirationTime;
-    uint64_t nTimeout;
+    uint64_t expirationDate; // uint64_t timestamp
+    size_t nTimeout;
 };
 // worker -> pipeline
-typedef moodycamel::ConcurrentQueue<PendingTask> TxQueue;
-
-struct GreaterThanByExpirationTime {
-    bool operator()(PendingTask lhs, PendingTask rhs) const {
-        return lhs.expirationTime > rhs.expirationTime;
-    }
-};
+typedef moodycamel::ConcurrentQueue<PendingInterest> TxQueue;
 }; // namespace ndnc
 
 namespace ndnc {

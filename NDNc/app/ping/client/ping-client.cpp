@@ -77,7 +77,7 @@ void Runner::run() {
     auto start = ndn::time::system_clock::now();
     ++m_counters.nTxInterests;
 
-    TaskResult result;
+    PendingInterestResult result;
     while (!rxQueue.try_dequeue(result) && !m_stop) {
     }
 

@@ -149,27 +149,26 @@ void PipelineFixed::handleTasks(std::vector<PendingTask> tasks, size_t n) {
 }
 
 void PipelineFixed::handleTimeout() {
-    for (auto pitEntry = m_pit.begin(); pitEntry != m_pit.end(); ++pitEntry) {
-        if (!pitEntry->second.expired()) {
-            continue;
-        }
-
-        auto pendingTask = pitEntry->second;
-
-        pendingTask.nTimeout += 1;
-        std::cout << "TRACE: Request timeout for "
-                  << pendingTask.interest->getName() << " "
-                  << pendingTask.nTimeout << "\n";
-
-        if (pendingTask.nTimeout < 8) {
-            m_pit.erase(pitEntry->first);
-            handleTask(pendingTask);
-        } else {
-            replyWithError(pitEntry->first);
-        }
-
-        // Handle just one timeout per iteration
+    // Check for timeout one Interest per iteration.
+    // PIT table is a ordered map with PIT TOKEN value as key, which is
+    // generated sequentially by RandomNumberGenerator, thus first entry is the
+    // oldest expressed Interest packet
+    if (m_pit.size() == 0 || !m_pit.begin()->second.expired()) {
         return;
+    }
+
+    auto pendingTask = m_pit.begin()->second;
+
+    pendingTask.nTimeout += 1;
+    std::cout << "TRACE: Request timeout for "
+              << pendingTask.interest->getName() << " " << pendingTask.nTimeout
+              << "\n";
+
+    if (pendingTask.nTimeout < 8) {
+        m_pit.erase(m_pit.begin()->first);
+        handleTask(pendingTask);
+    } else {
+        replyWithError(m_pit.begin()->first);
     }
 }
 

@@ -29,13 +29,11 @@
 #define NDNC_FACE_PIPELINE_INTERESTS_HPP
 
 #include <chrono>
-#include <queue>
 #include <thread>
-#include <unordered_map>
-#include <vector>
 
 #include "concurrentqueue/blockingconcurrentqueue.h"
 #include "concurrentqueue/concurrentqueue.h"
+
 #include "lp/pit-token.hpp"
 #include "packet-handler.hpp"
 

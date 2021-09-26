@@ -28,15 +28,14 @@
 #ifndef NDNC_FACE_PIPELINE_INTERESTS_FIXED_HPP
 #define NDNC_FACE_PIPELINE_INTERESTS_FIXED_HPP
 
+#include <map>
+
 #include "pipeline-interests.hpp"
 
 namespace ndnc {
 class PipelineFixed : public Pipeline {
   public:
-    using PendingInteretsTable = std::unordered_map<uint64_t, PendingTask>;
-    using TimeoutTrackerQueue =
-        std::priority_queue<PendingTask, std::vector<PendingTask>,
-                            GreaterThanByExpirationTime>;
+    using PendingInteretsTable = std::map<uint64_t, PendingTask>;
 
   public:
     PipelineFixed(Face &face, size_t size);
@@ -69,7 +68,6 @@ class PipelineFixed : public Pipeline {
 
     TxQueue m_tasksQueue;
     PendingInteretsTable m_pit;
-    TimeoutTrackerQueue m_timeoutQueue;
 };
 }; // namespace ndnc
 

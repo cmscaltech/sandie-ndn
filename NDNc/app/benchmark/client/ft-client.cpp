@@ -77,6 +77,10 @@ void Runner::stop() {
     m_pipeline->stop();
 }
 
+bool Runner::isValid() {
+    return !m_shouldStop && !m_hasError && m_pipeline->isValid();
+}
+
 uint64_t Runner::getFileMetadata() {
     auto interest =
         std::make_shared<ndn::Interest>(getNameForMetadata(m_options.file));
@@ -92,7 +96,7 @@ uint64_t Runner::getFileMetadata() {
 
     // Wait for Data
     PendingInterestResult result;
-    for (; !m_shouldStop && !m_hasError && m_pipeline->isValid();) {
+    for (; isValid();) {
         if (!rxQueue.try_dequeue(result)) {
             continue;
         }
@@ -107,7 +111,7 @@ uint64_t Runner::getFileMetadata() {
         break;
     }
 
-    if (m_shouldStop || m_hasError || !m_pipeline->isValid()) {
+    if (!isValid()) {
         return 0;
     }
 
@@ -133,8 +137,7 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
     RxQueue rxQueue;
     uint64_t segmentNo = tid;
 
-    while (segmentNo < m_fileMetadata.getLastSegment() && !m_shouldStop &&
-           !m_hasError && m_pipeline->isValid()) {
+    while (segmentNo < m_fileMetadata.getLastSegment() && isValid()) {
         uint8_t nTx = 0;
         for (auto i = 0;
              i < m_chunk && segmentNo < m_fileMetadata.getLastSegment(); ++i) {
@@ -145,18 +148,19 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
                 m_hasError = true;
                 return;
             } else {
-                segmentNo += m_options.nthreads;
                 ++nTx;
+                segmentNo += m_options.nthreads;
             }
         }
 
         uint64_t nBytes = 0;
-        for (auto i = 0; i < nTx && !m_shouldStop && !m_hasError &&
-                         m_pipeline->isValid();) {
+        for (; nTx > 0 && isValid();) {
             PendingInterestResult result;
             if (!rxQueue.try_dequeue(result)) { // TODO: try_dequeue_bulk()
                 continue;
             }
+
+            --nTx;
 
             if (result.isError()) {
                 std::cout << "ERROR: network is unrecheable\n";
@@ -166,7 +170,6 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
 
             m_counters.nData.fetch_add(1, std::memory_order_release);
             nBytes += result.getData()->getContent().value_size();
-            ++i;
         }
 
         onProgress(nBytes);

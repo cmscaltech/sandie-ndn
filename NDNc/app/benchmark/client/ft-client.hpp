@@ -71,6 +71,7 @@ class Runner : public std::enable_shared_from_this<Runner> {
     void run(NotifyProgressStatus onProgress);
     void wait();
     void stop();
+    bool isValid();
 
     Counters &readCounters();
 
@@ -85,7 +86,7 @@ class Runner : public std::enable_shared_from_this<Runner> {
     Counters m_counters;
 
     FileMetadata m_fileMetadata;
-    uint8_t m_chunk;
+    uint16_t m_chunk;
 
     std::vector<std::thread> m_workers;
     std::atomic_bool m_shouldStop;

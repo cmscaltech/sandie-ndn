@@ -106,7 +106,7 @@ bool Face::send(const ndn::Block wire) {
     m_counters.nTxBytes += wire.size();
 #endif // DEBUG
 
-    if (!m_transport->putTxRequest(wire)) {
+    if (!m_transport->send(wire)) {
 #ifdef DEBUG
         ++m_counters.nErrors;
 #endif // DEBUG
@@ -122,7 +122,7 @@ bool Face::send(std::vector<ndn::Block> wires) {
         m_counters.nTxBytes += wire->size();
 #endif // DEBUG
 
-    if (!m_transport->putTxRequests(wires)) {
+    if (!m_transport->send(wires)) {
 #ifdef DEBUG
         ++m_counters.nErrors;
 #endif // DEBUG
@@ -132,9 +132,13 @@ bool Face::send(std::vector<ndn::Block> wires) {
 }
 
 bool Face::expressInterest(const std::shared_ptr<const ndn::Interest> &interest,
-                           const ndn::lp::PitToken &pitToken) {
+                           const uint64_t pitTokenValue) {
     ndn::lp::Packet lpPacket(interest->wireEncode());
-    lpPacket.add<ndn::lp::PitTokenField>(pitToken);
+
+    auto block = ndn::encoding::makeNonNegativeIntegerBlock(
+        ndn::lp::tlv::PitToken, pitTokenValue);
+    lpPacket.add<ndn::lp::PitTokenField>(ndn::lp::PitToken(
+        std::make_pair(block.value_begin(), block.value_end())));
 
     auto wire = lpPacket.wireEncode();
     return this->send(wire);
@@ -142,12 +146,16 @@ bool Face::expressInterest(const std::shared_ptr<const ndn::Interest> &interest,
 
 bool Face::expressInterests(
     const std::vector<std::shared_ptr<const ndn::Interest>> interests,
-    const std::vector<ndn::lp::PitToken> pitTokens) {
+    const std::vector<uint64_t> pitTokenValues) {
 
     std::vector<ndn::Block> reqs;
     for (size_t i = 0; i < interests.size(); ++i) {
         ndn::lp::Packet lpPacket(interests[i]->wireEncode());
-        lpPacket.add<ndn::lp::PitTokenField>(pitTokens[i]);
+
+        auto block = ndn::encoding::makeNonNegativeIntegerBlock(
+            ndn::lp::tlv::PitToken, pitTokenValues[i]);
+        lpPacket.add<ndn::lp::PitTokenField>(ndn::lp::PitToken(
+            std::make_pair(block.value_begin(), block.value_end())));
 
         auto wire = lpPacket.wireEncode();
         reqs.push_back(wire);
@@ -233,8 +241,8 @@ bool Face::openMemif(int dataroom, std::string gqlserver, std::string name) {
 
 #ifndef __APPLE__
     static Memif transport;
-    if (!transport.begin(m_client->getSocketName().c_str(), id, name.c_str(),
-                         dataroom)) {
+    if (!transport.init(m_client->getSocketName().c_str(), id, name.c_str(),
+                        dataroom)) {
         std::cout << "FATAL: Unable to init face\n";
         return false;
     }

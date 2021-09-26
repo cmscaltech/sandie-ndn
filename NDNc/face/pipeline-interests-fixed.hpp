@@ -33,25 +33,25 @@
 namespace ndnc {
 class PipelineFixed : public Pipeline {
   public:
-    using TokenGenerator = std::shared_ptr<ndnc::lp::PitTokenGenerator>;
-    using PendingInteretsTable = std::unordered_map<uint64_t, RxQueue *>;
+    using PendingInteretsTable = std::unordered_map<uint64_t, PendingTask>;
     using TimeoutTrackerQueue =
         std::priority_queue<PendingTask, std::vector<PendingTask>,
                             GreaterThanByExpirationTime>;
 
   public:
-    PipelineFixed(Face &face, uint64_t size);
+    PipelineFixed(Face &face, size_t size);
     ~PipelineFixed();
 
   private:
     virtual void run() final;
 
-    void replyWithError(uint64_t pitEntry);
+    void replyWithError(uint64_t pitTokenValue);
     void replyWithData(const std::shared_ptr<const ndn::Data> &data,
-                       uint64_t pitEntry);
+                       uint64_t pitTokenValue);
 
     void handleTimeout();
     void handleTask(PendingTask task);
+    void handleTasks(std::vector<PendingTask> tasks, size_t n);
 
   public:
     bool
@@ -65,14 +65,11 @@ class PipelineFixed : public Pipeline {
                            const ndn::lp::PitToken &pitToken) final;
 
   private:
-    std::thread m_pipelineWorker;
-    uint64_t m_maxFixedPipeSize;
+    size_t m_maxFixedPipeSize;
 
     TxQueue m_tasksQueue;
-    TimeoutTrackerQueue m_timeoutQueue;
-
-    TokenGenerator m_tokenGenerator;
     PendingInteretsTable m_pit;
+    TimeoutTrackerQueue m_timeoutQueue;
 };
 }; // namespace ndnc
 

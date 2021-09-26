@@ -92,7 +92,7 @@ uint64_t Runner::getFileMetadata() {
 
     // Wait for Data
     TaskResult result;
-    for (; !m_shouldStop && !m_hasError;) {
+    for (; !m_shouldStop && !m_hasError && m_pipeline->isValid();) {
         if (!rxQueue.try_dequeue(result)) {
             continue;
         }
@@ -107,7 +107,7 @@ uint64_t Runner::getFileMetadata() {
         break;
     }
 
-    if (m_shouldStop || m_hasError) {
+    if (m_shouldStop || m_hasError || !m_pipeline->isValid()) {
         return 0;
     }
 
@@ -134,7 +134,7 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
     uint64_t segmentNo = tid;
 
     while (segmentNo < m_fileMetadata.getLastSegment() && !m_shouldStop &&
-           !m_hasError) {
+           !m_hasError && m_pipeline->isValid()) {
         uint8_t nTx = 0;
         for (auto i = 0;
              i < m_chunk && segmentNo < m_fileMetadata.getLastSegment(); ++i) {
@@ -151,7 +151,8 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
         }
 
         uint64_t nBytes = 0;
-        for (auto i = 0; i < nTx && !m_shouldStop && !m_hasError;) {
+        for (auto i = 0; i < nTx && !m_shouldStop && !m_hasError &&
+                         m_pipeline->isValid();) {
             TaskResult result;
             if (!rxQueue.try_dequeue(result)) { // TODO: try_dequeue_bulk()
                 continue;

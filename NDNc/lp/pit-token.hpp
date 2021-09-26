@@ -38,57 +38,39 @@
 #include <ndn-cxx/lp/tlv.hpp>
 
 namespace ndnc {
-namespace lp {
-/**
- * @brief Helper class to generate random PIT Token objects and decode their
- * value
- *
- */
-class PitTokenGenerator {
+class RandomNumberGenerator {
   public:
-    PitTokenGenerator() {
+    RandomNumberGenerator() {
         std::random_device rd;
         std::mt19937_64 gen(rd());
         std::uniform_int_distribution<uint64_t> dist(
             std::numeric_limits<uint32_t>::max(),
             std::numeric_limits<uint64_t>::max());
 
-        m_sequence = dist(gen);
+        next = dist(gen);
     }
 
-    /**
-     * @brief Get the PIT Token object
-     *
-     * @param value PIT Token value
-     * @return auto PIT Token
-     */
-    auto getToken(uint64_t &value) {
-        value = m_sequence.fetch_add(1, std::memory_order_acq_rel);
-
-        auto block = ndn::encoding::makeNonNegativeIntegerBlock(
-            ndn::lp::tlv::PitToken, value);
-
-        return ndn::lp::PitToken(
-            std::make_pair(block.value_begin(), block.value_end()));
-    }
-
-  public:
-    /**
-     * @brief Decode PIT Token value
-     *
-     * @param data PIT Token as array of bytes
-     * @return uint64_t PIT Token decoded value
-     */
-    inline static uint64_t getValue(const uint8_t *data) {
-        return (((uint64_t)(data[7]) << 0) + ((uint64_t)(data[6]) << 8) +
-                ((uint64_t)(data[5]) << 16) + ((uint64_t)(data[4]) << 24) +
-                ((uint64_t)(data[3]) << 32) + ((uint64_t)(data[2]) << 40) +
-                ((uint64_t)(data[1]) << 48) + ((uint64_t)(data[0]) << 56));
-    }
+    uint64_t getNext() { return next.fetch_add(1, std::memory_order_acq_rel); }
 
   private:
-    std::atomic<uint64_t> m_sequence;
+    std::atomic<uint64_t> next;
 };
+
+namespace lp {
+static inline ndn::lp::PitToken getPITToken(uint64_t value) {
+    auto block = ndn::encoding::makeNonNegativeIntegerBlock(
+        ndn::lp::tlv::PitToken, value);
+
+    return ndn::lp::PitToken(
+        std::make_pair(block.value_begin(), block.value_end()));
+}
+
+static inline uint64_t getPITTokenValue(const uint8_t *data) {
+    return (((uint64_t)(data[7]) << 0) + ((uint64_t)(data[6]) << 8) +
+            ((uint64_t)(data[5]) << 16) + ((uint64_t)(data[4]) << 24) +
+            ((uint64_t)(data[3]) << 32) + ((uint64_t)(data[2]) << 40) +
+            ((uint64_t)(data[1]) << 48) + ((uint64_t)(data[0]) << 56));
+}
 }; // namespace lp
 }; // namespace ndnc
 

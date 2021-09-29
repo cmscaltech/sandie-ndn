@@ -39,14 +39,14 @@ PipelineFixed::~PipelineFixed() {
 }
 
 bool PipelineFixed::enqueueInterestPacket(
-    const std::shared_ptr<const ndn::Interest> &interest, void *rxQueue) {
-    return m_tasksQueue.enqueue(
-        PendingInterest(std::move(interest), static_cast<RxQueue *>(rxQueue)));
+    const std::shared_ptr<const ndn::Interest> &&interest, void *rxQueue) {
+    return m_tasksQueue.enqueue(std::move(
+        PendingInterest(std::move(interest), static_cast<RxQueue *>(rxQueue))));
 }
 
 void PipelineFixed::dequeueDataPacket(
-    const std::shared_ptr<const ndn::Data> &data,
-    const ndn::lp::PitToken &pitToken) {
+    const std::shared_ptr<const ndn::Data> &&data,
+    const ndn::lp::PitToken &&pitToken) {
 
     auto pitKey = lp::getPITTokenValue(pitToken.data());
 
@@ -59,8 +59,8 @@ void PipelineFixed::dequeueDataPacket(
 }
 
 void PipelineFixed::dequeueNackPacket(
-    const std::shared_ptr<const ndn::lp::Nack> &nack,
-    const ndn::lp::PitToken &pitToken) {
+    const std::shared_ptr<const ndn::lp::Nack> &&nack,
+    const ndn::lp::PitToken &&pitToken) {
 
     auto pitKey = lp::getPITTokenValue(pitToken.data());
 
@@ -138,7 +138,7 @@ void PipelineFixed::processInterests(std::vector<PendingInterest> pi,
         pitTokens.push_back(pitKey);
     }
 
-    if (!m_face->expressInterests(interests, pitTokens)) {
+    if (!m_face->expressInterests(std::move(interests), std::move(pitTokens))) {
         std::cout << "FATAL: unable to express Interests on face\n";
         this->stop();
     } else {
@@ -172,17 +172,18 @@ void PipelineFixed::processTimeout() {
     }
 }
 
-void PipelineFixed::replyWithData(const std::shared_ptr<const ndn::Data> &data,
+void PipelineFixed::replyWithData(const std::shared_ptr<const ndn::Data> &&data,
                                   uint64_t pitTokenValue) {
     m_pit[pitTokenValue].rxQueue->enqueue(
-        PendingInterestResult(std::move(data)));
+        std::move(PendingInterestResult(std::move(data))));
     m_pit.erase(pitTokenValue);
 }
 
 void PipelineFixed::replyWithError(PendingInterestResultError errCode,
                                    uint64_t pitTokenValue) {
     if (m_pit[pitTokenValue].rxQueue != nullptr) {
-        m_pit[pitTokenValue].rxQueue->enqueue(PendingInterestResult(errCode));
+        m_pit[pitTokenValue].rxQueue->enqueue(
+            std::move(PendingInterestResult(errCode)));
     }
     m_pit.erase(pitTokenValue);
 }

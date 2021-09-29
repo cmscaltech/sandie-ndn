@@ -131,8 +131,9 @@ bool Face::send(std::vector<ndn::Block> wires) {
     return true;
 }
 
-bool Face::expressInterest(const std::shared_ptr<const ndn::Interest> &interest,
-                           const uint64_t pitTokenValue) {
+bool Face::expressInterest(
+    const std::shared_ptr<const ndn::Interest> &&interest,
+    const uint64_t pitTokenValue) {
     ndn::lp::Packet lpPacket(interest->wireEncode());
 
     auto block = ndn::encoding::makeNonNegativeIntegerBlock(
@@ -145,8 +146,8 @@ bool Face::expressInterest(const std::shared_ptr<const ndn::Interest> &interest,
 }
 
 bool Face::expressInterests(
-    const std::vector<std::shared_ptr<const ndn::Interest>> interests,
-    const std::vector<uint64_t> pitTokenValues) {
+    const std::vector<std::shared_ptr<const ndn::Interest>> &&interests,
+    const std::vector<uint64_t> &&pitTokenValues) {
 
     std::vector<ndn::Block> reqs;
     for (size_t i = 0; i < interests.size(); ++i) {
@@ -201,13 +202,16 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
 
         if (lpPacket.has<ndn::lp::NackField>()) {
             m_packetHandler->dequeueNackPacket(
-                std::make_shared<const ndn::lp::Nack>(std::move(*interest)),
-                ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
+                std::move(std::make_shared<const ndn::lp::Nack>(
+                    std::move(*interest))),
+                std::move(
+                    ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>())));
         } else {
             if (m_packetHandler != nullptr) {
                 m_packetHandler->dequeueInterestPacket(
-                    interest,
-                    ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
+                    std::move(interest),
+                    std::move(ndn::lp::PitToken(
+                        lpPacket.get<ndn::lp::PitTokenField>())));
             }
         }
         break;
@@ -216,8 +220,9 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     case ndn::tlv::Data: {
         if (m_packetHandler != nullptr) {
             m_packetHandler->dequeueDataPacket(
-                std::make_shared<const ndn::Data>(netPacket),
-                ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
+                std::move(std::make_shared<const ndn::Data>(netPacket)),
+                std::move(
+                    ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>())));
         }
         break;
     }

@@ -78,7 +78,7 @@ class Runner : public std::enable_shared_from_this<Runner> {
   private:
     void getFileContent(int tid, NotifyProgressStatus onProgress);
 
-    int expressInterests(std::shared_ptr<ndn::Interest> interest,
+    int expressInterests(std::shared_ptr<ndn::Interest> &&interest,
                          RxQueue *rxQueue);
 
   private:

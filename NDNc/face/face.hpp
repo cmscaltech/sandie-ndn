@@ -71,12 +71,12 @@ class Face {
     bool openMemif(int dataroom, std::string gqlserver, std::string name);
     bool advertise(const std::string prefix);
 
-    bool expressInterest(const std::shared_ptr<const ndn::Interest> &interest,
+    bool expressInterest(const std::shared_ptr<const ndn::Interest> &&interest,
                          const uint64_t pitTokenValue);
 
     bool expressInterests(
-        const std::vector<std::shared_ptr<const ndn::Interest>> interests,
-        const std::vector<uint64_t> pitTokenValues);
+        const std::vector<std::shared_ptr<const ndn::Interest>> &&interests,
+        const std::vector<uint64_t> &&pitTokenValues);
 
     bool putData(const ndn::Data &&data, const ndn::lp::PitToken &pitToken);
 

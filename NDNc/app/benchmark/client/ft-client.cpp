@@ -89,14 +89,20 @@ uint64_t Runner::getFileMetadata() {
 
     // Express Interest
     RxQueue rxQueue;
-    if (expressInterests(interest, &rxQueue) == 0) {
+    if (expressInterests(std::move(interest), &rxQueue) == 0) {
         m_hasError = true;
         return 0;
     }
 
     // Wait for Data
     PendingInterestResult result;
-    rxQueue.wait_dequeue(result);
+    while (!rxQueue.wait_dequeue_timed(result, 1000)) {
+        if (isValid()) {
+            continue;
+        } else {
+            return 0;
+        }
+    }
 
     if (!isValid()) {
         return 0;
@@ -141,7 +147,7 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
             auto interest = std::make_shared<ndn::Interest>(
                 m_fileMetadata.getVersionedName().appendSegment(segmentNo));
 
-            if (expressInterests(interest, &rxQueue) == 0) {
+            if (expressInterests(std::move(interest), &rxQueue) == 0) {
                 m_hasError = true;
                 return;
             } else {
@@ -161,8 +167,6 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
                 }
             }
 
-            --nTx;
-
             if (result.hasError()) {
                 if (result.getErrorCode() == NETWORK) {
                     std::cout << "ERROR: network is unrecheable\n";
@@ -173,19 +177,19 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
 
             m_counters.nData.fetch_add(1, std::memory_order_release);
             nBytes += result.getData()->getContent().value_size();
+            --nTx;
         }
 
         onProgress(nBytes);
     }
 }
 
-int Runner::expressInterests(std::shared_ptr<ndn::Interest> interest,
+int Runner::expressInterests(std::shared_ptr<ndn::Interest> &&interest,
                              RxQueue *rxQueue) {
     interest->setInterestLifetime(m_options.lifetime);
 
     if (!m_pipeline->enqueueInterestPacket(std::move(interest), rxQueue)) {
-        std::cout << "FATAL: unable to enqueue Interest packet: "
-                  << interest->getName() << "\n";
+        std::cout << "FATAL: unable to enqueue Interest \n";
         m_hasError = true;
         return 0;
     }

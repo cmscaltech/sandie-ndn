@@ -47,8 +47,8 @@ class PendingInterestResult {
     PendingInterestResult(PendingInterestResultError errCode)
         : errCode(errCode) {}
 
-    PendingInterestResult(const std::shared_ptr<const ndn::Data> &data)
-        : data(data), errCode(NONE) {}
+    PendingInterestResult(const std::shared_ptr<const ndn::Data> &&data)
+        : data{std::move(data)}, errCode(NONE) {}
 
     auto getData() { return this->data; }
     auto getErrorCode() { return this->errCode; }
@@ -67,9 +67,9 @@ class PendingInterest {
   public:
     PendingInterest() : rxQueue(nullptr), expirationDate{0}, nTimeout{0} {}
 
-    PendingInterest(const std::shared_ptr<const ndn::Interest> &interest,
+    PendingInterest(const std::shared_ptr<const ndn::Interest> &&interest,
                     RxQueue *rxQueue)
-        : interest(interest), expirationDate{0}, nTimeout{0} {
+        : interest{std::move(interest)}, expirationDate{0}, nTimeout{0} {
         this->rxQueue = rxQueue;
     }
 
@@ -131,14 +131,14 @@ class Pipeline : public PacketHandler {
 
   public:
     bool
-    enqueueInterestPacket(const std::shared_ptr<const ndn::Interest> &interest,
+    enqueueInterestPacket(const std::shared_ptr<const ndn::Interest> &&interest,
                           void *rxQueue) = 0;
 
-    void dequeueDataPacket(const std::shared_ptr<const ndn::Data> &data,
-                           const ndn::lp::PitToken &pitToken) = 0;
+    void dequeueDataPacket(const std::shared_ptr<const ndn::Data> &&data,
+                           const ndn::lp::PitToken &&pitToken) = 0;
 
-    void dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &nack,
-                           const ndn::lp::PitToken &pitToken) = 0;
+    void dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &&nack,
+                           const ndn::lp::PitToken &&pitToken) = 0;
 
   public:
     std::shared_ptr<RandomNumberGenerator> m_pitTokenGen;

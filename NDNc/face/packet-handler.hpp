@@ -57,7 +57,7 @@ class PacketHandler {
      * @return false
      */
     virtual bool
-    enqueueInterestPacket(const std::shared_ptr<const ndn::Interest> &interest,
+    enqueueInterestPacket(const std::shared_ptr<const ndn::Interest> &&interest,
                           void *rxQueue);
 
     /**
@@ -67,8 +67,19 @@ class PacketHandler {
      * @param data
      * @param pitToken
      */
-    virtual void dequeueDataPacket(const std::shared_ptr<const ndn::Data> &data,
-                                   const ndn::lp::PitToken &pitToken);
+    virtual void
+    dequeueDataPacket(const std::shared_ptr<const ndn::Data> &&data,
+                      const ndn::lp::PitToken &&pitToken);
+
+    /**
+     * @brief
+     * Consumer flow
+     *
+     * @param nack
+     */
+    virtual void
+    dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &&nack,
+                      const ndn::lp::PitToken &&pitToken);
 
     /**
      * @brief
@@ -92,16 +103,6 @@ class PacketHandler {
     virtual void
     dequeueInterestPacket(const std::shared_ptr<const ndn::Interest> &interest,
                           const ndn::lp::PitToken &pitToken);
-
-    /**
-     * @brief
-     * Consumer flow
-     *
-     * @param nack
-     */
-    virtual void
-    dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &nack,
-                      const ndn::lp::PitToken &pitToken);
 
   protected:
     Face *m_face;

@@ -47,7 +47,7 @@ class PendingInterestResult {
     PendingInterestResult(PendingInterestResultError errCode)
         : errCode(errCode) {}
 
-    PendingInterestResult(const std::shared_ptr<const ndn::Data> &&data)
+    PendingInterestResult(std::shared_ptr<const ndn::Data> &&data)
         : data{std::move(data)}, errCode(NONE) {}
 
     auto getData() { return this->data; }
@@ -67,7 +67,7 @@ class PendingInterest {
   public:
     PendingInterest() : rxQueue(nullptr), expirationDate{0}, nTimeout{0} {}
 
-    PendingInterest(const std::shared_ptr<const ndn::Interest> &&interest,
+    PendingInterest(std::shared_ptr<const ndn::Interest> &&interest,
                     RxQueue *rxQueue)
         : interest{std::move(interest)}, expirationDate{0}, nTimeout{0} {
         this->rxQueue = rxQueue;

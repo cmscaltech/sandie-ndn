@@ -50,7 +50,8 @@ class PipelineFixed : public Pipeline {
 
     void replyWithData(const std::shared_ptr<const ndn::Data> &data,
                        uint64_t pitTokenValue);
-    void replyWithError(uint64_t pitTokenValue);
+    void replyWithError(PendingInterestResultError errCode,
+                        uint64_t pitTokenValue);
 
   public:
     bool

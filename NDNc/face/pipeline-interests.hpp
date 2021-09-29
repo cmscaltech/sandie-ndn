@@ -38,28 +38,28 @@
 #include "packet-handler.hpp"
 
 namespace ndnc {
+enum PendingInterestResultError { NONE = 0, NETWORK = 1 };
+
 class PendingInterestResult {
   public:
     PendingInterestResult() {}
 
-    PendingInterestResult(bool error) : error(error) {}
+    PendingInterestResult(PendingInterestResultError errCode)
+        : errCode(errCode) {}
 
     PendingInterestResult(const std::shared_ptr<const ndn::Data> &data)
-        : data(data), error(false) {}
-
-    PendingInterestResult(const std::shared_ptr<const ndn::Data> &data,
-                          bool error)
-        : data(data), error(error) {}
+        : data(data), errCode(NONE) {}
 
     auto getData() { return this->data; }
-    auto isError() { return this->error; }
+    auto getErrorCode() { return this->errCode; }
+    auto hasError() { return this->errCode != NONE; }
 
   private:
     std::shared_ptr<const ndn::Data> data;
-    bool error;
+    PendingInterestResultError errCode;
 };
 // pipeline -> worker
-typedef moodycamel::ConcurrentQueue<PendingInterestResult> RxQueue;
+typedef moodycamel::BlockingConcurrentQueue<PendingInterestResult> RxQueue;
 }; // namespace ndnc
 
 namespace ndnc {

@@ -96,24 +96,21 @@ uint64_t Runner::getFileMetadata() {
 
     // Wait for Data
     PendingInterestResult result;
-    for (; isValid();) {
-        if (!rxQueue.try_dequeue(result)) {
-            continue;
-        }
-
-        if (result.isError()) {
-            std::cout << "ERROR: network is unrecheable\n";
-            m_hasError = true;
-            return 0;
-        }
-
-        m_counters.nData.fetch_add(1, std::memory_order_release);
-        break;
-    }
+    rxQueue.wait_dequeue(result);
 
     if (!isValid()) {
         return 0;
     }
+
+    if (result.hasError()) {
+        if (result.getErrorCode() == NETWORK) {
+            std::cout << "ERROR: network is unrecheable\n";
+        }
+        m_hasError = true;
+        return 0;
+    }
+
+    m_counters.nData.fetch_add(1, std::memory_order_release);
 
     if (!result.getData()->hasContent() ||
         result.getData()->getContentType() == ndn::tlv::ContentType_Nack) {
@@ -156,14 +153,20 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
         uint64_t nBytes = 0;
         for (; nTx > 0 && isValid();) {
             PendingInterestResult result;
-            if (!rxQueue.try_dequeue(result)) { // TODO: try_dequeue_bulk()
-                continue;
+            if (!rxQueue.wait_dequeue_timed(result, 1000)) {
+                if (isValid()) {
+                    continue;
+                } else {
+                    return;
+                }
             }
 
             --nTx;
 
-            if (result.isError()) {
-                std::cout << "ERROR: network is unrecheable\n";
+            if (result.hasError()) {
+                if (result.getErrorCode() == NETWORK) {
+                    std::cout << "ERROR: network is unrecheable\n";
+                }
                 m_hasError = true;
                 return;
             }

@@ -75,7 +75,7 @@ void PipelineFixed::dequeueNackPacket(
         return;
     }
     default:
-        replyWithError(pitKey);
+        replyWithError(NETWORK, pitKey);
         break;
     }
 }
@@ -168,7 +168,7 @@ void PipelineFixed::processTimeout() {
         m_pit.erase(m_pit.begin()->first);
         processInterest(pitEntry);
     } else {
-        replyWithError(m_pit.begin()->first);
+        replyWithError(NETWORK, m_pit.begin()->first);
     }
 }
 
@@ -179,8 +179,11 @@ void PipelineFixed::replyWithData(const std::shared_ptr<const ndn::Data> &data,
     m_pit.erase(pitTokenValue);
 }
 
-void PipelineFixed::replyWithError(uint64_t pitTokenValue) {
-    m_pit[pitTokenValue].rxQueue->enqueue(PendingInterestResult(true));
+void PipelineFixed::replyWithError(PendingInterestResultError errCode,
+                                   uint64_t pitTokenValue) {
+    if (m_pit[pitTokenValue].rxQueue != nullptr) {
+        m_pit[pitTokenValue].rxQueue->enqueue(PendingInterestResult(errCode));
+    }
     m_pit.erase(pitTokenValue);
 }
 }; // namespace ndnc

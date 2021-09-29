@@ -71,7 +71,9 @@ class Memif : public virtual Transport {
         memif_conn_args_t args = {};
         args.socket = m_socket;
         args.interface_id = id;
-        strncpy((char *)args.interface_name, name, strlen(name));
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+        strncpy((char *)args.interface_name, name, 32);
+#pragma GCC diagnostic pop
         args.buffer_size = buffer_size(m_max_pkt_len);
 
         err = memif_create(&m_conn, &args, Memif::on_connect,

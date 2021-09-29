@@ -45,7 +45,7 @@ struct Options {
 
 class Runner : public std::enable_shared_from_this<Runner> {
   public:
-    using RxQueue = moodycamel::ConcurrentQueue<PendingInterestResult>;
+    using RxQueue = moodycamel::BlockingConcurrentQueue<PendingInterestResult>;
 
     struct Counters {
         uint32_t nTxInterests = 0;

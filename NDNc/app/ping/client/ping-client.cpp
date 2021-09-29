@@ -78,10 +78,13 @@ void Runner::run() {
     ++m_counters.nTxInterests;
 
     PendingInterestResult result;
-    while (!rxQueue.try_dequeue(result) && !m_stop) {
+    while (!rxQueue.wait_dequeue_timed(result, 1000)) {
+        if (!m_pipeline->isValid()) {
+            return;
+        }
     }
 
-    if (result.isError() || m_stop) {
+    if (result.hasError() || m_stop) {
         return;
     }
 

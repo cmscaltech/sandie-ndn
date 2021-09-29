@@ -39,14 +39,13 @@ PipelineFixed::~PipelineFixed() {
 }
 
 bool PipelineFixed::enqueueInterestPacket(
-    const std::shared_ptr<const ndn::Interest> &&interest, void *rxQueue) {
+    std::shared_ptr<const ndn::Interest> &&interest, void *rxQueue) {
     return m_tasksQueue.enqueue(std::move(
         PendingInterest(std::move(interest), static_cast<RxQueue *>(rxQueue))));
 }
 
-void PipelineFixed::dequeueDataPacket(
-    const std::shared_ptr<const ndn::Data> &&data,
-    const ndn::lp::PitToken &&pitToken) {
+void PipelineFixed::dequeueDataPacket(std::shared_ptr<const ndn::Data> &&data,
+                                      ndn::lp::PitToken &&pitToken) {
 
     auto pitKey = lp::getPITTokenValue(pitToken.data());
 
@@ -59,8 +58,7 @@ void PipelineFixed::dequeueDataPacket(
 }
 
 void PipelineFixed::dequeueNackPacket(
-    const std::shared_ptr<const ndn::lp::Nack> &&nack,
-    const ndn::lp::PitToken &&pitToken) {
+    std::shared_ptr<const ndn::lp::Nack> &&nack, ndn::lp::PitToken &&pitToken) {
 
     auto pitKey = lp::getPITTokenValue(pitToken.data());
 
@@ -172,7 +170,7 @@ void PipelineFixed::processTimeout() {
     }
 }
 
-void PipelineFixed::replyWithData(const std::shared_ptr<const ndn::Data> &&data,
+void PipelineFixed::replyWithData(std::shared_ptr<const ndn::Data> &&data,
                                   uint64_t pitTokenValue) {
     m_pit[pitTokenValue].rxQueue->enqueue(
         std::move(PendingInterestResult(std::move(data))));

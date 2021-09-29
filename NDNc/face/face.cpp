@@ -131,9 +131,8 @@ bool Face::send(std::vector<ndn::Block> wires) {
     return true;
 }
 
-bool Face::expressInterest(
-    const std::shared_ptr<const ndn::Interest> &&interest,
-    const uint64_t pitTokenValue) {
+bool Face::expressInterest(std::shared_ptr<const ndn::Interest> &&interest,
+                           uint64_t pitTokenValue) {
     ndn::lp::Packet lpPacket(interest->wireEncode());
 
     auto block = ndn::encoding::makeNonNegativeIntegerBlock(
@@ -146,8 +145,8 @@ bool Face::expressInterest(
 }
 
 bool Face::expressInterests(
-    const std::vector<std::shared_ptr<const ndn::Interest>> &&interests,
-    const std::vector<uint64_t> &&pitTokenValues) {
+    std::vector<std::shared_ptr<const ndn::Interest>> &&interests,
+    std::vector<uint64_t> &&pitTokenValues) {
 
     std::vector<ndn::Block> reqs;
     for (size_t i = 0; i < interests.size(); ++i) {
@@ -165,7 +164,7 @@ bool Face::expressInterests(
     return this->send(reqs);
 }
 
-bool Face::putData(const ndn::Data &&data, const ndn::lp::PitToken &pitToken) {
+bool Face::putData(ndn::Data &&data, ndn::lp::PitToken &&pitToken) {
     ndn::lp::Packet lpPacket(data.wireEncode());
     lpPacket.add<ndn::lp::PitTokenField>(pitToken);
 
@@ -202,8 +201,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
 
         if (lpPacket.has<ndn::lp::NackField>()) {
             m_packetHandler->dequeueNackPacket(
-                std::move(std::make_shared<const ndn::lp::Nack>(
-                    std::move(*interest))),
+                std::make_shared<const ndn::lp::Nack>(std::move(*interest)),
                 std::move(
                     ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>())));
         } else {
@@ -220,7 +218,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     case ndn::tlv::Data: {
         if (m_packetHandler != nullptr) {
             m_packetHandler->dequeueDataPacket(
-                std::move(std::make_shared<const ndn::Data>(netPacket)),
+                std::make_shared<const ndn::Data>(netPacket),
                 std::move(
                     ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>())));
         }

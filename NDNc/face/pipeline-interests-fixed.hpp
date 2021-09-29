@@ -48,21 +48,20 @@ class PipelineFixed : public Pipeline {
     void processInterests(std::vector<PendingInterest> pi, size_t n);
     void processTimeout();
 
-    void replyWithData(const std::shared_ptr<const ndn::Data> &&data,
+    void replyWithData(std::shared_ptr<const ndn::Data> &&data,
                        uint64_t pitTokenValue);
     void replyWithError(PendingInterestResultError errCode,
                         uint64_t pitTokenValue);
 
   public:
-    bool
-    enqueueInterestPacket(const std::shared_ptr<const ndn::Interest> &&interest,
-                          void *rxQueue) final;
+    bool enqueueInterestPacket(std::shared_ptr<const ndn::Interest> &&interest,
+                               void *rxQueue) final;
 
-    void dequeueDataPacket(const std::shared_ptr<const ndn::Data> &&data,
-                           const ndn::lp::PitToken &&pitToken) final;
+    void dequeueDataPacket(std::shared_ptr<const ndn::Data> &&data,
+                           ndn::lp::PitToken &&pitToken) final;
 
-    void dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &&nack,
-                           const ndn::lp::PitToken &&pitToken) final;
+    void dequeueNackPacket(std::shared_ptr<const ndn::lp::Nack> &&nack,
+                           ndn::lp::PitToken &&pitToken) final;
 
   private:
     size_t m_maxFixedPipeSize;

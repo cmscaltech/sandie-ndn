@@ -46,8 +46,8 @@ Runner::Runner(Face &face, ServerOptions options)
 Runner::~Runner() {}
 
 void Runner::dequeueInterestPacket(
-    const std::shared_ptr<const ndn::Interest> &interest,
-    const ndn::lp::PitToken &pitToken) {
+    std::shared_ptr<const ndn::Interest> &&interest,
+    ndn::lp::PitToken &&pitToken) {
 
     auto name = interest->getName();
     auto data =
@@ -56,7 +56,7 @@ void Runner::dequeueInterestPacket(
     data.setSignatureInfo(m_signatureInfo);
     data.setSignatureValue(std::make_shared<ndn::Buffer>());
 
-    if (!enqueueDataPacket(std::move(data), pitToken)) {
+    if (!enqueueDataPacket(std::move(data), std::move(pitToken))) {
         std::cout << "WARN: Unable to put Data packet on face\n";
     }
 }

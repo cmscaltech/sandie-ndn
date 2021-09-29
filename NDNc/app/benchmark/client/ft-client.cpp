@@ -74,7 +74,9 @@ void Runner::wait() {
 
 void Runner::stop() {
     m_shouldStop = true;
-    m_pipeline->stop();
+    if (m_pipeline != nullptr) {
+        m_pipeline->stop();
+    }
 }
 
 bool Runner::isValid() {

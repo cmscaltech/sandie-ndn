@@ -36,23 +36,23 @@ PacketHandler::PacketHandler(Face &face) {
 PacketHandler::~PacketHandler() {}
 
 bool PacketHandler::enqueueInterestPacket(
-    const std::shared_ptr<const ndn::Interest> &&, void *) {
+    std::shared_ptr<const ndn::Interest> &&, void *) {
     return true;
 }
 
-void PacketHandler::dequeueDataPacket(const std::shared_ptr<const ndn::Data> &&,
-                                      const ndn::lp::PitToken &&) {}
+void PacketHandler::dequeueDataPacket(std::shared_ptr<const ndn::Data> &&,
+                                      ndn::lp::PitToken &&) {}
 
-bool PacketHandler::enqueueDataPacket(const ndn::Data &&data,
-                                      const ndn::lp::PitToken &pitToken) {
+bool PacketHandler::enqueueDataPacket(ndn::Data &&data,
+                                      ndn::lp::PitToken &&pitToken) {
     return m_face != nullptr &&
-           m_face->putData(std::forward<const ndn::Data>(data), pitToken);
+           m_face->putData(std::forward<ndn::Data>(data),
+                           std::forward<ndn::lp::PitToken>(pitToken));
 }
 
 void PacketHandler::dequeueInterestPacket(
-    const std::shared_ptr<const ndn::Interest> &, const ndn::lp::PitToken &) {}
+    std::shared_ptr<const ndn::Interest> &&, ndn::lp::PitToken &&) {}
 
-void PacketHandler::dequeueNackPacket(
-    const std::shared_ptr<const ndn::lp::Nack> &&, const ndn::lp::PitToken &&) {
-}
+void PacketHandler::dequeueNackPacket(std::shared_ptr<const ndn::lp::Nack> &&,
+                                      ndn::lp::PitToken &&) {}
 }; // namespace ndnc

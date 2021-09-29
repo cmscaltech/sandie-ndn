@@ -57,9 +57,8 @@ class Runner : public PacketHandler,
     Counters readCounters();
 
   private:
-    void
-    dequeueInterestPacket(const std::shared_ptr<const ndn::Interest> &interest,
-                          const ndn::lp::PitToken &pitToken) final;
+    void dequeueInterestPacket(std::shared_ptr<const ndn::Interest> &&interest,
+                               ndn::lp::PitToken &&pitToken) final;
 
   private:
     Options m_options;

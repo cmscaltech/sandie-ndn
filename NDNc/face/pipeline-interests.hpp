@@ -130,15 +130,14 @@ class Pipeline : public PacketHandler {
     virtual void run() = 0;
 
   public:
-    bool
-    enqueueInterestPacket(const std::shared_ptr<const ndn::Interest> &&interest,
-                          void *rxQueue) = 0;
+    bool enqueueInterestPacket(std::shared_ptr<const ndn::Interest> &&interest,
+                               void *rxQueue) = 0;
 
-    void dequeueDataPacket(const std::shared_ptr<const ndn::Data> &&data,
-                           const ndn::lp::PitToken &&pitToken) = 0;
+    void dequeueDataPacket(std::shared_ptr<const ndn::Data> &&data,
+                           ndn::lp::PitToken &&pitToken) = 0;
 
-    void dequeueNackPacket(const std::shared_ptr<const ndn::lp::Nack> &&nack,
-                           const ndn::lp::PitToken &&pitToken) = 0;
+    void dequeueNackPacket(std::shared_ptr<const ndn::lp::Nack> &&nack,
+                           ndn::lp::PitToken &&pitToken) = 0;
 
   public:
     std::shared_ptr<RandomNumberGenerator> m_pitTokenGen;

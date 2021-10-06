@@ -85,8 +85,8 @@ class Runner : public std::enable_shared_from_this<Runner> {
     ClientOptions m_options;
     Counters m_counters;
 
-    FileMetadata m_fileMetadata;
-    uint16_t m_chunk;
+    FileMetadata m_metadata;
+    uint16_t m_npackets;
 
     std::vector<std::thread> m_workers;
     std::atomic_bool m_shouldStop;

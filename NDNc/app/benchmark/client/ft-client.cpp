@@ -36,7 +36,7 @@ namespace ndnc {
 namespace benchmark {
 namespace ft {
 Runner::Runner(Face &face, ClientOptions options)
-    : m_options(options), m_counters(), m_chunk(64), m_shouldStop(false),
+    : m_options(options), m_counters(), m_npackets(64), m_shouldStop(false),
       m_hasError(false) {
     switch (m_options.pipelineType) {
     case fixed:
@@ -127,34 +127,36 @@ uint64_t Runner::getFileMetadata() {
         return 0;
     }
 
-    m_fileMetadata = FileMetadata(result.getData()->getContent());
+    m_metadata = FileMetadata(result.getData()->getContent());
 
     std::cout << "file " << m_options.file << " of size "
-              << m_fileMetadata.getFileSize() << " bytes ("
-              << m_fileMetadata.getSegmentSize() << "/"
-              << m_fileMetadata.getLastSegment() << ") and latest version="
-              << m_fileMetadata.getVersionedName().get(-1).toVersion() << "\n";
+              << m_metadata.getFileSize() << " bytes ("
+              << m_metadata.getSegmentSize() << "/"
+              << m_metadata.getLastSegment() << ") and latest version="
+              << m_metadata.getVersionedName().get(-1).toVersion() << "\n";
 
-    return m_fileMetadata.getFileSize();
+    return m_metadata.getFileSize();
 }
 
 void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
     RxQueue rxQueue;
-    uint64_t segmentNo = tid;
 
-    while (segmentNo < m_fileMetadata.getLastSegment() && isValid()) {
+    for (uint64_t segmentNo = tid * m_npackets;
+         segmentNo <= m_metadata.getLastSegment() && isValid();
+         segmentNo += m_options.nthreads * m_npackets) {
+
         uint8_t nTx = 0;
-        for (auto i = 0;
-             i < m_chunk && segmentNo < m_fileMetadata.getLastSegment(); ++i) {
+        for (uint64_t nextSegment = segmentNo;
+             nextSegment <= m_metadata.getLastSegment() && nTx < m_npackets;
+             ++nextSegment, ++nTx) {
+
             auto interest = std::make_shared<ndn::Interest>(
-                m_fileMetadata.getVersionedName().appendSegment(segmentNo));
+                m_metadata.getVersionedName().deepCopy().appendSegment(
+                    nextSegment));
 
             if (expressInterests(std::move(interest), &rxQueue) == 0) {
                 m_hasError = true;
                 return;
-            } else {
-                ++nTx;
-                segmentNo += m_options.nthreads;
             }
         }
 
@@ -168,7 +170,7 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
                     return;
                 }
             }
-
+            --nTx;
             if (result.hasError()) {
                 if (result.getErrorCode() == NETWORK) {
                     std::cout << "ERROR: network is unrecheable\n";
@@ -179,7 +181,6 @@ void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
 
             m_counters.nData.fetch_add(1, std::memory_order_release);
             nBytes += result.getData()->getContent().value_size();
-            --nTx;
         }
 
         onProgress(nBytes);

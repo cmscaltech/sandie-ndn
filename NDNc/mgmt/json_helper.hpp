@@ -74,16 +74,20 @@ nlohmann::json getOperation(std::string query, std::string name,
  */
 struct createFace {
     std::string socketName; // Socket name
-    int id;                 // Face ID
-    int dataroom;           // Dataroom size
     std::string scheme = "memif";
+    int id;       // Face ID
+    int dataroom; // Dataroom size
+    int rxQueueSize = 512;
+    int txQueueSize = 512;
+    int ringCapacity = 4096;
 };
 
 void to_json(nlohmann::json &json, const createFace &loc) {
-    json = nlohmann::json{{"dataroom", loc.dataroom},
-                          {"id", loc.id},
-                          {"socketName", loc.socketName},
-                          {"scheme", loc.scheme}};
+    json = nlohmann::json{
+        {"dataroom", loc.dataroom},        {"id", loc.id},
+        {"socketName", loc.socketName},    {"scheme", loc.scheme},
+        {"rxQueueSize", loc.rxQueueSize},  {"txQueueSize", loc.txQueueSize},
+        {"ringCapacity", loc.ringCapacity}};
 }
 
 void from_json(const nlohmann::json &json, createFace &loc) {
@@ -91,6 +95,9 @@ void from_json(const nlohmann::json &json, createFace &loc) {
     json.at("id").get_to(loc.id);
     json.at("socketName").get_to(loc.socketName);
     json.at("scheme").get_to(loc.scheme);
+    json.at("rxQueueSize").get_to(loc.rxQueueSize);
+    json.at("txQueueSize").get_to(loc.txQueueSize);
+    json.at("ringCapacity").get_to(loc.ringCapacity);
 }
 
 /**

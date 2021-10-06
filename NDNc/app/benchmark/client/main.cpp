@@ -200,6 +200,15 @@ int main(int argc, char *argv[]) {
     auto fileSize = client->getFileMetadata();
     if (fileSize == 0) {
         client->stop();
+
+        if (client != nullptr) {
+            delete client;
+        }
+
+        if (face != nullptr) {
+            delete face;
+        }
+
         return -2;
     }
 

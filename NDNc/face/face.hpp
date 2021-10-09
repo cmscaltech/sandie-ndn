@@ -65,20 +65,15 @@ class Face {
     ~Face();
 
     bool addHandler(PacketHandler &h);
-    bool isValid();
-    void loop();
-
     bool openMemif(int dataroom, std::string gqlserver, std::string name);
     bool advertise(const std::string prefix);
 
-    bool expressInterest(std::shared_ptr<const ndn::Interest> &&interest,
-                         uint64_t pitTokenValue);
+    bool isValid();
+    void loop();
 
-    bool expressInterests(
-        std::vector<std::shared_ptr<const ndn::Interest>> &&interests,
-        std::vector<uint64_t> &&pitTokenValues);
-
-    bool putData(ndn::Data &&data, ndn::lp::PitToken &&pitToken);
+    // bool express(ndn::Block &&block, size_t n); TODO
+    bool express(std::vector<ndn::Block> &&blocks);
+    bool put(ndn::Data &&data, ndn::lp::PitToken &&pitToken);
 
     Counters readCounters();
 
@@ -104,7 +99,7 @@ class Face {
     }
 
     bool send(const ndn::Block);
-    bool send(std::vector<ndn::Block>);
+    bool send(std::vector<ndn::Block> &&);
 
   private:
     std::unique_ptr<mgmt::Client> m_client;

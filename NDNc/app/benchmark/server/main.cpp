@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    std::cout << "NDNc FILE-TRANSFER BENCHMARKING SERVER APP\n";
+    std::cout << "NDNc FILE TRANSFER SERVER APP\n";
 
     ndnc::Face *face = new ndnc::Face();
 #ifndef __APPLE__

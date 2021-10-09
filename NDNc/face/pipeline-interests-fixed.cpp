@@ -32,22 +32,110 @@
 namespace ndnc {
 
 PipelineFixed::PipelineFixed(Face &face, size_t size)
-    : Pipeline(face), m_maxFixedPipeSize{size} {}
+    : Pipeline(face), m_maxSize{size}, m_pit{} {}
 
 PipelineFixed::~PipelineFixed() {
     this->stop();
 }
 
+void PipelineFixed::run() {
+    while (isValid()) {
+        if (m_pit.size() == m_maxSize) {
+            m_face->loop();
+
+            processTimeout();
+            continue;
+        } else {
+            // DEBUG
+            assert(m_pit.size() < m_maxSize);
+        }
+
+        std::vector<PendingInterest> pendingInterests(m_maxSize - m_pit.size());
+        // pendingInterests.reserve(m_maxSize - m_pit.size());
+        // why doesn't this work ?
+
+        size_t n = m_tasksQueue.try_dequeue_bulk(pendingInterests.begin(),
+                                                 m_maxSize - m_pit.size());
+
+        if (n > 0) {
+            processInterests(std::move(pendingInterests), n);
+        }
+
+        m_face->loop();
+        processTimeout();
+    }
+}
+
+void PipelineFixed::processInterest(PendingInterest &&pendingInterest) {
+    std::vector<PendingInterest> pi;
+    pi.reserve(1);
+    pi.emplace(pi.end(), std::move(pendingInterest));
+
+    this->processInterests(std::move(pi), 1);
+}
+
+void PipelineFixed::processInterests(std::vector<PendingInterest> &&pi,
+                                     size_t n) {
+    std::vector<ndn::Block> request;
+    request.reserve(n);
+
+    for (size_t i = 0; i < n; ++i) {
+        m_pit.emplace(std::make_pair(pi[i].pitKey, pi[i]));
+        request.emplace(request.end(), std::move(pi[i].interest));
+    }
+
+    if (!m_face->express(std::move(request))) {
+        std::cout << "FATAL: unable to express Interests on face\n";
+        this->stop();
+    } else {
+        for (size_t i = 0; i < n; ++i) {
+            m_pit[pi[i].pitKey].markAsExpressed();
+        }
+    }
+}
+
+void PipelineFixed::processTimeout() {
+    for (auto it = m_pit.begin(); it != m_pit.end(); ++it) {
+        if (it->second.isExpired()) {
+            auto interest = getWireDecode(it->second.interest);
+            interest->refreshNonce();
+
+            std::cout << "TRACE: timeout(" << it->second.nTimeout + 1 << ") "
+                      << interest->getName() << " \n";
+
+            uint64_t pitKey = m_rdn->get();
+
+            auto pendingInterest = PendingInterest(
+                it->second.rxQueue,
+                std::move(getWireEncode(std::move(interest), pitKey)), pitKey);
+            pendingInterest.nTimeout = it->second.nTimeout + 1;
+
+            if (pendingInterest.nTimeout < 8) {
+                m_pit.erase(it);
+                this->processInterest(std::move(pendingInterest));
+            } else {
+                replyWithError(NETWORK, it->first);
+            }
+
+            return;
+        }
+    }
+}
+
 bool PipelineFixed::enqueueInterestPacket(
     std::shared_ptr<const ndn::Interest> &&interest, void *rxQueue) {
-    return m_tasksQueue.enqueue(std::move(
-        PendingInterest(std::move(interest), static_cast<RxQueue *>(rxQueue))));
+    uint64_t pitKey = m_rdn->get();
+
+    auto pendingInterest = PendingInterest(
+        static_cast<RxQueue *>(rxQueue),
+        std::move(getWireEncode(std::move(interest), pitKey)), pitKey);
+
+    return m_tasksQueue.enqueue(std::move(pendingInterest));
 }
 
 void PipelineFixed::dequeueDataPacket(std::shared_ptr<const ndn::Data> &&data,
                                       ndn::lp::PitToken &&pitToken) {
-
-    auto pitKey = lp::getPITTokenValue(pitToken.data());
+    auto pitKey = getPITTokenValue(std::move(pitToken));
 
     if (m_pit.find(pitKey) == m_pit.end()) {
         std::cout << "DEBUG: unexpected Data packet dropped\n";
@@ -60,17 +148,22 @@ void PipelineFixed::dequeueDataPacket(std::shared_ptr<const ndn::Data> &&data,
 void PipelineFixed::dequeueNackPacket(
     std::shared_ptr<const ndn::lp::Nack> &&nack, ndn::lp::PitToken &&pitToken) {
 
-    auto pitKey = lp::getPITTokenValue(pitToken.data());
+    auto pitKey = getPITTokenValue(std::move(pitToken));
 
     switch (nack->getReason()) {
     case ndn::lp::NackReason::DUPLICATE: {
-        auto rxQueue = m_pit[pitKey].rxQueue;
-        m_pit.erase(pitKey);
+        auto interest = getWireDecode(m_pit[pitKey].interest);
+        interest->refreshNonce();
 
-        this->enqueueInterestPacket(
-            std::make_shared<const ndn::Interest>(nack->getInterest()),
-            rxQueue);
-        return;
+        uint64_t newPitKey = m_rdn->get();
+        auto pendingInterest = PendingInterest(
+            m_pit[pitKey].rxQueue,
+            std::move(getWireEncode(std::move(interest), newPitKey)),
+            newPitKey);
+
+        m_pit.erase(pitKey);
+        this->processInterest(std::move(pendingInterest));
+        break;
     }
     default:
         replyWithError(NETWORK, pitKey);
@@ -78,111 +171,23 @@ void PipelineFixed::dequeueNackPacket(
     }
 }
 
-void PipelineFixed::run() {
-    if (this->m_face == nullptr) {
-        std::cout << "FATAL: face object is null\n";
-        this->stop();
-        return;
-    }
-
-    while (this->isValid() && m_face != nullptr) {
-        m_face->loop();
-        processTimeout();
-
-        if (m_pit.size() == m_maxFixedPipeSize) {
-            continue;
-        } else {
-            // DEBUG
-            assert(m_pit.size() < m_maxFixedPipeSize);
-        }
-
-        std::vector<PendingInterest> pendingInterests(m_maxFixedPipeSize -
-                                                      m_pit.size());
-        size_t n = m_tasksQueue.try_dequeue_bulk(
-            pendingInterests.begin(), m_maxFixedPipeSize - m_pit.size());
-
-        if (n == 0) {
-            continue;
-        } else if (n == 1) {
-            processInterest(pendingInterests[0]);
-        } else {
-            processInterests(pendingInterests, n);
-            pendingInterests.clear();
-        }
-    }
-}
-
-void PipelineFixed::processInterest(PendingInterest pi) {
-    auto pitKey = m_pitTokenGen->getNext();
-
-    if (m_face->expressInterest(std::move(pi.interest), pitKey)) {
-        pi.markAsExpressed();
-        m_pit[pitKey] = pi;
-    } else {
-        std::cout << "FATAL: unable to express Interest on face\n";
-        this->stop();
-    }
-}
-
-void PipelineFixed::processInterests(std::vector<PendingInterest> pi,
-                                     size_t n) {
-    std::vector<std::shared_ptr<const ndn::Interest>> interests;
-    std::vector<uint64_t> pitTokens;
-
-    for (size_t i = 0; i < n; ++i) {
-        auto pitKey = m_pitTokenGen->getNext();
-
-        interests.push_back(pi[i].interest);
-        pitTokens.push_back(pitKey);
-    }
-
-    if (!m_face->expressInterests(std::move(interests), std::move(pitTokens))) {
-        std::cout << "FATAL: unable to express Interests on face\n";
-        this->stop();
-    } else {
-        for (size_t i = 0; i < n; ++i) {
-            pi[i].markAsExpressed();
-            m_pit[pitTokens[i]] = pi[i];
-        }
-    }
-}
-
-void PipelineFixed::processTimeout() {
-    // Check for timeout one Interest per iteration.
-    // PIT table is a ordered map with PIT TOKEN value as key, which is
-    // generated sequentially by RandomNumberGenerator, thus first entry is the
-    // oldest expressed Interest packet
-    if (m_pit.size() == 0 || !m_pit.begin()->second.expired()) {
-        return;
-    }
-
-    auto pitEntry = m_pit.begin()->second;
-
-    pitEntry.nTimeout += 1;
-    std::cout << "TRACE: Request timeout for " << pitEntry.interest->getName()
-              << " " << pitEntry.nTimeout << "\n";
-
-    if (pitEntry.nTimeout < 8) {
-        m_pit.erase(m_pit.begin()->first);
-        processInterest(pitEntry);
-    } else {
-        replyWithError(NETWORK, m_pit.begin()->first);
-    }
-}
-
 void PipelineFixed::replyWithData(std::shared_ptr<const ndn::Data> &&data,
-                                  uint64_t pitTokenValue) {
-    m_pit[pitTokenValue].rxQueue->enqueue(
-        std::move(PendingInterestResult(std::move(data))));
-    m_pit.erase(pitTokenValue);
+                                  uint64_t pitKey) {
+    if (m_pit[pitKey].rxQueue != nullptr && isValid()) {
+        m_pit[pitKey].rxQueue->enqueue(
+            std::move(PendingInterestResult(std::move(data))));
+    }
+
+    m_pit.erase(pitKey);
 }
 
 void PipelineFixed::replyWithError(PendingInterestResultError errCode,
-                                   uint64_t pitTokenValue) {
-    if (m_pit[pitTokenValue].rxQueue != nullptr) {
-        m_pit[pitTokenValue].rxQueue->enqueue(
+                                   uint64_t pitKey) {
+    if (m_pit[pitKey].rxQueue != nullptr && isValid()) {
+        m_pit[pitKey].rxQueue->enqueue(
             std::move(PendingInterestResult(errCode)));
     }
-    m_pit.erase(pitTokenValue);
+
+    m_pit.erase(pitKey);
 }
 }; // namespace ndnc

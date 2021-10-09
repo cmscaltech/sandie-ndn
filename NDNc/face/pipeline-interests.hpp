@@ -34,8 +34,9 @@
 #include "concurrentqueue/blockingconcurrentqueue.h"
 #include "concurrentqueue/concurrentqueue.h"
 
-#include "lp/pit-token.hpp"
+#include "encoding/encoding.hpp"
 #include "packet-handler.hpp"
+#include "utils/random-number-generator.hpp"
 
 namespace ndnc {
 enum PendingInterestResultError { NONE = 0, NETWORK = 1 };
@@ -65,35 +66,35 @@ typedef moodycamel::BlockingConcurrentQueue<PendingInterestResult> RxQueue;
 namespace ndnc {
 class PendingInterest {
   public:
-    PendingInterest() : rxQueue(nullptr), expirationDate{0}, nTimeout{0} {}
+    PendingInterest() = default;
 
-    PendingInterest(std::shared_ptr<const ndn::Interest> &&interest,
-                    RxQueue *rxQueue)
-        : interest{std::move(interest)}, expirationDate{0}, nTimeout{0} {
-        this->rxQueue = rxQueue;
-    }
+    PendingInterest(RxQueue *rxQueue, ndn::Block &&interest, uint64_t pitKey)
+        : pitKey(pitKey), nTimeout(0), interest(std::move(interest)),
+          rxQueue(rxQueue) {}
 
-    ~PendingInterest() {}
+    ~PendingInterest() = default;
 
     void markAsExpressed() {
-        this->expirationDate =
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch())
-                .count() +
-            interest->getInterestLifetime().count();
+        this->expressedTimePoint = std::chrono::high_resolution_clock::now();
     }
 
-    bool expired() const {
+    bool isExpired() const {
         return std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::system_clock::now().time_since_epoch())
-                   .count() > static_cast<int64_t>(expirationDate);
+                   std::chrono::high_resolution_clock::now() -
+                   this->expressedTimePoint)
+                   .count() >
+               2000; // TODO: interest->getInterestLifetime().count();
     }
 
   public:
-    std::shared_ptr<const ndn::Interest> interest;
+    uint64_t pitKey;
+    uint64_t nTimeout;
+
+    std::chrono::time_point<std::chrono::high_resolution_clock>
+        expressedTimePoint;
+
+    ndn::Block interest;
     RxQueue *rxQueue;
-    uint64_t expirationDate; // uint64_t timestamp
-    size_t nTimeout;
 };
 // worker -> pipeline
 typedef moodycamel::ConcurrentQueue<PendingInterest> TxQueue;
@@ -108,23 +109,22 @@ enum PipelineType {
 
 class Pipeline : public PacketHandler {
   public:
-    explicit Pipeline(Face &face) : PacketHandler(face) {
-        m_pitTokenGen = std::make_shared<RandomNumberGenerator>();
-        m_shouldStop = false;
-
-        m_worker = std::thread(&Pipeline::run, this);
+    explicit Pipeline(Face &face) : PacketHandler(face), m_stop{false} {
+        m_rdn = std::make_shared<RandomNumberGenerator>();
     }
 
     virtual ~Pipeline() { this->stop(); }
 
+    void start() { m_sender = std::thread(&Pipeline::run, this); }
+
     void stop() {
-        this->m_shouldStop = true;
-        if (m_worker.joinable()) {
-            m_worker.join();
+        this->m_stop = true;
+        if (m_sender.joinable()) {
+            m_sender.join();
         }
     }
 
-    virtual bool isValid() { return !this->m_shouldStop; }
+    virtual bool isValid() { return !this->m_stop && m_face != nullptr; }
 
   private:
     virtual void run() = 0;
@@ -140,11 +140,11 @@ class Pipeline : public PacketHandler {
                            ndn::lp::PitToken &&pitToken) = 0;
 
   public:
-    std::shared_ptr<RandomNumberGenerator> m_pitTokenGen;
+    std::shared_ptr<RandomNumberGenerator> m_rdn;
 
   private:
-    std::thread m_worker;
-    std::atomic_bool m_shouldStop;
+    std::thread m_sender;
+    std::atomic_bool m_stop;
 };
 }; // namespace ndnc
 

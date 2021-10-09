@@ -29,12 +29,8 @@
 
 #include <ndn-cxx/encoding/buffer.hpp>
 #include <ndn-cxx/interest.hpp>
-#include <ndn-cxx/lp/nack.hpp>
-#include <ndn-cxx/lp/packet.hpp>
-#include <ndn-cxx/lp/tags.hpp>
 
 #include "face.hpp"
-#include "lp/pit-token.hpp"
 
 namespace ndnc {
 Face::Face() : m_transport(nullptr), m_valid(false), m_counters{} {
@@ -115,7 +111,7 @@ bool Face::send(const ndn::Block wire) {
     return true;
 }
 
-bool Face::send(std::vector<ndn::Block> wires) {
+bool Face::send(std::vector<ndn::Block> &&wires) {
 #ifdef DEBUG
     m_counters.nTxPackets += wires.size();
     for (auto wire = wires.begin(); wire != wires.end(); ++wire)
@@ -131,40 +127,11 @@ bool Face::send(std::vector<ndn::Block> wires) {
     return true;
 }
 
-bool Face::expressInterest(std::shared_ptr<const ndn::Interest> &&interest,
-                           uint64_t pitTokenValue) {
-    ndn::lp::Packet lpPacket(interest->wireEncode());
-
-    auto block = ndn::encoding::makeNonNegativeIntegerBlock(
-        ndn::lp::tlv::PitToken, pitTokenValue);
-    lpPacket.add<ndn::lp::PitTokenField>(ndn::lp::PitToken(
-        std::make_pair(block.value_begin(), block.value_end())));
-
-    auto wire = lpPacket.wireEncode();
-    return this->send(wire);
+bool Face::express(std::vector<ndn::Block> &&pendingInterests) {
+    return this->send(std::move(pendingInterests));
 }
 
-bool Face::expressInterests(
-    std::vector<std::shared_ptr<const ndn::Interest>> &&interests,
-    std::vector<uint64_t> &&pitTokenValues) {
-
-    std::vector<ndn::Block> reqs;
-    for (size_t i = 0; i < interests.size(); ++i) {
-        ndn::lp::Packet lpPacket(interests[i]->wireEncode());
-
-        auto block = ndn::encoding::makeNonNegativeIntegerBlock(
-            ndn::lp::tlv::PitToken, pitTokenValues[i]);
-        lpPacket.add<ndn::lp::PitTokenField>(ndn::lp::PitToken(
-            std::make_pair(block.value_begin(), block.value_end())));
-
-        auto wire = lpPacket.wireEncode();
-        reqs.push_back(wire);
-    }
-
-    return this->send(reqs);
-}
-
-bool Face::putData(ndn::Data &&data, ndn::lp::PitToken &&pitToken) {
+bool Face::put(ndn::Data &&data, ndn::lp::PitToken &&pitToken) {
     ndn::lp::Packet lpPacket(data.wireEncode());
     lpPacket.add<ndn::lp::PitTokenField>(pitToken);
 

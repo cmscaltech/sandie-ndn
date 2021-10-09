@@ -27,182 +27,175 @@
 
 #include <iostream>
 
-#include <ndn-cxx/data.hpp>
-#include <ndn-cxx/interest.hpp>
-
 #include "ft-client.hpp"
 
 namespace ndnc {
 namespace benchmark {
 namespace ft {
 Runner::Runner(Face &face, ClientOptions options)
-    : m_options(options), m_counters(), m_npackets(64), m_shouldStop(false),
-      m_hasError(false) {
-    switch (m_options.pipelineType) {
+    : m_stop{false}, m_error{false}, m_metadata{nullptr} {
+    m_options = std::make_shared<ClientOptions>(options);
+    m_counters = std::make_shared<Counters>();
+
+    switch (m_options->pipelineType) {
     case fixed:
     default:
-        m_pipeline = new PipelineFixed(face, m_options.pipelineSize);
+        m_pipeline =
+            std::make_shared<PipelineFixed>(face, m_options->pipelineSize);
     }
+
+    m_pipeline->start();
 }
 
 Runner::~Runner() {
-    m_shouldStop = true;
-    wait();
-
-    if (m_pipeline != nullptr) {
-        delete m_pipeline;
-    }
+    this->stop();
 }
 
-void Runner::run(NotifyProgressStatus onProgress) {
-    for (auto i = 0; i < m_options.nthreads; ++i) {
-        m_workers.push_back(
-            std::thread(&Runner::getFileContent, this, i, onProgress));
-    }
-}
-
-void Runner::wait() {
-    if (m_workers.empty()) {
-        return;
-    }
-    for (auto i = 0; i < m_options.nthreads; ++i) {
-        if (m_workers[i].joinable()) {
-            m_workers[i].join();
-        }
-    }
+bool Runner::canContinue() {
+    return !m_stop && !m_error && m_pipeline->isValid();
 }
 
 void Runner::stop() {
-    m_shouldStop = true;
-    if (m_pipeline != nullptr) {
+    m_stop = true;
+
+    if (m_pipeline != nullptr && m_pipeline->isValid()) {
         m_pipeline->stop();
     }
 }
 
-bool Runner::isValid() {
-    return !m_shouldStop && !m_hasError && m_pipeline->isValid();
+std::shared_ptr<Runner::Counters> Runner::readCounters() {
+    return m_counters;
 }
 
-uint64_t Runner::getFileMetadata() {
+void Runner::getFileInfo(uint64_t *size) {
+    // Compose Interest packet
     auto interest =
-        std::make_shared<ndn::Interest>(getNameForMetadata(m_options.file));
+        std::make_shared<ndn::Interest>(getNameForMetadata(m_options->file));
+    interest->setInterestLifetime(m_options->lifetime);
     interest->setCanBePrefix(true);
     interest->setMustBeFresh(true);
 
     // Express Interest
     RxQueue rxQueue;
-    if (expressInterests(std::move(interest), &rxQueue) == 0) {
-        m_hasError = true;
-        return 0;
+    if (request(std::move(interest), &rxQueue) == 0) {
+        m_error = true;
+        return;
     }
 
     // Wait for Data
-    PendingInterestResult result;
-    while (!rxQueue.wait_dequeue_timed(result, 1000)) {
-        if (isValid()) {
-            continue;
-        } else {
-            return 0;
-        }
+    PendingInterestResult response;
+    while (!rxQueue.wait_dequeue_timed(response, 500) && canContinue()) {
     }
 
-    if (!isValid()) {
-        return 0;
-    }
+    if (!canContinue())
+        return;
 
-    if (result.hasError()) {
-        if (result.getErrorCode() == NETWORK) {
+    m_counters->addData();
+
+    if (response.hasError()) {
+        if (response.getErrorCode() == NETWORK) {
             std::cout << "ERROR: network is unrecheable\n";
         }
-        m_hasError = true;
-        return 0;
+        m_error = true;
+        return;
     }
 
-    m_counters.nData.fetch_add(1, std::memory_order_release);
+    if (!response.getData()->hasContent() ||
+        response.getData()->getContentType() == ndn::tlv::ContentType_Nack) {
 
-    if (!result.getData()->hasContent() ||
-        result.getData()->getContentType() == ndn::tlv::ContentType_Nack) {
-        std::cout << "FATAL: Could not open file: " << m_options.file << "\n";
-        m_hasError = true;
-        return 0;
+        std::cout << "FATAL: Could not open file: " << m_options->file << "\n";
+        m_error = true;
+        return;
     }
 
-    m_metadata = FileMetadata(result.getData()->getContent());
+    m_metadata =
+        std::make_shared<FileMetadata>(response.getData()->getContent());
+    *size = m_metadata->getFileSize();
 
-    std::cout << "file " << m_options.file << " of size "
-              << m_metadata.getFileSize() << " bytes ("
-              << m_metadata.getSegmentSize() << "/"
-              << m_metadata.getLastSegment() << ") and latest version="
-              << m_metadata.getVersionedName().get(-1).toVersion() << "\n";
-
-    return m_metadata.getFileSize();
+    std::cout << "file " << m_options->file << " of size "
+              << m_metadata->getFileSize() << " bytes ("
+              << m_metadata->getSegmentSize() << "/"
+              << m_metadata->getLastSegment() << ") and latest version="
+              << m_metadata->getVersionedName().get(-1).toVersion() << "\n";
 }
 
-void Runner::getFileContent(int tid, NotifyProgressStatus onProgress) {
+void Runner::getFileContent(int wid, NotifyProgressStatus onProgress) {
+    if (m_metadata == nullptr) {
+        std::cout
+            << "ERROR: consumer doesn't have a reference to valid metadata\n";
+        return;
+    }
+
     RxQueue rxQueue;
+    size_t npackets = 64;
 
-    for (uint64_t segmentNo = tid * m_npackets;
-         segmentNo <= m_metadata.getLastSegment() && isValid();
-         segmentNo += m_options.nthreads * m_npackets) {
+    for (uint64_t segmentNo = wid * npackets;
+         segmentNo <= m_metadata->getLastSegment() && canContinue();
+         segmentNo += m_options->nthreads * npackets) {
 
-        uint8_t nTx = 0;
+        size_t nTx = 0;
         for (uint64_t nextSegment = segmentNo;
-             nextSegment <= m_metadata.getLastSegment() && nTx < m_npackets;
+             nextSegment <= m_metadata->getLastSegment() && nTx < npackets;
              ++nextSegment, ++nTx) {
 
             auto interest = std::make_shared<ndn::Interest>(
-                m_metadata.getVersionedName().deepCopy().appendSegment(
+                m_metadata->getVersionedName().deepCopy().appendSegment(
                     nextSegment));
 
-            if (expressInterests(std::move(interest), &rxQueue) == 0) {
-                m_hasError = true;
+            if (request(std::move(interest), &rxQueue) == 0) {
+                m_error = true;
                 return;
             }
         }
 
         uint64_t nBytes = 0;
-        for (; nTx > 0 && isValid();) {
-            PendingInterestResult result;
-            if (!rxQueue.wait_dequeue_timed(result, 1000)) {
-                if (isValid()) {
-                    continue;
-                } else {
-                    return;
-                }
-            }
-            --nTx;
-            if (result.hasError()) {
-                if (result.getErrorCode() == NETWORK) {
-                    std::cout << "ERROR: network is unrecheable\n";
-                }
-                m_hasError = true;
-                return;
+
+        for (; nTx > 0 && canContinue();) {
+            PendingInterestResult response;
+            while (!rxQueue.wait_dequeue_timed(response, 500) &&
+                   canContinue()) {
             }
 
-            m_counters.nData.fetch_add(1, std::memory_order_release);
-            nBytes += result.getData()->getContent().value_size();
+            if (!canContinue())
+                return;
+
+            m_counters->addData();
+            --nTx;
+
+            if (response.hasError()) {
+                if (response.getErrorCode() == NETWORK) {
+                    std::cout << "ERROR: network is unrecheable\n";
+                }
+                m_error = true;
+                return;
+            } else {
+                nBytes += response.getData()->getContent().value_size();
+            }
         }
 
         onProgress(nBytes);
     }
 }
 
-int Runner::expressInterests(std::shared_ptr<ndn::Interest> &&interest,
-                             RxQueue *rxQueue) {
-    interest->setInterestLifetime(m_options.lifetime);
+size_t Runner::request(std::shared_ptr<ndn::Interest> &&interest,
+                       RxQueue *rxQueue) {
+    interest->setInterestLifetime(m_options->lifetime);
 
-    if (!m_pipeline->enqueueInterestPacket(std::move(interest), rxQueue)) {
+    if (canContinue() &&
+        !m_pipeline->enqueueInterestPacket(std::move(interest), rxQueue)) {
         std::cout << "FATAL: unable to enqueue Interest \n";
-        m_hasError = true;
+        m_error = true;
         return 0;
     }
 
-    m_counters.nInterest.fetch_add(1, std::memory_order_release);
+    m_counters->addInterest();
     return 1;
 }
 
-Runner::Counters &Runner::readCounters() {
-    return this->m_counters;
+size_t Runner::request(std::vector<std::shared_ptr<ndn::Interest>> &&,
+                       RxQueue *) {
+    // TODO
+    return 0;
 }
 }; // namespace ft
 }; // namespace benchmark

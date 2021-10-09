@@ -25,53 +25,29 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_LP_PIT_TOKEN_HPP
-#define NDNC_LP_PIT_TOKEN_HPP
+#ifndef NDNC_UTILS_RAND_NUM_GEN_HPP
+#define NDNC_UTILS_RAND_NUM_GEN_HPP
 
-#include <atomic>
+#include <mutex>
 #include <random>
-
-#include <ndn-cxx/encoding/block-helpers.hpp>
-#include <ndn-cxx/encoding/block.hpp>
-#include <ndn-cxx/lp/fields.hpp>
-#include <ndn-cxx/lp/pit-token.hpp>
-#include <ndn-cxx/lp/tlv.hpp>
 
 namespace ndnc {
 class RandomNumberGenerator {
   public:
-    RandomNumberGenerator() {
-        std::random_device rd;
-        std::mt19937_64 gen(rd());
-        std::uniform_int_distribution<uint64_t> dist(
-            std::numeric_limits<uint32_t>::max(),
-            std::numeric_limits<uint64_t>::max());
+    RandomNumberGenerator()
+        : m_engine{std::random_device()()},
+          m_distribution(0, std::numeric_limits<uint64_t>::max()) {}
 
-        next = dist(gen);
+    uint64_t get() {
+        std::lock_guard<std::mutex> lock(m_mtx);
+        return m_distribution(m_engine);
     }
 
-    uint64_t getNext() { return next.fetch_add(1, std::memory_order_acq_rel); }
-
   private:
-    std::atomic<uint64_t> next;
+    std::mt19937_64 m_engine;
+    std::uniform_int_distribution<uint64_t> m_distribution;
+    std::mutex m_mtx;
 };
+} // namespace ndnc
 
-namespace lp {
-static inline ndn::lp::PitToken getPITToken(uint64_t value) {
-    auto block = ndn::encoding::makeNonNegativeIntegerBlock(
-        ndn::lp::tlv::PitToken, value);
-
-    return ndn::lp::PitToken(
-        std::make_pair(block.value_begin(), block.value_end()));
-}
-
-static inline uint64_t getPITTokenValue(const uint8_t *data) {
-    return (((uint64_t)(data[7]) << 0) + ((uint64_t)(data[6]) << 8) +
-            ((uint64_t)(data[5]) << 16) + ((uint64_t)(data[4]) << 24) +
-            ((uint64_t)(data[3]) << 32) + ((uint64_t)(data[2]) << 40) +
-            ((uint64_t)(data[1]) << 48) + ((uint64_t)(data[0]) << 56));
-}
-}; // namespace lp
-}; // namespace ndnc
-
-#endif // NDNC_LP_PIT_TOKEN_HPP
+#endif // NDNC_UTIL_RAND_NUM_GEN_HPP

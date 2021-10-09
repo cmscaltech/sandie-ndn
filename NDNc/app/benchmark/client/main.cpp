@@ -38,33 +38,38 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
+#include "ft-client-utils.hpp"
 #include "ft-client.hpp"
-#include "indicators.hpp"
 
 using namespace std;
 using namespace indicators;
 namespace po = boost::program_options;
 
+static ndnc::Face *face;
 static ndnc::benchmark::ft::Runner *client;
+static std::vector<std::thread> workers;
 
-void handler(sig_atomic_t) {
+void cleanOnExit() {
     if (client != nullptr) {
         client->stop();
+
+        for (auto it = workers.begin(); it != workers.end(); ++it) {
+            if (it->joinable()) {
+                it->join();
+            }
+        }
+
+        delete client;
+    }
+
+    if (face != nullptr) {
+        delete face;
     }
 }
 
-static std::string humanReadableSize(double bytes, char suffix = 'B') {
-    static char output[1024];
-    for (auto unit : {"", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"}) {
-        if (abs(bytes) < 1024.0) {
-            sprintf(output, "%3.1f %s%c", bytes, unit, suffix);
-            return std::string(output);
-        }
-        bytes /= 1024.0;
-    }
-
-    sprintf(output, "%.1f Yi%c", bytes, suffix);
-    return std::string(output);
+void signalHandler(sig_atomic_t signum) {
+    cleanOnExit();
+    exit(signum);
 }
 
 static void usage(ostream &os, const string &app,
@@ -76,9 +81,6 @@ static void usage(ostream &os, const string &app,
 }
 
 int main(int argc, char *argv[]) {
-    signal(SIGINT, handler);
-    signal(SIGABRT, handler);
-
     ndnc::benchmark::ft::ClientOptions opts;
     std::string pipelineType = "fixed";
 
@@ -171,25 +173,25 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
-    {
-        if (pipelineType.compare("fixed") == 0) {
-            opts.pipelineType = ndnc::PipelineType::fixed;
-        }
-
-        if (opts.pipelineType == ndnc::PipelineType::undefined) {
-            cerr << "ERROR: Invalid pipeline type\n\n";
-            usage(cout, app, description);
-            return 2;
-        }
+    if (pipelineType.compare("fixed") == 0) {
+        opts.pipelineType = ndnc::PipelineType::fixed;
     }
 
-    std::cout << "NDNc FILE-TRANSFER BENCHMARKING CLIENT\n";
+    if (opts.pipelineType == ndnc::PipelineType::undefined) {
+        cerr << "ERROR: Invalid pipeline type\n\n";
+        usage(cout, app, description);
+        return 2;
+    }
 
-    ndnc::Face *face = new ndnc::Face();
+    std::cout << "NDNc FILE TRANSFER CLIENT\n";
+    signal(SIGINT, signalHandler);
+
+    face = new ndnc::Face();
 #ifndef __APPLE__
     if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncft-client"))
         return 2;
 #endif
+
     if (!face->isValid()) {
         cerr << "ERROR: Invalid face\n";
         return 2;
@@ -197,51 +199,54 @@ int main(int argc, char *argv[]) {
 
     client = new ndnc::benchmark::ft::Runner(*face, opts);
 
-    auto fileSize = client->getFileMetadata();
-    if (fileSize == 0) {
-        client->stop();
+    uint64_t totalBytesToTransfer = 0;
+    client->getFileInfo(&totalBytesToTransfer);
 
-        if (client != nullptr) {
-            delete client;
-        }
-
-        if (face != nullptr) {
-            delete face;
-        }
-
+    if (totalBytesToTransfer == 0) {
+        cleanOnExit();
         return -2;
     }
 
-    BlockProgressBar bar{
-        option::BarWidth{80}, option::PrefixText{"Downloading "},
-        option::ShowPercentage{true}, option::MaxProgress{fileSize}};
+    BlockProgressBar bar{option::BarWidth{80},
+                         option::PrefixText{"Downloading "},
+                         option::ShowPercentage{true},
+                         option::MaxProgress{totalBytesToTransfer}};
     show_console_cursor(true);
 
     auto start = std::chrono::high_resolution_clock::now();
-    std::atomic<uint64_t> totalProgress = 0;
+    std::atomic<uint64_t> bytesToTransfer = 0;
 
-    client->run([&](uint64_t progress) {
-        totalProgress.fetch_add(progress, std::memory_order_release);
-        bar.set_progress(totalProgress);
-        bar.set_option(option::PostfixText{to_string(totalProgress) + "/" +
-                                           to_string(fileSize)});
-        bar.tick();
-    });
+    for (auto wid = 0; wid < opts.nthreads; ++wid) {
+        workers.push_back(std::thread(
+            &ndnc::benchmark::ft::Runner::getFileContent, client, wid,
+            [&](uint64_t progress) {
+                bytesToTransfer.fetch_add(progress, std::memory_order_release);
+                bar.set_progress(bytesToTransfer);
+                bar.set_option(
+                    option::PostfixText{to_string(bytesToTransfer) + "/" +
+                                        to_string(totalBytesToTransfer)});
+                bar.tick();
+            }));
+    }
 
-    client->wait();
+    for (auto it = workers.begin(); it != workers.end(); ++it) {
+        if (it->joinable()) {
+            it->join();
+        }
+    }
 
     auto duration = std::chrono::high_resolution_clock::now() - start;
-    double goodput = ((double)totalProgress * 8.0) /
-                     (duration / std::chrono::nanoseconds(1)) * 1000000000;
+    double goodput = ((double)bytesToTransfer * 8.0) /
+                     (duration / std::chrono::nanoseconds(1)) * 1e9;
 
 #ifdef DEBUG
     double throughput = ((double)face->readCounters().nRxBytes * 8.0) /
-                        (duration / std::chrono::nanoseconds(1)) * 1000000000;
+                        (duration / std::chrono::nanoseconds(1)) * 1e9;
 #endif
 
     cout << "\n--- statistics --\n"
-         << client->readCounters().nInterest << " packets transmitted, "
-         << client->readCounters().nData << " packets received\n"
+         << client->readCounters()->nInterest << " packets transmitted, "
+         << client->readCounters()->nData << " packets received\n"
          << "goodput: " << humanReadableSize(goodput, 'b') << "/s"
 #ifdef DEBUG
          << ", throughput: " << humanReadableSize(throughput, 'b') << "/s\n";
@@ -258,13 +263,6 @@ int main(int argc, char *argv[]) {
          << "with " << face->readCounters().nErrors << " errors\n";
 #endif // DEBUG
 
-    if (client != nullptr) {
-        delete client;
-    }
-
-    if (face != nullptr) {
-        delete face;
-    }
-
+    cleanOnExit();
     return 0;
 }

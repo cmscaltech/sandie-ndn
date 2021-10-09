@@ -42,11 +42,12 @@ namespace ft {
 struct ClientOptions {
     size_t mtu = 9000;                                // Dataroom size
     std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
-    ndn::time::milliseconds lifetime =
-        ndn::time::seconds{2}; // Interest lifetime
+
+    // Interest lifetime
+    ndn::time::milliseconds lifetime = ndn::time::seconds{2};
 
     std::string file;      // File path
-    uint16_t nthreads = 2; // Number of worker threads to request packets
+    uint16_t nthreads = 4; // Number of worker threads to request packets
 
     PipelineType pipelineType = PipelineType::fixed;
     uint16_t pipelineSize = 256;
@@ -60,38 +61,40 @@ class Runner : public std::enable_shared_from_this<Runner> {
     struct Counters {
         std::atomic<uint64_t> nInterest = 0;
         std::atomic<uint64_t> nData = 0;
+
+        void addInterest(uint64_t n = 1) {
+            nInterest.fetch_add(n, std::memory_order_release);
+        }
+
+        void addData(uint64_t n = 1) {
+            nData.fetch_add(n, std::memory_order_release);
+        }
     };
 
   public:
     explicit Runner(Face &face, ClientOptions options);
     ~Runner();
 
-    uint64_t getFileMetadata();
-
-    void run(NotifyProgressStatus onProgress);
-    void wait();
     void stop();
-    bool isValid();
+    void getFileInfo(uint64_t *size);
+    void getFileContent(int wid, NotifyProgressStatus);
 
-    Counters &readCounters();
-
-  private:
-    void getFileContent(int tid, NotifyProgressStatus onProgress);
-
-    int expressInterests(std::shared_ptr<ndn::Interest> &&interest,
-                         RxQueue *rxQueue);
+    std::shared_ptr<Counters> readCounters();
 
   private:
-    ClientOptions m_options;
-    Counters m_counters;
+    bool canContinue();
 
-    FileMetadata m_metadata;
-    uint16_t m_npackets;
+    size_t request(std::shared_ptr<ndn::Interest> &&, RxQueue *);
+    size_t request(std::vector<std::shared_ptr<ndn::Interest>> &&, RxQueue *);
 
-    std::vector<std::thread> m_workers;
-    std::atomic_bool m_shouldStop;
-    std::atomic_bool m_hasError;
-    Pipeline *m_pipeline;
+  private:
+    std::atomic_bool m_stop;
+    std::atomic_bool m_error;
+
+    std::shared_ptr<ClientOptions> m_options;
+    std::shared_ptr<Counters> m_counters;
+    std::shared_ptr<Pipeline> m_pipeline;
+    std::shared_ptr<FileMetadata> m_metadata;
 };
 }; // namespace ft
 }; // namespace benchmark

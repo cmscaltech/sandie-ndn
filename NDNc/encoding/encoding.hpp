@@ -25,48 +25,45 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_FACE_PIPELINE_INTERESTS_FIXED_HPP
-#define NDNC_FACE_PIPELINE_INTERESTS_FIXED_HPP
+#ifndef NDNC_ENCODING_HPP
+#define NDNC_ENCODING_HPP
 
-#include <unordered_map>
+#include <ndn-cxx/data.hpp>
+#include <ndn-cxx/interest.hpp>
 
-#include "pipeline-interests.hpp"
+#include <ndn-cxx/lp/nack.hpp>
+#include <ndn-cxx/lp/packet.hpp>
+#include <ndn-cxx/lp/pit-token.hpp>
+#include <ndn-cxx/lp/tags.hpp>
 
 namespace ndnc {
-class PipelineFixed : public Pipeline {
-  public:
-    using PendingInteretsTable = std::unordered_map<uint64_t, PendingInterest>;
+inline ndn::Block getWireEncode(std::shared_ptr<const ndn::Interest> &&interest,
+                                uint64_t pitTokenValue) {
+    ndn::lp::Packet lpPacket(interest->wireEncode());
 
-  public:
-    PipelineFixed(Face &face, size_t size);
-    ~PipelineFixed();
+    // Add PIT TOKEN
+    ndn::Buffer b(&pitTokenValue, sizeof(pitTokenValue));
+    lpPacket.add<ndn::lp::PitTokenField>(
+        ndn::lp::PitToken(std::make_pair(b.begin(), b.end())));
 
-  private:
-    void run() final;
+    return lpPacket.wireEncode();
+}
 
-    void processInterest(PendingInterest &&);
-    void processInterests(std::vector<PendingInterest> &&, size_t);
-    void processTimeout();
+inline std::shared_ptr<ndn::Interest> getWireDecode(ndn::Block wire) {
+    ndn::lp::Packet lpPacket(wire);
 
-    void replyWithData(std::shared_ptr<const ndn::Data> &&, uint64_t);
-    void replyWithError(PendingInterestResultError, uint64_t);
+    ndn::Buffer::const_iterator begin, end;
+    std::tie(begin, end) = lpPacket.get<ndn::lp::FragmentField>();
 
-  public:
-    bool enqueueInterestPacket(std::shared_ptr<const ndn::Interest> &&interest,
-                               void *rxQueue) final;
+    return std::make_shared<ndn::Interest>(
+        ndn::Block(&*begin, std::distance(begin, end)));
+}
+} // namespace ndnc
 
-    void dequeueDataPacket(std::shared_ptr<const ndn::Data> &&data,
-                           ndn::lp::PitToken &&pitToken) final;
+namespace ndnc {
+inline uint64_t getPITTokenValue(ndn::lp::PitToken &&pitToken) {
+    return *((uint64_t *)pitToken.data());
+}
+} // namespace ndnc
 
-    void dequeueNackPacket(std::shared_ptr<const ndn::lp::Nack> &&nack,
-                           ndn::lp::PitToken &&pitToken) final;
-
-  private:
-    size_t m_maxSize;
-
-    TxQueue m_tasksQueue;
-    PendingInteretsTable m_pit;
-};
-}; // namespace ndnc
-
-#endif // NDNC_FACE_PIPELINE_INTERESTS_FIXED_HPP
+#endif // NDNC_ENCODING_HPP

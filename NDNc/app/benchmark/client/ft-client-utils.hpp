@@ -25,34 +25,25 @@
  * SOFTWARE.
  */
 
-#include "packet-handler.hpp"
-#include <iostream>
+#ifndef NDNC_APP_BENCHMARK_FT_CLIENT_UTILS_HPP
+#define NDNC_APP_BENCHMARK_FT_CLIENT_UTILS_HPP
 
-namespace ndnc {
-PacketHandler::PacketHandler(Face &face) {
-    face.addHandler(*this);
+#include <string>
+
+#include "indicators.hpp"
+
+static std::string humanReadableSize(double bytes, char suffix = 'B') {
+    static char output[1024];
+    for (auto unit : {"", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"}) {
+        if (abs(bytes) < 1024.0) {
+            sprintf(output, "%3.1f %s%c", bytes, unit, suffix);
+            return std::string(output);
+        }
+        bytes /= 1024.0;
+    }
+
+    sprintf(output, "%.1f Yi%c", bytes, suffix);
+    return std::string(output);
 }
 
-PacketHandler::~PacketHandler() {}
-
-bool PacketHandler::enqueueInterestPacket(
-    std::shared_ptr<const ndn::Interest> &&, void *) {
-    return true;
-}
-
-void PacketHandler::dequeueDataPacket(std::shared_ptr<const ndn::Data> &&,
-                                      ndn::lp::PitToken &&) {}
-
-bool PacketHandler::enqueueDataPacket(ndn::Data &&data,
-                                      ndn::lp::PitToken &&pitToken) {
-    return m_face != nullptr &&
-           m_face->put(std::forward<ndn::Data>(data),
-                       std::forward<ndn::lp::PitToken>(pitToken));
-}
-
-void PacketHandler::dequeueInterestPacket(
-    std::shared_ptr<const ndn::Interest> &&, ndn::lp::PitToken &&) {}
-
-void PacketHandler::dequeueNackPacket(std::shared_ptr<const ndn::lp::Nack> &&,
-                                      ndn::lp::PitToken &&) {}
-}; // namespace ndnc
+#endif // NDNC_APP_BENCHMARK_FT_CLIENT_UTILS_HPP

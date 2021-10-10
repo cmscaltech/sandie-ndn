@@ -48,17 +48,21 @@ class PipelineFixed : public Pipeline {
     void processInterests(std::vector<PendingInterest> &&, size_t);
     void processTimeout();
 
-    void replyWithData(std::shared_ptr<const ndn::Data> &&, uint64_t);
+    void replyWithData(std::shared_ptr<ndn::Data> &&, uint64_t);
     void replyWithError(PendingInterestResultError, uint64_t);
 
   public:
-    bool enqueueInterestPacket(std::shared_ptr<const ndn::Interest> &&interest,
+    bool enqueueInterestPacket(std::shared_ptr<ndn::Interest> &&interest,
                                void *rxQueue) final;
 
-    void dequeueDataPacket(std::shared_ptr<const ndn::Data> &&data,
+    bool
+    enqueueInterests(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
+                     size_t n, void *rxQueue) final;
+
+    void dequeueDataPacket(std::shared_ptr<ndn::Data> &&data,
                            ndn::lp::PitToken &&pitToken) final;
 
-    void dequeueNackPacket(std::shared_ptr<const ndn::lp::Nack> &&nack,
+    void dequeueNackPacket(std::shared_ptr<ndn::lp::Nack> &&nack,
                            ndn::lp::PitToken &&pitToken) final;
 
   private:

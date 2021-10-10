@@ -164,11 +164,11 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     ndn::Block netPacket(&*begin, std::distance(begin, end));
     switch (netPacket.type()) {
     case ndn::tlv::Interest: {
-        auto interest = std::make_shared<const ndn::Interest>(netPacket);
+        auto interest = std::make_shared<ndn::Interest>(netPacket);
 
         if (lpPacket.has<ndn::lp::NackField>()) {
             m_packetHandler->dequeueNackPacket(
-                std::make_shared<const ndn::lp::Nack>(std::move(*interest)),
+                std::make_shared<ndn::lp::Nack>(std::move(*interest)),
                 std::move(
                     ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>())));
         } else {
@@ -185,7 +185,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     case ndn::tlv::Data: {
         if (m_packetHandler != nullptr) {
             m_packetHandler->dequeueDataPacket(
-                std::make_shared<const ndn::Data>(netPacket),
+                std::make_shared<ndn::Data>(netPacket),
                 std::move(
                     ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>())));
         }

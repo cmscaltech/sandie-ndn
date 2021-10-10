@@ -84,7 +84,7 @@ void Runner::getFileInfo(uint64_t *size) {
 
     // Wait for Data
     PendingInterestResult response;
-    while (!rxQueue.wait_dequeue_timed(response, 500) && canContinue()) {
+    while (!rxQueue.wait_dequeue_timed(response, 1000) && canContinue()) {
     }
 
     if (!canContinue())
@@ -134,6 +134,9 @@ void Runner::getFileContent(int wid, NotifyProgressStatus onProgress) {
          segmentNo += m_options->nthreads * npackets) {
 
         size_t nTx = 0;
+        std::vector<std::shared_ptr<ndn::Interest>> interests;
+        interests.reserve(npackets);
+
         for (uint64_t nextSegment = segmentNo;
              nextSegment <= m_metadata->getLastSegment() && nTx < npackets;
              ++nextSegment, ++nTx) {
@@ -142,17 +145,20 @@ void Runner::getFileContent(int wid, NotifyProgressStatus onProgress) {
                 m_metadata->getVersionedName().deepCopy().appendSegment(
                     nextSegment));
 
-            if (request(std::move(interest), &rxQueue) == 0) {
-                m_error = true;
-                return;
-            }
+            interest->setInterestLifetime(m_options->lifetime);
+            interests.emplace_back(std::move(interest));
+        }
+
+        if (request(std::move(interests), nTx, &rxQueue) != nTx) {
+            m_error = true;
+            return;
         }
 
         uint64_t nBytes = 0;
 
         for (; nTx > 0 && canContinue();) {
             PendingInterestResult response;
-            while (!rxQueue.wait_dequeue_timed(response, 500) &&
+            while (!rxQueue.wait_dequeue_timed(response, 1000) &&
                    canContinue()) {
             }
 
@@ -192,10 +198,17 @@ size_t Runner::request(std::shared_ptr<ndn::Interest> &&interest,
     return 1;
 }
 
-size_t Runner::request(std::vector<std::shared_ptr<ndn::Interest>> &&,
-                       RxQueue *) {
-    // TODO
-    return 0;
+size_t Runner::request(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
+                       size_t n, RxQueue *rxQueue) {
+    if (canContinue() &&
+        !m_pipeline->enqueueInterests(std::move(interests), n, rxQueue)) {
+        std::cout << "FATAL: unable to enqueue Interests \n";
+        m_error = true;
+        return 0;
+    }
+
+    m_counters->addInterest(n);
+    return n;
 }
 }; // namespace ft
 }; // namespace benchmark

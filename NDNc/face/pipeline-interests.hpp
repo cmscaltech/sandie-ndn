@@ -48,7 +48,7 @@ class PendingInterestResult {
     PendingInterestResult(PendingInterestResultError errCode)
         : errCode(errCode) {}
 
-    PendingInterestResult(std::shared_ptr<const ndn::Data> &&data)
+    PendingInterestResult(std::shared_ptr<ndn::Data> &&data)
         : data{std::move(data)}, errCode(NONE) {}
 
     auto getData() { return this->data; }
@@ -56,7 +56,7 @@ class PendingInterestResult {
     auto hasError() { return this->errCode != NONE; }
 
   private:
-    std::shared_ptr<const ndn::Data> data;
+    std::shared_ptr<ndn::Data> data;
     PendingInterestResultError errCode;
 };
 // pipeline -> worker
@@ -130,13 +130,17 @@ class Pipeline : public PacketHandler {
     virtual void run() = 0;
 
   public:
-    bool enqueueInterestPacket(std::shared_ptr<const ndn::Interest> &&interest,
+    bool enqueueInterestPacket(std::shared_ptr<ndn::Interest> &&interest,
                                void *rxQueue) = 0;
 
-    void dequeueDataPacket(std::shared_ptr<const ndn::Data> &&data,
+    bool
+    enqueueInterests(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
+                     size_t n, void *rxQueue) = 0;
+
+    void dequeueDataPacket(std::shared_ptr<ndn::Data> &&data,
                            ndn::lp::PitToken &&pitToken) = 0;
 
-    void dequeueNackPacket(std::shared_ptr<const ndn::lp::Nack> &&nack,
+    void dequeueNackPacket(std::shared_ptr<ndn::lp::Nack> &&nack,
                            ndn::lp::PitToken &&pitToken) = 0;
 
   public:

@@ -51,15 +51,10 @@ void PipelineFixed::run() {
         }
 
         std::vector<PendingInterest> pendingInterests(m_maxSize - m_pit.size());
-        // pendingInterests.reserve(m_maxSize - m_pit.size());
-        // why doesn't this work ?
-
         size_t n = m_tasksQueue.try_dequeue_bulk(pendingInterests.begin(),
                                                  m_maxSize - m_pit.size());
 
-        if (n > 0) {
-            processInterests(std::move(pendingInterests), n);
-        }
+        processInterests(std::move(pendingInterests), n);
 
         m_face->loop();
         processTimeout();
@@ -67,30 +62,35 @@ void PipelineFixed::run() {
 }
 
 void PipelineFixed::processInterest(PendingInterest &&pendingInterest) {
-    std::vector<PendingInterest> pi;
-    pi.reserve(1);
-    pi.emplace(pi.end(), std::move(pendingInterest));
+    std::vector<PendingInterest> pendingInterests;
+    pendingInterests.reserve(1);
+    pendingInterests.emplace(pendingInterests.end(),
+                             std::move(pendingInterest));
 
-    this->processInterests(std::move(pi), 1);
+    this->processInterests(std::move(pendingInterests), 1);
 }
 
-void PipelineFixed::processInterests(std::vector<PendingInterest> &&pi,
-                                     size_t n) {
+void PipelineFixed::processInterests(
+    std::vector<PendingInterest> &&pendingInterests, size_t n) {
+    if (n == 0) {
+        return;
+    }
+
     std::vector<ndn::Block> request;
     request.reserve(n);
 
     for (size_t i = 0; i < n; ++i) {
-        m_pit.emplace(std::make_pair(pi[i].pitKey, pi[i]));
-        request.emplace(request.end(), std::move(pi[i].interest));
+        auto pitKey = pendingInterests[i].pitKey;
+
+        m_pit.emplace(std::make_pair(pitKey, pendingInterests[i]));
+        m_pit[pitKey].markAsExpressed();
+
+        request.emplace(request.end(), std::move(pendingInterests[i].interest));
     }
 
     if (!m_face->express(std::move(request))) {
         std::cout << "FATAL: unable to express Interests on face\n";
         this->stop();
-    } else {
-        for (size_t i = 0; i < n; ++i) {
-            m_pit[pi[i].pitKey].markAsExpressed();
-        }
     }
 }
 
@@ -123,7 +123,7 @@ void PipelineFixed::processTimeout() {
 }
 
 bool PipelineFixed::enqueueInterestPacket(
-    std::shared_ptr<const ndn::Interest> &&interest, void *rxQueue) {
+    std::shared_ptr<ndn::Interest> &&interest, void *rxQueue) {
     uint64_t pitKey = m_rdn->get();
 
     auto pendingInterest = PendingInterest(
@@ -133,7 +133,26 @@ bool PipelineFixed::enqueueInterestPacket(
     return m_tasksQueue.enqueue(std::move(pendingInterest));
 }
 
-void PipelineFixed::dequeueDataPacket(std::shared_ptr<const ndn::Data> &&data,
+bool PipelineFixed::enqueueInterests(
+    std::vector<std::shared_ptr<ndn::Interest>> &&interests, size_t n,
+    void *rxQueue) {
+
+    std::vector<PendingInterest> pendingInterests;
+    pendingInterests.reserve(interests.size());
+
+    for (size_t i = 0; i < n; ++i) {
+        auto pitKey = m_rdn->get();
+
+        pendingInterests.emplace_back(PendingInterest(
+            static_cast<RxQueue *>(rxQueue),
+            std::move(getWireEncode(std::move(interests[i]), pitKey)), pitKey));
+    }
+
+    return m_tasksQueue.enqueue_bulk(pendingInterests.begin(),
+                                     pendingInterests.size());
+}
+
+void PipelineFixed::dequeueDataPacket(std::shared_ptr<ndn::Data> &&data,
                                       ndn::lp::PitToken &&pitToken) {
     auto pitKey = getPITTokenValue(std::move(pitToken));
 
@@ -145,8 +164,8 @@ void PipelineFixed::dequeueDataPacket(std::shared_ptr<const ndn::Data> &&data,
     replyWithData(std::move(data), pitKey);
 }
 
-void PipelineFixed::dequeueNackPacket(
-    std::shared_ptr<const ndn::lp::Nack> &&nack, ndn::lp::PitToken &&pitToken) {
+void PipelineFixed::dequeueNackPacket(std::shared_ptr<ndn::lp::Nack> &&nack,
+                                      ndn::lp::PitToken &&pitToken) {
 
     auto pitKey = getPITTokenValue(std::move(pitToken));
 
@@ -171,7 +190,7 @@ void PipelineFixed::dequeueNackPacket(
     }
 }
 
-void PipelineFixed::replyWithData(std::shared_ptr<const ndn::Data> &&data,
+void PipelineFixed::replyWithData(std::shared_ptr<ndn::Data> &&data,
                                   uint64_t pitKey) {
     if (m_pit[pitKey].rxQueue != nullptr && isValid()) {
         m_pit[pitKey].rxQueue->enqueue(

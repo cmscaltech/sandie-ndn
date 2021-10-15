@@ -29,16 +29,9 @@
 #define NDNC_FACE_HPP
 
 #include <memory>
-#include <ndn-cxx/data.hpp>
-#include <ndn-cxx/lp/pit-token.hpp>
 
-#include "mgmt/client.hpp"
-
-#ifndef __APPLE__
 #include "memif.hpp"
-#else
-#include "transport.hpp"
-#endif
+#include "mgmt/client.hpp"
 
 namespace ndnc {
 class PacketHandler;
@@ -64,50 +57,48 @@ class Face {
     Face();
     ~Face();
 
-    bool addHandler(PacketHandler &h);
+    bool addPacketHandler(PacketHandler &h);
     bool openMemif(int dataroom, std::string gqlserver, std::string name);
     bool advertise(const std::string prefix);
 
     bool isValid();
     void loop();
 
-    // bool express(ndn::Block &&block, size_t n); TODO
-    bool express(std::vector<ndn::Block> &&blocks);
-    bool put(ndn::Data &&data, ndn::lp::PitToken &&pitToken);
+    bool send(ndn::Block &&);
+    bool send(std::vector<ndn::Block> &&);
 
-    Counters readCounters();
+    std::shared_ptr<Counters> readCounters();
 
   private:
-    /**
-     * @brief Handle peer disconnect events by gracefully closing memif face
-     *
-     */
-    void onPeerDisconnect();
-    static void onPeerDisconnect(void *self) {
-        reinterpret_cast<Face *>(self)->onPeerDisconnect();
-    }
-
     /**
      * @brief Handle memif interupts - packets arrival
      *
      * @param pkt Received packet over memif face
      * @param pktLen Size of received packet
      */
-    void transportRx(const uint8_t *pkt, size_t pktLen);
-    static void transportRx(void *self, const uint8_t *pkt, size_t pktLen) {
-        reinterpret_cast<Face *>(self)->transportRx(pkt, pktLen);
+    void receive(const uint8_t *pkt, size_t pktLen);
+
+    static void receive(void *self, const uint8_t *pkt, size_t pktLen) {
+        reinterpret_cast<Face *>(self)->receive(pkt, pktLen);
     }
 
-    bool send(const ndn::Block);
-    bool send(std::vector<ndn::Block> &&);
+    /**
+     * @brief Handle peer disconnect events by gracefully closing memif face
+     *
+     */
+    void disconnect();
+    static void disconnect(void *self) {
+        reinterpret_cast<Face *>(self)->disconnect();
+    }
 
   private:
     std::unique_ptr<mgmt::Client> m_client;
+    std::shared_ptr<Counters> m_counters;
+
     Transport *m_transport;
     PacketHandler *m_packetHandler;
 
     bool m_valid;
-    Counters m_counters;
 };
 }; // namespace ndnc
 

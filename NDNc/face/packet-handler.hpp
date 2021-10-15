@@ -28,10 +28,7 @@
 #ifndef NDNC_FACE_PACKET_HANDLER_HPP
 #define NDNC_FACE_PACKET_HANDLER_HPP
 
-#include <ndn-cxx/data.hpp>
-#include <ndn-cxx/interest.hpp>
-#include <ndn-cxx/lp/nack.hpp>
-#include <ndn-cxx/lp/pit-token.hpp>
+#include "encoding/encoding.hpp"
 
 namespace ndnc {
 class Face;
@@ -41,73 +38,20 @@ class Face;
 namespace ndnc {
 class PacketHandler {
   public:
-    explicit PacketHandler(Face &face);
+    explicit PacketHandler(Face &f);
 
   protected:
     virtual ~PacketHandler();
 
   public:
-    /**
-     * @brief
-     * Consumer flow
-     *
-     * @param interest
-     * @param rxQueue
-     * @return true
-     * @return false
-     */
-    virtual bool
-    enqueueInterestPacket(std::shared_ptr<ndn::Interest> &&interest,
-                          void *rxQueue);
-
-    virtual bool
-    enqueueInterests(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
-                     size_t n, void *rxQueue);
-
-    /**
-     * @brief
-     * Consumer flow
-     *
-     * @param data
-     * @param pitToken
-     */
-    virtual void dequeueDataPacket(std::shared_ptr<ndn::Data> &&data,
-                                   ndn::lp::PitToken &&pitToken);
-
-    /**
-     * @brief
-     * Consumer flow
-     *
-     * @param nack
-     */
-    virtual void dequeueNackPacket(std::shared_ptr<ndn::lp::Nack> &&nack,
-                                   ndn::lp::PitToken &&pitToken);
-
-    /**
-     * @brief
-     * Producer flow
-     *
-     * @param data
-     * @param pitToken
-     * @return true
-     * @return false
-     */
-    virtual bool enqueueDataPacket(ndn::Data &&data,
-                                   ndn::lp::PitToken &&pitToken);
-
-    /**
-     * @brief
-     * Producer flow
-     *
-     * @param interest
-     * @param pitToken
-     */
-    virtual void
-    dequeueInterestPacket(std::shared_ptr<ndn::Interest> &&interest,
-                          ndn::lp::PitToken &&pitToken);
+    virtual void onInterest(std::shared_ptr<ndn::Interest> &&,
+                            ndn::lp::PitToken &&);
+    virtual void onData(std::shared_ptr<ndn::Data> &&, ndn::lp::PitToken &&);
+    virtual void onNack(std::shared_ptr<ndn::lp::Nack> &&,
+                        ndn::lp::PitToken &&);
 
   protected:
-    Face *m_face;
+    Face *face;
     friend Face;
 };
 }; // namespace ndnc

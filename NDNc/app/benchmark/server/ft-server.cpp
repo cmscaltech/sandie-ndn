@@ -45,45 +45,45 @@ Runner::Runner(Face &face, ServerOptions options)
 
 Runner::~Runner() {}
 
-void Runner::dequeueInterestPacket(
-    std::shared_ptr<const ndn::Interest> &&interest,
-    ndn::lp::PitToken &&pitToken) {
+void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
+                        ndn::lp::PitToken &&pitToken) {
 
     auto name = interest->getName();
     auto data =
-        isMetadataName(name) ? getMetadataData(name) : getFileContentData(name);
+        isMetadataName(name) ? getFileInfoData(name) : getFileContentData(name);
 
-    data.setSignatureInfo(m_signatureInfo);
-    data.setSignatureValue(std::make_shared<ndn::Buffer>());
+    data->setSignatureInfo(m_signatureInfo);
+    data->setSignatureValue(std::make_shared<ndn::Buffer>());
 
-    if (!enqueueDataPacket(std::move(data), std::move(pitToken))) {
-        std::cout << "WARN: Unable to put Data packet on face\n";
+    if (face != nullptr &&
+        !face->send(getWireEncode(std::move(data), std::move(pitToken)))) {
+        std::cout << "WARN: unable to send Data\n";
     }
 }
 
-ndn::Data Runner::getMetadataData(const ndn::Name name) {
-    std::cout << "INFO: Received META Interest: " << name.toUri() << "\n";
+std::shared_ptr<ndn::Data> Runner::getFileInfoData(const ndn::Name name) {
+    std::cout << "INFO: received META Interest: " << name.toUri() << "\n";
 
-    ndn::Data data = ndn::Data(name);
+    auto data = std::make_shared<ndn::Data>(name);
     FileMetadata metadata{m_options.segmentSize};
 
     if (metadata.prepare(getFilePathFromMetadataName(name))) {
-        data.setContent(metadata.encode());
-        data.setContentType(ndn::tlv::ContentType_Blob);
+        data->setContent(metadata.encode());
+        data->setContentType(ndn::tlv::ContentType_Blob);
     } else {
-        data.setContent(nullptr, 0);
-        data.setContentType(ndn::tlv::ContentType_Nack);
+        data->setContent(nullptr, 0);
+        data->setContentType(ndn::tlv::ContentType_Nack);
     }
 
-    data.setFreshnessPeriod(ndn::time::milliseconds{2});
+    data->setFreshnessPeriod(ndn::time::milliseconds{2});
     return data;
 }
 
-ndn::Data Runner::getFileContentData(const ndn::Name name) {
-    auto data = ndn::Data(name);
+std::shared_ptr<ndn::Data> Runner::getFileContentData(const ndn::Name name) {
+    auto data = std::make_shared<ndn::Data>(name);
 
-    data.setContent(m_payload);
-    data.setContentType(ndn::tlv::ContentType_Blob);
+    data->setContent(m_payload);
+    data->setContentType(ndn::tlv::ContentType_Blob);
     return data;
 }
 }; // namespace ft

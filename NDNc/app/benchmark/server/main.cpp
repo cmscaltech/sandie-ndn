@@ -39,6 +39,8 @@
 using namespace std;
 namespace po = boost::program_options;
 
+static ndnc::Face *face;
+static ndnc::benchmark::ft::Runner *server;
 static bool shouldRun = true;
 
 void handler(sig_atomic_t) {
@@ -93,7 +95,7 @@ int main(int argc, char **argv) {
 
     if (vm.count("mtu") > 0) {
         if (opts.mtu < 64 || opts.mtu > 9000) {
-            cerr << "ERROR: Invalid MTU size. Please specify a positive "
+            cerr << "ERROR: invalid MTU size. please specify a positive "
                     "integer between 64 and 9000\n\n";
             usage(cout, description);
             return 2;
@@ -102,7 +104,7 @@ int main(int argc, char **argv) {
 
     if (vm.count("gqlserver") > 0) {
         if (opts.gqlserver.empty()) {
-            cerr << "ERROR: Empty gqlserver argument value\n\n";
+            cerr << "ERROR: empty gqlserver argument value\n\n";
             usage(cout, description);
             return 2;
         }
@@ -110,28 +112,30 @@ int main(int argc, char **argv) {
 
     if (vm.count("segment-size") > 0) {
         if (opts.segmentSize > ndn::MAX_NDN_PACKET_SIZE) {
-            cerr << "ERROR: Invalid segment size value\n\n";
+            cerr << "ERROR: invalid segment size value\n\n";
             usage(cout, description);
             return 2;
         }
     }
 
-    std::cout << "NDNc FILE TRANSFER SERVER APP\n";
+    std::cout << "NDNc FILE TRANSFER SERVER\n";
 
-    ndnc::Face *face = new ndnc::Face();
+    face = new ndnc::Face();
 #ifndef __APPLE__
     if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncft-server"))
         return 2;
 #endif
     if (!face->isValid()) {
-        cerr << "ERROR: Invalid face\n";
+        cerr << "ERROR: invalid face\n";
         return 2;
     }
 
-    ndnc::benchmark::ft::Runner *server =
-        new ndnc::benchmark::ft::Runner(*face, opts);
+    server = new ndnc::benchmark::ft::Runner(*face, opts);
 
-    face->advertise(ndnc::benchmark::namePrefixUri);
+    if (!face->advertise(ndnc::benchmark::namePrefixUri)) {
+        cerr << "ERROR: unable to advertise prefix on face\n";
+        return 2;
+    }
 
     while (shouldRun && face->isValid()) {
         face->loop();
@@ -139,11 +143,11 @@ int main(int argc, char **argv) {
 
 #ifdef DEBUG
     cout << "\n--- face statistics --\n"
-         << face->readCounters().nTxPackets << " packets transmitted, "
-         << face->readCounters().nRxPackets << " packets received\n"
-         << face->readCounters().nTxBytes << " bytes transmitted, "
-         << face->readCounters().nRxBytes << " bytes received "
-         << "with " << face->readCounters().nErrors << " errors\n";
+         << face->readCounters()->nTxPackets << " packets transmitted, "
+         << face->readCounters()->nRxPackets << " packets received\n"
+         << face->readCounters()->nTxBytes << " bytes transmitted, "
+         << face->readCounters()->nRxBytes << " bytes received "
+         << "with " << face->readCounters()->nErrors << " errors\n";
 #endif // DEBUG
 
     if (server != nullptr) {

@@ -57,8 +57,8 @@ bool Client::openFace(int id, int dataroom, std::string gqlserver) {
       }\n\
     }",
         "createFace",
-        nlohmann::json{
-            {"locator", json_helper::createFace{m_socketName, id, dataroom}}});
+        nlohmann::json{{"locator", json_helper::createFace{
+                                       m_socketName, "memif", id, dataroom}}});
 
     json response;
     if (auto code = doOperation(request, response, m_gqlserver);
@@ -115,7 +115,7 @@ bool Client::deleteFace() {
 }
 
 bool Client::advertiseOnFace(const std::string prefix) {
-    std::cout << "INFO: Advertising: " << prefix << "\n";
+    std::cout << "INFO: Advertise prefix: " << prefix << "\n";
 
     auto request = json_helper::getOperation(
         "\

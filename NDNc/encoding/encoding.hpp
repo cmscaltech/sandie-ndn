@@ -37,7 +37,7 @@
 #include <ndn-cxx/lp/tags.hpp>
 
 namespace ndnc {
-inline ndn::Block getWireEncode(std::shared_ptr<const ndn::Interest> &&interest,
+inline ndn::Block getWireEncode(std::shared_ptr<ndn::Interest> &&interest,
                                 uint64_t pitTokenValue) {
     ndn::lp::Packet lpPacket(interest->wireEncode());
 
@@ -57,6 +57,16 @@ inline std::shared_ptr<ndn::Interest> getWireDecode(ndn::Block wire) {
 
     return std::make_shared<ndn::Interest>(
         ndn::Block(&*begin, std::distance(begin, end)));
+}
+} // namespace ndnc
+
+namespace ndnc {
+inline ndn::Block getWireEncode(std::shared_ptr<ndn::Data> &&data,
+                                ndn::lp::PitToken &&pitToken) {
+    ndn::lp::Packet lpPacket(data->wireEncode());
+    lpPacket.add<ndn::lp::PitTokenField>(pitToken);
+
+    return lpPacket.wireEncode();
 }
 } // namespace ndnc
 

@@ -32,10 +32,7 @@
 #include <stdint.h>
 #include <vector>
 
-#include <ndn-cxx/interest.hpp>
-#include <ndn-cxx/lp/nack.hpp>
-#include <ndn-cxx/lp/packet.hpp>
-#include <ndn-cxx/lp/tags.hpp>
+#include <ndn-cxx/encoding/block.hpp>
 
 namespace ndnc {
 class Transport {
@@ -44,24 +41,21 @@ class Transport {
     using RxCallback = void (*)(void *ctx, const uint8_t *pkt, size_t pktLen);
     using DisconnectCallback = void (*)(void *ctx);
 
-    using Request = ndn::Block;
-    using Response = const uint8_t *;
-
   public:
     virtual ~Transport() = default;
 
     virtual bool isUp() const = 0;
     virtual void loop() = 0;
 
-    virtual bool send(Request req) const = 0;
-    virtual bool send(std::vector<Request> reqs) const = 0;
+    virtual bool send(ndn::Block &&) const = 0;
+    virtual bool send(std::vector<ndn::Block> &&) const = 0;
 
     void setRxCallback(RxCallback cb, void *ctx) {
         rxCallback = cb;
         rxCallbackContext = ctx;
     }
 
-    void invokeRxCallback(Response pkt, size_t pktLen) {
+    void invokeRxCallback(const uint8_t *pkt, size_t pktLen) {
         rxCallback(rxCallbackContext, pkt, pktLen);
     }
 

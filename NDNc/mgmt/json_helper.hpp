@@ -77,8 +77,8 @@ struct createFace {
     std::string scheme = "memif";
     int id;       // Face ID
     int dataroom; // Dataroom size
-    int rxQueueSize = 512;
-    int txQueueSize = 512;
+    int rxQueueSize = 1024;
+    int txQueueSize = 1024;
     int ringCapacity = 4096;
 };
 

@@ -27,122 +27,127 @@
 
 #include <iostream>
 
-#include <ndn-cxx/encoding/buffer.hpp>
-#include <ndn-cxx/interest.hpp>
-
 #include "face.hpp"
 
 namespace ndnc {
-Face::Face() : m_transport(nullptr), m_valid(false), m_counters{} {
+Face::Face() : m_transport(nullptr), m_packetHandler(nullptr), m_valid(false) {
     m_client = std::make_unique<mgmt::Client>();
+    m_counters = std::make_shared<Counters>();
 }
 
 Face::~Face() {
     m_valid = false;
 
     if (m_client != nullptr) {
-        if (!m_client->deleteFace()) {
-#ifdef DEBUG
-            ++m_counters.nErrors;
-#endif // DEBUG
-            std::cout << "WARN: Unable to delete face\n";
-        }
+        m_client->deleteFace();
     }
 
     m_transport = nullptr;
     m_packetHandler = nullptr;
 }
 
-bool Face::isValid() {
-    return m_valid;
+bool Face::addPacketHandler(PacketHandler &h) {
+    m_packetHandler = &h;
+
+    if (m_packetHandler == nullptr) {
+        std::cout << "FATAL: null packet handler\n";
+        m_valid = false;
+        return false;
+    }
+
+    m_packetHandler->face = this;
+    return true;
+}
+
+bool Face::openMemif(int dataroom, std::string gqlserver, std::string name) {
+    m_valid = m_client->openFace(0, dataroom, gqlserver);
+
+    if (!isValid()) {
+        std::cout << "FATAL: unable to open memif face\n";
+        return false;
+    }
+
+    static Memif transport;
+    if (!transport.init(m_client->getSocketName().c_str(), 0, name.c_str(),
+                        dataroom)) {
+        std::cout << "FATAL: unable to init memif face\n";
+        return false;
+    }
+
+    this->m_transport = &transport;
+
+    while (true) {
+        if (m_transport->isUp()) {
+            m_transport->setRxCallback(receive, this);
+            m_transport->setDisconnectCallback(disconnect, this);
+            break;
+        }
+
+        m_transport->loop();
+    }
+
+    return true;
 }
 
 bool Face::advertise(const std::string prefix) {
     if (m_transport == nullptr || !m_transport->isUp()) {
-#ifdef DEBUG
-        ++m_counters.nErrors;
-#endif // DEBUG
         return false;
     }
 
     if (m_client == nullptr || !this->isValid()) {
-#ifdef DEBUG
-        ++m_counters.nErrors;
-#endif // DEBUG
         return false;
     }
 
     return m_client->advertiseOnFace(prefix);
 }
 
-Face::Counters Face::readCounters() {
-    return this->m_counters;
+bool Face::isValid() {
+    return m_valid;
 }
 
 void Face::loop() {
     m_transport->loop();
 }
 
-bool Face::addHandler(PacketHandler &h) {
-    if (m_packetHandler == nullptr) {
-#ifdef DEBUG
-        ++m_counters.nErrors;
-#endif // DEBUG
-        return false;
-    }
-
-    m_packetHandler = &h;
-    m_packetHandler->m_face = this;
-    return true;
+std::shared_ptr<Face::Counters> Face::readCounters() {
+    return this->m_counters;
 }
 
-bool Face::send(const ndn::Block wire) {
+bool Face::send(ndn::Block &&wire) {
+    if (!m_transport->send(std::move(wire))) {
 #ifdef DEBUG
-    ++m_counters.nTxPackets;
-    m_counters.nTxBytes += wire.size();
-#endif // DEBUG
-
-    if (!m_transport->send(wire)) {
-#ifdef DEBUG
-        ++m_counters.nErrors;
+        ++m_counters->nErrors;
 #endif // DEBUG
         return false;
     }
+
+#ifdef DEBUG
+    ++m_counters->nTxPackets;
+    m_counters->nTxBytes += wire.size();
+#endif // DEBUG
     return true;
 }
 
 bool Face::send(std::vector<ndn::Block> &&wires) {
+    if (!m_transport->send(std::move(wires))) {
 #ifdef DEBUG
-    m_counters.nTxPackets += wires.size();
-    for (auto wire = wires.begin(); wire != wires.end(); ++wire)
-        m_counters.nTxBytes += wire->size();
-#endif // DEBUG
-
-    if (!m_transport->send(wires)) {
-#ifdef DEBUG
-        ++m_counters.nErrors;
+        ++m_counters->nErrors;
 #endif // DEBUG
         return false;
     }
+
+#ifdef DEBUG
+    m_counters->nTxPackets += wires.size();
+    for (auto wire = wires.begin(); wire != wires.end(); ++wire)
+        m_counters->nTxBytes += wire->size();
+#endif // DEBUG
     return true;
 }
 
-bool Face::express(std::vector<ndn::Block> &&pendingInterests) {
-    return this->send(std::move(pendingInterests));
-}
-
-bool Face::put(ndn::Data &&data, ndn::lp::PitToken &&pitToken) {
-    ndn::lp::Packet lpPacket(data.wireEncode());
-    lpPacket.add<ndn::lp::PitTokenField>(pitToken);
-
-    auto wire = lpPacket.wireEncode();
-    return this->send(wire);
-}
-
-void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
+void Face::receive(const uint8_t *pkt, size_t pktLen) {
 #ifdef DEBUG
-    ++m_counters.nRxPackets;
-    m_counters.nRxBytes += pktLen;
+    ++m_counters->nRxPackets;
+    m_counters->nRxBytes += pktLen;
 #endif // DEBUG
 
     ndn::Block wire;
@@ -151,7 +156,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     std::tie(isOk, wire) = ndn::Block::fromBuffer(pkt, pktLen);
     if (!isOk) {
 #ifdef DEBUG
-        ++m_counters.nErrors;
+        ++m_counters->nErrors;
 #endif // DEBUG
         return;
     }
@@ -165,18 +170,17 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     switch (netPacket.type()) {
     case ndn::tlv::Interest: {
         auto interest = std::make_shared<ndn::Interest>(netPacket);
+        auto pitToken =
+            ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>());
 
         if (lpPacket.has<ndn::lp::NackField>()) {
-            m_packetHandler->dequeueNackPacket(
+            m_packetHandler->onNack(
                 std::make_shared<ndn::lp::Nack>(std::move(*interest)),
-                std::move(
-                    ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>())));
+                std::move(pitToken));
         } else {
             if (m_packetHandler != nullptr) {
-                m_packetHandler->dequeueInterestPacket(
-                    std::move(interest),
-                    std::move(ndn::lp::PitToken(
-                        lpPacket.get<ndn::lp::PitTokenField>())));
+                m_packetHandler->onInterest(std::move(interest),
+                                            std::move(pitToken));
             }
         }
         break;
@@ -184,7 +188,7 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
 
     case ndn::tlv::Data: {
         if (m_packetHandler != nullptr) {
-            m_packetHandler->dequeueDataPacket(
+            m_packetHandler->onData(
                 std::make_shared<ndn::Data>(netPacket),
                 std::move(
                     ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>())));
@@ -193,48 +197,15 @@ void Face::transportRx(const uint8_t *pkt, size_t pktLen) {
     }
 
     default: {
-        std::cout << "WARN: Unexpected packet type " << netPacket.type()
+        std::cout << "WARN: unexpected packet type " << netPacket.type()
                   << "\n";
         break;
     }
     }
 }
 
-bool Face::openMemif(int dataroom, std::string gqlserver, std::string name) {
-    int id = 0;
-    m_valid = m_client->openFace(id, dataroom, gqlserver);
-
-    if (!m_valid) {
-        std::cout << "FATAL: Unable to create face\n";
-        return false;
-    }
-
-#ifndef __APPLE__
-    static Memif transport;
-    if (!transport.init(m_client->getSocketName().c_str(), id, name.c_str(),
-                        dataroom)) {
-        std::cout << "FATAL: Unable to init face\n";
-        return false;
-    }
-
-    this->m_transport = &transport;
-#endif
-
-    while (true) {
-        if (m_transport->isUp()) {
-            m_transport->setRxCallback(transportRx, this);
-            m_transport->setDisconnectCallback(onPeerDisconnect, this);
-            break;
-        }
-
-        m_transport->loop();
-    }
-
-    return true;
-}
-
-void Face::onPeerDisconnect() {
-    std::cout << "WARN: Peer disconnected\n";
+void Face::disconnect() {
+    std::cout << "WARN: peer disconnected\n";
     this->m_valid = false;
 }
 }; // namespace ndnc

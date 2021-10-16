@@ -42,17 +42,18 @@ void PipelineInterestsFixed::process() {
         face->loop();
         onTimeout();
 
-        if (size() >= m_maxSize) {
+        if (m_pit->size() >= m_maxSize) {
             continue;
         }
 
 #ifdef DEBUG
-        assert(size() <= m_maxSize);
+        assert(m_pit->size() <= m_maxSize);
 #endif
 
-        std::vector<PendingInterest> pendingInterests(m_maxSize - size());
+        std::vector<PendingInterest> pendingInterests(m_maxSize -
+                                                      m_pit->size());
         size_t n = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(),
-                                                   m_maxSize - size());
+                                                   m_maxSize - m_pit->size());
 
         if (n == 0) {
             continue;
@@ -125,7 +126,7 @@ void PipelineInterestsFixed::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
 void PipelineInterestsFixed::onTimeout() {
     while (!m_queue->empty()) {
         if (m_pit->count(m_queue->front()) == 0) {
-            // pPop entries that were already satisfied with success
+            // Pop entries that were already satisfied with success
             m_queue->pop();
             continue;
         }

@@ -76,10 +76,8 @@ class Runner : public std::enable_shared_from_this<Runner> {
   private:
     bool canContinue();
 
-    size_t requestData(std::shared_ptr<ndn::Interest> &&);
-    size_t requestData(std::vector<std::shared_ptr<ndn::Interest>> &&, size_t);
-
-    std::shared_ptr<ndn::Data> onResponseData();
+    bool requestData(std::shared_ptr<ndn::Interest> &&);
+    bool requestData(std::vector<std::shared_ptr<ndn::Interest>> &&, size_t);
 
   private:
     std::atomic_bool m_stop;

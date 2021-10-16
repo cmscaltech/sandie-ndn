@@ -99,12 +99,12 @@ int main(int argc, char *argv[]) {
     description.add_options()(
         "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
         "Dataroom size. Specify a positive integer between 64 and 9000");
-    description.add_options()(
-        "nthreads",
-        po::value<uint16_t>(&opts.nthreads)
-            ->default_value(opts.nthreads)
-            ->implicit_value(opts.nthreads),
-        "The number of threads/workers to request Data in parallel");
+    description.add_options()("nthreads",
+                              po::value<uint16_t>(&opts.nthreads)
+                                  ->default_value(opts.nthreads)
+                                  ->implicit_value(opts.nthreads),
+                              "The number of worker threads. Half request "
+                              "Interest packets and half process Data packets");
     description.add_options()(
         "pipeline-type",
         po::value<string>(&pipelineType)->default_value(pipelineType),
@@ -215,6 +215,8 @@ int main(int argc, char *argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
     std::atomic<uint64_t> bytesToTransfer = 0;
+
+    opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;
 
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
         workers.push_back(std::thread(

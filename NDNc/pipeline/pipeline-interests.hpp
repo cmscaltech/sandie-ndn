@@ -74,7 +74,7 @@ class PipelineInterests : public PacketHandler {
 
     bool isValid() { return !this->m_stop && face != nullptr; }
 
-    uint64_t size() { return m_pit->size(); }
+    uint64_t getPendingRequestsCount() { return m_requestQueue.size_approx(); }
 
   public:
     bool enqueueInterest(std::shared_ptr<ndn::Interest> &&interest) {

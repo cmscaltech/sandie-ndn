@@ -76,15 +76,26 @@ void Runner::getFileInfo(uint64_t *size) {
     interest->setMustBeFresh(true);
 
     // Express Interest
-    if (requestData(std::move(interest)) == 0) {
-        m_error = true;
+    if (!requestData(std::move(interest))) {
         return;
     }
 
     // Wait for Data
-    auto data = onResponseData();
+    std::shared_ptr<ndn::Data> data;
+    while (!m_pipeline->dequeueData(data) && canContinue()) {
+    }
 
-    if (data == nullptr || !data->hasContent() ||
+    if (!canContinue()) {
+        return;
+    }
+
+    ++m_counters->nData;
+    if (data == nullptr) {
+        std::cout << "ERROR: pipeline encountered an error\n";
+        return;
+    }
+
+    if (!data->hasContent() ||
         data->getContentType() == ndn::tlv::ContentType_Nack) {
 
         std::cout << "FATAL: could not open file: " << m_options->file << "\n";
@@ -108,10 +119,8 @@ void Runner::requestFileContent(int wid) {
     for (uint64_t segmentNo = wid * npackets;
          segmentNo <= m_metadata->getLastSegment() && canContinue();) {
 
-        if (m_pipeline->size() > 2048) {
-            std::cout << "INFO: requestData thread backoff. pit size="
-                      << m_pipeline->size() << "\n";
-            std::this_thread::sleep_for(std::chrono::milliseconds{100});
+        if (m_pipeline->getPendingRequestsCount() > 16384) {
+            // backoff; plenty of work to be done by the pipeline
             continue;
         }
 
@@ -131,8 +140,7 @@ void Runner::requestFileContent(int wid) {
             interests.emplace_back(std::move(interest));
         }
 
-        if (requestData(std::move(interests), nTx) != nTx) {
-            m_error = true;
+        if (!requestData(std::move(interests), nTx)) {
             return;
         }
 
@@ -143,69 +151,58 @@ void Runner::requestFileContent(int wid) {
 void Runner::receiveFileContent(NotifyProgressStatus onProgress) {
     uint64_t nBytes = 0;
 
-    for (; m_nReceived < m_metadata->getLastSegment() && canContinue();
-         ++m_nReceived) {
+    while (m_nReceived <= m_metadata->getLastSegment() && canContinue()) {
+        std::shared_ptr<ndn::Data> data;
+        if (!m_pipeline->dequeueData(data)) {
+            continue;
+        }
 
-        auto data = onResponseData();
+        if (!canContinue()) {
+            break;
+        }
 
         if (data == nullptr) {
-            m_stop = true;
-            return;
+            std::cout << "ERROR: pipeline encountered an error\n";
+            break;
         }
 
         nBytes += data->getContent().value_size();
 
-        if (nBytes > 2097152) {
+        if (nBytes >= 1048576) {
             onProgress(nBytes);
             nBytes = 0;
         }
+
+        ++m_nReceived;
+        ++m_counters->nData;
     }
 
     onProgress(nBytes);
 }
 
-size_t Runner::requestData(std::shared_ptr<ndn::Interest> &&interest) {
+bool Runner::requestData(std::shared_ptr<ndn::Interest> &&interest) {
     interest->setInterestLifetime(m_options->lifetime);
 
-    if (canContinue() && !m_pipeline->enqueueInterest(std::move(interest))) {
+    if (!m_pipeline->enqueueInterest(std::move(interest))) {
         std::cout << "FATAL: unable to enqueue Interest \n";
         m_error = true;
-        return 0;
+        return false;
     }
 
     ++m_counters->nInterest;
-    return 1;
+    return true;
 }
 
-size_t
-Runner::requestData(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
-                    size_t n) {
-    if (canContinue() && !m_pipeline->enqueueInterests(std::move(interests))) {
+bool Runner::requestData(
+    std::vector<std::shared_ptr<ndn::Interest>> &&interests, size_t n) {
+    if (!m_pipeline->enqueueInterests(std::move(interests))) {
         std::cout << "FATAL: unable to enqueue Interests \n";
         m_error = true;
-        return 0;
+        return false;
     }
 
     m_counters->nInterest += n;
-    return n;
-}
-
-std::shared_ptr<ndn::Data> Runner::onResponseData() {
-    while (canContinue()) {
-        std::shared_ptr<ndn::Data> data;
-        if (!m_pipeline->dequeueData(data)) {
-            // wait for data. continue until get a response
-            continue;
-        }
-
-        if (data != nullptr) {
-            ++m_counters->nData;
-            return data;
-        }
-    }
-
-    std::cout << "ERROR: pipeline encountered an error\n";
-    return nullptr;
+    return true;
 }
 }; // namespace ft
 }; // namespace benchmark

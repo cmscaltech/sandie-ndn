@@ -46,20 +46,21 @@ Runner::Runner(Face &face, Options options)
     std::uniform_int_distribution<uint64_t> dist;
     m_sequence = dist(gen);
 
-    m_pipeline = new PipelineFixed(face, 1);
+    m_pipeline = std::make_shared<PipelineInterestsFixed>(face, 1);
+    m_pipeline->begin();
 }
 
 Runner::~Runner() {
-    m_pipeline->stop();
-
-    if (m_pipeline != nullptr) {
-        delete m_pipeline;
-    }
+    this->stop();
 }
 
 void Runner::stop() {
     m_stop = true;
-    m_pipeline->stop();
+    m_pipeline->end();
+}
+
+bool Runner::canContinue() {
+    return !m_stop && m_pipeline->isValid();
 }
 
 void Runner::run() {
@@ -68,8 +69,8 @@ void Runner::run() {
     interest->setMustBeFresh(true);
     interest->setInterestLifetime(m_options.lifetime);
 
-    RxQueue rxQueue;
-    if (!m_pipeline->enqueueInterestPacket(std::move(interest), &rxQueue)) {
+    if (!m_pipeline->enqueueInterest(std::move(interest))) {
+        m_stop = true;
         std::cout << "WARN: unable to enqueue Interest packet\n";
         return;
     }
@@ -77,23 +78,21 @@ void Runner::run() {
     auto start = ndn::time::system_clock::now();
     ++m_counters.nTxInterests;
 
-    PendingInterestResult result;
-    while (!rxQueue.wait_dequeue_timed(result, 1000)) {
-        if (!m_pipeline->isValid()) {
-            return;
-        }
-    }
-
-    if (result.hasError() || m_stop) {
-        return;
+    std::shared_ptr<ndn::Data> data;
+    while (!m_pipeline->dequeueData(data) && !m_stop) {
     }
 
     auto end = ndn::time::system_clock::now();
-    ++m_counters.nRxData;
+
+    if (m_stop || data == nullptr) {
+        return;
+    }
 
     auto rtt = ndn::time::duration_cast<ndn::time::microseconds>(end - start);
-    std::cout << ndn::time::toString(end) << " " << result.getData()->getName()
-              << " " << rtt << "\n";
+    std::cout << ndn::time::toString(end) << " " << data->getName() << " "
+              << rtt << "\n";
+
+    ++m_counters.nRxData;
 }
 
 Runner::Counters Runner::readCounters() {

@@ -28,8 +28,6 @@
 #ifndef NDNC_APP_PING_SERVER_HPP
 #define NDNC_APP_PING_SERVER_HPP
 
-#include <ndn-cxx/encoding/block.hpp>
-
 #include "face/packet-handler.hpp"
 
 namespace ndnc {
@@ -57,8 +55,8 @@ class Runner : public PacketHandler,
     Counters readCounters();
 
   private:
-    void dequeueInterestPacket(std::shared_ptr<const ndn::Interest> &&interest,
-                               ndn::lp::PitToken &&pitToken) final;
+    void onInterest(std::shared_ptr<ndn::Interest> &&interest,
+                    ndn::lp::PitToken &&pitToken) final;
 
   private:
     Options m_options;

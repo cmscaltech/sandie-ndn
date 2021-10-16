@@ -197,6 +197,8 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
+    opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;
+
     client = new ndnc::benchmark::ft::Runner(*face, opts);
 
     uint64_t totalBytesToTransfer = 0;
@@ -215,8 +217,6 @@ int main(int argc, char *argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
     std::atomic<uint64_t> bytesToTransfer = 0;
-
-    opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;
 
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
         workers.push_back(std::thread(

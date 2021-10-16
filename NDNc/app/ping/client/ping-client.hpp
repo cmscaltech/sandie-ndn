@@ -28,8 +28,7 @@
 #ifndef NDNC_APP_PING_CLIENT_HPP
 #define NDNC_APP_PING_CLIENT_HPP
 
-#include "face/pipeline-interests-fixed.hpp"
-#include "face/pipeline-interests.hpp"
+#include "pipeline/pipeline-interests-fixed.hpp"
 
 namespace ndnc {
 namespace ping {
@@ -45,8 +44,6 @@ struct Options {
 
 class Runner : public std::enable_shared_from_this<Runner> {
   public:
-    using RxQueue = moodycamel::BlockingConcurrentQueue<PendingInterestResult>;
-
     struct Counters {
         uint32_t nTxInterests = 0;
         uint32_t nRxData = 0;
@@ -57,13 +54,14 @@ class Runner : public std::enable_shared_from_this<Runner> {
 
     void run();
     void stop();
+    bool canContinue();
     Counters readCounters();
 
   private:
     Options m_options;
     Counters m_counters;
 
-    Pipeline *m_pipeline;
+    std::shared_ptr<PipelineInterests> m_pipeline;
     uint64_t m_sequence;
     bool m_stop;
 };

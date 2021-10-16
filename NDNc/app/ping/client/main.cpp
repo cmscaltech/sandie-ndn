@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
     }
 
     client = new ndnc::ping::client::Runner(*face, opts);
-    while (shouldRun && face->isValid()) {
+    while (shouldRun && face->isValid() && client->canContinue()) {
         client->run();
     }
 

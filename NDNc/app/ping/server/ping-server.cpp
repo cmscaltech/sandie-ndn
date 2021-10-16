@@ -49,9 +49,8 @@ Runner::Runner(Face &face, Options options)
 
 Runner::~Runner() {}
 
-void Runner::dequeueInterestPacket(
-    std::shared_ptr<const ndn::Interest> &&interest,
-    ndn::lp::PitToken &&pitToken) {
+void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
+                        ndn::lp::PitToken &&pitToken) {
 
     ++m_counters.nRxInterests;
 
@@ -59,14 +58,15 @@ void Runner::dequeueInterestPacket(
               << boost::lexical_cast<std::string>(pitToken) << " "
               << interest->getName() << "\n";
 
-    auto data = ndn::Data(interest->getName());
-    data.setContent(m_payload);
-    data.setContentType(ndn::tlv::ContentType_Blob);
-    data.setSignatureInfo(m_signatureInfo);
-    data.setSignatureValue(std::make_shared<ndn::Buffer>());
-    data.setFreshnessPeriod(ndn::time::milliseconds{2});
+    auto data = std::make_shared<ndn::Data>(interest->getName());
+    data->setContent(m_payload);
+    data->setContentType(ndn::tlv::ContentType_Blob);
+    data->setSignatureInfo(m_signatureInfo);
+    data->setSignatureValue(std::make_shared<ndn::Buffer>());
+    data->setFreshnessPeriod(ndn::time::seconds{2});
 
-    if (!enqueueDataPacket(std::move(data), std::move(pitToken))) {
+    if (face != nullptr &&
+        !face->send(getWireEncode(std::move(data), std::move(pitToken)))) {
         std::cout << "WARN: Unable to put Data packet on face\n";
         return;
     }

@@ -30,7 +30,11 @@
 
 #include <memory>
 
+#ifndef __APPLE__
 #include "memif.hpp"
+#else
+#include "transport.hpp"
+#endif
 #include "mgmt/client.hpp"
 
 namespace ndnc {

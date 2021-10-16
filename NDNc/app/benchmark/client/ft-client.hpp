@@ -32,8 +32,7 @@
 #include <vector>
 
 #include "../common/file-metadata.hpp"
-#include "face/pipeline-interests-fixed.hpp"
-#include "face/pipeline-interests.hpp"
+#include "pipeline/pipeline-interests-fixed.hpp"
 
 namespace ndnc {
 namespace benchmark {
@@ -55,20 +54,11 @@ struct ClientOptions {
 
 class Runner : public std::enable_shared_from_this<Runner> {
   public:
-    using RxQueue = moodycamel::BlockingConcurrentQueue<PendingInterestResult>;
     using NotifyProgressStatus = std::function<void(uint64_t)>;
 
     struct Counters {
         std::atomic<uint64_t> nInterest = 0;
         std::atomic<uint64_t> nData = 0;
-
-        void addInterest(uint64_t n = 1) {
-            nInterest.fetch_add(n, std::memory_order_release);
-        }
-
-        void addData(uint64_t n = 1) {
-            nData.fetch_add(n, std::memory_order_release);
-        }
     };
 
   public:
@@ -77,24 +67,28 @@ class Runner : public std::enable_shared_from_this<Runner> {
 
     void stop();
     void getFileInfo(uint64_t *size);
-    void getFileContent(int wid, NotifyProgressStatus);
 
     std::shared_ptr<Counters> readCounters();
+
+    void requestFileContent(int wid);
+    void receiveFileContent(NotifyProgressStatus);
 
   private:
     bool canContinue();
 
-    size_t request(std::shared_ptr<ndn::Interest> &&, RxQueue *);
-    size_t request(std::vector<std::shared_ptr<ndn::Interest>> &&, size_t,
-                   RxQueue *);
+    size_t requestData(std::shared_ptr<ndn::Interest> &&);
+    size_t requestData(std::vector<std::shared_ptr<ndn::Interest>> &&, size_t);
+
+    std::shared_ptr<ndn::Data> onResponseData();
 
   private:
     std::atomic_bool m_stop;
     std::atomic_bool m_error;
+    std::atomic<uint64_t> m_nReceived;
 
     std::shared_ptr<ClientOptions> m_options;
     std::shared_ptr<Counters> m_counters;
-    std::shared_ptr<Pipeline> m_pipeline;
+    std::shared_ptr<PipelineInterests> m_pipeline;
     std::shared_ptr<FileMetadata> m_metadata;
 };
 }; // namespace ft

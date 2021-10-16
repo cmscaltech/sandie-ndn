@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
 
     if (vm.count("mtu") > 0) {
         if (opts.mtu < 64 || opts.mtu > 9000) {
-            cerr << "ERROR: Invalid MTU size. Please specify a positive "
+            cerr << "ERROR: invalid MTU size. please specify a positive "
                     "integer between 64 and 9000\n\n";
             usage(cout, app, description);
             return 2;
@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
 
     if (vm.count("gqlserver") > 0) {
         if (opts.gqlserver.empty()) {
-            cerr << "ERROR: Empty gqlserver argument value\n\n";
+            cerr << "ERROR: empty gqlserver argument value\n\n";
             usage(cout, app, description);
             return 2;
         }
@@ -157,19 +157,19 @@ int main(int argc, char *argv[]) {
     }
 
     if (opts.lifetime < ndn::time::milliseconds{0}) {
-        cerr << "ERROR: Negative lifetime argument value\n\n";
+        cerr << "ERROR: negative lifetime argument value\n\n";
         usage(cout, app, description);
         return 2;
     }
 
     if (vm.count("file") == 0) {
-        cerr << "ERROR: Please specify a file URL to be copied over NDN\n\n";
+        cerr << "ERROR: please specify a file URL to be copied over NDN\n\n";
         usage(cerr, app, description);
         return 2;
     }
 
     if (opts.file.empty()) {
-        cerr << "\nERROR: The file URL cannot be an empty string\n";
+        cerr << "\nERROR: the file URL cannot be an empty string\n";
         return 2;
     }
 
@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (opts.pipelineType == ndnc::PipelineType::undefined) {
-        cerr << "ERROR: Invalid pipeline type\n\n";
+        cerr << "ERROR: invalid pipeline type\n\n";
         usage(cout, app, description);
         return 2;
     }
@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
 #endif
 
     if (!face->isValid()) {
-        cerr << "ERROR: Invalid face\n";
+        cerr << "ERROR: invalid face\n";
         return 2;
     }
 
@@ -216,11 +216,17 @@ int main(int argc, char *argv[]) {
     auto start = std::chrono::high_resolution_clock::now();
     std::atomic<uint64_t> bytesToTransfer = 0;
 
-    for (auto wid = 0; wid < opts.nthreads; ++wid) {
+    for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
         workers.push_back(std::thread(
-            &ndnc::benchmark::ft::Runner::getFileContent, client, wid,
+            &ndnc::benchmark::ft::Runner::requestFileContent, client, wid));
+    }
+
+    for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
+        workers.push_back(std::thread(
+            &ndnc::benchmark::ft::Runner::receiveFileContent, client,
             [&](uint64_t progress) {
                 bytesToTransfer.fetch_add(progress, std::memory_order_release);
+
                 bar.set_progress(bytesToTransfer);
                 bar.set_option(
                     option::PostfixText{to_string(bytesToTransfer) + "/" +
@@ -240,7 +246,7 @@ int main(int argc, char *argv[]) {
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
 #ifdef DEBUG
-    double throughput = ((double)face->readCounters().nRxBytes * 8.0) /
+    double throughput = ((double)face->readCounters()->nRxBytes * 8.0) /
                         (duration / std::chrono::nanoseconds(1)) * 1e9;
 #endif
 
@@ -256,11 +262,11 @@ int main(int argc, char *argv[]) {
 
 #ifdef DEBUG
     cout << "\n--- face statistics --\n"
-         << face->readCounters().nTxPackets << " packets transmitted, "
-         << face->readCounters().nRxPackets << " packets received\n"
-         << face->readCounters().nTxBytes << " bytes transmitted, "
-         << face->readCounters().nRxBytes << " bytes received "
-         << "with " << face->readCounters().nErrors << " errors\n";
+         << face->readCounters()->nTxPackets << " packets transmitted, "
+         << face->readCounters()->nRxPackets << " packets received\n"
+         << face->readCounters()->nTxBytes << " bytes transmitted, "
+         << face->readCounters()->nRxBytes << " bytes received "
+         << "with " << face->readCounters()->nErrors << " errors\n";
 #endif // DEBUG
 
     cleanOnExit();

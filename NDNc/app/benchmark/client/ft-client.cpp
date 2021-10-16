@@ -33,18 +33,18 @@ namespace ndnc {
 namespace benchmark {
 namespace ft {
 Runner::Runner(Face &face, ClientOptions options)
-    : m_stop{false}, m_error{false}, m_metadata{nullptr} {
+    : m_stop{false}, m_error{false}, m_nReceived{0}, m_metadata{nullptr} {
     m_options = std::make_shared<ClientOptions>(options);
     m_counters = std::make_shared<Counters>();
 
     switch (m_options->pipelineType) {
     case fixed:
     default:
-        m_pipeline =
-            std::make_shared<PipelineFixed>(face, m_options->pipelineSize);
+        m_pipeline = std::make_shared<PipelineInterestsFixed>(
+            face, m_options->pipelineSize);
     }
 
-    m_pipeline->start();
+    m_pipeline->begin();
 }
 
 Runner::~Runner() {
@@ -59,7 +59,7 @@ void Runner::stop() {
     m_stop = true;
 
     if (m_pipeline != nullptr && m_pipeline->isValid()) {
-        m_pipeline->stop();
+        m_pipeline->end();
     }
 }
 
@@ -76,40 +76,23 @@ void Runner::getFileInfo(uint64_t *size) {
     interest->setMustBeFresh(true);
 
     // Express Interest
-    RxQueue rxQueue;
-    if (request(std::move(interest), &rxQueue) == 0) {
+    if (requestData(std::move(interest)) == 0) {
         m_error = true;
         return;
     }
 
     // Wait for Data
-    PendingInterestResult response;
-    while (!rxQueue.wait_dequeue_timed(response, 1000) && canContinue()) {
-    }
+    auto data = onResponseData();
 
-    if (!canContinue())
-        return;
+    if (data == nullptr || !data->hasContent() ||
+        data->getContentType() == ndn::tlv::ContentType_Nack) {
 
-    m_counters->addData();
-
-    if (response.hasError()) {
-        if (response.getErrorCode() == NETWORK) {
-            std::cout << "ERROR: network is unrecheable\n";
-        }
+        std::cout << "FATAL: could not open file: " << m_options->file << "\n";
         m_error = true;
         return;
     }
 
-    if (!response.getData()->hasContent() ||
-        response.getData()->getContentType() == ndn::tlv::ContentType_Nack) {
-
-        std::cout << "FATAL: Could not open file: " << m_options->file << "\n";
-        m_error = true;
-        return;
-    }
-
-    m_metadata =
-        std::make_shared<FileMetadata>(response.getData()->getContent());
+    m_metadata = std::make_shared<FileMetadata>(data->getContent());
     *size = m_metadata->getFileSize();
 
     std::cout << "file " << m_options->file << " of size "
@@ -119,19 +102,18 @@ void Runner::getFileInfo(uint64_t *size) {
               << m_metadata->getVersionedName().get(-1).toVersion() << "\n";
 }
 
-void Runner::getFileContent(int wid, NotifyProgressStatus onProgress) {
-    if (m_metadata == nullptr) {
-        std::cout
-            << "ERROR: consumer doesn't have a reference to valid metadata\n";
-        return;
-    }
-
-    RxQueue rxQueue;
-    size_t npackets = 64;
+void Runner::requestFileContent(int wid) {
+    uint64_t npackets = 64;
 
     for (uint64_t segmentNo = wid * npackets;
-         segmentNo <= m_metadata->getLastSegment() && canContinue();
-         segmentNo += m_options->nthreads * npackets) {
+         segmentNo <= m_metadata->getLastSegment() && canContinue();) {
+
+        if (m_pipeline->size() > 2048) {
+            std::cout << "INFO: requestData thread backoff. pit size="
+                      << m_pipeline->size() << "\n";
+            std::this_thread::sleep_for(std::chrono::milliseconds{100});
+            continue;
+        }
 
         size_t nTx = 0;
         std::vector<std::shared_ptr<ndn::Interest>> interests;
@@ -149,66 +131,81 @@ void Runner::getFileContent(int wid, NotifyProgressStatus onProgress) {
             interests.emplace_back(std::move(interest));
         }
 
-        if (request(std::move(interests), nTx, &rxQueue) != nTx) {
+        if (requestData(std::move(interests), nTx) != nTx) {
             m_error = true;
             return;
         }
 
-        uint64_t nBytes = 0;
-
-        for (; nTx > 0 && canContinue();) {
-            PendingInterestResult response;
-            while (!rxQueue.wait_dequeue_timed(response, 1000) &&
-                   canContinue()) {
-            }
-
-            if (!canContinue())
-                return;
-
-            m_counters->addData();
-            --nTx;
-
-            if (response.hasError()) {
-                if (response.getErrorCode() == NETWORK) {
-                    std::cout << "ERROR: network is unrecheable\n";
-                }
-                m_error = true;
-                return;
-            } else {
-                nBytes += response.getData()->getContent().value_size();
-            }
-        }
-
-        onProgress(nBytes);
+        segmentNo += (m_options->nthreads / 2) * npackets;
     }
 }
 
-size_t Runner::request(std::shared_ptr<ndn::Interest> &&interest,
-                       RxQueue *rxQueue) {
+void Runner::receiveFileContent(NotifyProgressStatus onProgress) {
+    uint64_t nBytes = 0;
+
+    for (; m_nReceived < m_metadata->getLastSegment() && canContinue();
+         ++m_nReceived) {
+
+        auto data = onResponseData();
+
+        if (data == nullptr) {
+            m_stop = true;
+            return;
+        }
+
+        nBytes += data->getContent().value_size();
+
+        if (nBytes > 2097152) {
+            onProgress(nBytes);
+            nBytes = 0;
+        }
+    }
+
+    onProgress(nBytes);
+}
+
+size_t Runner::requestData(std::shared_ptr<ndn::Interest> &&interest) {
     interest->setInterestLifetime(m_options->lifetime);
 
-    if (canContinue() &&
-        !m_pipeline->enqueueInterestPacket(std::move(interest), rxQueue)) {
+    if (canContinue() && !m_pipeline->enqueueInterest(std::move(interest))) {
         std::cout << "FATAL: unable to enqueue Interest \n";
         m_error = true;
         return 0;
     }
 
-    m_counters->addInterest();
+    ++m_counters->nInterest;
     return 1;
 }
 
-size_t Runner::request(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
-                       size_t n, RxQueue *rxQueue) {
-    if (canContinue() &&
-        !m_pipeline->enqueueInterests(std::move(interests), n, rxQueue)) {
+size_t
+Runner::requestData(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
+                    size_t n) {
+    if (canContinue() && !m_pipeline->enqueueInterests(std::move(interests))) {
         std::cout << "FATAL: unable to enqueue Interests \n";
         m_error = true;
         return 0;
     }
 
-    m_counters->addInterest(n);
+    m_counters->nInterest += n;
     return n;
+}
+
+std::shared_ptr<ndn::Data> Runner::onResponseData() {
+    while (canContinue()) {
+        std::shared_ptr<ndn::Data> data;
+        if (!m_pipeline->dequeueData(data)) {
+            // wait for data. continue until get a response
+            continue;
+        }
+
+        if (data != nullptr) {
+            ++m_counters->nData;
+            return data;
+        }
+    }
+
+    std::cout << "ERROR: pipeline encountered an error\n";
+    return nullptr;
 }
 }; // namespace ft
 }; // namespace benchmark

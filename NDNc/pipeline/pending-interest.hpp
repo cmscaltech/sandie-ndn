@@ -25,52 +25,49 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_FACE_PIPELINE_INTERESTS_FIXED_HPP
-#define NDNC_FACE_PIPELINE_INTERESTS_FIXED_HPP
+#ifndef NDNC_PENDING_INTEREST_HPP
+#define NDNC_PENDING_INTEREST_HPP
 
-#include <unordered_map>
+#include <chrono>
+#include <ndn-cxx/data.hpp>
 
-#include "pipeline-interests.hpp"
+#include "concurrentqueue/blockingconcurrentqueue.h"
+#include "concurrentqueue/concurrentqueue.h"
 
 namespace ndnc {
-class PipelineFixed : public Pipeline {
+class PendingInterest {
   public:
-    using PendingInteretsTable = std::unordered_map<uint64_t, PendingInterest>;
+    PendingInterest() = default;
+
+    PendingInterest(ndn::Block &&interest, uint64_t pitEntry, int64_t lifetime)
+        : pitEntry(pitEntry), nTimeout(0), lifetime(lifetime),
+          interest(std::move(interest)) {}
+
+    ~PendingInterest() = default;
+
+    void markAsExpressed() {
+        this->expressedTimePoint = std::chrono::high_resolution_clock::now();
+    }
+
+    bool isExpired() const {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::high_resolution_clock::now() -
+                   this->expressedTimePoint)
+                   .count() > lifetime;
+    }
 
   public:
-    PipelineFixed(Face &face, size_t size);
-    ~PipelineFixed();
-
-  private:
-    void run() final;
-
-    void processInterest(PendingInterest &&);
-    void processInterests(std::vector<PendingInterest> &&, size_t);
-    void processTimeout();
-
-    void replyWithData(std::shared_ptr<ndn::Data> &&, uint64_t);
-    void replyWithError(PendingInterestResultError, uint64_t);
-
-  public:
-    bool enqueueInterestPacket(std::shared_ptr<ndn::Interest> &&interest,
-                               void *rxQueue) final;
-
-    bool
-    enqueueInterests(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
-                     size_t n, void *rxQueue) final;
-
-    void dequeueDataPacket(std::shared_ptr<ndn::Data> &&data,
-                           ndn::lp::PitToken &&pitToken) final;
-
-    void dequeueNackPacket(std::shared_ptr<ndn::lp::Nack> &&nack,
-                           ndn::lp::PitToken &&pitToken) final;
-
-  private:
-    size_t m_maxSize;
-
-    TxQueue m_tasksQueue;
-    PendingInteretsTable m_pit;
+    uint64_t pitEntry;
+    uint64_t nTimeout;
+    int64_t lifetime;
+    ndn::Block interest;
+    std::chrono::time_point<std::chrono::high_resolution_clock>
+        expressedTimePoint;
 };
+
+typedef moodycamel::ConcurrentQueue<PendingInterest> RequestQueue;
+typedef moodycamel::BlockingConcurrentQueue<std::shared_ptr<ndn::Data>>
+    ResponseQueue;
 }; // namespace ndnc
 
-#endif // NDNC_FACE_PIPELINE_INTERESTS_FIXED_HPP
+#endif // NDNC_PENDING_INTEREST_HPP

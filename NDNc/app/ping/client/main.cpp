@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
 
     if (vm.count("mtu") > 0) {
         if (opts.mtu < 64 || opts.mtu > 9000) {
-            cerr << "ERROR: Invalid MTU size. Please specify a positive "
+            cerr << "ERROR: invalid MTU size. please specify a positive "
                     "integer between 64 and 9000\n\n";
             usage(cout, app, description);
             return 2;
@@ -110,14 +110,14 @@ int main(int argc, char *argv[]) {
 
     if (vm.count("gqlserver") > 0) {
         if (opts.gqlserver.empty()) {
-            cerr << "ERROR: Empty gqlserver argument value\n\n";
+            cerr << "ERROR: empty gqlserver argument value\n\n";
             usage(cout, app, description);
             return 2;
         }
     }
 
     if (vm.count("name") == 0) {
-        cerr << "ERROR: Please specify the NDN Name prefix that this "
+        cerr << "ERROR: please specify the NDN Name prefix that this "
                 "application advertises\n\n";
         usage(cerr, app, description);
         return 2;
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (opts.lifetime < ndn::time::milliseconds{0}) {
-        cerr << "ERROR: Negative lifetime argument value\n\n";
+        cerr << "ERROR: negative lifetime argument value\n\n";
         usage(cout, app, description);
         return 2;
     }
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
         return 2;
 #endif
     if (!face->isValid()) {
-        cerr << "ERROR: Invalid face\n";
+        cerr << "ERROR: invalid face\n";
         return -1;
     }
 

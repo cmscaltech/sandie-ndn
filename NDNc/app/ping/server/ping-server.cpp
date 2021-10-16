@@ -67,7 +67,7 @@ void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
 
     if (face != nullptr &&
         !face->send(getWireEncode(std::move(data), std::move(pitToken)))) {
-        std::cout << "WARN: Unable to put Data packet on face\n";
+        std::cout << "WARN: unable to put Data packet on face\n";
         return;
     }
 

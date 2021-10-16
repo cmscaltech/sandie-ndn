@@ -75,8 +75,8 @@ void Runner::run() {
         return;
     }
 
-    auto start = ndn::time::system_clock::now();
     ++m_counters.nTxInterests;
+    auto start = ndn::time::system_clock::now();
 
     std::shared_ptr<ndn::Data> data;
     while (!m_pipeline->dequeueData(data) && !m_stop) {

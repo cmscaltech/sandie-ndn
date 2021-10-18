@@ -1,6 +1,6 @@
 /*
  * N-DISE: NDN for Data Intensive Science Experiments
- * Author: Catalin Iordache <catalin.iordache@cern.ch>
+ * Author: Sichen Song <songsichen@cs.ucla.edu>
  *
  * MIT License
  *
@@ -31,7 +31,7 @@
 
 namespace ndnc {
 PipelineInterestsAimd::PipelineInterestsAimd(Face &face, size_t size)
-    : PipelineInterests(face), m_maxSize{size},
+    : PipelineInterests(face), m_windowSize{size},
       m_lastDecrease{ndn::time::steady_clock::now()} {}
 
 PipelineInterestsAimd::~PipelineInterestsAimd() {
@@ -43,19 +43,15 @@ void PipelineInterestsAimd::process() {
         face->loop();
         onTimeout();
 
-        if (m_pit->size() >= m_maxSize) {
+        if (m_pit->size() >= m_windowSize) {
             // std::cerr << "pipeline full \n";
             continue;
         }
 
-#ifdef DEBUG
-        assert(m_pit->size() <= m_maxSize);
-#endif
-
-        std::vector<PendingInterest> pendingInterests(m_maxSize -
+        std::vector<PendingInterest> pendingInterests(m_windowSize -
                                                       m_pit->size());
         size_t n = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(),
-                                                   m_maxSize - m_pit->size());
+                                                   m_windowSize - m_pit->size());
 
         if (n == 0) {
             continue;
@@ -93,7 +89,7 @@ void PipelineInterestsAimd::onData(std::shared_ptr<ndn::Data> &&data,
 
     if (data->getCongestionMark()) {
         decreaseWindow();
-        std::cerr << "ECN\n";
+        std::cout << "Debug: ECN received\n";
     }
 
     enqueueData(std::move(data)); // Enqueue Data into Response queue
@@ -149,8 +145,6 @@ void PipelineInterestsAimd::onTimeout() {
         auto interest = getWireDecode(entry->second.interest);
         interest->refreshNonce();
 
-        // std::cout << "TRACE: timeout(" << entry->second.nTimeout + 1 << ") "
-        //           << interest->getName() << " \n";
         decreaseWindow();
 
         auto newPITEntry = m_rdn->get();
@@ -175,18 +169,18 @@ void PipelineInterestsAimd::decreaseWindow() {
     if (now - m_lastDecrease < MAX_RTT) {
         return;
     }
-    std::cerr << "window decrease at " << m_maxSize << '\n';
-    m_maxSize /= 2;
-    if (m_maxSize < MIN_WINDOW) {
-        m_maxSize = MIN_WINDOW;
+    std::cerr << "window decrease at " << m_windowSize << '\n';
+    m_windowSize /= 2;
+    if (m_windowSize < MIN_WINDOW) {
+        m_windowSize = MIN_WINDOW;
     }
     m_lastDecrease = now;
 }
 
 void PipelineInterestsAimd::increaseWindow() {
-    m_maxSize++;
-    if (m_maxSize > MAX_WINDOW) {
-        m_maxSize = MAX_WINDOW;
+    m_windowSize++;
+    if (m_windowSize > MAX_WINDOW) {
+        m_windowSize = MAX_WINDOW;
     }
 }
 

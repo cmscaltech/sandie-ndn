@@ -1,6 +1,6 @@
 /*
 * N-DISE: NDN for Data Intensive Science Experiments
-* Author: Catalin Iordache <catalin.iordache@cern.ch>
+* Author: Sichen Song <songsichen@cs.ucla.edu>
 *
 * MIT License
 *
@@ -52,7 +52,7 @@ class PipelineInterestsAimd : public PipelineInterests {
    void increaseWindow();
 
  private:
-   size_t m_maxSize;
+   size_t m_windowSize;
    ndn::time::steady_clock::time_point m_lastDecrease;
    static const unsigned MAX_WINDOW = NDNC_MAX_MEMIF_BUFS;
    static const unsigned MIN_WINDOW = 10;

@@ -38,6 +38,10 @@ Runner::Runner(Face &face, ClientOptions options)
     m_counters = std::make_shared<Counters>();
 
     switch (m_options->pipelineType) {
+    case aimd:
+        m_pipeline = std::make_shared<PipelineInterestsAimd>(
+            face, m_options->pipelineSize);
+        break;
     case fixed:
     default:
         m_pipeline = std::make_shared<PipelineInterestsFixed>(

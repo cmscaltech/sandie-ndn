@@ -62,7 +62,9 @@ ADD_EXECUTABLE(ndncft-client
                 face/face.cpp
                 face/packet-handler.cpp
                 pipeline/pipeline-interests-fixed.cpp
-                mgmt/client.cpp)
+                mgmt/client.cpp
+                pipeline/pipeline-interests-aimd.cpp
+                pipeline/pipeline-interests-aimd.hpp)
 
 TARGET_LINK_LIBRARIES(ndncft-client LINK_PUBLIC ${Boost_LIBRARIES} curl)
 TARGET_LINK_LIBRARIES(ndncft-client PRIVATE nlohmann_json::nlohmann_json)

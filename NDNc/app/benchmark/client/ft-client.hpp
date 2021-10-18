@@ -33,6 +33,7 @@
 
 #include "../common/file-metadata.hpp"
 #include "pipeline/pipeline-interests-fixed.hpp"
+#include "pipeline/pipeline-interests-aimd.hpp"
 
 namespace ndnc {
 namespace benchmark {

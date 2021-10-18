@@ -31,6 +31,7 @@
 namespace ndnc {
 enum PipelineType {
     fixed = 2,
+    aimd = 3,
     // TBD: others
     undefined
 };

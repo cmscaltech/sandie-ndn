@@ -44,7 +44,6 @@ void PipelineInterestsAimd::process() {
         onTimeout();
 
         if (m_pit->size() >= m_windowSize) {
-            // std::cerr << "pipeline full \n";
             continue;
         }
 

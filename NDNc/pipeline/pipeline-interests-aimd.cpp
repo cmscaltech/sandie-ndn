@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2021 California Institute of Technology
+ * Copyright (c) 2021 University of California, Los Angeles
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -169,7 +169,7 @@ void PipelineInterestsAimd::decreaseWindow() {
     if (now - m_lastDecrease < MAX_RTT) {
         return;
     }
-    std::cerr << "window decrease at " << m_windowSize << '\n';
+    std::cout << "DEBUG: window decrease at " << m_windowSize << '\n';
     m_windowSize /= 2;
     if (m_windowSize < MIN_WINDOW) {
         m_windowSize = MIN_WINDOW;

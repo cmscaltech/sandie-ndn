@@ -112,7 +112,7 @@ void Runner::getFileInfo(uint64_t *size) {
 
     std::cout << "file " << m_options->file << " of size "
               << m_metadata->getFileSize() << " bytes ("
-              << m_metadata->getSegmentSize() << "/"
+              << m_metadata->getSegmentSize() << " * "
               << m_metadata->getLastSegment() << ") and latest version="
               << m_metadata->getVersionedName().get(-1).toVersion() << "\n";
 }

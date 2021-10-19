@@ -49,7 +49,16 @@ class Client {
      * @return true Successfully create a new face
      * @return false Unable to create a new face
      */
-    bool openFace(int id, int dataroom, std::string gqlserver);
+    bool createFace(int id, int dataroom, std::string gqlserver);
+
+    /**
+     * @brief Advertise NDN Name prefix on NDN-DPDK face
+     *
+     * @param prefix Name prefix
+     * @return true Successfully advertise prefix on previously created face
+     * @return false Unable to advertise prefix on previously created face
+     */
+    bool insertFibEntry(const std::string prefix);
 
     /**
      * @brief Configure server (NDN-DPDK forwarder): create face
@@ -59,18 +68,12 @@ class Client {
      */
     bool deleteFace();
 
-    /**
-     * @brief Advertise NDN Name prefix on NDN-DPDK face
-     *
-     * @param prefix Name prefix
-     * @return true Successfully advertise prefix on previously created face
-     * @return false Unable to advertise prefix on previously created face
-     */
-    bool advertiseOnFace(const std::string prefix);
-
     std::string getSocketName() { return m_socketName; }
     std::string getFaceID() { return m_faceID; }
     std::string getFibEntryID() { return m_fibEntryID; }
+
+  private:
+    bool deleteID(std::string id);
 
   private:
     static size_t writeCallback(char *ptr, size_t size, size_t nmemb,
@@ -119,9 +122,9 @@ class Client {
 
   private:
     std::string m_socketName;
+    std::string m_gqlserver;
     std::string m_faceID;
     std::string m_fibEntryID;
-    std::string m_gqlserver;
 };
 }; // namespace mgmt
 }; // namespace ndnc

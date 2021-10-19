@@ -60,7 +60,7 @@ bool Face::addPacketHandler(PacketHandler &h) {
 }
 
 bool Face::openMemif(int dataroom, std::string gqlserver, std::string name) {
-    m_valid = m_client->openFace(0, dataroom, gqlserver);
+    m_valid = m_client->createFace(0, dataroom, gqlserver);
 
     if (!isValid()) {
         std::cout << "FATAL: unable to open memif face\n";
@@ -98,7 +98,7 @@ bool Face::advertise(const std::string prefix) {
         return false;
     }
 
-    return m_client->advertiseOnFace(prefix);
+    return m_client->insertFibEntry(prefix);
 }
 
 bool Face::isValid() {

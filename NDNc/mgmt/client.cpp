@@ -36,7 +36,7 @@ using json = nlohmann::json;
 
 namespace ndnc {
 namespace mgmt {
-Client::Client() : m_faceID{}, m_gqlserver{} {
+Client::Client() : m_gqlserver{}, m_faceID{}, m_fibEntryID{} {
     auto pid = std::to_string(getpid());
     auto timestamp = std::to_string(
         std::chrono::system_clock::now().time_since_epoch().count());
@@ -46,7 +46,7 @@ Client::Client() : m_faceID{}, m_gqlserver{} {
 
 Client::~Client() {}
 
-bool Client::openFace(int id, int dataroom, std::string gqlserver) {
+bool Client::createFace(int id, int dataroom, std::string gqlserver) {
     this->m_gqlserver = gqlserver;
 
     auto request = json_helper::getOperation(
@@ -64,7 +64,7 @@ bool Client::openFace(int id, int dataroom, std::string gqlserver) {
     if (auto code = doOperation(request, response, m_gqlserver);
         CURLE_OK != code) {
         std::cout << "ERROR: createFace POST: " << curl_easy_strerror(code)
-                  << ". Double check gqlserver app argument value\n";
+                  << ". Double check gqlserver value\n";
         return false;
     }
 
@@ -85,37 +85,13 @@ bool Client::openFace(int id, int dataroom, std::string gqlserver) {
     }
 
     this->m_faceID = response["data"]["createFace"]["id"];
-    std::cout << "INFO: Face " << m_faceID << " opened\n";
+    std::cout << "INFO: create face id=" << this->m_faceID << "\n";
 
     return true;
 }
 
-bool Client::deleteFace() {
-    std::cout << "TRACE: Deleting face\n";
-
-    auto request = json_helper::getOperation(
-        "\
-    mutation delete($id: ID!) {\n\
-      delete(id: $id)\n\
-    }",
-        "delete", json_helper::deleteFace{this->m_faceID});
-
-    json response;
-    if (auto code = doOperation(request, response, m_gqlserver);
-        CURLE_OK != code) {
-        std::cout << "ERROR: delete POST: " << curl_easy_strerror(code) << "\n";
-        return false;
-    }
-
-    if (response["data"] == nullptr || response["data"]["delete"] == nullptr) {
-        return false;
-    }
-
-    return response["data"]["delete"];
-}
-
-bool Client::advertiseOnFace(const std::string prefix) {
-    std::cout << "INFO: Advertise prefix: " << prefix << "\n";
+bool Client::insertFibEntry(const std::string prefix) {
+    std::cout << "INFO: insert FIB entry for prefix=" << prefix << "\n";
 
     auto request = json_helper::getOperation(
         "\
@@ -149,16 +125,48 @@ bool Client::advertiseOnFace(const std::string prefix) {
     if (response["data"]["insertFibEntry"] == nullptr ||
         response["data"]["insertFibEntry"]["id"] == nullptr ||
         response["data"]["insertFibEntry"]["id"].empty()) {
-        std::cout << "ERROR: Unable to advertise Name\n";
+        std::cout << "ERROR: unable to insert FIB entry\n";
         return false;
     }
 
     this->m_fibEntryID = response["data"]["insertFibEntry"]["id"];
-    std::cout << "TRACE: FIB entry: " << this->m_fibEntryID
-              << " for: " << prefix << "\n";
+    std::cout << "TRACE: FIB entry id=" << this->m_fibEntryID
+              << " for prefix=" << prefix << "\n";
 
     return true;
 }
 
+bool Client::deleteFace() {
+    if (!this->m_fibEntryID.empty()) {
+        std::cout << "TRACE: deleting FIB entry id=" << this->m_fibEntryID
+                  << "\n";
+        this->deleteID(this->m_fibEntryID);
+    }
+
+    std::cout << "TRACE: deleting face id=" << this->m_faceID << "\n";
+    return deleteID(this->m_faceID);
+}
+
+bool Client::deleteID(std::string id) {
+    auto request =
+        json_helper::getOperation("\
+    mutation delete($id: ID!) {\n\
+      delete(id: $id)\n\
+    }",
+                                  "delete", json_helper::deleteFace{id});
+
+    json response;
+    if (auto code = doOperation(request, response, m_gqlserver);
+        CURLE_OK != code) {
+        std::cout << "ERROR: delete POST: " << curl_easy_strerror(code) << "\n";
+        return false;
+    }
+
+    if (response["data"] == nullptr || response["data"]["delete"] == nullptr) {
+        return false;
+    }
+
+    return response["data"]["delete"];
+}
 }; // namespace mgmt
 }; // namespace ndnc

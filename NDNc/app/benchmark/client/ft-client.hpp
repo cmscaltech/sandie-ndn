@@ -32,8 +32,8 @@
 #include <vector>
 
 #include "../common/file-metadata.hpp"
-#include "pipeline/pipeline-interests-fixed.hpp"
 #include "pipeline/pipeline-interests-aimd.hpp"
+#include "pipeline/pipeline-interests-fixed.hpp"
 
 namespace ndnc {
 namespace benchmark {

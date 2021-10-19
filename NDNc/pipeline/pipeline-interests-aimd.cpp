@@ -50,8 +50,8 @@ void PipelineInterestsAimd::process() {
 
         std::vector<PendingInterest> pendingInterests(m_windowSize -
                                                       m_pit->size());
-        size_t n = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(),
-                                                   m_windowSize - m_pit->size());
+        size_t n = m_requestQueue.try_dequeue_bulk(
+            pendingInterests.begin(), m_windowSize - m_pit->size());
 
         if (n == 0) {
             continue;

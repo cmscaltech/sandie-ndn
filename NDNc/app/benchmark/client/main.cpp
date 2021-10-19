@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
 
     if (pipelineType.compare("fixed") == 0) {
         opts.pipelineType = ndnc::PipelineType::fixed;
-    } else if (pipelineType.compare("aimd") == 0){
+    } else if (pipelineType.compare("aimd") == 0) {
         opts.pipelineType = ndnc::PipelineType::aimd;
     }
 

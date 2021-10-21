@@ -1,10 +1,10 @@
 /*
  * N-DISE: NDN for Data Intensive Science Experiments
- * Author: Catalin Iordache <catalin.iordache@cern.ch>
+ * Author: Sichen Song <songsichen@cs.ucla.edu>
  *
  * MIT License
  *
- * Copyright (c) 2021 California Institute of Technology
+ * Copyright (c) 2021 University of California, Los Angeles
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,16 +25,40 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_PIPELINE_TYPE_HPP
-#define NDNC_PIPELINE_TYPE_HPP
+#ifndef NDNC_PIPELINE_INTERESTS_AIMD_HPP
+#define NDNC_PIPELINE_INTERESTS_AIMD_HPP
+
+#include "pipeline-interests.hpp"
 
 namespace ndnc {
-enum PipelineType {
-    fixed = 2,
-    aimd = 3,
-    // TBD: others
-    undefined
+class PipelineInterestsAimd : public PipelineInterests {
+  public:
+    PipelineInterestsAimd(Face &face, size_t size);
+    ~PipelineInterestsAimd();
+
+  private:
+    void process() final;
+
+    void onData(std::shared_ptr<ndn::Data> &&data,
+                ndn::lp::PitToken &&pitToken) final;
+
+    void onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
+                ndn::lp::PitToken &&pitToken) final;
+
+    void onTimeout() final;
+
+    void decreaseWindow();
+
+    void increaseWindow();
+
+  private:
+    size_t m_windowSize;
+    ndn::time::steady_clock::time_point m_lastDecrease;
+    static const unsigned MAX_WINDOW = NDNC_MAX_MEMIF_BUFS;
+    static const unsigned MIN_WINDOW = 10;
+    constexpr static const ndn::time::milliseconds MAX_RTT =
+        ndn::time::milliseconds{3};
 };
 }; // namespace ndnc
 
-#endif // NDNC_PIPELINE_TYPE_HPP
+#endif // NDNC_PIPELINE_INTERESTS_AIMD_HPP

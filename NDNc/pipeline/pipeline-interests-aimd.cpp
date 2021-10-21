@@ -62,12 +62,11 @@ void PipelineInterestsAimd::process() {
         for (size_t i = 0; i < n; ++i) {
             auto key = pendingInterests[i].pitEntry;
 
-            m_pit->emplace(std::make_pair(key, pendingInterests[i]));
-            interests.emplace(interests.end(),
-                              std::move(pendingInterests[i].interest));
+            auto entry = m_pit->emplace(key, pendingInterests[i]).first;
+            interests.emplace_back(std::move(pendingInterests[i].interest));
 
             m_queue->push(key);
-            m_pit->at(key).markAsExpressed();
+            entry->second.markAsExpressed();
         }
 
         if (!face->send(std::move(interests))) {
@@ -128,13 +127,13 @@ void PipelineInterestsAimd::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
 
 void PipelineInterestsAimd::onTimeout() {
     while (!m_queue->empty()) {
-        if (m_pit->count(m_queue->front()) == 0) {
+        auto entry = m_pit->find(m_queue->front());
+        if (entry == m_pit->end()) {
             // Pop entries that were already satisfied with success
             m_queue->pop();
             continue;
         }
 
-        auto entry = m_pit->find(m_queue->front());
         if (!entry->second.isExpired()) {
             return;
         }

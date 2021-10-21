@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
     description.add_options()(
         "pipeline-type",
         po::value<string>(&pipelineType)->default_value(pipelineType),
-        "Pipeline type. Available options: fixed");
+        "Pipeline type. Available options: fixed, aimd");
     description.add_options()("pipeline-size",
                               po::value<uint16_t>(&opts.pipelineSize)
                                   ->default_value(opts.pipelineSize),

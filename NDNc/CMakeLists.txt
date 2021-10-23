@@ -28,7 +28,7 @@ find_package(nlohmann_json 3.9.1 REQUIRED)
 SET(CMAKE_CXX_STANDARD 17)
 
 ADD_DEFINITIONS(-D_GNU_SOURCE)
-ADD_COMPILE_OPTIONS(-Wall -Wextra -Wpedantic)
+ADD_COMPILE_OPTIONS(-g -Wall -Wextra -Wpedantic)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR})
 
 # compile ndnc.so

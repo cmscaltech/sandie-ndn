@@ -66,6 +66,7 @@ bool Face::openMemif(int dataroom, std::string gqlserver, std::string name) {
         return false;
     }
 
+#ifndef __APPLE__
     static Memif transport;
     if (!transport.init(m_client->getSocketName().c_str(), 0, name.c_str(),
                         dataroom)) {
@@ -74,6 +75,7 @@ bool Face::openMemif(int dataroom, std::string gqlserver, std::string name) {
     }
 
     this->m_transport = &transport;
+#endif // __APPLE__
 
     while (true) {
         if (m_transport->isUp()) {
@@ -189,8 +191,7 @@ void Face::receive(const uint8_t *pkt, size_t pktLen) {
         if (m_packetHandler != nullptr) {
             m_packetHandler->onData(
                 std::make_shared<ndn::Data>(netPacket),
-                std::move(
-                    ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>())));
+                ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
         }
         break;
     }

@@ -28,9 +28,9 @@
 #ifndef NDNC_FACE_HPP
 #define NDNC_FACE_HPP
 
+#ifndef __APPLE__
 #include <memory>
 
-#ifndef __APPLE__
 #include "memif.hpp"
 #else
 #include "transport.hpp"

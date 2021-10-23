@@ -34,11 +34,7 @@ extern "C" {
 #include "transport.hpp"
 
 #include "logger/logger.hpp"
-
-#ifndef NDNC_MAX_MEMIF_BUFS
-/** @brief send/receive burst size. */
-#define NDNC_MAX_MEMIF_BUFS 1024
-#endif
+#include "memif-constants.hpp"
 
 namespace ndnc {
 class Memif : public virtual Transport {
@@ -82,10 +78,10 @@ class Memif : public virtual Transport {
             return false;
         }
 
-        m_tx_bufs = (memif_buffer_t *)malloc(sizeof(memif_buffer_t) *
-                                             NDNC_MAX_MEMIF_BUFS);
-        m_rx_bufs = (memif_buffer_t *)malloc(sizeof(memif_buffer_t) *
-                                             NDNC_MAX_MEMIF_BUFS);
+        m_tx_bufs =
+            (memif_buffer_t *)malloc(sizeof(memif_buffer_t) * MAX_MEMIF_BUFS);
+        m_rx_bufs =
+            (memif_buffer_t *)malloc(sizeof(memif_buffer_t) * MAX_MEMIF_BUFS);
         return true;
     }
 
@@ -164,7 +160,7 @@ class Memif : public virtual Transport {
             return false;
         }
 
-        if (pkts.size() > NDNC_MAX_MEMIF_BUFS) {
+        if (pkts.size() > MAX_MEMIF_BUFS) {
             LOG_ERROR("memif send drop=max-burst-size-breach");
             return false;
         }
@@ -251,8 +247,8 @@ class Memif : public virtual Transport {
 
         uint16_t nRx = 0;
 
-        int err = memif_rx_burst(conn, qid, self->m_rx_bufs,
-                                 NDNC_MAX_MEMIF_BUFS, &nRx);
+        int err =
+            memif_rx_burst(conn, qid, self->m_rx_bufs, MAX_MEMIF_BUFS, &nRx);
         if (err != MEMIF_ERR_SUCCESS) {
             LOG_ERROR("memif_rx_burst err=%s", memif_strerror(err));
             return 0;

@@ -25,12 +25,13 @@
  * SOFTWARE.
  */
 
+#include "face/memif-constants.hpp"
 #include "logger/logger.hpp"
 #include "pipeline-interests-fixed.hpp"
 
 namespace ndnc {
 PipelineInterestsFixed::PipelineInterestsFixed(Face &face, size_t size)
-    : PipelineInterests(face), m_maxSize{size} {}
+    : PipelineInterests(face), m_maxWindowSize{size} {}
 
 PipelineInterestsFixed::~PipelineInterestsFixed() {
     this->end();
@@ -41,14 +42,15 @@ void PipelineInterestsFixed::process() {
         face->loop();
         onTimeout();
 
-        if (m_pit->size() >= m_maxSize) {
+        if (m_pit->size() >= m_maxWindowSize) {
             continue;
         }
 
-        std::vector<PendingInterest> pendingInterests(m_maxSize -
-                                                      m_pit->size());
-        size_t n = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(),
-                                                   m_maxSize - m_pit->size());
+        size_t n = std::min(static_cast<int>(m_maxWindowSize - m_pit->size()),
+                            MAX_MEMIF_BUFS);
+
+        std::vector<PendingInterest> pendingInterests(n);
+        n = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(), n);
 
         if (n == 0) {
             continue;

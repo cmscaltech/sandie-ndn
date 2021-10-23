@@ -1,10 +1,10 @@
 /*
  * N-DISE: NDN for Data Intensive Science Experiments
- * Author: Sichen Song <songsichen@cs.ucla.edu>
+ * Author: Catalin Iordache <catalin.iordache@cern.ch>
  *
  * MIT License
  *
- * Copyright (c) 2021 University of California, Los Angeles
+ * Copyright (c) 2021 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,41 +25,14 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_PIPELINE_INTERESTS_AIMD_HPP
-#define NDNC_PIPELINE_INTERESTS_AIMD_HPP
-
-#include "face/memif-constants.hpp"
-#include "pipeline-interests.hpp"
+#ifndef NDNC_FACE_MEMIF_CONSTANTS_HPP
+#define NDNC_FACE_MEMIF_CONSTANTS_HPP
 
 namespace ndnc {
-class PipelineInterestsAimd : public PipelineInterests {
-  public:
-    PipelineInterestsAimd(Face &face, size_t size);
-    ~PipelineInterestsAimd();
+#ifndef MAX_MEMIF_BUFS
+/** @brief send/receive burst size. */
+#define MAX_MEMIF_BUFS 1024
+#endif
+} // namespace ndnc
 
-  private:
-    void process() final;
-
-    void onData(std::shared_ptr<ndn::Data> &&data,
-                ndn::lp::PitToken &&pitToken) final;
-
-    void onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
-                ndn::lp::PitToken &&pitToken) final;
-
-    void onTimeout() final;
-
-    void decreaseWindow();
-
-    void increaseWindow();
-
-  private:
-    size_t m_windowSize;
-    ndn::time::steady_clock::time_point m_lastDecrease;
-    static const unsigned MAX_WINDOW = MAX_MEMIF_BUFS;
-    static const unsigned MIN_WINDOW = 10;
-    constexpr static const ndn::time::milliseconds MAX_RTT =
-        ndn::time::milliseconds{3};
-};
-}; // namespace ndnc
-
-#endif // NDNC_PIPELINE_INTERESTS_AIMD_HPP
+#endif // NDNC_FACE_MEMIF_CONSTANTS_HPP

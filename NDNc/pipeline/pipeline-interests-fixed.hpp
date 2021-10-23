@@ -48,7 +48,7 @@ class PipelineInterestsFixed : public PipelineInterests {
     void onTimeout() final;
 
   private:
-    size_t m_maxSize;
+    size_t m_maxWindowSize;
 };
 }; // namespace ndnc
 

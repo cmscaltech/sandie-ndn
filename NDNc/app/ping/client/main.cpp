@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
     cout << "\n--- statistics --\n"
          << client->readCounters().nTxInterests << " packets transmitted, "
          << client->readCounters().nRxData << " packets received, "
-         << lossRation << "% packet loss\n";
+         << lossRation << "% packet loss\n\n";
 
     if (client != nullptr) {
         delete client;

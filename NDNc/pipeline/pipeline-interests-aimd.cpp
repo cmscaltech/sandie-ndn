@@ -25,8 +25,7 @@
  * SOFTWARE.
  */
 
-#include <iostream>
-
+#include "logger/logger.hpp"
 #include "pipeline-interests-aimd.hpp"
 
 namespace ndnc {
@@ -70,7 +69,7 @@ void PipelineInterestsAimd::process() {
         }
 
         if (!face->send(std::move(interests))) {
-            std::cout << "FATAL: unable to send Interest packets on face\n";
+            LOG_FATAL("unable to send Interest packets on face");
             this->end();
         }
     }
@@ -81,13 +80,13 @@ void PipelineInterestsAimd::onData(std::shared_ptr<ndn::Data> &&data,
     auto pitEntry = getPITTokenValue(std::move(pitToken));
 
     if (m_pit->find(pitEntry) == m_pit->end()) {
-        std::cout << "DEBUG: unexpected Data packet dropped\n";
+        LOG_DEBUG("unexpected Data packet dropped");
         return;
     }
 
     if (data->getCongestionMark()) {
         decreaseWindow();
-        std::cout << "Debug: ECN received\n";
+        LOG_DEBUG("ECN received");
     }
 
     enqueueData(std::move(data)); // Enqueue Data into Response queue
@@ -99,8 +98,10 @@ void PipelineInterestsAimd::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
                                    ndn::lp::PitToken &&pitToken) {
 
     auto pitEntry = getPITTokenValue(std::move(pitToken));
-    std::cout << "INFO: received NACK with reason " << nack->getReason()
-              << "\n";
+    LOG_INFO(
+        "received NACK with reason=%i",
+        static_cast<typename std::underlying_type<ndn::lp::NackReason>::type>(
+            nack->getReason()));
 
     switch (nack->getReason()) {
     case ndn::lp::NackReason::DUPLICATE: {
@@ -167,7 +168,8 @@ void PipelineInterestsAimd::decreaseWindow() {
     if (now - m_lastDecrease < MAX_RTT) {
         return;
     }
-    std::cout << "DEBUG: window decrease at " << m_windowSize << '\n';
+
+    LOG_DEBUG("window decrease at %li", m_windowSize);
     m_windowSize /= 2;
     if (m_windowSize < MIN_WINDOW) {
         m_windowSize = MIN_WINDOW;

@@ -40,6 +40,7 @@
 
 #include "ft-client-utils.hpp"
 #include "ft-client.hpp"
+#include "logger/logger.hpp"
 
 using namespace std;
 using namespace indicators;
@@ -185,7 +186,6 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
-    std::cout << "NDNc FILE TRANSFER CLIENT\n";
     signal(SIGINT, signalHandler);
 
     face = new ndnc::Face();
@@ -199,6 +199,7 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
+    LOG_INFO("running...");
     opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;
 
     client = new ndnc::benchmark::ft::Runner(*face, opts);
@@ -249,7 +250,7 @@ int main(int argc, char *argv[]) {
     double goodput = ((double)bytesToTransfer * 8.0) /
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
-#ifdef DEBUG
+#ifndef NDEBUG
     double throughput = ((double)face->readCounters()->nRxBytes * 8.0) /
                         (duration / std::chrono::nanoseconds(1)) * 1e9;
 #endif
@@ -258,20 +259,21 @@ int main(int argc, char *argv[]) {
          << client->readCounters()->nInterest << " packets transmitted, "
          << client->readCounters()->nData << " packets received\n"
          << "goodput: " << humanReadableSize(goodput, 'b') << "/s"
-#ifdef DEBUG
+#ifndef NDEBUG
          << ", throughput: " << humanReadableSize(throughput, 'b') << "/s\n";
 #else
          << "\n";
 #endif
 
-#ifdef DEBUG
+#ifndef NDEBUG
     cout << "\n--- face statistics --\n"
          << face->readCounters()->nTxPackets << " packets transmitted, "
          << face->readCounters()->nRxPackets << " packets received\n"
          << face->readCounters()->nTxBytes << " bytes transmitted, "
          << face->readCounters()->nRxBytes << " bytes received "
          << "with " << face->readCounters()->nErrors << " errors\n";
-#endif // DEBUG
+#endif // NDEBUG
+    cout << endl;
 
     cleanOnExit();
     return 0;

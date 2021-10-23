@@ -36,6 +36,6 @@ RUN echo NLOHMANN JSON $(cat /usr/include/nlohmann/json.hpp | grep version | hea
 
 RUN git clone https://github.com/cmscaltech/sandie-ndn.git
 WORKDIR /root/sandie-ndn/NDNc
-RUN mkdir build && cd build && cmake ../ && make -j8
+RUN mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release ../ && make -j16
 
 WORKDIR ${HOME}

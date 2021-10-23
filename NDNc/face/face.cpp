@@ -25,9 +25,8 @@
  * SOFTWARE.
  */
 
-#include <iostream>
-
 #include "face.hpp"
+#include "logger/logger.hpp"
 
 namespace ndnc {
 Face::Face() : m_transport(nullptr), m_packetHandler(nullptr), m_valid(false) {
@@ -50,7 +49,7 @@ bool Face::addPacketHandler(PacketHandler &h) {
     m_packetHandler = &h;
 
     if (m_packetHandler == nullptr) {
-        std::cout << "FATAL: null packet handler\n";
+        LOG_ERROR("null packet handler");
         m_valid = false;
         return false;
     }
@@ -63,14 +62,14 @@ bool Face::openMemif(int dataroom, std::string gqlserver, std::string name) {
     m_valid = m_client->createFace(0, dataroom, gqlserver);
 
     if (!isValid()) {
-        std::cout << "FATAL: unable to open memif face\n";
+        LOG_ERROR("unable to open memif face");
         return false;
     }
 
     static Memif transport;
     if (!transport.init(m_client->getSocketName().c_str(), 0, name.c_str(),
                         dataroom)) {
-        std::cout << "FATAL: unable to init memif face\n";
+        LOG_ERROR("unable to initialize memif face");
         return false;
     }
 
@@ -115,49 +114,49 @@ std::shared_ptr<Face::Counters> Face::readCounters() {
 
 bool Face::send(ndn::Block &&wire) {
     if (!m_transport->send(std::move(wire))) {
-#ifdef DEBUG
+#ifndef NDEBUG
         ++m_counters->nErrors;
-#endif // DEBUG
+#endif // NDEBUG
         return false;
     }
 
-#ifdef DEBUG
+#ifndef NDEBUG
     ++m_counters->nTxPackets;
     m_counters->nTxBytes += wire.size();
-#endif // DEBUG
+#endif // NDEBUG
     return true;
 }
 
 bool Face::send(std::vector<ndn::Block> &&wires) {
     if (!m_transport->send(std::move(wires))) {
-#ifdef DEBUG
+#ifndef NDEBUG
         ++m_counters->nErrors;
-#endif // DEBUG
+#endif // NDEBUG
         return false;
     }
 
-#ifdef DEBUG
+#ifndef NDEBUG
     m_counters->nTxPackets += wires.size();
     for (auto wire = wires.begin(); wire != wires.end(); ++wire)
         m_counters->nTxBytes += wire->size();
-#endif // DEBUG
+#endif // NDEBUG
     return true;
 }
 
 void Face::receive(const uint8_t *pkt, size_t pktLen) {
-#ifdef DEBUG
+#ifndef NDEBUG
     ++m_counters->nRxPackets;
     m_counters->nRxBytes += pktLen;
-#endif // DEBUG
+#endif // NDEBUG
 
     ndn::Block wire;
     bool isOk;
 
     std::tie(isOk, wire) = ndn::Block::fromBuffer(pkt, pktLen);
     if (!isOk) {
-#ifdef DEBUG
+#ifndef NDEBUG
         ++m_counters->nErrors;
-#endif // DEBUG
+#endif // NDEBUG
         return;
     }
 
@@ -197,15 +196,14 @@ void Face::receive(const uint8_t *pkt, size_t pktLen) {
     }
 
     default: {
-        std::cout << "WARN: unexpected packet type " << netPacket.type()
-                  << "\n";
+        LOG_WARN("unexpected packet type=%i", netPacket.type());
         break;
     }
     }
 }
 
 void Face::disconnect() {
-    std::cout << "WARN: peer disconnected\n";
+    LOG_FATAL("peer disconnected");
     this->m_valid = false;
 }
 }; // namespace ndnc

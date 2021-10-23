@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
 
     cout << "\n--- statistics --\n"
          << server->readCounters().nTxData << " packets transmitted, "
-         << server->readCounters().nRxInterests << " packets received\n";
+         << server->readCounters().nRxInterests << " packets received\n\n";
 
     if (server != nullptr) {
         delete server;

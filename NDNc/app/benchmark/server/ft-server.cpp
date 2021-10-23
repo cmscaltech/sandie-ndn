@@ -25,10 +25,10 @@
  * SOFTWARE.
  */
 
-#include <iostream>
 #include <math.h>
 
 #include "ft-server.hpp"
+#include "logger/logger.hpp"
 
 namespace ndnc {
 namespace benchmark {
@@ -57,12 +57,12 @@ void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
 
     if (face != nullptr &&
         !face->send(getWireEncode(std::move(data), std::move(pitToken)))) {
-        std::cout << "WARN: unable to send Data\n";
+        LOG_WARN("unable to send Data packet");
     }
 }
 
 std::shared_ptr<ndn::Data> Runner::getFileInfoData(const ndn::Name name) {
-    std::cout << "INFO: received META Interest: " << name.toUri() << "\n";
+    LOG_INFO("received meta Interest %s", name.toUri().c_str());
 
     auto data = std::make_shared<ndn::Data>(name);
     FileMetadata metadata{m_options.segmentSize};

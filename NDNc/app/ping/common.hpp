@@ -34,4 +34,6 @@
 #include <ndn-cxx/encoding/tlv.hpp>
 #include <ndn-cxx/util/time.hpp>
 
+#include "logger/logger.hpp"
+
 #endif // NDNC_APP_PING_COMMON_HPP

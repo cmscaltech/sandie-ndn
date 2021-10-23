@@ -25,13 +25,12 @@
  * SOFTWARE.
  */
 
-#include <iostream>
-
 #include <boost/lexical_cast.hpp>
 
 #include <ndn-cxx/signature-info.hpp>
 #include <ndn-cxx/util/sha256.hpp>
 
+#include "logger/logger.hpp"
 #include "ping-server.hpp"
 
 namespace ndnc {
@@ -51,12 +50,10 @@ Runner::~Runner() {}
 
 void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
                         ndn::lp::PitToken &&pitToken) {
-
     ++m_counters.nRxInterests;
 
-    std::cout << ndn::time::toString(ndn::time::system_clock::now()) << " "
-              << boost::lexical_cast<std::string>(pitToken) << " "
-              << interest->getName() << "\n";
+    LOG_INFO("%s %s", boost::lexical_cast<std::string>(pitToken).c_str(),
+             interest->getName().toUri().c_str());
 
     auto data = std::make_shared<ndn::Data>(interest->getName());
     data->setContent(m_payload);
@@ -67,7 +64,7 @@ void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
 
     if (face != nullptr &&
         !face->send(getWireEncode(std::move(data), std::move(pitToken)))) {
-        std::cout << "WARN: unable to put Data packet on face\n";
+        LOG_WARN("unable to send Data packet on face");
         return;
     }
 

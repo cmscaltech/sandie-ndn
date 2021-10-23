@@ -28,12 +28,12 @@
 #ifndef NDNC_FACE_MEMIF_HPP
 #define NDNC_FACE_MEMIF_HPP
 
-#include <iostream>
-
 extern "C" {
 #include <libmemif.h>
 }
 #include "transport.hpp"
+
+#include "logger/logger.hpp"
 
 #ifndef NDNC_MAX_MEMIF_BUFS
 /** @brief send/receive burst size. */
@@ -54,7 +54,7 @@ class Memif : public virtual Transport {
         int err = memif_init(nullptr, const_cast<char *>("NDNc"), nullptr,
                              nullptr, nullptr);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_init: " << memif_strerror(err) << "\n";
+            LOG_ERROR("memif_init err=%s", memif_strerror(err));
             return false;
         } else {
             m_init = true;
@@ -62,8 +62,7 @@ class Memif : public virtual Transport {
 
         err = memif_create_socket(&m_socket, socket_name, nullptr);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_create_socket: " << memif_strerror(err)
-                      << "\n";
+            LOG_ERROR("memif_create_socket err=%s", memif_strerror(err));
             return false;
         }
 
@@ -78,7 +77,7 @@ class Memif : public virtual Transport {
         err = memif_create(&m_conn, &args, Memif::on_connect,
                            Memif::on_disconnect, Memif::on_interrupt, this);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_create: " << memif_strerror(err) << "\n";
+            LOG_ERROR("memif_create err=%s", memif_strerror(err));
             deinit();
             return false;
         }
@@ -114,14 +113,13 @@ class Memif : public virtual Transport {
   public:
     void loop() final {
         if (!m_init) {
-            std::cout << "ERROR: m_init is null\n";
+            LOG_FATAL("memif face is uninitialized");
             return;
         }
 
         int err = memif_poll_event(0);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_poll_event: " << memif_strerror(err)
-                      << "\n";
+            LOG_ERROR("memif_poll_event err=%s", memif_strerror(err));
         }
     }
 
@@ -129,13 +127,12 @@ class Memif : public virtual Transport {
 
     bool send(ndn::Block &&pkt) const final {
         if (!isUp()) {
-            std::cout << "ERROR: memif send drop=transport-disconnected\n";
+            LOG_ERROR("memif send drop=transport-disconnected");
             return false;
         }
 
         if (pkt.size() > m_max_pkt_len) {
-            std::cout << "ERROR: memif send drop=pkt-too-long len="
-                      << pkt.size() << "\n";
+            LOG_ERROR("memif send drop=pkt-too-long len=%li", pkt.size());
             return false;
         }
 
@@ -145,8 +142,7 @@ class Memif : public virtual Transport {
         int err = memif_buffer_alloc(m_conn, 0, m_tx_bufs, 1, &nTx,
                                      buffer_size(pkt.size()));
         if (err != MEMIF_ERR_SUCCESS || nTx != 1) {
-            std::cout << "ERROR: memif_buffer_alloc: " << memif_strerror(err)
-                      << "\n";
+            LOG_ERROR("memif_buffer_alloc err=%s", memif_strerror(err));
             return false;
         }
 
@@ -155,8 +151,7 @@ class Memif : public virtual Transport {
 
         err = memif_tx_burst(m_conn, 0, m_tx_bufs, 1, &nTx);
         if (err != MEMIF_ERR_SUCCESS || nTx != 1) {
-            std::cout << "ERROR: memif_tx_burst: " << memif_strerror(err)
-                      << "\n";
+            LOG_ERROR("memif_tx_burst err=%s", memif_strerror(err));
             return false;
         }
 
@@ -165,12 +160,12 @@ class Memif : public virtual Transport {
 
     bool send(std::vector<ndn::Block> &&pkts) const final {
         if (!isUp()) {
-            std::cout << "ERROR: memif send drop=transport-disconnected\n";
+            LOG_ERROR("memif send drop=transport-disconnected");
             return false;
         }
 
         if (pkts.size() > NDNC_MAX_MEMIF_BUFS) {
-            std::cout << "ERROR: maximum burts size breached\n";
+            LOG_ERROR("memif send drop=max-burst-size-breach");
             return false;
         }
 
@@ -181,8 +176,7 @@ class Memif : public virtual Transport {
         }
 
         if (bsize > m_max_pkt_len) {
-            std::cout << "ERROR: memif send drop=pkt-too-long len=" << bsize
-                      << "\n";
+            LOG_ERROR("memif send drop=pkt-too-long len=%li", bsize);
             return false;
         }
 
@@ -194,8 +188,7 @@ class Memif : public virtual Transport {
         int err =
             memif_buffer_alloc(m_conn, 0, m_tx_bufs, pkts.size(), &nTx, bsize);
         if (err != MEMIF_ERR_SUCCESS || nTx != pkts.size()) {
-            std::cout << "ERROR: memif_buffer_alloc: " << memif_strerror(err)
-                      << "\n";
+            LOG_ERROR("memif_buffer_alloc err=%s", memif_strerror(err));
             return false;
         }
 
@@ -206,8 +199,7 @@ class Memif : public virtual Transport {
 
         err = memif_tx_burst(m_conn, 0, m_tx_bufs, pkts.size(), &nTx);
         if (err != MEMIF_ERR_SUCCESS || nTx != pkts.size()) {
-            std::cout << "ERROR: memif_tx_burst: " << memif_strerror(err)
-                      << "\n";
+            LOG_ERROR("memif_tx_burst err=%s", memif_strerror(err));
             return false;
         }
 
@@ -226,15 +218,13 @@ class Memif : public virtual Transport {
 
     static int on_connect(memif_conn_handle_t conn, void *self0) {
         auto self = reinterpret_cast<Memif *>(self0);
-        assert(self->m_conn == conn);
         self->m_up = true;
 
-        std::cout << "TRACE: memif connected\n";
+        LOG_DEBUG("memif connected");
 
         int err = memif_refill_queue(conn, 0, -1, 0);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_refill_queue: " << memif_strerror(err)
-                      << "\n";
+            LOG_FATAL("memif_refill_queue err=%s", memif_strerror(err));
             return -1;
         }
 
@@ -243,10 +233,14 @@ class Memif : public virtual Transport {
 
     static int on_disconnect(memif_conn_handle_t conn, void *self0) {
         auto self = reinterpret_cast<Memif *>(self0);
-        assert(self->m_conn == conn);
+
+        if (self->m_conn != conn) {
+            LOG_DEBUG("invalid connection");
+        }
+
         self->m_up = false;
 
-        std::cout << "TRACE: memif disconnected\n";
+        LOG_DEBUG("memif disconnected");
         self->invokeDisconnectCallback();
         return 0;
     }
@@ -254,15 +248,13 @@ class Memif : public virtual Transport {
     static int on_interrupt(memif_conn_handle_t conn, void *self0,
                             uint16_t qid) {
         auto self = reinterpret_cast<Memif *>(self0);
-        assert(self->m_conn == conn);
 
         uint16_t nRx = 0;
 
         int err = memif_rx_burst(conn, qid, self->m_rx_bufs,
                                  NDNC_MAX_MEMIF_BUFS, &nRx);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_rx_burst: " << memif_strerror(err)
-                      << "\n";
+            LOG_ERROR("memif_rx_burst err=%s", memif_strerror(err));
             return 0;
         }
 
@@ -273,8 +265,7 @@ class Memif : public virtual Transport {
 
         err = memif_refill_queue(conn, qid, nRx, 0);
         if (err != MEMIF_ERR_SUCCESS) {
-            std::cout << "ERROR: memif_refill_queue: " << memif_strerror(err)
-                      << "\n";
+            LOG_ERROR("memif_refill_queue err=%s", memif_strerror(err));
             return -1;
         }
 

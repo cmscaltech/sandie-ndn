@@ -35,6 +35,7 @@
 #include <boost/program_options/variables_map.hpp>
 
 #include "ft-server.hpp"
+#include "logger/logger.hpp"
 
 using namespace std;
 namespace po = boost::program_options;
@@ -118,8 +119,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    std::cout << "NDNc FILE TRANSFER SERVER\n";
-
     face = new ndnc::Face();
 #ifndef __APPLE__
     if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncft-server"))
@@ -137,11 +136,12 @@ int main(int argc, char **argv) {
         return 2;
     }
 
+    LOG_INFO("running... ");
     while (shouldRun && face->isValid()) {
         face->loop();
     }
 
-#ifdef DEBUG
+#ifndef NDEBUG
     cout << "\n--- face statistics --\n"
          << face->readCounters()->nTxPackets << " packets transmitted, "
          << face->readCounters()->nRxPackets << " packets received\n"
@@ -149,6 +149,7 @@ int main(int argc, char **argv) {
          << face->readCounters()->nRxBytes << " bytes received "
          << "with " << face->readCounters()->nErrors << " errors\n";
 #endif // DEBUG
+    cout << endl;
 
     if (server != nullptr) {
         delete server;

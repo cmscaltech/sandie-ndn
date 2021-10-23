@@ -41,7 +41,7 @@ class Client {
     ~Client();
 
     /**
-     * @brief Configure server (NDN-DPDK forwarder): create face
+     * @brief Create face on NDN-DPDK forwarder side
      *
      * @param id Local face id
      * @param dataroom Dataroom size
@@ -61,7 +61,7 @@ class Client {
     bool insertFibEntry(const std::string prefix);
 
     /**
-     * @brief Configure server (NDN-DPDK forwarder): create face
+     * @brief Delete face on NDN-DPDK forwarder side
      *
      * @return true Successfully deleted previously created face
      * @return false Unable to deleted previously created face

@@ -26,11 +26,11 @@
  */
 
 #include <chrono>
-#include <iostream>
 #include <unistd.h>
 
 #include "client.hpp"
 #include "json_helper.hpp"
+#include "logger/logger.hpp"
 
 using json = nlohmann::json;
 
@@ -63,36 +63,34 @@ bool Client::createFace(int id, int dataroom, std::string gqlserver) {
     json response;
     if (auto code = doOperation(request, response, m_gqlserver);
         CURLE_OK != code) {
-        std::cout << "ERROR: createFace POST: " << curl_easy_strerror(code)
-                  << ". Double check gqlserver value\n";
+        LOG_ERROR("createFace mutation POST result=%s. Hint: double check "
+                  "GraphQL Server address",
+                  curl_easy_strerror(code));
         return false;
     }
 
     if (response["data"] == nullptr) {
         if (response["errors"] != nullptr) {
             for (auto error : response["errors"]) {
-                std::cout << "ERROR: " << error["path"] << ": "
-                          << error["message"] << "\n";
+                LOG_ERROR("%s: %s", std::string(error["path"]).c_str(),
+                          std::string(error["message"]).c_str());
             }
         }
-
         return false;
     }
 
     if (response["data"]["createFace"] == nullptr ||
         response["data"]["createFace"]["id"] == nullptr) {
+        LOG_ERROR("createFace mutation response data has null values");
         return false;
     }
 
     this->m_faceID = response["data"]["createFace"]["id"];
-    std::cout << "INFO: create face id=" << this->m_faceID << "\n";
-
+    LOG_INFO("createFace mutation done. id=%s", m_faceID.c_str());
     return true;
 }
 
 bool Client::insertFibEntry(const std::string prefix) {
-    std::cout << "INFO: insert FIB entry for prefix=" << prefix << "\n";
-
     auto request = json_helper::getOperation(
         "\
     mutation insertFibEntry($name: Name!, $nexthops: [ID!]!, $strategy: ID) {\n\
@@ -106,44 +104,41 @@ bool Client::insertFibEntry(const std::string prefix) {
     json response;
     if (auto code = doOperation(request, response, m_gqlserver);
         CURLE_OK != code) {
-        std::cout << "ERROR: insertFibEntry POST: " << curl_easy_strerror(code)
-                  << "\n";
+        LOG_ERROR("insertFibEntry mutation POST result=%s",
+                  curl_easy_strerror(code));
         return false;
     }
 
     if (response["data"] == nullptr) {
         if (response["errors"] != nullptr) {
             for (auto error : response["errors"]) {
-                std::cout << "ERROR: " << error["path"] << ": "
-                          << error["message"] << "\n";
+                LOG_ERROR("%s: %s", std::string(error["path"]).c_str(),
+                          std::string(error["message"]).c_str());
             }
         }
-
         return false;
     }
 
     if (response["data"]["insertFibEntry"] == nullptr ||
         response["data"]["insertFibEntry"]["id"] == nullptr ||
         response["data"]["insertFibEntry"]["id"].empty()) {
-        std::cout << "ERROR: unable to insert FIB entry\n";
+        LOG_ERROR("unable to insert FIB entry");
         return false;
     }
 
     this->m_fibEntryID = response["data"]["insertFibEntry"]["id"];
-    std::cout << "TRACE: FIB entry id=" << this->m_fibEntryID
-              << " for prefix=" << prefix << "\n";
-
+    LOG_INFO("insertFibEntry mutation done. id=%s for prefix=%s",
+             m_fibEntryID.c_str(), prefix.c_str());
     return true;
 }
 
 bool Client::deleteFace() {
     if (!this->m_fibEntryID.empty()) {
-        std::cout << "TRACE: deleting FIB entry id=" << this->m_fibEntryID
-                  << "\n";
+        LOG_DEBUG("delete FIB entry id=%s", m_fibEntryID.c_str());
         this->deleteID(this->m_fibEntryID);
     }
 
-    std::cout << "TRACE: deleting face id=" << this->m_faceID << "\n";
+    LOG_DEBUG("delete face id=%s", m_faceID.c_str());
     return deleteID(this->m_faceID);
 }
 
@@ -158,14 +153,16 @@ bool Client::deleteID(std::string id) {
     json response;
     if (auto code = doOperation(request, response, m_gqlserver);
         CURLE_OK != code) {
-        std::cout << "ERROR: delete POST: " << curl_easy_strerror(code) << "\n";
+        LOG_ERROR("delete mutation POST result=%s", curl_easy_strerror(code));
         return false;
     }
 
     if (response["data"] == nullptr || response["data"]["delete"] == nullptr) {
+        LOG_ERROR("delete mutation response data has null values");
         return false;
     }
 
+    LOG_INFO("delete mutation done. id=%s", id.c_str());
     return response["data"]["delete"];
 }
 }; // namespace mgmt

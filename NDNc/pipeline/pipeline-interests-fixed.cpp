@@ -25,8 +25,7 @@
  * SOFTWARE.
  */
 
-#include <iostream>
-
+#include "logger/logger.hpp"
 #include "pipeline-interests-fixed.hpp"
 
 namespace ndnc {
@@ -69,7 +68,7 @@ void PipelineInterestsFixed::process() {
         }
 
         if (!face->send(std::move(interests))) {
-            std::cout << "FATAL: unable to send Interest packets on face\n";
+            LOG_FATAL("unable to send Interest packets on face");
             this->end();
         }
     }
@@ -80,7 +79,7 @@ void PipelineInterestsFixed::onData(std::shared_ptr<ndn::Data> &&data,
     auto pitEntry = getPITTokenValue(std::move(pitToken));
 
     if (m_pit->find(pitEntry) == m_pit->end()) {
-        std::cout << "DEBUG: unexpected Data packet dropped\n";
+        LOG_DEBUG("unexpected Data packet dropped");
         return;
     }
 
@@ -92,8 +91,10 @@ void PipelineInterestsFixed::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
                                     ndn::lp::PitToken &&pitToken) {
 
     auto pitEntry = getPITTokenValue(std::move(pitToken));
-    std::cout << "INFO: received NACK with reason " << nack->getReason()
-              << "\n";
+    LOG_INFO(
+        "received NACK with reason=%i",
+        static_cast<typename std::underlying_type<ndn::lp::NackReason>::type>(
+            nack->getReason()));
 
     switch (nack->getReason()) {
     case ndn::lp::NackReason::DUPLICATE: {
@@ -137,8 +138,8 @@ void PipelineInterestsFixed::onTimeout() {
         auto interest = getWireDecode(entry->second.interest);
         interest->refreshNonce();
 
-        std::cout << "TRACE: timeout(" << entry->second.nTimeout + 1 << ") "
-                  << interest->getName() << " \n";
+        LOG_DEBUG("timeout (%li): %s", entry->second.nTimeout + 1,
+                  interest->getName().toUri().c_str());
 
         auto newPITEntry = m_rdn->get();
         auto lifetime = interest->getInterestLifetime().count();

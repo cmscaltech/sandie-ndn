@@ -25,7 +25,6 @@
  * SOFTWARE.
  */
 
-#include <iostream>
 #include <random>
 
 #include <boost/lexical_cast.hpp>
@@ -33,6 +32,7 @@
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/interest.hpp>
 
+#include "logger/logger.hpp"
 #include "ping-client.hpp"
 
 namespace ndnc {
@@ -71,7 +71,7 @@ void Runner::run() {
 
     if (!m_pipeline->enqueueInterest(std::move(interest))) {
         m_stop = true;
-        std::cout << "WARN: unable to enqueue Interest packet\n";
+        LOG_WARN("unable to send Interest packet");
         return;
     }
 
@@ -89,8 +89,7 @@ void Runner::run() {
     }
 
     auto rtt = ndn::time::duration_cast<ndn::time::microseconds>(end - start);
-    std::cout << ndn::time::toString(end) << " " << data->getName() << " "
-              << rtt << "\n";
+    LOG_INFO("%s %li us", data->getName().toUri().c_str(), rtt.count());
 
     ++m_counters.nRxData;
 }

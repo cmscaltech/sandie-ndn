@@ -25,9 +25,8 @@
  * SOFTWARE.
  */
 
-#include <iostream>
-
 #include "ft-client.hpp"
+#include "logger/logger.hpp"
 
 namespace ndnc {
 namespace benchmark {
@@ -95,14 +94,13 @@ void Runner::getFileInfo(uint64_t *size) {
 
     ++m_counters->nData;
     if (data == nullptr) {
-        std::cout << "ERROR: pipeline encountered an error\n";
+        LOG_ERROR("error in pipeline");
         return;
     }
 
     if (!data->hasContent() ||
         data->getContentType() == ndn::tlv::ContentType_Nack) {
-
-        std::cout << "FATAL: could not open file: " << m_options->file << "\n";
+        LOG_FATAL("unable to open file '%s'", m_options->file.c_str());
         m_error = true;
         return;
     }
@@ -110,11 +108,10 @@ void Runner::getFileInfo(uint64_t *size) {
     m_metadata = std::make_shared<FileMetadata>(data->getContent());
     *size = m_metadata->getFileSize();
 
-    std::cout << "file " << m_options->file << " of size "
-              << m_metadata->getFileSize() << " bytes ("
-              << m_metadata->getSegmentSize() << " * "
-              << m_metadata->getLastSegment() << ") and latest version="
-              << m_metadata->getVersionedName().get(-1).toVersion() << "\n";
+    LOG_INFO("opened file: '%s' with size=%li (%lix%li) version=%li",
+             m_options->file.c_str(), m_metadata->getFileSize(),
+             m_metadata->getSegmentSize(), m_metadata->getLastSegment(),
+             m_metadata->getVersionedName().get(-1).toVersion());
 }
 
 void Runner::requestFileContent(int wid) {
@@ -166,7 +163,7 @@ void Runner::receiveFileContent(NotifyProgressStatus onProgress) {
         }
 
         if (data == nullptr) {
-            std::cout << "ERROR: pipeline encountered an error\n";
+            LOG_ERROR("error in pipeline");
             break;
         }
 
@@ -188,7 +185,7 @@ bool Runner::requestData(std::shared_ptr<ndn::Interest> &&interest) {
     interest->setInterestLifetime(m_options->lifetime);
 
     if (!m_pipeline->enqueueInterest(std::move(interest))) {
-        std::cout << "FATAL: unable to enqueue Interest \n";
+        LOG_FATAL("unable to enqueue Interest packet");
         m_error = true;
         return false;
     }
@@ -200,7 +197,7 @@ bool Runner::requestData(std::shared_ptr<ndn::Interest> &&interest) {
 bool Runner::requestData(
     std::vector<std::shared_ptr<ndn::Interest>> &&interests, size_t n) {
     if (!m_pipeline->enqueueInterests(std::move(interests))) {
-        std::cout << "FATAL: unable to enqueue Interests \n";
+        LOG_FATAL("unable to enqueue Interest packets");
         m_error = true;
         return false;
     }

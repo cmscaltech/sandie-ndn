@@ -109,8 +109,9 @@ class Client {
         auto code = curl_easy_perform(curl);
 
         curl_easy_cleanup(curl);
-        curl_global_cleanup();
+        curl_slist_free_all(headers);
         free(postFields);
+        curl_global_cleanup();
 
         if (data.empty()) {
             return CURLE_RECV_ERROR;

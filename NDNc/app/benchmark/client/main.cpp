@@ -30,6 +30,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <mutex>
 #include <signal.h>
 #include <sstream>
 #include <unistd.h>
@@ -40,6 +41,7 @@
 
 #include "ft-client-utils.hpp"
 #include "ft-client.hpp"
+#include "influxdb_upload.hpp"
 #include "logger/logger.hpp"
 
 using namespace std;
@@ -48,6 +50,7 @@ namespace po = boost::program_options;
 
 static ndnc::Face *face;
 static ndnc::benchmark::ft::Runner *client;
+static ndnc::InfluxDBClient *influxDBClient;
 static std::vector<std::thread> workers;
 
 void cleanOnExit() {
@@ -65,6 +68,10 @@ void cleanOnExit() {
 
     if (face != nullptr) {
         delete face;
+    }
+
+    if (influxDBClient != nullptr) {
+        delete influxDBClient;
     }
 }
 
@@ -92,6 +99,14 @@ int main(int argc, char *argv[]) {
         "gqlserver",
         po::value<string>(&opts.gqlserver)->default_value(opts.gqlserver),
         "GraphQL server address");
+    description.add_options()(
+        "influxdb-addr",
+        po::value<string>(&opts.influxdbaddr)->default_value(opts.influxdbaddr),
+        "InfluxDB server address");
+    description.add_options()(
+        "influxdb-name",
+        po::value<string>(&opts.influxdbname)->default_value(opts.influxdbname),
+        "InfluxDB name");
     description.add_options()(
         "lifetime",
         po::value<ndn::time::milliseconds::rep>()->default_value(
@@ -186,6 +201,11 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
+    if (!opts.influxdbaddr.empty() && !opts.influxdbname.empty()) {
+        influxDBClient =
+            new ndnc::InfluxDBClient(opts.influxdbaddr, opts.influxdbname);
+    }
+
     signal(SIGINT, signalHandler);
 
     face = new ndnc::Face();
@@ -219,25 +239,42 @@ int main(int argc, char *argv[]) {
     show_console_cursor(true);
 
     auto start = std::chrono::high_resolution_clock::now();
-    std::atomic<uint64_t> bytesToTransfer = 0;
+
+    auto getGoodput = [&]() {
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+                            std::chrono::high_resolution_clock::now() - start)
+                            .count() /
+                        1e3;
+
+        return (client->readCounters()->nByte * 8.0 * 1e3 / duration) *
+               1e-9; // Gbps
+    };
 
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
         workers.push_back(std::thread(
             &ndnc::benchmark::ft::Runner::requestFileContent, client, wid));
     }
 
+    std::mutex mtx;
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
-        workers.push_back(std::thread(
-            &ndnc::benchmark::ft::Runner::receiveFileContent, client,
-            [&](uint64_t progress) {
-                bytesToTransfer.fetch_add(progress, std::memory_order_release);
+        workers.push_back(
+            std::thread(&ndnc::benchmark::ft::Runner::receiveFileContent,
+                        client, [&](uint64_t progress, uint64_t packets) {
+                            if (influxDBClient != nullptr) {
+                                auto point = ndnc::InfluxDBDataPoint{
+                                    opts.file, progress, packets, getGoodput()};
 
-                bar.set_progress(bytesToTransfer);
-                bar.set_option(
-                    option::PostfixText{to_string(bytesToTransfer) + "/" +
-                                        to_string(totalBytesToTransfer)});
-                bar.tick();
-            }));
+                                mtx.lock();
+                                influxDBClient->uploadData(point);
+                                mtx.unlock();
+                            }
+
+                            bar.set_progress(client->readCounters()->nByte);
+                            bar.set_option(option::PostfixText{
+                                to_string(client->readCounters()->nByte) + "/" +
+                                to_string(totalBytesToTransfer)});
+                            bar.tick();
+                        }));
     }
 
     for (auto it = workers.begin(); it != workers.end(); ++it) {
@@ -247,7 +284,7 @@ int main(int argc, char *argv[]) {
     }
 
     auto duration = std::chrono::high_resolution_clock::now() - start;
-    double goodput = ((double)bytesToTransfer * 8.0) /
+    double goodput = ((double)client->readCounters()->nByte * 8.0) /
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
 #ifndef NDEBUG

@@ -42,6 +42,8 @@ namespace ft {
 struct ClientOptions {
     size_t mtu = 9000;                                // Dataroom size
     std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
+    std::string influxdbaddr = "";
+    std::string influxdbname = "";
 
     // Interest lifetime
     ndn::time::milliseconds lifetime = ndn::time::seconds{2};
@@ -55,11 +57,12 @@ struct ClientOptions {
 
 class Runner : public std::enable_shared_from_this<Runner> {
   public:
-    using NotifyProgressStatus = std::function<void(uint64_t)>;
+    using NotifyProgressStatus = std::function<void(uint64_t, uint64_t)>;
 
     struct Counters {
         std::atomic<uint64_t> nInterest = 0;
         std::atomic<uint64_t> nData = 0;
+        std::atomic<uint64_t> nByte = 0;
     };
 
   public:

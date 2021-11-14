@@ -26,6 +26,7 @@
  */
 
 #include "ft-client.hpp"
+#include "influxdb_upload.hpp"
 #include "logger/logger.hpp"
 
 namespace ndnc {
@@ -151,6 +152,7 @@ void Runner::requestFileContent(int wid) {
 
 void Runner::receiveFileContent(NotifyProgressStatus onProgress) {
     uint64_t nBytes = 0;
+    uint64_t nPackets = 0;
 
     while (m_nReceived <= m_metadata->getLastSegment() && canContinue()) {
         std::shared_ptr<ndn::Data> data;
@@ -167,18 +169,23 @@ void Runner::receiveFileContent(NotifyProgressStatus onProgress) {
             break;
         }
 
-        nBytes += data->getContent().value_size();
+        auto size = data->getContent().value_size();
+        nBytes += size;
+        m_counters->nByte += size;
+        ++nPackets;
 
-        if (nBytes >= 1048576) {
-            onProgress(nBytes);
+        if (nBytes >= 10485760) {
+            onProgress(nBytes, nPackets);
+
             nBytes = 0;
+            nPackets = 0;
         }
 
         ++m_nReceived;
         ++m_counters->nData;
     }
 
-    onProgress(nBytes);
+    onProgress(nBytes, nPackets);
 }
 
 bool Runner::requestData(std::shared_ptr<ndn::Interest> &&interest) {

@@ -121,10 +121,10 @@ void Runner::requestFileContent(int wid) {
     for (uint64_t segmentNo = wid * npackets;
          segmentNo <= m_metadata->getLastSegment() && canContinue();) {
 
-        // if (m_pipeline->getPendingRequestsCount() > 16384) {
-        // backoff; plenty of work to be done by the pipeline
-        // continue;
-        // }
+        if (m_pipeline->getPendingRequestsCount() > 16384) {
+            // backoff; plenty of work to be done by the pipeline
+            continue;
+        }
 
         size_t nTx = 0;
         std::vector<std::shared_ptr<ndn::Interest>> interests;

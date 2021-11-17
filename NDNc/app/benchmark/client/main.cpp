@@ -254,6 +254,10 @@ int main(int argc, char *argv[]) {
     std::mutex requestToSend_mtx;
 
     workers.push_back(std::thread([&]() {
+        if (influxDBClient == nullptr) {
+            return;
+        }
+
         while (client->readCounters()->nByte < totalBytesToTransfer) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
 

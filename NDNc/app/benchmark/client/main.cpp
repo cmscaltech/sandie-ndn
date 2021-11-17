@@ -250,6 +250,33 @@ int main(int argc, char *argv[]) {
                1e-9; // Gbps
     };
 
+    std::queue<ndnc::InfluxDBDataPoint> requestToSend{};
+    std::mutex requestToSend_mtx;
+
+    workers.push_back(std::thread([&]() {
+        while (client->readCounters()->nByte < totalBytesToTransfer) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+            requestToSend_mtx.lock();
+            if (requestToSend.empty()) {
+                requestToSend_mtx.unlock();
+                continue;
+            }
+
+            auto point = requestToSend.front();
+            requestToSend.pop();
+            requestToSend_mtx.unlock();
+
+            influxDBClient->uploadData(point);
+        }
+
+        while (!requestToSend.empty()) {
+            auto point = requestToSend.front();
+            requestToSend.pop();
+            influxDBClient->uploadData(point);
+        }
+    }));
+
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
         workers.push_back(std::thread(
             &ndnc::benchmark::ft::Runner::requestFileContent, client, wid));
@@ -264,9 +291,9 @@ int main(int argc, char *argv[]) {
                                 auto point = ndnc::InfluxDBDataPoint{
                                     opts.file, progress, packets, getGoodput()};
 
-                                mtx.lock();
-                                influxDBClient->uploadData(point);
-                                mtx.unlock();
+                                requestToSend_mtx.lock();
+                                requestToSend.push(point);
+                                requestToSend_mtx.unlock();
                             }
 
                             bar.set_progress(client->readCounters()->nByte);

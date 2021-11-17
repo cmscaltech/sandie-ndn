@@ -259,24 +259,27 @@ int main(int argc, char *argv[]) {
         }
 
         while (client->readCounters()->nByte < totalBytesToTransfer) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-            requestToSend_mtx.lock();
             if (requestToSend.empty()) {
-                requestToSend_mtx.unlock();
                 continue;
             }
 
+            requestToSend_mtx.lock();
+
             auto point = requestToSend.front();
             requestToSend.pop();
+
             requestToSend_mtx.unlock();
 
             influxDBClient->uploadData(point);
         }
 
         while (!requestToSend.empty()) {
+            requestToSend_mtx.lock();
             auto point = requestToSend.front();
             requestToSend.pop();
+            requestToSend_mtx.unlock();
             influxDBClient->uploadData(point);
         }
     }));
@@ -291,14 +294,12 @@ int main(int argc, char *argv[]) {
         workers.push_back(
             std::thread(&ndnc::benchmark::ft::Runner::receiveFileContent,
                         client, [&](uint64_t progress, uint64_t packets) {
-                            if (influxDBClient != nullptr) {
-                                auto point = ndnc::InfluxDBDataPoint{
-                                    opts.file, progress, packets, getGoodput()};
+                            auto point = ndnc::InfluxDBDataPoint{
+                                opts.file, progress, packets, getGoodput()};
 
-                                requestToSend_mtx.lock();
-                                requestToSend.push(point);
-                                requestToSend_mtx.unlock();
-                            }
+                            requestToSend_mtx.lock();
+                            requestToSend.push(point);
+                            requestToSend_mtx.unlock();
 
                             bar.set_progress(client->readCounters()->nByte);
                             bar.set_option(option::PostfixText{

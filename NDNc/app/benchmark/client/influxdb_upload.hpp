@@ -28,7 +28,7 @@
 #ifndef NDNC_APP_BENCHMARK_INFLUXDB_UPLOAD_HPP
 #define NDNC_APP_BENCHMARK_INFLUXDB_UPLOAD_HPP
 
-#include <curl/curl.h>
+#include <curl/multi.h>
 #include <string>
 #include <unistd.h>
 
@@ -81,9 +81,13 @@ class InfluxDBClient {
         if (curl_global_init(CURL_GLOBAL_ALL) == CURLE_OK) {
             m_curl = curl_easy_init();
         }
+
+        m_multi_handle = curl_multi_init();
     }
 
     ~InfluxDBClient() {
+        curl_multi_cleanup(m_multi_handle);
+
         if (m_curl != nullptr) {
             curl_easy_cleanup(m_curl);
         }
@@ -117,14 +121,19 @@ class InfluxDBClient {
 
         LOG_DEBUG("%s", dataPoint.get().c_str());
 
-        CURLcode code = curl_easy_perform(m_curl);
-        if (code != CURLE_OK) {
-            LOG_ERROR("curl_easy_perform() failed: %s",
-                      curl_easy_strerror(code));
-        }
+        int still_running;
+
+        curl_multi_add_handle(m_multi_handle, m_curl);
+        curl_multi_perform(m_multi_handle, &still_running);
+
+        // CURLcode code = curl_easy_perform(m_curl);
+        // if (code != CURLE_OK) {
+        //     LOG_ERROR("curl_easy_perform() failed: %s",
+        //               curl_easy_strerror(code));
+        // }
 
         curl_slist_free_all(headers);
-        return code;
+        return CURLE_OK;
     }
 
   private:
@@ -134,6 +143,7 @@ class InfluxDBClient {
     std::string m_password;
 
     CURL *m_curl;
+    CURLM *m_multi_handle;
 };
 }; // namespace ndnc
 

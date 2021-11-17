@@ -250,40 +250,6 @@ int main(int argc, char *argv[]) {
                1e-9; // Gbps
     };
 
-    std::queue<ndnc::InfluxDBDataPoint> requestToSend{};
-    std::mutex requestToSend_mtx;
-
-    workers.push_back(std::thread([&]() {
-        if (influxDBClient == nullptr) {
-            return;
-        }
-
-        while (client->readCounters()->nByte < totalBytesToTransfer) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
-            if (requestToSend.empty()) {
-                continue;
-            }
-
-            requestToSend_mtx.lock();
-
-            auto point = requestToSend.front();
-            requestToSend.pop();
-
-            requestToSend_mtx.unlock();
-
-            influxDBClient->uploadData(point);
-        }
-
-        while (!requestToSend.empty()) {
-            requestToSend_mtx.lock();
-            auto point = requestToSend.front();
-            requestToSend.pop();
-            requestToSend_mtx.unlock();
-            influxDBClient->uploadData(point);
-        }
-    }));
-
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
         workers.push_back(std::thread(
             &ndnc::benchmark::ft::Runner::requestFileContent, client, wid));
@@ -294,12 +260,14 @@ int main(int argc, char *argv[]) {
         workers.push_back(
             std::thread(&ndnc::benchmark::ft::Runner::receiveFileContent,
                         client, [&](uint64_t progress, uint64_t packets) {
-                            auto point = ndnc::InfluxDBDataPoint{
-                                opts.file, progress, packets, getGoodput()};
+                            if (influxDBClient != nullptr) {
+                                auto point = ndnc::InfluxDBDataPoint{
+                                    opts.file, progress, packets, getGoodput()};
 
-                            requestToSend_mtx.lock();
-                            requestToSend.push(point);
-                            requestToSend_mtx.unlock();
+                                mtx.lock();
+                                influxDBClient->uploadData(point);
+                                mtx.unlock();
+                            }
 
                             bar.set_progress(client->readCounters()->nByte);
                             bar.set_option(option::PostfixText{

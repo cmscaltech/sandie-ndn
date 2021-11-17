@@ -55,7 +55,7 @@ class PipelineInterestsAimd : public PipelineInterests {
   private:
     size_t m_windowSize;
     ndn::time::steady_clock::time_point m_lastDecrease;
-    static const unsigned MAX_WINDOW = MAX_MEMIF_BUFS;
+    static const unsigned MAX_WINDOW = 100000;
     static const unsigned MIN_WINDOW = 10;
     constexpr static const ndn::time::milliseconds MAX_RTT =
         ndn::time::milliseconds{3};

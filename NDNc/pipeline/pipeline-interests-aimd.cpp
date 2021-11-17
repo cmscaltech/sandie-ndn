@@ -46,10 +46,9 @@ void PipelineInterestsAimd::process() {
             continue;
         }
 
-        std::vector<PendingInterest> pendingInterests(m_windowSize -
-                                                      m_pit->size());
-        size_t n = m_requestQueue.try_dequeue_bulk(
-            pendingInterests.begin(), m_windowSize - m_pit->size());
+        std::vector<PendingInterest> pendingInterests(MAX_MEMIF_BUFS);
+        size_t n = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(),
+                                                   MAX_MEMIF_BUFS);
 
         if (n == 0) {
             continue;
@@ -143,6 +142,9 @@ void PipelineInterestsAimd::onTimeout() {
 
         auto interest = getWireDecode(entry->second.interest);
         interest->refreshNonce();
+
+        LOG_INFO("timeout (%li): %s", entry->second.nTimeout + 1,
+                 interest->getName().toUri().c_str());
 
         decreaseWindow();
 

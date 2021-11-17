@@ -143,8 +143,8 @@ void PipelineInterestsAimd::onTimeout() {
         auto interest = getWireDecode(entry->second.interest);
         interest->refreshNonce();
 
-        LOG_INFO("timeout (%li): %s", entry->second.nTimeout + 1,
-                 interest->getName().toUri().c_str());
+        LOG_DEBUG("timeout (%li): %s", entry->second.nTimeout + 1,
+                  interest->getName().toUri().c_str());
 
         decreaseWindow();
 

@@ -99,6 +99,7 @@ void PipelineInterestsFixed::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
             nack->getReason()));
 
     switch (nack->getReason()) {
+    case ndn::lp::NackReason::NONE:
     case ndn::lp::NackReason::DUPLICATE: {
         auto interest = getWireDecode(m_pit->at(pitEntry).interest);
         interest->refreshNonce();

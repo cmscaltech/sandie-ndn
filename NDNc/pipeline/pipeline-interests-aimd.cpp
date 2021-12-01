@@ -46,9 +46,10 @@ void PipelineInterestsAimd::process() {
             continue;
         }
 
-        std::vector<PendingInterest> pendingInterests(MAX_MEMIF_BUFS);
-        size_t n = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(),
-                                                   MAX_MEMIF_BUFS);
+        std::vector<PendingInterest> pendingInterests(m_windowSize -
+                                                      m_pit->size());
+        size_t n = m_requestQueue.try_dequeue_bulk(
+            pendingInterests.begin(), m_windowSize - m_pit->size());
 
         if (n == 0) {
             continue;
@@ -103,6 +104,7 @@ void PipelineInterestsAimd::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
             nack->getReason()));
 
     switch (nack->getReason()) {
+    case ndn::lp::NackReason::NONE:
     case ndn::lp::NackReason::DUPLICATE: {
         auto interest = getWireDecode(m_pit->at(pitEntry).interest);
         interest->refreshNonce();

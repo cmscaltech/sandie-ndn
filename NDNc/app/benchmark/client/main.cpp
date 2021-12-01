@@ -30,7 +30,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <mutex>
 #include <signal.h>
 #include <sstream>
 #include <unistd.h>
@@ -240,41 +239,23 @@ int main(int argc, char *argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    auto getGoodput = [&]() {
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-                            std::chrono::high_resolution_clock::now() - start)
-                            .count() /
-                        1e3;
-
-        return (client->readCounters()->nByte * 8.0 * 1e3 / duration) *
-               1e-9; // Gbps
-    };
-
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
         workers.push_back(std::thread(
             &ndnc::benchmark::ft::Runner::requestFileContent, client, wid));
     }
 
-    std::mutex mtx;
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
-        workers.push_back(
-            std::thread(&ndnc::benchmark::ft::Runner::receiveFileContent,
-                        client, [&](uint64_t progress, uint64_t packets) {
-                            if (influxDBClient != nullptr) {
-                                auto point = ndnc::InfluxDBDataPoint{
-                                    opts.file, progress, packets, getGoodput()};
+        workers.push_back(std::thread(
+            &ndnc::benchmark::ft::Runner::receiveFileContent, client,
+            [&](uint64_t /*progress*/, uint64_t /*packets*/) {
+                // TODO: submit data to influx db
 
-                                mtx.lock();
-                                influxDBClient->uploadData(point);
-                                mtx.unlock();
-                            }
-
-                            bar.set_progress(client->readCounters()->nByte);
-                            bar.set_option(option::PostfixText{
-                                to_string(client->readCounters()->nByte) + "/" +
-                                to_string(totalBytesToTransfer)});
-                            bar.tick();
-                        }));
+                bar.set_progress(client->readCounters()->nByte);
+                bar.set_option(option::PostfixText{
+                    to_string(client->readCounters()->nByte) + "/" +
+                    to_string(totalBytesToTransfer)});
+                bar.tick();
+            }));
     }
 
     for (auto it = workers.begin(); it != workers.end(); ++it) {
@@ -288,8 +269,8 @@ int main(int argc, char *argv[]) {
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
 #ifndef NDEBUG
-    double throughput = ((double)face->readCounters()->nRxBytes * 8.0) /
-                        (duration / std::chrono::nanoseconds(1)) * 1e9;
+    double throughput = ((double)face->readCounters()->nRxBytes * 8.0 * 1e3) /
+                        (duration / std::chrono::microseconds(1)) * 1e9;
 #endif
 
     cout << "\n--- statistics --\n"

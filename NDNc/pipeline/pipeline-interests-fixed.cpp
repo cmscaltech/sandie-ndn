@@ -46,8 +46,8 @@ void PipelineInterestsFixed::process() {
             continue;
         }
 
-        size_t n = std::min(static_cast<int>(m_maxWindowSize - m_pit->size()),
-                            MAX_MEMIF_BUFS);
+        size_t n =
+            std::min(static_cast<int>(m_maxWindowSize - m_pit->size()), 64);
 
         std::vector<PendingInterest> pendingInterests(n);
         n = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(), n);

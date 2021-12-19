@@ -32,20 +32,20 @@
 #include <random>
 
 namespace ndnc {
-class RandomNumberGenerator {
+template <typename T> class RandomNumberGenerator {
   public:
     RandomNumberGenerator()
         : m_engine{std::random_device()()},
-          m_distribution(0, std::numeric_limits<uint64_t>::max()) {}
+          m_distribution(0, std::numeric_limits<T>::max()) {}
 
-    uint64_t get() {
+    T get() {
         std::lock_guard<std::mutex> lock(m_mtx);
         return m_distribution(m_engine);
     }
 
   private:
     std::mt19937_64 m_engine;
-    std::uniform_int_distribution<uint64_t> m_distribution;
+    std::uniform_int_distribution<T> m_distribution;
     std::mutex m_mtx;
 };
 } // namespace ndnc

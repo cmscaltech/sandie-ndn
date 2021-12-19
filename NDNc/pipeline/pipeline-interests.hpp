@@ -49,7 +49,7 @@ class PipelineInterests : public PacketHandler {
     explicit PipelineInterests(Face &face) : PacketHandler(face), m_stop{true} {
         m_pit = std::make_shared<PendingInterestsTable>();
         m_queue = std::make_shared<ExpressedInterestsQueue>();
-        m_rdn = std::make_shared<RandomNumberGenerator>();
+        m_rdn = std::make_shared<RandomNumberGenerator<uint64_t>>();
     }
 
     virtual ~PipelineInterests() {
@@ -134,7 +134,7 @@ class PipelineInterests : public PacketHandler {
   public:
     std::shared_ptr<PendingInterestsTable> m_pit;
     std::shared_ptr<ExpressedInterestsQueue> m_queue;
-    std::shared_ptr<RandomNumberGenerator> m_rdn;
+    std::shared_ptr<RandomNumberGenerator<uint64_t>> m_rdn;
 
     RequestQueue m_requestQueue;
     ResponseQueue m_responseQueue;

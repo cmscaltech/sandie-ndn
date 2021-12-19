@@ -35,6 +35,7 @@
 
 #include "face/packet-handler.hpp"
 #include "pending-interest.hpp"
+#include "pipeline-interests-constants.hpp"
 #include "pipeline-type.hpp"
 #include "utils/random-number-generator.hpp"
 
@@ -52,7 +53,11 @@ class PipelineInterests : public PacketHandler {
     }
 
     virtual ~PipelineInterests() {
-        this->end();
+        this->stop();
+
+        if (this->m_sender.joinable()) {
+            this->m_sender.join();
+        }
 
         m_pit->clear();
         while (!m_queue->empty()) {
@@ -60,17 +65,12 @@ class PipelineInterests : public PacketHandler {
         }
     }
 
-    void begin() {
+    void run() {
         this->m_stop = false;
         this->m_sender = std::thread(&PipelineInterests::process, this);
     }
 
-    void end() {
-        this->m_stop = true;
-        if (this->m_sender.joinable()) {
-            this->m_sender.join();
-        }
-    }
+    void stop() { this->m_stop = true; }
 
     bool isValid() { return !this->m_stop && face != nullptr; }
 

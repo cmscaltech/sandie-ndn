@@ -48,7 +48,7 @@ Runner::Runner(Face &face, ClientOptions options)
             face, m_options->pipelineSize);
     }
 
-    m_pipeline->begin();
+    m_pipeline->run();
 }
 
 Runner::~Runner() {
@@ -63,7 +63,7 @@ void Runner::stop() {
     m_stop = true;
 
     if (m_pipeline != nullptr && m_pipeline->isValid()) {
-        m_pipeline->end();
+        m_pipeline->stop();
     }
 }
 
@@ -86,7 +86,7 @@ void Runner::getFileInfo(uint64_t *size) {
 
     // Wait for Data
     std::shared_ptr<ndn::Data> data;
-    while (!m_pipeline->dequeueData(data) && canContinue()) {
+    while (canContinue() && !m_pipeline->dequeueData(data)) {
     }
 
     if (!canContinue()) {
@@ -150,11 +150,36 @@ void Runner::requestFileContent(int wid) {
     }
 }
 
+bool Runner::requestData(std::shared_ptr<ndn::Interest> &&interest) {
+    interest->setInterestLifetime(m_options->lifetime);
+
+    if (!m_pipeline->enqueueInterest(std::move(interest))) {
+        LOG_FATAL("unable to enqueue Interest packet");
+        m_error = true;
+        return false;
+    }
+
+    ++m_counters->nInterest;
+    return true;
+}
+
+bool Runner::requestData(
+    std::vector<std::shared_ptr<ndn::Interest>> &&interests, size_t n) {
+    if (!m_pipeline->enqueueInterests(std::move(interests))) {
+        LOG_FATAL("unable to enqueue Interest packets");
+        m_error = true;
+        return false;
+    }
+
+    m_counters->nInterest += n;
+    return true;
+}
+
 void Runner::receiveFileContent(NotifyProgressStatus onProgress) {
     uint64_t nBytes = 0;
     uint64_t nPackets = 0;
 
-    while (m_nReceived <= m_metadata->getLastSegment() && canContinue()) {
+    while (canContinue() && m_nReceived <= m_metadata->getLastSegment()) {
         std::shared_ptr<ndn::Data> data;
         if (!m_pipeline->dequeueData(data)) {
             continue;
@@ -186,31 +211,6 @@ void Runner::receiveFileContent(NotifyProgressStatus onProgress) {
     }
 
     onProgress(nBytes, nPackets);
-}
-
-bool Runner::requestData(std::shared_ptr<ndn::Interest> &&interest) {
-    interest->setInterestLifetime(m_options->lifetime);
-
-    if (!m_pipeline->enqueueInterest(std::move(interest))) {
-        LOG_FATAL("unable to enqueue Interest packet");
-        m_error = true;
-        return false;
-    }
-
-    ++m_counters->nInterest;
-    return true;
-}
-
-bool Runner::requestData(
-    std::vector<std::shared_ptr<ndn::Interest>> &&interests, size_t n) {
-    if (!m_pipeline->enqueueInterests(std::move(interests))) {
-        LOG_FATAL("unable to enqueue Interest packets");
-        m_error = true;
-        return false;
-    }
-
-    m_counters->nInterest += n;
-    return true;
 }
 }; // namespace ft
 }; // namespace benchmark

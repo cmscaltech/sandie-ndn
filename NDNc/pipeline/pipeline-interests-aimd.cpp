@@ -34,7 +34,7 @@ PipelineInterestsAimd::PipelineInterestsAimd(Face &face, size_t size)
       m_lastDecrease{ndn::time::steady_clock::now()} {}
 
 PipelineInterestsAimd::~PipelineInterestsAimd() {
-    this->end();
+    this->stop();
 }
 
 void PipelineInterestsAimd::process() {
@@ -46,9 +46,10 @@ void PipelineInterestsAimd::process() {
             continue;
         }
 
-        std::vector<PendingInterest> pendingInterests(64);
-        size_t n =
-            m_requestQueue.try_dequeue_bulk(pendingInterests.begin(), 64);
+        size_t n = std::min(static_cast<int>(m_windowSize - m_pit->size()),
+                            MAX_BURST_SIZE);
+        std::vector<PendingInterest> pendingInterests(n);
+        n = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(), n);
 
         if (n == 0) {
             continue;
@@ -69,7 +70,8 @@ void PipelineInterestsAimd::process() {
 
         if (!face->send(std::move(interests))) {
             LOG_FATAL("unable to send Interest packets on face");
-            this->end();
+            this->stop();
+            break;
         }
     }
 }

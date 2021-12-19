@@ -34,7 +34,7 @@ PipelineInterestsFixed::PipelineInterestsFixed(Face &face, size_t size)
     : PipelineInterests(face), m_maxWindowSize{size} {}
 
 PipelineInterestsFixed::~PipelineInterestsFixed() {
-    this->end();
+    this->stop();
 }
 
 void PipelineInterestsFixed::process() {
@@ -46,9 +46,8 @@ void PipelineInterestsFixed::process() {
             continue;
         }
 
-        size_t n =
-            std::min(static_cast<int>(m_maxWindowSize - m_pit->size()), 64);
-
+        size_t n = std::min(static_cast<int>(m_maxWindowSize - m_pit->size()),
+                            MAX_BURST_SIZE);
         std::vector<PendingInterest> pendingInterests(n);
         n = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(), n);
 
@@ -71,7 +70,8 @@ void PipelineInterestsFixed::process() {
 
         if (!face->send(std::move(interests))) {
             LOG_FATAL("unable to send Interest packets on face");
-            this->end();
+            this->stop();
+            break;
         }
     }
 }

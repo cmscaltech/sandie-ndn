@@ -184,7 +184,8 @@ class Memif : public virtual Transport {
         int err =
             memif_buffer_alloc(m_conn, 0, m_tx_bufs, pkts.size(), &nTx, bsize);
         if (err != MEMIF_ERR_SUCCESS || nTx != pkts.size()) {
-            LOG_ERROR("memif_buffer_alloc err=%s", memif_strerror(err));
+            LOG_ERROR("memif_buffer_alloc err=%s nTx=%d", memif_strerror(err),
+                      nTx);
             return false;
         }
 

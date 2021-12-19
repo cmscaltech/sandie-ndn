@@ -31,7 +31,7 @@
 namespace ndnc {
 #ifndef MAX_MEMIF_BUFS
 /** @brief send/receive burst size. */
-#define MAX_MEMIF_BUFS 1024
+#define MAX_MEMIF_BUFS 4096
 #endif
 } // namespace ndnc
 

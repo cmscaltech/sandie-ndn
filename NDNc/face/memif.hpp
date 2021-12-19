@@ -45,12 +45,12 @@ class Memif : public virtual Transport {
     void print_memif_details() {
         memif_details_t md;
         memset(&md, 0, sizeof(md));
+
         ssize_t buflen = 2048;
         char *buf = (char *)malloc(buflen);
         memset(buf, 0, buflen);
-        int err, e;
 
-        err = memif_get_details(this->m_conn, &md, buf, buflen);
+        int err = memif_get_details(this->m_conn, &md, buf, buflen);
         if (err != MEMIF_ERR_SUCCESS) {
             LOG_WARN("memif_get_details err=%s", memif_strerror(err));
             if (err == MEMIF_ERR_NOCONN) {
@@ -63,7 +63,6 @@ class Memif : public virtual Transport {
         LOG_INFO("memif details. app name: %s", (char *)md.inst_name);
         LOG_INFO("memif details. id: %u", md.id);
         LOG_INFO("memif details. secret: %s", (char *)md.secret);
-
         LOG_INFO("memif details. role: %s", md.role ? "slave" : "master");
         LOG_INFO("memif details. mode: %s", md.mode == 0   ? "ethernet"
                                             : md.mode == 1 ? "ip"
@@ -72,21 +71,22 @@ class Memif : public virtual Transport {
         LOG_INFO("memif details. socket filename: %s",
                  (char *)md.socket_filename);
 
-        for (e = 0; e < md.rx_queues_num; e++) {
-            LOG_INFO("memif details. rx_queue(%d) queue id: %u\n", e,
-                     md.rx_queues[e].qid);
-            LOG_INFO("memif details. rx_queue(%d) ring size: %u\n", e,
-                     md.rx_queues[e].ring_size);
-            LOG_INFO("memif details. rx_queue(%d) buffer size: %u\n", e,
-                     md.rx_queues[e].buffer_size);
+        for (auto i = 0; i < md.rx_queues_num; i++) {
+            LOG_INFO("memif details. rx_queue(%d) queue id: %u\n", i,
+                     md.rx_queues[i].qid);
+            LOG_INFO("memif details. rx_queue(%d) ring size: %u\n", i,
+                     md.rx_queues[i].ring_size);
+            LOG_INFO("memif details. rx_queue(%d) buffer size: %u\n", i,
+                     md.rx_queues[i].buffer_size);
         }
-        for (e = 0; e < md.tx_queues_num; e++) {
-            LOG_INFO("memif details. txx_queue(%d) queue id: %u\n", e,
-                     md.tx_queues[e].qid);
-            LOG_INFO("memif details. txx_queue(%d) ring size: %u\n", e,
-                     md.tx_queues[e].ring_size);
-            LOG_INFO("memif details. txx_queue(%d) buffer size: %u\n", e,
-                     md.tx_queues[e].buffer_size);
+
+        for (auto i = 0; i < md.tx_queues_num; i++) {
+            LOG_INFO("memif details. txx_queue(%d) queue id: %u\n", i,
+                     md.tx_queues[i].qid);
+            LOG_INFO("memif details. txx_queue(%d) ring size: %u\n", i,
+                     md.tx_queues[i].ring_size);
+            LOG_INFO("memif details. txx_queue(%d) buffer size: %u\n", i,
+                     md.tx_queues[i].buffer_size);
         }
 
         LOG_INFO("memif details. link: %s", md.link_up_down ? "up" : "down");

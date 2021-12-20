@@ -47,7 +47,7 @@ Runner::Runner(Face &face, Options options)
     m_sequence = dist(gen);
 
     m_pipeline = std::make_shared<PipelineInterestsFixed>(face, 1);
-    m_pipeline->begin();
+    m_pipeline->run();
 }
 
 Runner::~Runner() {
@@ -56,7 +56,7 @@ Runner::~Runner() {
 
 void Runner::stop() {
     m_stop = true;
-    m_pipeline->end();
+    m_pipeline->stop();
 }
 
 bool Runner::canContinue() {

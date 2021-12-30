@@ -54,6 +54,7 @@ class PipelineInterestsAimd : public PipelineInterests {
 
   private:
     size_t m_windowSize;
+    size_t m_windowIncCounter;
     ndn::time::steady_clock::time_point m_lastDecrease;
     static const unsigned MAX_WINDOW = 65536;
     static const unsigned MIN_WINDOW = 8;

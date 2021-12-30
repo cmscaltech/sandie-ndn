@@ -30,7 +30,7 @@
 
 namespace ndnc {
 PipelineInterestsAimd::PipelineInterestsAimd(Face &face, size_t size)
-    : PipelineInterests(face), m_windowSize{size},
+    : PipelineInterests(face), m_windowSize{size}, m_windowIncCounter{0},
       m_lastDecrease{ndn::time::steady_clock::now()} {}
 
 PipelineInterestsAimd::~PipelineInterestsAimd() {
@@ -176,6 +176,7 @@ void PipelineInterestsAimd::decreaseWindow() {
 
     LOG_DEBUG("window decrease at %li", m_windowSize);
     m_windowSize /= 2;
+    m_windowIncCounter = 0;
     if (m_windowSize < MIN_WINDOW) {
         m_windowSize = MIN_WINDOW;
     }
@@ -183,9 +184,13 @@ void PipelineInterestsAimd::decreaseWindow() {
 }
 
 void PipelineInterestsAimd::increaseWindow() {
-    m_windowSize++;
-    if (m_windowSize > MAX_WINDOW) {
-        m_windowSize = MAX_WINDOW;
+    m_windowIncCounter++;
+    if (m_windowIncCounter >= m_windowSize) {
+        m_windowSize++;
+        m_windowIncCounter = 0;
+        if (m_windowSize > MAX_WINDOW) {
+            m_windowSize = MAX_WINDOW;
+        }
     }
 }
 

@@ -177,9 +177,7 @@ void PipelineInterestsAimd::decreaseWindow() {
     LOG_DEBUG("window decrease at %li", m_windowSize);
     m_windowSize /= 2;
     m_windowIncCounter = 0;
-    if (m_windowSize < MIN_WINDOW) {
-        m_windowSize = MIN_WINDOW;
-    }
+    m_windowSize = std::max(m_windowSize, MIN_WINDOW);
     m_lastDecrease = now;
 }
 
@@ -188,9 +186,7 @@ void PipelineInterestsAimd::increaseWindow() {
     if (m_windowIncCounter >= m_windowSize) {
         m_windowSize++;
         m_windowIncCounter = 0;
-        if (m_windowSize > MAX_WINDOW) {
-            m_windowSize = MAX_WINDOW;
-        }
+        m_windowSize = std::min(m_windowSize, MAX_WINDOW);
     }
 }
 

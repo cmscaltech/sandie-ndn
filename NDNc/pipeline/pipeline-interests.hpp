@@ -35,7 +35,6 @@
 
 #include "face/packet-handler.hpp"
 #include "pending-interest.hpp"
-#include "pipeline-interests-constants.hpp"
 #include "pipeline-type.hpp"
 #include "utils/random-number-generator.hpp"
 

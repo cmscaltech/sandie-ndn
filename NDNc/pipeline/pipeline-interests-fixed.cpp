@@ -29,8 +29,8 @@
 #include "pipeline-interests-fixed.hpp"
 
 namespace ndnc {
-PipelineInterestsFixed::PipelineInterestsFixed(Face &face, size_t maxWindowSize)
-    : PipelineInterests(face), m_maxWindowSize{maxWindowSize} {}
+PipelineInterestsFixed::PipelineInterestsFixed(Face &face, size_t windowSize)
+    : PipelineInterests(face), m_windowSize{windowSize} {}
 
 PipelineInterestsFixed::~PipelineInterestsFixed() {
     this->stop();
@@ -38,74 +38,74 @@ PipelineInterestsFixed::~PipelineInterestsFixed() {
 
 void PipelineInterestsFixed::process() {
     std::vector<PendingInterest> batch;
-    size_t size = 0;
-    size_t index = 0;
+    size_t batchSize = 0;
+    size_t batchIndex = 0;
 
     auto clearBatch = [&]() {
         batch.clear();
-        index = 0;
+        batchIndex = 0;
     };
 
     auto fillBatch = [&]() {
         clearBatch();
-        size = std::min(static_cast<int>(m_maxWindowSize - m_pit->size()), 64);
-        batch.reserve(size);
+        batchSize =
+            std::min(static_cast<int>(m_windowSize - m_pit->size()), 64);
+        batch.reserve(batchSize);
 
-        size = m_requestQueue.try_dequeue_bulk(batch.begin(), size);
-        return size;
+        batchSize = m_requestQueue.try_dequeue_bulk(batch.begin(), batchSize);
+        return batchSize;
     };
 
     while (this->isValid()) {
         this->face->loop();
         this->onTimeout();
 
-        if (m_pit->size() >= m_maxWindowSize) {
+        if (m_pit->size() >= m_windowSize) {
             continue; // Wait for data packets
         }
 
-        if (size == 0 && fillBatch() == 0) {
+        if (batchSize == 0 && fillBatch() == 0) {
             continue;
         }
 
         std::vector<ndn::Block> interests;
-        interests.reserve(size);
+        interests.reserve(batchSize);
 
-        for (size_t i = index; i < index + size; ++i) {
+        for (size_t i = batchIndex; i < batchIndex + batchSize; ++i) {
             interests.emplace_back(ndn::Block(batch[i].interest));
         }
 
         uint16_t n;
-        if (!face->send(std::move(interests), size, &n)) {
+        if (!face->send(std::move(interests), batchSize, &n)) {
             LOG_FATAL("unable to send Interest packets on face");
 
             this->stop();
             return;
         }
 
-        for (n += index; index < n; ++index, --size) {
-            batch[index].markAsExpressed();
-            m_queue->push(batch[index].pitEntry); // to handle timeouts
-            m_pit->emplace(batch[index].pitEntry, batch[index]);
+        for (n += batchIndex; batchIndex < n; ++batchIndex, --batchSize) {
+            batch[batchIndex].markAsExpressed();
+            m_queue->push(batch[batchIndex].pitEntry); // to handle timeouts
+            m_pit->emplace(batch[batchIndex].pitEntry, batch[batchIndex]);
         }
     }
 }
 
 void PipelineInterestsFixed::onData(std::shared_ptr<ndn::Data> &&data,
                                     ndn::lp::PitToken &&pitToken) {
-    auto pitToken = getPITTokenValue(std::move(pitToken));
+    auto pitKey = getPITTokenValue(std::move(pitToken));
 
-    if (m_pit->find(pitToken) == m_pit->end()) {
+    if (m_pit->find(pitKey) == m_pit->end()) {
         LOG_DEBUG("unexpected Data packet dropped");
         return;
     }
 
-    m_pit->erase(pitToken);
+    m_pit->erase(pitKey);
     enqueueData(std::move(data)); // Enqueue Data into Response queue
 }
 
 void PipelineInterestsFixed::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
                                     ndn::lp::PitToken &&pitToken) {
-
     auto pitKey = getPITTokenValue(std::move(pitToken));
     if (m_pit->find(pitKey) == m_pit->end()) {
         LOG_DEBUG("unexpected NACK for packet dropped");
@@ -147,7 +147,6 @@ void PipelineInterestsFixed::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
 void PipelineInterestsFixed::onTimeout() {
     while (!m_queue->empty()) {
         auto it = m_pit->find(m_queue->front());
-
         if (it == m_pit->end()) {
             // Remove already satisfied entries
             m_queue->pop();
@@ -166,7 +165,7 @@ void PipelineInterestsFixed::onTimeout() {
         auto timeoutCnt = pitValue.timeoutCnt + 1;
         interest->refreshNonce();
 
-        LOG_DEBUG("timeout (%li): %s", timeoutCnt,
+        LOG_DEBUG("timeout (%li) for %s", timeoutCnt,
                   interest->getName().toUri().c_str());
 
         if (timeoutCnt < 8) {

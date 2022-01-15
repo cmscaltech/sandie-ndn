@@ -18,7 +18,9 @@ RUN git clone https://github.com/named-data/ndn-cxx.git && \
     cd ndn-cxx && git checkout 47a94d10dcfd74970448c732c76276ef53e629ea && \
     ./waf configure && ./waf && ./waf install && ldconfig && cd ../
 
-RUN git clone https://github.com/FDio/vpp.git --single-branch --branch v21.10.1 --depth=1 && \
+RUN git clone https://github.com/FDio/vpp.git && \
+    # --single-branch --branch v21.10.1 --depth=1 && \
+    cd vpp && git checkout 8caf9ece87bf22b4326ca3390942e67c775e7529 && cd .. && \
     mkdir libmemif-build && cd libmemif-build && \
     cmake -G Ninja ../vpp/extras/libmemif && \
     ninja && $(which ninja) install && ldconfig && cd ../

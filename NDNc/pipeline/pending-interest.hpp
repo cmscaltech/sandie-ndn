@@ -37,13 +37,16 @@
 namespace ndnc {
 class PendingInterest {
   public:
-    PendingInterest() = default;
+    PendingInterest() {}
 
-    PendingInterest(ndn::Block &&interest, uint64_t pitEntry, int64_t lifetime)
-        : pitEntry(pitEntry), nTimeout(0), lifetime(lifetime),
-          interest(std::move(interest)) {}
-
-    ~PendingInterest() = default;
+    PendingInterest(std::shared_ptr<ndn::Interest> &&interest,
+                    uint64_t pitToken, uint64_t timeoutCnt = 0) {
+        this->pitEntry = pitToken;
+        this->timeoutCnt = timeoutCnt;
+        this->lifetime = interest->getInterestLifetime().count();
+        this->interest =
+            std::move(getWireEncode(std::move(interest), pitToken));
+    }
 
     void markAsExpressed() {
         this->expressedTimePoint = std::chrono::high_resolution_clock::now();
@@ -58,7 +61,7 @@ class PendingInterest {
 
   public:
     uint64_t pitEntry;
-    uint64_t nTimeout;
+    uint64_t timeoutCnt;
     int64_t lifetime;
     ndn::Block interest;
     std::chrono::time_point<std::chrono::high_resolution_clock>

@@ -14,11 +14,11 @@ RUN apt-get -y -qq update && \
 
 # IMPORTANT: until ndn-cxx 0.7.x > 0.7.1 we are using this arbitrary revision to have support for C++17
 RUN git clone https://github.com/named-data/ndn-cxx.git && \
-    cd ndn-cxx && git checkout 47a94d10dcfd74970448c732c76276ef53e629ea && \
     # --single-branch --branch ndn-cxx-0.7.1 --depth 1 && \
+    cd ndn-cxx && git checkout 47a94d10dcfd74970448c732c76276ef53e629ea && \
     ./waf configure && ./waf && ./waf install && ldconfig && cd ../
 
-RUN git clone https://github.com/FDio/vpp.git --single-branch --branch v21.06 --depth=1 && \
+RUN git clone https://github.com/FDio/vpp.git --single-branch --branch v21.10.1 --depth=1 && \
     mkdir libmemif-build && cd libmemif-build && \
     cmake -G Ninja ../vpp/extras/libmemif && \
     ninja && $(which ninja) install && ldconfig && cd ../

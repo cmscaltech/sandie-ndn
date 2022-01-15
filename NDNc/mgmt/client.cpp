@@ -41,7 +41,7 @@ Client::Client() : m_gqlserver{}, m_faceID{}, m_fibEntryID{} {
     auto timestamp = std::to_string(
         std::chrono::system_clock::now().time_since_epoch().count());
 
-    m_socketName = "/run/ndn/ndnc-memif-" + pid + "-" + timestamp + ".sock";
+    m_socketPath = "/run/ndn/ndnc-memif-" + pid + "-" + timestamp + ".sock";
 }
 
 Client::~Client() {}
@@ -58,7 +58,7 @@ bool Client::createFace(int id, int dataroom, std::string gqlserver) {
     }",
         "createFace",
         nlohmann::json{{"locator", json_helper::createFace{
-                                       m_socketName, "memif", id, dataroom}}});
+                                       m_socketPath, "memif", id, dataroom}}});
 
     json response;
     if (auto code = doOperation(request, response, m_gqlserver);

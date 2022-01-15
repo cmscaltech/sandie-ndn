@@ -68,8 +68,8 @@ class Face {
     bool isValid();
     void loop();
 
-    bool send(ndn::Block &&);
-    bool send(std::vector<ndn::Block> &&);
+    bool send(ndn::Block);
+    bool send(std::vector<ndn::Block> &&, uint16_t, uint16_t *);
 
     std::shared_ptr<Counters> readCounters();
 

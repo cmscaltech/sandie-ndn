@@ -28,7 +28,6 @@
 #ifndef NDNC_PIPELINE_INTERESTS_AIMD_HPP
 #define NDNC_PIPELINE_INTERESTS_AIMD_HPP
 
-#include "face/memif-constants.hpp"
 #include "pipeline-interests.hpp"
 
 namespace ndnc {

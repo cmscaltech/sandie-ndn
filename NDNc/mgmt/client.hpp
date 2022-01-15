@@ -68,7 +68,7 @@ class Client {
      */
     bool deleteFace();
 
-    std::string getSocketName() { return m_socketName; }
+    std::string getSocketPath() { return m_socketPath; }
     std::string getFaceID() { return m_faceID; }
     std::string getFibEntryID() { return m_fibEntryID; }
 
@@ -122,7 +122,7 @@ class Client {
     }
 
   private:
-    std::string m_socketName;
+    std::string m_socketPath;
     std::string m_gqlserver;
     std::string m_faceID;
     std::string m_fibEntryID;

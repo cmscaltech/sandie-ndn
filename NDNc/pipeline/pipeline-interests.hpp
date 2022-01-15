@@ -77,19 +77,14 @@ class PipelineInterests : public PacketHandler {
     uint64_t getPendingRequestsCount() { return m_requestQueue.size_approx(); }
 
   public:
-    bool enqueueInterest(std::shared_ptr<ndn::Interest> &&interest) {
+    bool enqueueInterest(std::shared_ptr<ndn::Interest> &&interest,
+                         uint64_t timeoutCnt = 0) {
         if (!isValid()) {
             return false;
         }
 
-        uint64_t pitEntry = m_rdn->get();
-        auto lifetime = interest->getInterestLifetime().count();
-
-        auto pendingInterest = PendingInterest(
-            std::move(getWireEncode(std::move(interest), pitEntry)), pitEntry,
-            lifetime);
-
-        return m_requestQueue.enqueue(std::move(pendingInterest));
+        return m_requestQueue.enqueue(
+            PendingInterest(std::move(interest), m_rdn->get(), timeoutCnt));
     }
 
     bool
@@ -102,12 +97,8 @@ class PipelineInterests : public PacketHandler {
         pendingInterests.reserve(interests.size());
 
         for (size_t i = 0; i < interests.size(); ++i) {
-            auto pitEntry = m_rdn->get();
-            auto lifetime = interests[i]->getInterestLifetime().count();
-
-            pendingInterests.emplace_back(PendingInterest(
-                std::move(getWireEncode(std::move(interests[i]), pitEntry)),
-                pitEntry, lifetime));
+            pendingInterests.emplace_back(
+                PendingInterest(std::move(interests[i]), m_rdn->get()));
         }
 
         return m_requestQueue.enqueue_bulk(pendingInterests.begin(),

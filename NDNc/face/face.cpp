@@ -58,8 +58,9 @@ bool Face::addPacketHandler(PacketHandler &h) {
     return true;
 }
 
-bool Face::openMemif(int dataroom, std::string gqlserver, std::string name) {
-    m_valid = m_client->createFace(0, dataroom, gqlserver);
+bool Face::openMemif(int dataroom, std::string gqlserver, std::string appName) {
+    uint32_t id = 0;
+    m_valid = m_client->createFace(id, dataroom, gqlserver);
 
     if (!isValid()) {
         LOG_ERROR("unable to open memif face");
@@ -68,7 +69,7 @@ bool Face::openMemif(int dataroom, std::string gqlserver, std::string name) {
 
 #ifndef __APPLE__
     static Memif transport;
-    if (!transport.init(m_client->getSocketName().c_str(), 0, name.c_str(),
+    if (!transport.init(m_client->getSocketPath().c_str(), id, appName.c_str(),
                         dataroom)) {
         LOG_ERROR("unable to initialize memif face");
         return false;
@@ -114,8 +115,8 @@ std::shared_ptr<Face::Counters> Face::readCounters() {
     return this->m_counters;
 }
 
-bool Face::send(ndn::Block &&wire) {
-    if (!m_transport->send(std::move(wire))) {
+bool Face::send(ndn::Block wire) {
+    if (!m_transport->send(wire)) {
 #ifndef NDEBUG
         ++m_counters->nErrors;
 #endif // NDEBUG
@@ -123,14 +124,14 @@ bool Face::send(ndn::Block &&wire) {
     }
 
 #ifndef NDEBUG
-    ++m_counters->nTxPackets;
+    m_counters->nTxPackets += 1;
     m_counters->nTxBytes += wire.size();
 #endif // NDEBUG
     return true;
 }
 
-bool Face::send(std::vector<ndn::Block> &&wires) {
-    if (!m_transport->send(std::move(wires))) {
+bool Face::send(std::vector<ndn::Block> &&wires, uint16_t n, uint16_t *nTx) {
+    if (!m_transport->send(std::move(wires), n, nTx)) {
 #ifndef NDEBUG
         ++m_counters->nErrors;
 #endif // NDEBUG
@@ -138,9 +139,10 @@ bool Face::send(std::vector<ndn::Block> &&wires) {
     }
 
 #ifndef NDEBUG
-    m_counters->nTxPackets += wires.size();
-    for (auto wire = wires.begin(); wire != wires.end(); ++wire)
-        m_counters->nTxBytes += wire->size();
+    m_counters->nTxPackets += *nTx;
+    for (auto i = 0; i < *nTx; ++i) {
+        m_counters->nTxBytes += wires[i].size();
+    }
 #endif // NDEBUG
     return true;
 }

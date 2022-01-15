@@ -68,7 +68,9 @@ void PipelineInterestsAimd::process() {
             entry->second.markAsExpressed();
         }
 
-        if (!face->send(std::move(interests))) {
+        uint16_t nTx;
+
+        if (!face->send(std::move(interests), n, &nTx)) {
             LOG_FATAL("unable to send Interest packets on face");
             this->stop();
             break;
@@ -111,11 +113,9 @@ void PipelineInterestsAimd::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
         interest->refreshNonce();
 
         uint64_t newPITEntry = m_rdn->get();
-        auto lifetime = interest->getInterestLifetime().count();
 
-        auto pendingInterest = PendingInterest(
-            std::move(getWireEncode(std::move(interest), newPITEntry)),
-            newPITEntry, lifetime);
+        auto pendingInterest =
+            PendingInterest(std::move(interest), newPITEntry);
 
         m_requestQueue.enqueue(std::move(pendingInterest));
         m_pit->erase(pitEntry);
@@ -146,20 +146,18 @@ void PipelineInterestsAimd::onTimeout() {
         auto interest = getWireDecode(entry->second.interest);
         interest->refreshNonce();
 
-        LOG_DEBUG("timeout (%li): %s", entry->second.nTimeout + 1,
+        LOG_DEBUG("timeout (%li): %s", entry->second.timeoutCnt + 1,
                   interest->getName().toUri().c_str());
 
         decreaseWindow();
 
         auto newPITEntry = m_rdn->get();
-        auto lifetime = interest->getInterestLifetime().count();
 
-        auto pendingInterest = PendingInterest(
-            std::move(getWireEncode(std::move(interest), newPITEntry)),
-            newPITEntry, lifetime);
-        pendingInterest.nTimeout = entry->second.nTimeout + 1;
+        auto pendingInterest =
+            PendingInterest(std::move(interest), newPITEntry);
+        pendingInterest.timeoutCnt = entry->second.timeoutCnt + 1;
 
-        if (pendingInterest.nTimeout < 8) {
+        if (pendingInterest.timeoutCnt < 8) {
             m_pit->erase(entry);
             m_requestQueue.enqueue(std::move(pendingInterest));
         } else {

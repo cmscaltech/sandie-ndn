@@ -33,7 +33,7 @@
 namespace ndnc {
 class PipelineInterestsFixed : public PipelineInterests {
   public:
-    PipelineInterestsFixed(Face &face, size_t size);
+    PipelineInterestsFixed(Face &face, size_t maxWindowSize);
     ~PipelineInterestsFixed();
 
   private:

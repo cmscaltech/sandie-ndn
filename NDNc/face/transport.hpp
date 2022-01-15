@@ -44,11 +44,11 @@ class Transport {
   public:
     virtual ~Transport() = default;
 
-    virtual bool isUp() const = 0;
+    virtual bool isUp() = 0;
     virtual void loop() = 0;
 
-    virtual bool send(ndn::Block &&) const = 0;
-    virtual bool send(std::vector<ndn::Block> &&) const = 0;
+    virtual bool send(ndn::Block) = 0;
+    virtual bool send(std::vector<ndn::Block> &&, uint16_t, uint16_t *) = 0;
 
     void setRxCallback(RxCallback cb, void *ctx) {
         rxCallback = cb;

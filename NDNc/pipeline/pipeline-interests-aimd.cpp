@@ -86,8 +86,8 @@ void PipelineInterestsAimd::process() {
 
         for (n += batchIndex; batchIndex < n; ++batchIndex, --batchSize) {
             batch[batchIndex].markAsExpressed();
-            m_queue->push(batch[batchIndex].pitEntry); // to handle timeouts
-            m_pit->emplace(batch[batchIndex].pitEntry, batch[batchIndex]);
+            m_queue->push(batch[batchIndex].pitToken); // to handle timeouts
+            m_pit->emplace(batch[batchIndex].pitToken, batch[batchIndex]);
         }
     }
 }

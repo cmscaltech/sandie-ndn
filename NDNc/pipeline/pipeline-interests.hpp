@@ -70,9 +70,7 @@ class PipelineInterests : public PacketHandler {
     }
 
     void stop() { this->m_stop = true; }
-
     bool isValid() { return !this->m_stop && face != nullptr; }
-
     uint64_t getPendingRequestsCount() { return m_requestQueue.size_approx(); }
 
   public:

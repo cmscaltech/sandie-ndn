@@ -41,7 +41,7 @@ class PendingInterest {
 
     PendingInterest(std::shared_ptr<ndn::Interest> &&interest,
                     uint64_t pitToken, uint64_t timeoutCnt = 0) {
-        this->pitEntry = pitToken;
+        this->pitToken = pitToken;
         this->timeoutCnt = timeoutCnt;
         this->lifetime = interest->getInterestLifetime().count();
         this->interest =
@@ -60,7 +60,7 @@ class PendingInterest {
     }
 
   public:
-    uint64_t pitEntry;
+    uint64_t pitToken;
     uint64_t timeoutCnt;
     int64_t lifetime;
     ndn::Block interest;

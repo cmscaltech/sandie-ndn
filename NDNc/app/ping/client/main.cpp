@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
     }
 
     ndnc::Face *face = new ndnc::Face();
-    if (!face->openMemif(opts.mtu, opts.gqlserver, "ndnc-ping-client"))
+    if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncping-client"))
         return 2;
 
     if (!face->isValid()) {

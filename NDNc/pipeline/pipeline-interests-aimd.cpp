@@ -31,7 +31,8 @@
 namespace ndnc {
 PipelineInterestsAimd::PipelineInterestsAimd(Face &face, size_t windowSize)
     : PipelineInterests(face), m_windowSize{windowSize}, m_windowIncCounter{0},
-      m_lastDecrease{ndn::time::steady_clock::now()} {}
+      m_lastDecrease{ndn::time::steady_clock::now()} {
+}
 
 PipelineInterestsAimd::~PipelineInterestsAimd() {
     this->stop();

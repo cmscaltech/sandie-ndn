@@ -43,7 +43,8 @@ Runner::Runner(Face &face, ServerOptions options)
     m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
 }
 
-Runner::~Runner() {}
+Runner::~Runner() {
+}
 
 void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
                         ndn::lp::PitToken &&pitToken) {

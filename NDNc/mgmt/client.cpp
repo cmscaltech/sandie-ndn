@@ -44,7 +44,8 @@ Client::Client() : m_gqlserver{}, m_faceID{}, m_fibEntryID{} {
     m_socketPath = "/run/ndn/ndnc-memif-" + pid + "-" + timestamp + ".sock";
 }
 
-Client::~Client() {}
+Client::~Client() {
+}
 
 bool Client::createFace(int id, int dataroom, std::string gqlserver) {
     this->m_gqlserver = gqlserver;

@@ -32,15 +32,19 @@ PacketHandler::PacketHandler(Face &f) {
     f.addPacketHandler(*this);
 }
 
-PacketHandler::~PacketHandler() {}
+PacketHandler::~PacketHandler() {
+}
 
 void PacketHandler::onInterest(std::shared_ptr<ndn::Interest> &&,
-                               ndn::lp::PitToken &&) {}
+                               ndn::lp::PitToken &&) {
+}
 
 void PacketHandler::onData(std::shared_ptr<ndn::Data> &&,
-                           ndn::lp::PitToken &&) {}
+                           ndn::lp::PitToken &&) {
+}
 
 void PacketHandler::onNack(std::shared_ptr<ndn::lp::Nack> &&,
-                           ndn::lp::PitToken &&) {}
+                           ndn::lp::PitToken &&) {
+}
 
 }; // namespace ndnc

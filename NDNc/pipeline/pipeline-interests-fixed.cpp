@@ -30,7 +30,8 @@
 
 namespace ndnc {
 PipelineInterestsFixed::PipelineInterestsFixed(Face &face, size_t windowSize)
-    : PipelineInterests(face), m_windowSize{windowSize} {}
+    : PipelineInterests(face), m_windowSize{windowSize} {
+}
 
 PipelineInterestsFixed::~PipelineInterestsFixed() {
     this->stop();

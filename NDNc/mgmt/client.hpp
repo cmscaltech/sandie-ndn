@@ -68,9 +68,17 @@ class Client {
      */
     bool deleteFace();
 
-    std::string getSocketPath() { return m_socketPath; }
-    std::string getFaceID() { return m_faceID; }
-    std::string getFibEntryID() { return m_fibEntryID; }
+    std::string getSocketPath() {
+        return m_socketPath;
+    }
+
+    std::string getFaceID() {
+        return m_faceID;
+    }
+
+    std::string getFibEntryID() {
+        return m_fibEntryID;
+    }
 
   private:
     bool deleteID(std::string id);

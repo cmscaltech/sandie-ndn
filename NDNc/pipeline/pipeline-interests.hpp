@@ -69,9 +69,17 @@ class PipelineInterests : public PacketHandler {
         this->m_sender = std::thread(&PipelineInterests::process, this);
     }
 
-    void stop() { this->m_stop = true; }
-    bool isValid() { return !this->m_stop && face != nullptr; }
-    uint64_t getPendingRequestsCount() { return m_requestQueue.size_approx(); }
+    void stop() {
+        this->m_stop = true;
+    }
+
+    bool isValid() {
+        return !this->m_stop && face != nullptr;
+    }
+
+    uint64_t getPendingRequestsCount() {
+        return m_requestQueue.size_approx();
+    }
 
   public:
     bool enqueueInterest(std::shared_ptr<ndn::Interest> &&interest,

@@ -36,7 +36,8 @@ template <typename T> class RandomNumberGenerator {
   public:
     RandomNumberGenerator()
         : m_engine{std::random_device()()},
-          m_distribution(0, std::numeric_limits<T>::max()) {}
+          m_distribution(0, std::numeric_limits<T>::max()) {
+    }
 
     T get() {
         std::lock_guard<std::mutex> lock(m_mtx);

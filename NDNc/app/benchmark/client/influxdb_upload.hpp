@@ -41,7 +41,9 @@ struct InfluxDBDataPoint {
     uint64_t nData = 0;
     double goodput = 0.0;
 
-    std::string measurement() { return "progress"; }
+    std::string measurement() {
+        return "progress";
+    }
 
     std::string tagSet() {
         std::string hostnameTag = "hostname=";

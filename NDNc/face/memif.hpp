@@ -52,6 +52,7 @@ class Memif : public virtual Transport {
   public:
     bool init(const char *socket_path, uint32_t id, const char *app_name = "",
               uint16_t max_pkt_len = DefaultDataroom::value) {
+        deinit();
         this->m_max_pkt_len = max_pkt_len;
 
         if (!this->init_memif_socket(socket_path, app_name) ||
@@ -144,7 +145,9 @@ class Memif : public virtual Transport {
         }
     }
 
-    bool isUp() final { return m_up; }
+    bool isUp() final {
+        return m_up;
+    }
 
     bool send(ndn::Block pkt) final {
         if (!isUp()) {
@@ -231,7 +234,7 @@ class Memif : public virtual Transport {
     }
 
   private:
-    void dump_memif_details() {
+    void print_memif_details() {
         memif_details_t md;
         memset(&md, 0, sizeof(md));
 
@@ -290,13 +293,12 @@ class Memif : public virtual Transport {
         return size;
     }
 
-  private:
     static int on_connect(memif_conn_handle_t conn, void *self0) {
         auto self = reinterpret_cast<Memif *>(self0);
         self->m_up = true;
 
         LOG_DEBUG("memif connected");
-        self->dump_memif_details();
+        self->print_memif_details();
 
         memif_refill_queue(conn, 0, -1, 0);
         return 0;
@@ -322,7 +324,6 @@ class Memif : public virtual Transport {
         auto self = reinterpret_cast<Memif *>(self0);
 
         uint16_t nRx = 0;
-
         int err =
             memif_rx_burst(conn, qid, self->m_rx_bufs, MAX_MEMIF_RX_BUFS, &nRx);
 

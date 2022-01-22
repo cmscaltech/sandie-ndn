@@ -88,7 +88,7 @@ void Runner::run() {
     }
 
     auto rtt = ndn::time::duration_cast<ndn::time::microseconds>(end - start);
-    LOG_INFO("%s %lli us", data->getName().toUri().c_str(), rtt.count());
+    LOG_INFO("%s %li us", data->getName().toUri().c_str(), rtt.count());
 
     ++m_counters.nRxData;
 }

@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     description.add_options()(
         "gqlserver",
         po::value<string>(&opts.gqlserver)->default_value(opts.gqlserver),
-        "GraphQL server address");
+        "The GraphQL server address");
     description.add_options()(
         "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
         "Dataroom size. Specify a positive integer between 64 and 9000");
@@ -96,8 +96,7 @@ int main(int argc, char **argv) {
 
     if (vm.count("mtu") > 0) {
         if (opts.mtu < 64 || opts.mtu > 9000) {
-            cerr << "ERROR: invalid MTU size. please specify a positive "
-                    "integer between 64 and 9000\n\n";
+            cerr << "ERROR: invalid MTU size\n\n";
             usage(cout, description);
             return 2;
         }
@@ -120,7 +119,6 @@ int main(int argc, char **argv) {
     }
 
     face = new ndnc::Face();
-
     if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncft-server"))
         return 2;
 
@@ -137,6 +135,7 @@ int main(int argc, char **argv) {
     }
 
     LOG_INFO("running... ");
+
     while (shouldRun && face->isValid()) {
         face->loop();
     }

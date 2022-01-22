@@ -76,7 +76,7 @@ void cleanOnExit() {
     }
 }
 
-void signalHandler(sig_atomic_t signum) {
+void handler(sig_atomic_t signum) {
     cleanOnExit();
     exit(signum);
 }
@@ -90,7 +90,7 @@ static void usage(ostream &os, const string &app,
 }
 
 int main(int argc, char *argv[]) {
-    signal(SIGINT, signalHandler);
+    signal(SIGINT, handler);
 
     ndnc::benchmark::ft::ClientOptions opts;
     std::string pipelineType = "fixed";

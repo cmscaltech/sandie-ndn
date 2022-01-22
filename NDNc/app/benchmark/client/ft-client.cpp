@@ -108,7 +108,7 @@ void Runner::getFileInfo(uint64_t *size) {
     m_metadata = std::make_shared<FileMetadata>(data->getContent());
     *size = m_metadata->getFileSize();
 
-    LOG_INFO("opened file: '%s' with size=%lli (%llix%lli) version=%lli",
+    LOG_INFO("opened file: '%s' with size=%li (%lix%li) version=%li",
              m_options->file.c_str(), m_metadata->getFileSize(),
              m_metadata->getSegmentSize(), m_metadata->getLastSegment(),
              m_metadata->getVersionedName().get(-1).toVersion());

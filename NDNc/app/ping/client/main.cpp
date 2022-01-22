@@ -53,7 +53,7 @@ static void usage(ostream &os, const string &app,
                   const po::options_description &desc) {
     os << "Usage: " << app
        << " [options]\nNote: This application needs --name argument "
-          "to be specified\n\n"
+          "specified\n\n"
        << desc;
 }
 
@@ -66,17 +66,17 @@ int main(int argc, char *argv[]) {
     description.add_options()(
         "gqlserver",
         po::value<string>(&opts.gqlserver)->default_value(opts.gqlserver),
-        "GraphQL server address");
+        "The GraphQL server address");
     description.add_options()(
         "lifetime",
         po::value<ndn::time::milliseconds::rep>()->default_value(1000),
-        "Interest lifetime in milliseconds. Specify a positive integer");
+        "The Interest lifetime in milliseconds. Specify a positive integer");
     description.add_options()(
         "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
         "Dataroom size. Specify a positive integer between 64 and 9000");
     description.add_options()(
         "name", po::value<string>(&opts.name),
-        "The NDN Name prefix that this application advertises");
+        "The NDN Name prefix of all expressed Interest packets");
     description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
@@ -101,8 +101,7 @@ int main(int argc, char *argv[]) {
 
     if (vm.count("mtu") > 0) {
         if (opts.mtu < 64 || opts.mtu > 9000) {
-            cerr << "ERROR: invalid MTU size. please specify a positive "
-                    "integer between 64 and 9000\n\n";
+            cerr << "ERROR: invalid MTU size\n\n";
             usage(cout, app, description);
             return 2;
         }
@@ -117,8 +116,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (vm.count("name") == 0) {
-        cerr << "ERROR: please specify the NDN Name prefix that this "
-                "application advertises\n\n";
+        cerr << "ERROR: no NDN Name prefix specified\n\n";
         usage(cerr, app, description);
         return 2;
     }
@@ -135,7 +133,6 @@ int main(int argc, char *argv[]) {
     }
 
     ndnc::Face *face = new ndnc::Face();
-
     if (!face->openMemif(opts.mtu, opts.gqlserver, "ndnc-ping-client"))
         return 2;
 
@@ -145,6 +142,9 @@ int main(int argc, char *argv[]) {
     }
 
     client = new ndnc::ping::client::Runner(*face, opts);
+
+    LOG_INFO("running...");
+
     while (shouldRun && face->isValid() && client->canContinue()) {
         client->run();
     }

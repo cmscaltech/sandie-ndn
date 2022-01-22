@@ -86,8 +86,7 @@ void Runner::getFileInfo(uint64_t *size) {
 
     // Wait for Data
     std::shared_ptr<ndn::Data> data;
-    while (canContinue() && !m_pipeline->dequeueData(data)) {
-    }
+    while (canContinue() && !m_pipeline->dequeueData(data)) {}
 
     if (!canContinue()) {
         return;
@@ -109,7 +108,7 @@ void Runner::getFileInfo(uint64_t *size) {
     m_metadata = std::make_shared<FileMetadata>(data->getContent());
     *size = m_metadata->getFileSize();
 
-    LOG_INFO("opened file: '%s' with size=%li (%lix%li) version=%li",
+    LOG_INFO("opened file: '%s' with size=%lli (%llix%lli) version=%lli",
              m_options->file.c_str(), m_metadata->getFileSize(),
              m_metadata->getSegmentSize(), m_metadata->getLastSegment(),
              m_metadata->getVersionedName().get(-1).toVersion());

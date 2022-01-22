@@ -29,11 +29,11 @@
 #define NDNC_PIPELINE_TYPE_HPP
 
 namespace ndnc {
-enum PipelineType {
-    fixed = 2,
-    aimd = 3,
-    // TBD: others
-    undefined
+enum PipelineType
+{
+    fixed = 0,
+    aimd = 1,
+    invalid
 };
 }; // namespace ndnc
 

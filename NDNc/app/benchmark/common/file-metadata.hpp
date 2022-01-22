@@ -37,12 +37,15 @@
 
 namespace ndnc {
 namespace benchmark {
+#if (!defined(__APPLE__) && !defined(__MACH__))
 static const uint32_t STATX_REQUIRED =
     STATX_TYPE | STATX_MODE | STATX_MTIME | STATX_SIZE;
 static const uint32_t STATX_OPTIONAL = STATX_ATIME | STATX_CTIME | STATX_BTIME;
+#endif
 
 class FileMetadata {
-    enum {
+    enum
+    {
         TtSegmentSize = 0xF500,
         TtSize = 0xF502,
         TtMode = 0xF504,
@@ -53,25 +56,38 @@ class FileMetadata {
     };
 
   public:
-    FileMetadata() {}
-    FileMetadata(uint64_t segmentSize) { this->m_segmentSize = segmentSize; }
-    FileMetadata(const ndn::Block &content) : m_st{} { decode(content); }
-    ~FileMetadata() {}
+    FileMetadata() {
+    }
+    FileMetadata(uint64_t segmentSize) {
+        this->m_segmentSize = segmentSize;
+    }
+    FileMetadata(const ndn::Block &content) {
+        decode(content);
+    }
+    ~FileMetadata() {
+    }
 
     bool prepare(const std::string path) {
+#if (!defined(__APPLE__) && !defined(__MACH__))
         int res = syscall(__NR_statx, -1, path.c_str(), 0,
                           STATX_REQUIRED | STATX_OPTIONAL, &this->m_st);
 
         if (res != 0 || !has(STATX_REQUIRED)) {
             return false;
         }
+#endif
 
         this->m_versionedName = getNameForMetadata(path).getPrefix(-1);
+#if (!defined(__APPLE__) && !defined(__MACH__))
         this->m_versionedName.appendVersion(
             timestamp_to_uint64(m_st.stx_mtime));
 
         this->m_lastSegment =
             (uint64_t)(ceil((double)m_st.stx_size / m_segmentSize));
+#else
+        this->m_lastSegment = 0;
+
+#endif
 
         return true;
     }
@@ -90,6 +106,7 @@ class FileMetadata {
 
         content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
             TtSegmentSize, this->m_segmentSize));
+#if (!defined(__APPLE__) && !defined(__MACH__))
         content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
             TtSize, this->m_st.stx_size));
 
@@ -111,6 +128,7 @@ class FileMetadata {
 
         content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
             TtMtime, timestamp_to_uint64(this->m_st.stx_mtime)));
+#endif
 
         content.encode();
         return content;
@@ -128,6 +146,7 @@ class FileMetadata {
         this->m_segmentSize =
             ndn::readNonNegativeInteger(content.get(TtSegmentSize));
 
+#if (!defined(__APPLE__) && !defined(__MACH__))
         this->m_st.stx_size = ndn::readNonNegativeInteger(content.get(TtSize));
         this->m_st.stx_mode = ndn::readNonNegativeInteger(content.get(TtMode));
 
@@ -154,10 +173,14 @@ class FileMetadata {
 
         this->m_st.stx_mtime = uint64_to_timestamp(
             ndn::readNonNegativeInteger(content.get(TtMtime)));
+#endif
     }
 
   private:
-    bool has(uint32_t bit) const { return (this->m_st.stx_mask & bit) == bit; }
+#if (!defined(__APPLE__) && !defined(__MACH__))
+    bool has(uint32_t bit) const {
+        return (this->m_st.stx_mask & bit) == bit;
+    }
 
     uint64_t timestamp_to_uint64(struct statx_timestamp t) const {
         return static_cast<uint64_t>(t.tv_sec) * 1000000000 + t.tv_nsec;
@@ -169,14 +192,32 @@ class FileMetadata {
         t.tv_nsec = static_cast<uint32_t>(n % 1000000000);
         return t;
     }
+#endif
 
   public:
-    ndn::Name getVersionedName() { return this->m_versionedName; }
-    uint64_t getLastSegment() { return this->m_lastSegment; }
-    uint64_t getSegmentSize() { return this->m_segmentSize; }
-    uint64_t getFileSize() { return this->m_st.stx_size; }
-    uint64_t getMode() { return this->m_st.stx_mode; }
+    ndn::Name getVersionedName() {
+        return this->m_versionedName;
+    }
+    uint64_t getLastSegment() {
+        return this->m_lastSegment;
+    }
+    uint64_t getSegmentSize() {
+        return this->m_segmentSize;
+    }
+    uint64_t getFileSize() {
+#if (!defined(__APPLE__) && !defined(__MACH__))
+        return this->m_st.stx_size;
+#else
+        return 0;
+#endif
+    }
+#if (!defined(__APPLE__) && !defined(__MACH__))
+    uint64_t getMode() {
+        return this->m_st.stx_mode;
+    }
+#endif
 
+#if (!defined(__APPLE__) && !defined(__MACH__))
     struct statx_timestamp getAtime() {
         return this->m_st.stx_atime;
     }
@@ -197,12 +238,17 @@ class FileMetadata {
         return "tv_sec(" + std::to_string(t.tv_sec) + ") tv_nsec(" +
                std::to_string(t.tv_nsec) + ")";
     }
+#endif
 
   private:
     ndn::Name m_versionedName;
+
     uint64_t m_lastSegment;
     uint64_t m_segmentSize;
+
+#if (!defined(__APPLE__) && !defined(__MACH__))
     struct statx m_st;
+#endif
 };
 }; // namespace benchmark
 }; // namespace ndnc

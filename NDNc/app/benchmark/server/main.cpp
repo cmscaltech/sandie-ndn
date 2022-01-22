@@ -120,10 +120,10 @@ int main(int argc, char **argv) {
     }
 
     face = new ndnc::Face();
-#ifndef __APPLE__
+
     if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncft-server"))
         return 2;
-#endif
+
     if (!face->isValid()) {
         cerr << "ERROR: invalid face\n";
         return 2;

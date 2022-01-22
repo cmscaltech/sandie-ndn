@@ -67,7 +67,7 @@ bool Face::openMemif(int dataroom, std::string gqlserver, std::string appName) {
         return false;
     }
 
-#ifndef __APPLE__
+#if (!defined(__APPLE__) && !defined(__MACH__))
     static Memif transport;
     if (!transport.init(m_client->getSocketPath().c_str(), id, appName.c_str(),
                         dataroom)) {
@@ -76,7 +76,7 @@ bool Face::openMemif(int dataroom, std::string gqlserver, std::string appName) {
     }
 
     this->m_transport = &transport;
-#endif // __APPLE__
+#endif
 
     while (true) {
         if (m_transport->isUp()) {

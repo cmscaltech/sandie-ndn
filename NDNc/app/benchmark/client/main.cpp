@@ -34,6 +34,7 @@
 #include <sstream>
 #include <unistd.h>
 
+#include <boost/algorithm/string.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
@@ -46,6 +47,7 @@
 using namespace std;
 using namespace indicators;
 namespace po = boost::program_options;
+namespace al = boost::algorithm;
 
 static ndnc::Face *face;
 static ndnc::benchmark::ft::Runner *client;
@@ -82,52 +84,56 @@ void signalHandler(sig_atomic_t signum) {
 static void usage(ostream &os, const string &app,
                   const po::options_description &desc) {
     os << "Usage: " << app
-       << " [options]\nNote: This application needs --file arguments "
-          "to be specified\n\n"
+       << " [options]\nNote: This application needs --file argument "
+          "specified\n\n"
        << desc;
 }
 
 int main(int argc, char *argv[]) {
+    signal(SIGINT, signalHandler);
+
     ndnc::benchmark::ft::ClientOptions opts;
     std::string pipelineType = "fixed";
 
     po::options_description description("Options", 120);
     description.add_options()("file", po::value<string>(&opts.file),
-                              "The file path");
+                              "The path to the file to be copied over NDN");
     description.add_options()(
         "gqlserver",
         po::value<string>(&opts.gqlserver)->default_value(opts.gqlserver),
-        "GraphQL server address");
-    description.add_options()(
-        "influxdb-addr",
-        po::value<string>(&opts.influxdbaddr)->default_value(opts.influxdbaddr),
-        "InfluxDB server address");
-    description.add_options()(
-        "influxdb-name",
-        po::value<string>(&opts.influxdbname)->default_value(opts.influxdbname),
-        "InfluxDB name");
+        "The GraphQL server address");
+    // description.add_options()(
+    //     "influxdb-addr",
+    //     po::value<string>(&opts.influxdbaddr)->default_value(opts.influxdbaddr),
+    //     "InfluxDB server address");
+    // description.add_options()(
+    //     "influxdb-name",
+    //     po::value<string>(&opts.influxdbname)->default_value(opts.influxdbname),
+    //     "InfluxDB name");
     description.add_options()(
         "lifetime",
         po::value<ndn::time::milliseconds::rep>()->default_value(
             opts.lifetime.count()),
-        "Interest lifetime in milliseconds. Specify a positive integer");
+        "The Interest lifetime in milliseconds. Specify a positive integer");
     description.add_options()(
         "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
         "Dataroom size. Specify a positive integer between 64 and 9000");
-    description.add_options()("nthreads",
-                              po::value<uint16_t>(&opts.nthreads)
-                                  ->default_value(opts.nthreads)
-                                  ->implicit_value(opts.nthreads),
-                              "The number of worker threads. Half request "
-                              "Interest packets and half process Data packets");
+    description.add_options()(
+        "nthreads",
+        po::value<uint16_t>(&opts.nthreads)
+            ->default_value(opts.nthreads)
+            ->implicit_value(opts.nthreads),
+        "The number of worker threads. Half will request "
+        "the Interest packets and half will process the Data packets");
     description.add_options()(
         "pipeline-type",
         po::value<string>(&pipelineType)->default_value(pipelineType),
-        "Pipeline type. Available options: fixed, aimd");
+        "The pipeline type. Available options: fixed, aimd");
     description.add_options()("pipeline-size",
                               po::value<uint16_t>(&opts.pipelineSize)
                                   ->default_value(opts.pipelineSize),
-                              "Maximum pipeline size");
+                              "The maximum pipeline size for `fixed` type or "
+                              "the starting side for `aimd` type");
     description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
@@ -151,8 +157,7 @@ int main(int argc, char *argv[]) {
 
     if (vm.count("mtu") > 0) {
         if (opts.mtu < 64 || opts.mtu > 9000) {
-            cerr << "ERROR: invalid MTU size. please specify a positive "
-                    "integer between 64 and 9000\n\n";
+            cerr << "ERROR: invalid MTU size\n\n";
             usage(cout, app, description);
             return 2;
         }
@@ -178,50 +183,49 @@ int main(int argc, char *argv[]) {
     }
 
     if (vm.count("file") == 0) {
-        cerr << "ERROR: please specify a file URL to be copied over NDN\n\n";
+        cerr << "ERROR: no file path specified\n\n";
         usage(cerr, app, description);
         return 2;
     }
 
     if (opts.file.empty()) {
-        cerr << "\nERROR: the file URL cannot be an empty string\n";
+        cerr << "\nERROR: the file path argument cannot be an empty string\n";
         return 2;
     }
 
-    if (pipelineType.compare("fixed") == 0) {
+    if (al::to_lower_copy(pipelineType).compare("fixed") == 0) {
         opts.pipelineType = ndnc::PipelineType::fixed;
-    } else if (pipelineType.compare("aimd") == 0) {
+    } else if (al::to_lower_copy(pipelineType).compare("aimd") == 0) {
         opts.pipelineType = ndnc::PipelineType::aimd;
+    } else {
+        opts.pipelineType = ndnc::PipelineType::invalid;
     }
 
-    if (opts.pipelineType == ndnc::PipelineType::undefined) {
+    if (opts.pipelineType == ndnc::PipelineType::invalid) {
         cerr << "ERROR: invalid pipeline type\n\n";
         usage(cout, app, description);
         return 2;
     }
 
-    if (!opts.influxdbaddr.empty() && !opts.influxdbname.empty()) {
-        influxDBClient =
-            new ndnc::InfluxDBClient(opts.influxdbaddr, opts.influxdbname);
-    }
+    // if (!opts.influxdbaddr.empty() && !opts.influxdbname.empty()) {
+    //     influxDBClient =
+    //         new ndnc::InfluxDBClient(opts.influxdbaddr, opts.influxdbname);
+    // }
 
-    signal(SIGINT, signalHandler);
+    opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;
 
     face = new ndnc::Face();
-#ifndef __APPLE__
     if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncft-client"))
         return 2;
-#endif
 
     if (!face->isValid()) {
         cerr << "ERROR: invalid face\n";
         return 2;
     }
 
-    LOG_INFO("running...");
-    opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;
-
     client = new ndnc::benchmark::ft::Runner(*face, opts);
+
+    LOG_INFO("running...");
 
     uint64_t totalBytesToTransfer = 0;
     client->getFileInfo(&totalBytesToTransfer);

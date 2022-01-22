@@ -37,15 +37,15 @@
 namespace ndnc {
 class PendingInterest {
   public:
-    PendingInterest() {}
+    PendingInterest() {
+    }
 
     PendingInterest(std::shared_ptr<ndn::Interest> &&interest,
                     uint64_t pitToken, uint64_t timeoutCnt = 0) {
         this->pitToken = pitToken;
         this->timeoutCnt = timeoutCnt;
         this->lifetime = interest->getInterestLifetime().count();
-        this->interest =
-            std::move(getWireEncode(std::move(interest), pitToken));
+        this->interest = getWireEncode(std::move(interest), pitToken);
     }
 
     void markAsExpressed() {

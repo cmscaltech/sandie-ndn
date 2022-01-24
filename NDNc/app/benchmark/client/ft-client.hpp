@@ -52,7 +52,7 @@ struct ClientOptions {
     uint16_t nthreads = 2; // The number of worker threads
 
     PipelineType pipelineType = PipelineType::fixed;
-    uint16_t pipelineSize = 4096;
+    uint16_t pipelineSize = 16384;
 };
 
 class Runner : public std::enable_shared_from_this<Runner> {

@@ -39,56 +39,58 @@ PipelineInterestsAimd::~PipelineInterestsAimd() {
 }
 
 void PipelineInterestsAimd::process() {
-    std::vector<PendingInterest> batch;
-    size_t batchSize = 0;
-    size_t batchIndex = 0;
+    std::vector<PendingInterest> pendingInterests{};
+    size_t size = 0, index = 0;
 
-    auto clearBatch = [&]() {
-        batch.clear();
-        batchIndex = 0;
+    auto clearPendingInterests = [&]() {
+        pendingInterests.clear();
+        index = 0;
     };
 
-    auto fillBatch = [&]() {
-        clearBatch();
-        batchSize =
-            std::min(static_cast<int>(m_windowSize - m_pit->size()), 64);
-        batch.reserve(batchSize);
+    auto getNextPendingInterests = [&]() {
+        clearPendingInterests();
 
-        batchSize = m_requestQueue.try_dequeue_bulk(batch.begin(), batchSize);
-        return batchSize;
+        size = std::min(static_cast<int>(m_windowSize - m_pit->size()), 64);
+        pendingInterests.reserve(size);
+        size = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(), size);
+
+        return size;
     };
 
-    while (this->isValid()) {
-        this->face->loop();
-        this->onTimeout();
+    while (isValid()) {
+        face->loop();
+        onTimeout();
 
         if (m_pit->size() >= m_windowSize) {
             continue; // Wait for data packets
         }
 
-        if (batchSize == 0 && fillBatch() == 0) {
+        if (size == 0 && getNextPendingInterests() == 0) {
             continue;
         }
 
-        std::vector<ndn::Block> interests;
-        interests.reserve(batchSize);
+        std::vector<ndn::Block> pkts;
+        pkts.reserve(size);
 
-        for (size_t i = batchIndex; i < batchIndex + batchSize; ++i) {
-            interests.emplace_back(ndn::Block(batch[i].interest));
+        for (size_t i = index; i < index + size; ++i) {
+            pkts.emplace_back(
+                ndn::Block(pendingInterests[i].interestBlockValue));
         }
 
-        uint16_t n;
-        if (!face->send(std::move(interests), batchSize, &n)) {
+        uint16_t n = 0;
+        if (!face->send(std::move(pkts), size, &n)) {
             LOG_FATAL("unable to send Interest packets on face");
 
-            this->stop();
+            stop();
             return;
         }
 
-        for (n += batchIndex; batchIndex < n; ++batchIndex, --batchSize) {
-            batch[batchIndex].markAsExpressed();
-            m_queue->push(batch[batchIndex].pitToken); // to handle timeouts
-            m_pit->emplace(batch[batchIndex].pitToken, batch[batchIndex]);
+        for (n += index; index < n; ++index, --size) {
+            pendingInterests[index].markAsExpressed();
+            // Timeouts handler
+            m_queue->push(pendingInterests[index].pitTokenValue);
+            m_pit->emplace(pendingInterests[index].pitTokenValue,
+                           pendingInterests[index]);
         }
     }
 }
@@ -115,6 +117,7 @@ void PipelineInterestsAimd::onData(std::shared_ptr<ndn::Data> &&data,
 
 void PipelineInterestsAimd::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
                                    ndn::lp::PitToken &&pitToken) {
+
     auto pitKey = getPITTokenValue(std::move(pitToken));
     if (m_pit->find(pitKey) == m_pit->end()) {
         LOG_DEBUG("unexpected NACK for packet dropped");
@@ -132,13 +135,13 @@ void PipelineInterestsAimd::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
 
     switch (nack->getReason()) {
     case ndn::lp::NackReason::DUPLICATE: {
-        auto interest = getWireDecode(m_pit->at(pitKey).interest);
-        auto timeoutCnt = m_pit->at(pitKey).timeoutCnt;
-        m_pit->erase(pitKey);
-
+        auto interest = getWireDecode(m_pit->at(pitKey).interestBlockValue);
         interest->refreshNonce();
 
-        if (!this->enqueueInterest(std::move(interest), timeoutCnt)) {
+        auto timeoutCounter = m_pit->at(pitKey).timeoutCounter;
+        m_pit->erase(pitKey);
+
+        if (!this->enqueueInterest(std::move(interest), timeoutCounter)) {
             LOG_FATAL("unable to enqueue Interest for duplicate NACK");
             enqueueData(nullptr); // Enqueue null to mark error
             return;
@@ -155,31 +158,31 @@ void PipelineInterestsAimd::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
 
 void PipelineInterestsAimd::onTimeout() {
     while (!m_queue->empty()) {
+
         auto it = m_pit->find(m_queue->front());
         if (it == m_pit->end()) {
-            // Remove already satisfied entries
-            m_queue->pop();
+            m_queue->pop(); // Remove already satisfied entries
             continue;
         }
 
-        auto pitValue = it->second;
-        if (!pitValue.isExpired()) {
+        auto pendingInterest = it->second;
+        if (!pendingInterest.hasExpired()) {
             return;
         }
         m_pit->erase(it);
         m_queue->pop();
 
-        auto interest = getWireDecode(pitValue.interest);
-        auto timeoutCnt = pitValue.timeoutCnt + 1;
+        auto interest = getWireDecode(pendingInterest.interestBlockValue);
         interest->refreshNonce();
 
-        LOG_DEBUG("timeout (%li) for %s", timeoutCnt,
+        auto timeoutCounter = pendingInterest.timeoutCounter + 1;
+        LOG_DEBUG("timeout (%li) for %s", timeoutCounter,
                   interest->getName().toUri().c_str());
 
         decreaseWindow();
 
-        if (timeoutCnt < 8) {
-            if (!this->enqueueInterest(std::move(interest), timeoutCnt)) {
+        if (timeoutCounter < 8) {
+            if (!this->enqueueInterest(std::move(interest), timeoutCounter)) {
                 LOG_FATAL("unable to enqueue Interest on timeout");
                 enqueueData(nullptr); // Enqueue null to mark error
                 return;
@@ -193,12 +196,13 @@ void PipelineInterestsAimd::onTimeout() {
 }
 
 void PipelineInterestsAimd::decreaseWindow() {
-    ndn::time::steady_clock::time_point now = ndn::time::steady_clock::now();
+    auto now = ndn::time::steady_clock::now();
     if (now - m_lastDecrease < MAX_RTT) {
         return;
     }
 
     LOG_DEBUG("window decrease at %li", m_windowSize);
+
     m_windowSize /= 2;
     m_windowIncCounter = 0;
     m_windowSize = std::max(m_windowSize, MIN_WINDOW);

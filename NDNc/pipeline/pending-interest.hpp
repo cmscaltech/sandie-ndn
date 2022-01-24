@@ -28,11 +28,11 @@
 #ifndef NDNC_PENDING_INTEREST_HPP
 #define NDNC_PENDING_INTEREST_HPP
 
-#include <chrono>
-#include <ndn-cxx/data.hpp>
+#include <ndn-cxx/util/time.hpp>
 
 #include "concurrentqueue/blockingconcurrentqueue.h"
 #include "concurrentqueue/concurrentqueue.h"
+#include "encoding/encoding.hpp"
 
 namespace ndnc {
 class PendingInterest {
@@ -41,31 +41,35 @@ class PendingInterest {
     }
 
     PendingInterest(std::shared_ptr<ndn::Interest> &&interest,
-                    uint64_t pitToken, uint64_t timeoutCnt = 0) {
-        this->pitToken = pitToken;
-        this->timeoutCnt = timeoutCnt;
-        this->lifetime = interest->getInterestLifetime().count();
-        this->interest = getWireEncode(std::move(interest), pitToken);
+                    uint64_t pitTokenValue, uint64_t timeoutCounter = 0)
+        : pitTokenValue{pitTokenValue}, timeoutCounter{timeoutCounter} {
+
+        interestLifetime = interest->getInterestLifetime();
+        interestBlockValue = getWireEncode(std::move(interest), pitTokenValue);
+    }
+
+    ~PendingInterest() {
     }
 
     void markAsExpressed() {
-        this->expressedTimePoint = std::chrono::high_resolution_clock::now();
+        expressedAt = ndn::time::steady_clock::now();
     }
 
-    bool isExpired() const {
-        return std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::high_resolution_clock::now() -
-                   this->expressedTimePoint)
-                   .count() > lifetime;
+    bool hasExpired() const {
+        return ndn::time::duration_cast<ndn::time::milliseconds>(
+                   ndn::time::steady_clock::now() - expressedAt) >
+               interestLifetime;
     }
 
   public:
-    uint64_t pitToken;
-    uint64_t timeoutCnt;
-    int64_t lifetime;
-    ndn::Block interest;
-    std::chrono::time_point<std::chrono::high_resolution_clock>
-        expressedTimePoint;
+    uint64_t pitTokenValue;
+    uint64_t timeoutCounter;
+
+    ndn::Block interestBlockValue;
+
+  private:
+    ndn::time::milliseconds interestLifetime;
+    ndn::time::steady_clock::TimePoint expressedAt;
 };
 
 typedef moodycamel::ConcurrentQueue<PendingInterest> RequestQueue;

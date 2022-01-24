@@ -83,13 +83,13 @@ class PipelineInterests : public PacketHandler {
 
   public:
     bool enqueueInterest(std::shared_ptr<ndn::Interest> &&interest,
-                         uint64_t timeoutCnt = 0) {
+                         uint64_t timeoutCounter = 0) {
         if (!isValid()) {
             return false;
         }
 
         return m_requestQueue.enqueue(
-            PendingInterest(std::move(interest), m_rdn->get(), timeoutCnt));
+            PendingInterest(std::move(interest), m_rdn->get(), timeoutCounter));
     }
 
     bool

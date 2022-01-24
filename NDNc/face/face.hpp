@@ -28,9 +28,8 @@
 #ifndef NDNC_FACE_HPP
 #define NDNC_FACE_HPP
 
-#if (!defined(__APPLE__) && !defined(__MACH__))
 #include <memory>
-
+#if (!defined(__APPLE__) && !defined(__MACH__))
 #include "memif.hpp"
 #else
 #include "transport.hpp"

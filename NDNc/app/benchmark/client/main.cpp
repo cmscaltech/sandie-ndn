@@ -273,8 +273,8 @@ int main(int argc, char *argv[]) {
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
 #ifndef NDEBUG
-    double throughput = ((double)face->readCounters()->nRxBytes * 8.0 * 1e3) /
-                        (duration / std::chrono::microseconds(1)) * 1e9;
+    double throughput = ((double)face->readCounters()->nRxBytes * 8.0) /
+                        (duration / std::chrono::nanoseconds(1)) * 1e9;
 #endif
 
     cout << "\n--- statistics --\n"

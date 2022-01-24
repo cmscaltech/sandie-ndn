@@ -115,8 +115,8 @@ std::shared_ptr<Face::Counters> Face::readCounters() {
     return this->m_counters;
 }
 
-bool Face::send(ndn::Block wire) {
-    if (!m_transport->send(wire)) {
+bool Face::send(ndn::Block pkt) {
+    if (!m_transport->send(pkt)) {
 #ifndef NDEBUG
         ++m_counters->nErrors;
 #endif // NDEBUG
@@ -125,13 +125,13 @@ bool Face::send(ndn::Block wire) {
 
 #ifndef NDEBUG
     m_counters->nTxPackets += 1;
-    m_counters->nTxBytes += wire.size();
+    m_counters->nTxBytes += pkt.size();
 #endif // NDEBUG
     return true;
 }
 
-bool Face::send(std::vector<ndn::Block> &&wires, uint16_t n, uint16_t *nTx) {
-    if (!m_transport->send(std::move(wires), n, nTx)) {
+bool Face::send(std::vector<ndn::Block> &&pkts, uint16_t n, uint16_t *nTx) {
+    if (!m_transport->send(std::move(pkts), n, nTx)) {
 #ifndef NDEBUG
         ++m_counters->nErrors;
 #endif // NDEBUG
@@ -141,7 +141,7 @@ bool Face::send(std::vector<ndn::Block> &&wires, uint16_t n, uint16_t *nTx) {
 #ifndef NDEBUG
     m_counters->nTxPackets += *nTx;
     for (auto i = 0; i < *nTx; ++i) {
-        m_counters->nTxBytes += wires[i].size();
+        m_counters->nTxBytes += pkts[i].size();
     }
 #endif // NDEBUG
     return true;

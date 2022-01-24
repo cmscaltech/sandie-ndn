@@ -48,8 +48,8 @@ struct ClientOptions {
     // Interest lifetime
     ndn::time::milliseconds lifetime = ndn::time::seconds{2};
 
-    std::string file;      // File path
-    uint16_t nthreads = 4; // Number of worker threads to request packets
+    std::string file;      // The file path
+    uint16_t nthreads = 2; // The number of worker threads
 
     PipelineType pipelineType = PipelineType::fixed;
     uint16_t pipelineSize = 4096;

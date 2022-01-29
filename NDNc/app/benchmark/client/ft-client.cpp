@@ -120,7 +120,7 @@ void Runner::requestFileContent(int wid) {
     for (uint64_t segmentNo = wid * npackets;
          segmentNo <= m_metadata->getLastSegment() && canContinue();) {
 
-        if (m_pipeline->getPendingRequestsCount() > 16384) {
+        if (m_pipeline->getPendingRequestsCount() > 65536) {
             // backoff; plenty of work to be done by the pipeline
             continue;
         }
@@ -145,7 +145,7 @@ void Runner::requestFileContent(int wid) {
             return;
         }
 
-        segmentNo += (m_options->nthreads / 2) * npackets;
+        segmentNo += (m_options->nthreads * 0.5) * npackets;
     }
 }
 

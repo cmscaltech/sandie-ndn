@@ -45,7 +45,7 @@ namespace ndnc {
 #define MAX_MEMIF_RX_BUFS 1024
 #endif
 
-class Memif : public virtual Transport {
+class Memif : public Transport {
   public:
     using DefaultDataroom = std::integral_constant<uint16_t, 2048>;
 
@@ -72,6 +72,7 @@ class Memif : public virtual Transport {
         return true;
     }
 
+  private:
     bool init_memif_socket(const char *socket_path, const char *app_name) {
         memif_socket_args_t *args =
             (memif_socket_args_t *)malloc(sizeof(memif_socket_args_t));
@@ -138,6 +139,7 @@ class Memif : public virtual Transport {
         m_rx_bufs = NULL;
     }
 
+  public:
     void loop() final {
         int err = memif_poll_event(m_socket, 0);
         if (err != MEMIF_ERR_SUCCESS) {
@@ -314,7 +316,7 @@ class Memif : public virtual Transport {
         self->m_up = false;
 
         LOG_DEBUG("memif disconnected");
-        self->invokeDisconnectCallback();
+        self->onDisconnect();
 
         return 0;
     }
@@ -334,7 +336,7 @@ class Memif : public virtual Transport {
 
         for (uint16_t i = 0; i < nRx; ++i) {
             auto b = self->m_rx_bufs[i];
-            self->invokeRxCallback(static_cast<const uint8_t *>(b.data), b.len);
+            self->onReceive(static_cast<const uint8_t *>(b.data), b.len);
         }
 
         memif_refill_queue(conn, qid, nRx, 0);

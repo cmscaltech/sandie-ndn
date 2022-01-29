@@ -62,10 +62,10 @@ class Face {
 
     bool addPacketHandler(PacketHandler &h);
     bool openMemif(int dataroom, std::string gqlserver, std::string name);
-    bool advertise(const std::string prefix);
-
-    bool isValid();
+    bool isValid(); // hasErrors
     void loop();
+
+    bool advertiseNamePrefix(const std::string prefix);
 
     bool send(ndn::Block);
     bool send(std::vector<ndn::Block> &&, uint16_t, uint16_t *);
@@ -74,31 +74,24 @@ class Face {
 
   private:
     /**
-     * @brief Handle memif interupts - packets arrival
+     * @brief Handle peer interupts - packets arrival
      *
      * @param pkt Received packet over memif face
      * @param pktLen Size of received packet
      */
-    void receive(const uint8_t *pkt, size_t pktLen);
-
-    static void receive(void *self, const uint8_t *pkt, size_t pktLen) {
-        reinterpret_cast<Face *>(self)->receive(pkt, pktLen);
-    }
+    void onTransportReceive(const uint8_t *pkt, size_t pktLen);
 
     /**
      * @brief Handle peer disconnect events by gracefully closing memif face
      *
      */
-    void disconnect();
-    static void disconnect(void *self) {
-        reinterpret_cast<Face *>(self)->disconnect();
-    }
+    void onTransportDisconnect();
 
   private:
     std::unique_ptr<mgmt::Client> m_client;
     std::shared_ptr<Counters> m_counters;
 
-    Transport *m_transport;
+    std::shared_ptr<Transport> m_transport;
     PacketHandler *m_packetHandler;
 
     bool m_valid;

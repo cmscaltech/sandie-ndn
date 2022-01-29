@@ -37,43 +37,46 @@
 namespace ndnc {
 class Transport {
   public:
-    using CallbackContext = void *;
-    using RxCallback = void (*)(void *ctx, const uint8_t *pkt, size_t pktLen);
-    using DisconnectCallback = void (*)(void *ctx);
+    using PrivateContext = void *;
+
+    using OnDisconnectCallback = void (*)(PrivateContext ctx);
+    using OnReceiveCallback = void (*)(PrivateContext ctx, const uint8_t *pkt,
+                                       size_t pktLen);
 
   public:
-    virtual ~Transport() = default;
-
     virtual bool isUp() = 0;
     virtual void loop() = 0;
 
     virtual bool send(ndn::Block) = 0;
     virtual bool send(std::vector<ndn::Block> &&, uint16_t, uint16_t *) = 0;
 
-    void setRxCallback(RxCallback cb, void *ctx) {
-        rxCallback = cb;
-        rxCallbackContext = ctx;
+    void setPrivateContext(PrivateContext ctx) {
+        this->context = ctx;
     }
 
-    void invokeRxCallback(const uint8_t *pkt, size_t pktLen) {
-        rxCallback(rxCallbackContext, pkt, pktLen);
+    void setOnDisconnectCallback(OnDisconnectCallback cb) {
+        onDisconnectCallback = cb;
     }
 
-    void setDisconnectCallback(DisconnectCallback cb, void *ctx) {
-        disconnectCallback = cb;
-        disconnectCallbackContext = ctx;
+    void setOnReceiveCallback(OnReceiveCallback cb) {
+        onReceiveCallback = cb;
     }
 
-    void invokeDisconnectCallback() {
-        disconnectCallback(disconnectCallbackContext);
+    void onDisconnect() {
+        if (onDisconnectCallback != nullptr) {
+            onDisconnectCallback(context);
+        }
+    }
+
+    void onReceive(const uint8_t *pkt, size_t pktLen) {
+        onReceiveCallback(context, pkt, pktLen);
     }
 
   private:
-    RxCallback rxCallback = nullptr;
-    DisconnectCallback disconnectCallback = nullptr;
+    PrivateContext context = nullptr;
 
-    CallbackContext rxCallbackContext = nullptr;
-    CallbackContext disconnectCallbackContext = nullptr;
+    OnDisconnectCallback onDisconnectCallback = nullptr;
+    OnReceiveCallback onReceiveCallback = nullptr;
 };
 }; // namespace ndnc
 

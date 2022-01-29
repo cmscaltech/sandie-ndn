@@ -41,7 +41,6 @@ Face::~Face() {
         m_client->deleteFace();
     }
 
-    m_transport = nullptr;
     m_packetHandler = nullptr;
 }
 
@@ -58,40 +57,7 @@ bool Face::addPacketHandler(PacketHandler &h) {
     return true;
 }
 
-bool Face::openMemif(int dataroom, std::string gqlserver, std::string appName) {
-    uint32_t id = 0;
-    m_valid = m_client->createFace(id, dataroom, gqlserver);
-
-    if (!isValid()) {
-        LOG_ERROR("unable to open memif face");
-        return false;
-    }
-
-#if (!defined(__APPLE__) && !defined(__MACH__))
-    static Memif transport;
-    if (!transport.init(m_client->getSocketPath().c_str(), id, appName.c_str(),
-                        dataroom)) {
-        LOG_ERROR("unable to initialize memif face");
-        return false;
-    }
-
-    this->m_transport = &transport;
-#endif
-
-    while (true) {
-        if (m_transport->isUp()) {
-            m_transport->setRxCallback(receive, this);
-            m_transport->setDisconnectCallback(disconnect, this);
-            break;
-        }
-
-        m_transport->loop();
-    }
-
-    return true;
-}
-
-bool Face::advertise(const std::string prefix) {
+bool Face::advertiseNamePrefix(const std::string prefix) {
     if (m_transport == nullptr || !m_transport->isUp()) {
         return false;
     }
@@ -147,7 +113,48 @@ bool Face::send(std::vector<ndn::Block> &&pkts, uint16_t n, uint16_t *nTx) {
     return true;
 }
 
-void Face::receive(const uint8_t *pkt, size_t pktLen) {
+bool Face::openMemif(int dataroom, std::string gqlserver, std::string appName) {
+    uint32_t id = 0;
+    m_valid = m_client->createFace(id, dataroom, gqlserver);
+
+    if (!isValid()) {
+        LOG_ERROR("unable to open memif face");
+        return false;
+    }
+
+#if (!defined(__APPLE__) && !defined(__MACH__))
+    this->m_transport = std::make_shared<Memif>();
+
+    m_valid = std::reinterpret_pointer_cast<Memif>(m_transport)
+                  ->init(m_client->getSocketPath().c_str(), id, appName.c_str(),
+                         dataroom);
+
+    if (!m_valid) {
+        LOG_ERROR("unable to init memif face");
+        return false;
+    }
+#endif
+
+    m_transport->setPrivateContext(this);
+
+    while (!m_transport->isUp()) {
+        usleep(500);
+        m_transport->loop();
+    }
+
+    m_transport->setOnDisconnectCallback([](void *self) {
+        reinterpret_cast<Face *>(self)->onTransportDisconnect();
+    });
+
+    m_transport->setOnReceiveCallback(
+        [](void *self, const uint8_t *pkt, size_t pktLen) {
+            reinterpret_cast<Face *>(self)->onTransportReceive(pkt, pktLen);
+        });
+
+    return true;
+}
+
+void Face::onTransportReceive(const uint8_t *pkt, size_t pktLen) {
 #ifndef NDEBUG
     ++m_counters->nRxPackets;
     m_counters->nRxBytes += pktLen;
@@ -181,31 +188,28 @@ void Face::receive(const uint8_t *pkt, size_t pktLen) {
                 std::make_shared<ndn::lp::Nack>(std::move(*interest)),
                 std::move(pitToken));
         } else {
-            if (m_packetHandler != nullptr) {
-                m_packetHandler->onInterest(std::move(interest),
-                                            std::move(pitToken));
-            }
+            m_packetHandler->onInterest(std::move(interest),
+                                        std::move(pitToken));
         }
-        break;
+        return;
     }
 
     case ndn::tlv::Data: {
-        if (m_packetHandler != nullptr) {
-            m_packetHandler->onData(
-                std::make_shared<ndn::Data>(netPacket),
-                ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
-        }
-        break;
+        m_packetHandler->onData(
+            std::make_shared<ndn::Data>(netPacket),
+            ndn::lp::PitToken(lpPacket.get<ndn::lp::PitTokenField>()));
+
+        return;
     }
 
     default: {
         LOG_WARN("unexpected packet type=%i", netPacket.type());
-        break;
+        return;
     }
     }
 }
 
-void Face::disconnect() {
+void Face::onTransportDisconnect() {
     LOG_FATAL("peer disconnected");
     this->m_valid = false;
 }

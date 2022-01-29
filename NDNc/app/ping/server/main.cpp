@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
 
     LOG_INFO("running...");
 
-    face->advertise(opts.name);
+    face->advertiseNamePrefix(opts.name);
 
     while (shouldRun && face->isValid()) {
         face->loop();

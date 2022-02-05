@@ -69,12 +69,12 @@ void PipelineInterestsFixed::process() {
         }
 
         std::vector<ndn::Block> pkts;
-        pkts.reserve(size);
-
-        for (size_t i = index; i < index + size; ++i) {
-            pkts.emplace_back(
-                ndn::Block(pendingInterests[i].interestBlockValue));
-        }
+        std::transform(pendingInterests.begin() + index,
+                       pendingInterests.begin() + index + size,
+                       std::back_inserter(pkts),
+                       [](PendingInterest pi) -> ndn::Block {
+                           return pi.interestBlockValue;
+                       });
 
         uint16_t n = 0;
         if (!face->send(std::move(pkts), size, &n)) {

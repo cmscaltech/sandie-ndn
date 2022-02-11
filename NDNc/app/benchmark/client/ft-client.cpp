@@ -71,6 +71,10 @@ std::shared_ptr<Runner::Counters> Runner::readCounters() {
     return m_counters;
 }
 
+std::shared_ptr<PipelineInterests::Counters> Runner::readPipeCounters() {
+    return m_pipeline->counters();
+}
+
 void Runner::getFileInfo(uint64_t *size) {
     // Compose Interest packet
     auto interest =

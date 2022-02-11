@@ -280,6 +280,8 @@ int main(int argc, char *argv[]) {
     cout << "\n--- statistics --\n"
          << client->readCounters()->nInterest << " packets transmitted, "
          << client->readCounters()->nData << " packets received\n"
+         << "average delay: " << client->readPipeCounters()->averageDelay()
+         << "\n"
          << "goodput: " << humanReadableSize(goodput, 'b') << "/s"
 #ifndef NDEBUG
          << ", throughput: " << humanReadableSize(throughput, 'b') << "/s\n";

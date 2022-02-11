@@ -73,6 +73,7 @@ class Runner : public std::enable_shared_from_this<Runner> {
     void getFileInfo(uint64_t *size);
 
     std::shared_ptr<Counters> readCounters();
+    std::shared_ptr<PipelineInterests::Counters> readPipeCounters();
 
     void requestFileContent(int wid);
     void receiveFileContent(NotifyProgressStatus);

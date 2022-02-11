@@ -44,11 +44,25 @@ class PipelineInterests : public PacketHandler {
     using PendingInterestsTable = std::unordered_map<uint64_t, PendingInterest>;
     using ExpressedInterestsQueue = std::queue<uint64_t>;
 
+    struct Counters {
+        uint64_t nTxPackets = 0;
+        uint64_t nRxPackets = 0;
+        uint64_t nNacks = 0;
+        uint64_t nTimeouts = 0;
+        ndn::time::milliseconds delay = ndn::time::milliseconds{0};
+
+        ndn::time::milliseconds averageDelay() {
+            return ndn::time::milliseconds{
+                nRxPackets > 0 ? delay.count() / nRxPackets : 0};
+        }
+    };
+
   public:
     explicit PipelineInterests(Face &face) : PacketHandler(face), m_stop{true} {
         m_pit = std::make_shared<PendingInterestsTable>();
         m_queue = std::make_shared<ExpressedInterestsQueue>();
         m_rdn = std::make_shared<RandomNumberGenerator<uint64_t>>();
+        m_counters = std::make_shared<Counters>();
     }
 
     virtual ~PipelineInterests() {
@@ -79,6 +93,10 @@ class PipelineInterests : public PacketHandler {
 
     uint64_t getPendingRequestsCount() {
         return m_requestQueue.size_approx();
+    }
+
+    std::shared_ptr<Counters> counters() {
+        return this->m_counters;
     }
 
   public:
@@ -131,6 +149,7 @@ class PipelineInterests : public PacketHandler {
     std::shared_ptr<PendingInterestsTable> m_pit;
     std::shared_ptr<ExpressedInterestsQueue> m_queue;
     std::shared_ptr<RandomNumberGenerator<uint64_t>> m_rdn;
+    std::shared_ptr<Counters> m_counters;
 
     RequestQueue m_requestQueue;
     ResponseQueue m_responseQueue;

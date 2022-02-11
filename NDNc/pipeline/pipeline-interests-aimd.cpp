@@ -85,6 +85,8 @@ void PipelineInterestsAimd::process() {
             return;
         }
 
+        m_counters->nTxPackets += n;
+
         for (n += index; index < n; ++index, --size) {
             pendingInterests[index].markAsExpressed();
             // Timeouts handler
@@ -97,9 +99,12 @@ void PipelineInterestsAimd::process() {
 
 void PipelineInterestsAimd::onData(std::shared_ptr<ndn::Data> &&data,
                                    ndn::lp::PitToken &&pitToken) {
+    ++m_counters->nRxPackets;
+
     auto pitKey = getPITTokenValue(std::move(pitToken));
 
-    if (m_pit->find(pitKey) == m_pit->end()) {
+    auto it = m_pit->find(pitKey);
+    if (it == m_pit->end()) {
         LOG_DEBUG("unexpected Data packet dropped");
         return;
     }
@@ -109,7 +114,9 @@ void PipelineInterestsAimd::onData(std::shared_ptr<ndn::Data> &&data,
         LOG_DEBUG("ECN received");
     }
 
-    m_pit->erase(pitKey);
+    m_counters->delay += it->second.timeSinceExpressed();
+
+    m_pit->erase(it);
     enqueueData(std::move(data)); // Enqueue Data into Response queue
 
     increaseWindow();
@@ -117,6 +124,8 @@ void PipelineInterestsAimd::onData(std::shared_ptr<ndn::Data> &&data,
 
 void PipelineInterestsAimd::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
                                    ndn::lp::PitToken &&pitToken) {
+
+    ++m_counters->nNacks;
 
     auto pitKey = getPITTokenValue(std::move(pitToken));
     if (m_pit->find(pitKey) == m_pit->end()) {
@@ -169,6 +178,9 @@ void PipelineInterestsAimd::onTimeout() {
         if (!pendingInterest.hasExpired()) {
             return;
         }
+
+        ++m_counters->nTimeouts;
+
         m_pit->erase(it);
         m_queue->pop();
 

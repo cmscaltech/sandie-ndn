@@ -84,6 +84,8 @@ void PipelineInterestsFixed::process() {
             return;
         }
 
+        m_counters->nTxPackets += n;
+
         for (n += index; index < n; ++index, --size) {
             pendingInterests[index].markAsExpressed();
             // Timeouts handler
@@ -96,19 +98,26 @@ void PipelineInterestsFixed::process() {
 
 void PipelineInterestsFixed::onData(std::shared_ptr<ndn::Data> &&data,
                                     ndn::lp::PitToken &&pitToken) {
-    auto pitKey = getPITTokenValue(std::move(pitToken));
+    ++m_counters->nRxPackets;
 
-    if (m_pit->find(pitKey) == m_pit->end()) {
+    auto pitKey = getPITTokenValue(std::move(pitToken));
+    auto it = m_pit->find(pitKey);
+
+    if (it == m_pit->end()) {
         LOG_DEBUG("unexpected Data packet dropped");
         return;
     }
 
-    m_pit->erase(pitKey);
+    m_counters->delay += it->second.timeSinceExpressed();
+
+    m_pit->erase(it);
     enqueueData(std::move(data)); // Enqueue Data into Response queue
 }
 
 void PipelineInterestsFixed::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
                                     ndn::lp::PitToken &&pitToken) {
+
+    ++m_counters->nNacks;
 
     auto pitKey = getPITTokenValue(std::move(pitToken));
     if (m_pit->find(pitKey) == m_pit->end()) {
@@ -161,6 +170,8 @@ void PipelineInterestsFixed::onTimeout() {
         if (!pendingInterest.hasExpired()) {
             return;
         }
+
+        ++m_counters->nTimeouts;
 
         m_pit->erase(it);
         m_queue->pop();

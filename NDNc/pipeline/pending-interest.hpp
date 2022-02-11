@@ -55,10 +55,13 @@ class PendingInterest {
         expressedAt = ndn::time::steady_clock::now();
     }
 
-    bool hasExpired() const {
+    inline ndn::time::milliseconds timeSinceExpressed() const {
         return ndn::time::duration_cast<ndn::time::milliseconds>(
-                   ndn::time::steady_clock::now() - expressedAt) >
-               interestLifetime;
+            ndn::time::steady_clock::now() - expressedAt);
+    }
+
+    bool hasExpired() const {
+        return timeSinceExpressed() > interestLifetime;
     }
 
   public:

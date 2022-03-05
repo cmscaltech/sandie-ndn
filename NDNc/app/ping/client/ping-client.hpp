@@ -35,9 +35,9 @@ namespace ping {
 namespace client {
 
 struct Options {
-    size_t mtu = 9000;                                // Dataroom size
-    std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
-    std::string name;                                 // Name prefix
+    size_t mtu = 9000;                                 // Dataroom size
+    std::string gqlserver = "http://172.17.0.2:3030/"; // GraphQL server address
+    std::string name;                                  // Name prefix
     ndn::time::milliseconds lifetime =
         ndn::time::seconds{1}; // Interest lifetime
 };

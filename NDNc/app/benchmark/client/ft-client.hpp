@@ -40,8 +40,8 @@ namespace benchmark {
 namespace ft {
 
 struct ClientOptions {
-    size_t mtu = 9000;                                // Dataroom size
-    std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
+    size_t mtu = 9000;                                 // Dataroom size
+    std::string gqlserver = "http://172.17.0.2:3030/"; // GraphQL server address
     std::string influxdbaddr = "";
     std::string influxdbname = "";
 
@@ -51,8 +51,8 @@ struct ClientOptions {
     std::string file;      // The file path
     uint16_t nthreads = 2; // The number of worker threads
 
-    PipelineType pipelineType = PipelineType::fixed;
-    uint16_t pipelineSize = 16384;
+    PipelineType pipelineType = PipelineType::aimd;
+    uint16_t pipelineSize = 32768;
 };
 
 class Runner : public std::enable_shared_from_this<Runner> {

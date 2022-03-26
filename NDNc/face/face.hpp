@@ -28,6 +28,7 @@
 #ifndef NDNC_FACE_HPP
 #define NDNC_FACE_HPP
 
+#include <atomic>
 #include <memory>
 #if (!defined(__APPLE__) && !defined(__MACH__))
 #include "memif.hpp"
@@ -42,18 +43,16 @@ class PacketHandler;
 #include "packet-handler.hpp"
 
 namespace ndnc {
+namespace face {
 class Face {
   public:
-    /**
-     * @brief Face counters - enabled for debug builds only
-     *
-     */
+    // Face counters - enabled for debug builds only
     struct Counters {
-        uint64_t nTxPackets = 0;
-        uint64_t nRxPackets = 0;
-        uint64_t nTxBytes = 0;
-        uint64_t nRxBytes = 0;
-        uint16_t nErrors = 0;
+        std::atomic<uint64_t> nTxPackets = 0;
+        std::atomic<uint64_t> nRxPackets = 0;
+        std::atomic<uint64_t> nTxBytes = 0;
+        std::atomic<uint64_t> nRxBytes = 0;
+        std::atomic<uint16_t> nErrors = 0;
     };
 
   public:
@@ -62,13 +61,13 @@ class Face {
 
     bool addPacketHandler(PacketHandler &h);
     bool openMemif(int dataroom, std::string gqlserver, std::string name);
-    bool isValid(); // hasErrors
+    bool isValid();
     void loop();
 
-    bool advertiseNamePrefix(const std::string prefix);
+    bool advertiseNamePrefix(const std::string prefix, void *);
 
-    bool send(ndn::Block);
-    bool send(std::vector<ndn::Block> &&, uint16_t, uint16_t *);
+    bool send(ndn::Block, void *);
+    bool send(std::vector<ndn::Block> &&, uint16_t, void *);
 
     std::shared_ptr<Counters> readCounters();
 
@@ -81,21 +80,16 @@ class Face {
      */
     void onTransportReceive(const uint8_t *pkt, size_t pktLen);
 
-    /**
-     * @brief Handle peer disconnect events by gracefully closing memif face
-     *
-     */
-    void onTransportDisconnect();
-
   private:
     std::unique_ptr<mgmt::Client> m_client;
     std::shared_ptr<Counters> m_counters;
 
-    std::shared_ptr<Transport> m_transport;
+    std::shared_ptr<transport::Transport> m_transport;
     PacketHandler *m_packetHandler;
 
     bool m_valid;
 };
+}; // namespace face
 }; // namespace ndnc
 
 #endif // NDNC_FACE_HPP

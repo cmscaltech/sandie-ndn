@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2021 California Institute of Technology
+ * Copyright (c) 2022 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,38 +25,36 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_FACE_PACKET_HANDLER_HPP
-#define NDNC_FACE_PACKET_HANDLER_HPP
+#ifndef NDNC_TRANSPORT_MEMIF_CONNECTION_HPP
+#define NDNC_TRANSPORT_MEMIF_CONNECTION_HPP
 
-#include "encoding/encoding.hpp"
+extern "C" {
+#include <libmemif.h>
+}
 
 namespace ndnc {
 namespace face {
-class Face;
-};
+namespace transport {
+typedef struct memif_connection {
+    uint16_t index;
+    memif_conn_handle_t handle;
+    uint8_t is_connected;
+    // transmit queue id
+    uint16_t tx_qid;
+    /* tx buffers */
+    memif_buffer_t *tx_bufs;
+    // allocated tx buffers counter
+    // number of tx buffers pointing to shared memory
+    uint16_t tx_buf_num;
+    // rx buffers
+    memif_buffer_t *rx_bufs;
+    // allocated rx buffers counter
+    // number of rx buffers pointing to shared memory
+    uint16_t rx_buf_num;
+    void *transport;
+} memif_connection_t;
+}; // namespace transport
+}; // namespace face
 }; // namespace ndnc
 
-#include "face.hpp"
-
-namespace ndnc {
-class PacketHandler {
-  public:
-    explicit PacketHandler(face::Face &f);
-
-  protected:
-    virtual ~PacketHandler();
-
-  public:
-    virtual void onInterest(std::shared_ptr<ndn::Interest> &&,
-                            ndn::lp::PitToken &&);
-    virtual void onData(std::shared_ptr<ndn::Data> &&, ndn::lp::PitToken &&);
-    virtual void onNack(std::shared_ptr<ndn::lp::Nack> &&,
-                        ndn::lp::PitToken &&);
-
-  protected:
-    face::Face *face;
-    friend face::Face;
-};
-}; // namespace ndnc
-
-#endif // NDNC_FACE_PACKET_HANDLER_HPP
+#endif // NDNC_TRANSPORT_MEMIF_CONNECTION_HPP

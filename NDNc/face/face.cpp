@@ -29,6 +29,7 @@
 #include "logger/logger.hpp"
 
 namespace ndnc {
+namespace face {
 Face::Face() : m_transport(nullptr), m_packetHandler(nullptr), m_valid(false) {
     m_client = std::make_unique<mgmt::Client>();
     m_counters = std::make_shared<Counters>();
@@ -57,8 +58,8 @@ bool Face::addPacketHandler(PacketHandler &h) {
     return true;
 }
 
-bool Face::advertiseNamePrefix(const std::string prefix) {
-    if (m_transport == nullptr || !m_transport->isUp()) {
+bool Face::advertiseNamePrefix(const std::string prefix, void *ctx) {
+    if (m_transport == nullptr || !m_transport->isConnected(ctx)) {
         return false;
     }
 
@@ -81,8 +82,8 @@ std::shared_ptr<Face::Counters> Face::readCounters() {
     return this->m_counters;
 }
 
-bool Face::send(ndn::Block pkt) {
-    if (!m_transport->send(pkt)) {
+bool Face::send(ndn::Block pkt, void *ctx) {
+    if (m_transport->send(pkt, ctx) == 0) {
 #ifndef NDEBUG
         ++m_counters->nErrors;
 #endif // NDEBUG
@@ -96,8 +97,10 @@ bool Face::send(ndn::Block pkt) {
     return true;
 }
 
-bool Face::send(std::vector<ndn::Block> &&pkts, uint16_t n, uint16_t *nTx) {
-    if (!m_transport->send(std::move(pkts), n, nTx)) {
+bool Face::send(std::vector<ndn::Block> &&pkts, uint16_t n, void *ctx) {
+    auto tx = m_transport->send(std::move(pkts), n, ctx);
+
+    if (tx == 0) {
 #ifndef NDEBUG
         ++m_counters->nErrors;
 #endif // NDEBUG
@@ -105,8 +108,8 @@ bool Face::send(std::vector<ndn::Block> &&pkts, uint16_t n, uint16_t *nTx) {
     }
 
 #ifndef NDEBUG
-    m_counters->nTxPackets += *nTx;
-    for (auto i = 0; i < *nTx; ++i) {
+    m_counters->nTxPackets += tx;
+    for (auto i = 0; i < tx; ++i) {
         m_counters->nTxBytes += pkts[i].size();
     }
 #endif // NDEBUG
@@ -123,28 +126,17 @@ bool Face::openMemif(int dataroom, std::string gqlserver, std::string appName) {
     }
 
 #if (!defined(__APPLE__) && !defined(__MACH__))
-    this->m_transport = std::make_shared<Memif>();
-
-    m_valid = std::reinterpret_pointer_cast<Memif>(m_transport)
-                  ->init(m_client->getSocketPath().c_str(), id, appName.c_str(),
-                         dataroom);
-
-    if (!m_valid) {
-        LOG_ERROR("unable to init memif face");
+    try {
+        this->m_transport = std::make_shared<transport::Memif>(
+            dataroom, m_client->getSocketPath().c_str(), appName.c_str());
+    } catch (const std::exception &e) {
+        m_valid = false;
+        LOG_FATAL(e.what());
         return false;
     }
 #endif
 
-    m_transport->setPrivateContext(this);
-
-    while (!m_transport->isUp()) {
-        usleep(500);
-        m_transport->loop();
-    }
-
-    m_transport->setOnDisconnectCallback([](void *self) {
-        reinterpret_cast<Face *>(self)->onTransportDisconnect();
-    });
+    m_transport->setContext(this);
 
     m_transport->setOnReceiveCallback(
         [](void *self, const uint8_t *pkt, size_t pktLen) {
@@ -208,9 +200,5 @@ void Face::onTransportReceive(const uint8_t *pkt, size_t pktLen) {
     }
     }
 }
-
-void Face::onTransportDisconnect() {
-    LOG_FATAL("peer disconnected");
-    this->m_valid = false;
-}
+}; // namespace face
 }; // namespace ndnc

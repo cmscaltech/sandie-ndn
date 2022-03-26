@@ -28,7 +28,7 @@
 #include "packet-handler.hpp"
 
 namespace ndnc {
-PacketHandler::PacketHandler(Face &f) {
+PacketHandler::PacketHandler(face::Face &f) {
     f.addPacketHandler(*this);
 }
 

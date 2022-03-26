@@ -35,37 +35,29 @@
 #include <ndn-cxx/encoding/block.hpp>
 
 namespace ndnc {
+namespace face {
+namespace transport {
 class Transport {
   public:
-    using PrivateContext = void *;
-
-    using OnDisconnectCallback = void (*)(PrivateContext ctx);
-    using OnReceiveCallback = void (*)(PrivateContext ctx, const uint8_t *pkt,
+    using Context = void *;
+    using OnReceiveCallback = void (*)(Context ctx, const uint8_t *pkt,
                                        size_t pktLen);
 
   public:
-    virtual bool isUp() = 0;
-    virtual void loop() = 0;
+    virtual Context getInterface(uint32_t id);
 
-    virtual bool send(ndn::Block) = 0;
-    virtual bool send(std::vector<ndn::Block> &&, uint16_t, uint16_t *) = 0;
+    virtual bool loop() = 0;
+    virtual bool isConnected(Context) = 0;
 
-    void setPrivateContext(PrivateContext ctx) {
+    virtual int send(ndn::Block, Context) = 0;
+    virtual int send(std::vector<ndn::Block> &&, uint16_t, Context) = 0;
+
+    void setContext(Context ctx) {
         this->context = ctx;
-    }
-
-    void setOnDisconnectCallback(OnDisconnectCallback cb) {
-        onDisconnectCallback = cb;
     }
 
     void setOnReceiveCallback(OnReceiveCallback cb) {
         onReceiveCallback = cb;
-    }
-
-    void onDisconnect() {
-        if (onDisconnectCallback != nullptr) {
-            onDisconnectCallback(context);
-        }
     }
 
     void onReceive(const uint8_t *pkt, size_t pktLen) {
@@ -73,11 +65,11 @@ class Transport {
     }
 
   private:
-    PrivateContext context = nullptr;
-
-    OnDisconnectCallback onDisconnectCallback = nullptr;
+    Context context = nullptr;
     OnReceiveCallback onReceiveCallback = nullptr;
 };
+}; // namespace transport
+}; // namespace face
 }; // namespace ndnc
 
 #endif // NDNC_FACE_TRANSPORT_HPP

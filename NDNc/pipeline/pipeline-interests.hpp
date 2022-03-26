@@ -58,7 +58,8 @@ class PipelineInterests : public PacketHandler {
     };
 
   public:
-    explicit PipelineInterests(Face &face) : PacketHandler(face), m_stop{true} {
+    explicit PipelineInterests(face::Face &face)
+        : PacketHandler(face), m_stop{true} {
         m_pit = std::make_shared<PendingInterestsTable>();
         m_queue = std::make_shared<ExpressedInterestsQueue>();
         m_rdn = std::make_shared<RandomNumberGenerator<uint64_t>>();

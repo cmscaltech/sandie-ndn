@@ -29,7 +29,8 @@
 #include "pipeline-interests-fixed.hpp"
 
 namespace ndnc {
-PipelineInterestsFixed::PipelineInterestsFixed(Face &face, size_t windowSize)
+PipelineInterestsFixed::PipelineInterestsFixed(face::Face &face,
+                                               size_t windowSize)
     : PipelineInterests(face), m_windowSize{windowSize} {
 }
 
@@ -77,7 +78,7 @@ void PipelineInterestsFixed::process() {
                        });
 
         uint16_t n = 0;
-        if (!face->send(std::move(pkts), size, &n)) {
+        if (!face->send(std::move(pkts), size, nullptr)) {
             LOG_FATAL("unable to send Interest packets on face");
 
             stop();

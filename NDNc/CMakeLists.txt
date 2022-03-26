@@ -37,6 +37,7 @@ add_subdirectory(logger)
 ADD_LIBRARY(ndnc SHARED
                 mgmt/client.cpp
                 face/packet-handler.cpp
+                face/memif.cpp
                 face/face.cpp
                 pipeline/pipeline-interests-fixed.cpp
                 pipeline/pipeline-interests-aimd.cpp

@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#include "pipeline-interests-aimd.hpp"
 #include "logger/logger.hpp"
+#include "pipeline-interests-aimd.hpp"
 
 namespace ndnc {
 PipelineInterestsAimd::PipelineInterestsAimd(Face &face, size_t windowSize)
@@ -78,7 +78,7 @@ void PipelineInterestsAimd::process() {
                        });
 
         uint16_t n = 0;
-        if (!face->send(std::move(pkts), size, &n)) {
+        if (!face->send(std::move(pkts), size, nullptr)) {
             LOG_FATAL("unable to send Interest packets on face");
 
             stop();

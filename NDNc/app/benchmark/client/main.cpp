@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
                               po::value<uint16_t>(&opts.pipelineSize)
                                   ->default_value(opts.pipelineSize),
                               "The maximum pipeline size for `fixed` type or "
-                              "the starting side for `aimd` type");
+                              "the initial ssthresh for `aimd` type");
     description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;

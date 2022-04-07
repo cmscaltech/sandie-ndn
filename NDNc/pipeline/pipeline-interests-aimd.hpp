@@ -52,6 +52,7 @@ class PipelineInterestsAimd : public PipelineInterests {
     void increaseWindow();
 
   private:
+    size_t m_ssthresh;
     size_t m_windowSize;
     size_t m_windowIncCounter;
     ndn::time::steady_clock::time_point m_lastDecrease;

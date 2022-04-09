@@ -25,13 +25,13 @@
  * SOFTWARE.
  */
 
-#include "logger/logger.hpp"
 #include "pipeline-interests-aimd.hpp"
+#include "logger/logger.hpp"
 
 namespace ndnc {
 PipelineInterestsAimd::PipelineInterestsAimd(Face &face, size_t windowSize)
-    : PipelineInterests(face), m_windowSize{windowSize}, m_windowIncCounter{0},
-      m_lastDecrease{ndn::time::steady_clock::now()} {
+    : PipelineInterests(face), m_ssthresh{windowSize}, m_windowSize(30),
+      m_windowIncCounter{0}, m_lastDecrease{ndn::time::steady_clock::now()} {
 }
 
 PipelineInterestsAimd::~PipelineInterestsAimd() {
@@ -218,10 +218,17 @@ void PipelineInterestsAimd::decreaseWindow() {
     m_windowSize /= 2;
     m_windowIncCounter = 0;
     m_windowSize = std::max(m_windowSize, MIN_WINDOW);
+    m_ssthresh = m_windowSize;
     m_lastDecrease = now;
 }
 
 void PipelineInterestsAimd::increaseWindow() {
+    // slow start
+    if (m_windowSize < m_ssthresh) {
+        m_windowSize += 1;
+        return;
+    }
+    // congestion avoidance
     m_windowIncCounter++;
     if (m_windowIncCounter >= m_windowSize) {
         m_windowSize++;

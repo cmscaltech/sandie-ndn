@@ -60,14 +60,14 @@ class Face {
     ~Face();
 
     bool addPacketHandler(PacketHandler &h);
-    bool openMemif(int dataroom, std::string gqlserver, std::string name);
-    bool isValid();
-    void loop();
 
-    bool advertiseNamePrefix(const std::string prefix, void *);
+    bool connect(int dataroom, std::string gqlserver, std::string name);
+    bool advertise(const std::string prefix);
+    bool loop();
+    bool isConnected();
 
-    bool send(ndn::Block, void *);
-    bool send(std::vector<ndn::Block> &&, uint16_t, void *);
+    int send(ndn::Block pkt);
+    int send(std::vector<ndn::Block> &&pkts, uint16_t n);
 
     std::shared_ptr<Counters> readCounters();
 
@@ -86,8 +86,6 @@ class Face {
 
     std::shared_ptr<transport::Transport> m_transport;
     PacketHandler *m_packetHandler;
-
-    bool m_valid;
 };
 }; // namespace face
 }; // namespace ndnc

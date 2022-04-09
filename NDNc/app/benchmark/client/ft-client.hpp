@@ -66,7 +66,7 @@ class Runner : public std::enable_shared_from_this<Runner> {
     };
 
   public:
-    explicit Runner(Face &face, ClientOptions options);
+    explicit Runner(face::Face &face, ClientOptions options);
     ~Runner();
 
     void stop();

@@ -59,7 +59,7 @@ class PipelineInterests : public PacketHandler {
 
   public:
     explicit PipelineInterests(face::Face &face)
-        : PacketHandler(face), m_stop{true} {
+        : PacketHandler(face), m_stop{false} {
         m_pit = std::make_shared<PendingInterestsTable>();
         m_queue = std::make_shared<ExpressedInterestsQueue>();
         m_rdn = std::make_shared<RandomNumberGenerator<uint64_t>>();
@@ -89,7 +89,7 @@ class PipelineInterests : public PacketHandler {
     }
 
     bool isValid() {
-        return !this->m_stop && face != nullptr;
+        return !this->m_stop && face != nullptr && face->isConnected();
     }
 
     uint64_t getPendingRequestsCount() {

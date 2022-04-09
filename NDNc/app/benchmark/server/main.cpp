@@ -40,7 +40,7 @@
 using namespace std;
 namespace po = boost::program_options;
 
-static ndnc::Face *face;
+static ndnc::face::Face *face;
 static ndnc::benchmark::ft::Runner *server;
 static bool shouldRun = true;
 
@@ -118,25 +118,21 @@ int main(int argc, char **argv) {
         }
     }
 
-    face = new ndnc::Face();
-    if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncft-server"))
-        return 2;
-
-    if (!face->isValid()) {
-        cerr << "ERROR: invalid face\n";
+    face = new ndnc::face::Face();
+    if (!face->connect(opts.mtu, opts.gqlserver, "ndncft-server")) {
         return 2;
     }
 
     server = new ndnc::benchmark::ft::Runner(*face, opts);
 
-    if (!face->advertiseNamePrefix(ndnc::benchmark::namePrefixUri)) {
+    if (!face->advertise(ndnc::benchmark::namePrefixUri)) {
         cerr << "ERROR: unable to advertise prefix on face\n";
         return 2;
     }
 
     LOG_INFO("running... ");
 
-    while (shouldRun && face->isValid()) {
+    while (shouldRun && face->isConnected()) {
         face->loop();
     }
 

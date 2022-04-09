@@ -33,7 +33,7 @@
 namespace ndnc {
 namespace benchmark {
 namespace ft {
-Runner::Runner(Face &face, ServerOptions options)
+Runner::Runner(face::Face &face, ServerOptions options)
     : PacketHandler(face), m_options{options}, m_signatureInfo{} {
 
     auto buff = std::make_unique<ndn::Buffer>();

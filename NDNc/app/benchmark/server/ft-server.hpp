@@ -43,7 +43,7 @@ struct ServerOptions {
 
 class Runner : public PacketHandler {
   public:
-    explicit Runner(Face &face, ServerOptions options);
+    explicit Runner(face::Face &face, ServerOptions options);
     ~Runner();
 
   public:

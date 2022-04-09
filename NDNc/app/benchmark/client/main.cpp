@@ -49,7 +49,7 @@ using namespace indicators;
 namespace po = boost::program_options;
 namespace al = boost::algorithm;
 
-static ndnc::Face *face;
+static ndnc::face::Face *face;
 static ndnc::benchmark::ft::Runner *client;
 static ndnc::InfluxDBClient *influxDBClient;
 static std::vector<std::thread> workers;
@@ -214,12 +214,8 @@ int main(int argc, char *argv[]) {
 
     opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;
 
-    face = new ndnc::Face();
-    if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncft-client"))
-        return 2;
-
-    if (!face->isValid()) {
-        cerr << "ERROR: invalid face\n";
+    face = new ndnc::face::Face();
+    if (!face->connect(opts.mtu, opts.gqlserver, "ndncft-client")) {
         return 2;
     }
 

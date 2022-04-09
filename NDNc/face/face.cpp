@@ -30,14 +30,12 @@
 
 namespace ndnc {
 namespace face {
-Face::Face() : m_transport(nullptr), m_packetHandler(nullptr), m_valid(false) {
+Face::Face() : m_transport(nullptr), m_packetHandler(nullptr) {
     m_client = std::make_unique<mgmt::Client>();
     m_counters = std::make_shared<Counters>();
 }
 
 Face::~Face() {
-    m_valid = false;
-
     if (m_client != nullptr) {
         m_client->deleteFace();
     }
@@ -50,7 +48,6 @@ bool Face::addPacketHandler(PacketHandler &h) {
 
     if (m_packetHandler == nullptr) {
         LOG_ERROR("null packet handler");
-        m_valid = false;
         return false;
     }
 
@@ -58,53 +55,44 @@ bool Face::addPacketHandler(PacketHandler &h) {
     return true;
 }
 
-bool Face::advertiseNamePrefix(const std::string prefix, void *ctx) {
-    if (m_transport == nullptr || !m_transport->isConnected(ctx)) {
+bool Face::advertise(const std::string prefix) {
+    if (m_transport == nullptr || !m_transport->isConnected()) {
         return false;
     }
 
-    if (m_client == nullptr || !this->isValid()) {
+    if (m_client == nullptr) {
         return false;
     }
 
     return m_client->insertFibEntry(prefix);
 }
 
-bool Face::isValid() {
-    return m_valid;
-}
-
-void Face::loop() {
-    m_transport->loop();
-}
-
 std::shared_ptr<Face::Counters> Face::readCounters() {
     return this->m_counters;
 }
 
-bool Face::send(ndn::Block pkt, void *ctx) {
-    if (m_transport->send(pkt, ctx) == 0) {
-#ifndef NDEBUG
-        ++m_counters->nErrors;
-#endif // NDEBUG
-        return false;
+int Face::send(ndn::Block pkt) {
+    auto tx = m_transport->send(pkt);
+
+    if (tx < 0) {
+        return tx;
     }
 
 #ifndef NDEBUG
-    m_counters->nTxPackets += 1;
-    m_counters->nTxBytes += pkt.size();
+    if (tx == 1) {
+        m_counters->nTxPackets += 1;
+        m_counters->nTxBytes += pkt.size();
+    }
 #endif // NDEBUG
-    return true;
+
+    return tx;
 }
 
-bool Face::send(std::vector<ndn::Block> &&pkts, uint16_t n, void *ctx) {
-    auto tx = m_transport->send(std::move(pkts), n, ctx);
+int Face::send(std::vector<ndn::Block> &&pkts, uint16_t n) {
+    auto tx = m_transport->send(std::move(pkts), n);
 
-    if (tx == 0) {
-#ifndef NDEBUG
-        ++m_counters->nErrors;
-#endif // NDEBUG
-        return false;
+    if (tx < 0) {
+        return tx;
     }
 
 #ifndef NDEBUG
@@ -113,35 +101,35 @@ bool Face::send(std::vector<ndn::Block> &&pkts, uint16_t n, void *ctx) {
         m_counters->nTxBytes += pkts[i].size();
     }
 #endif // NDEBUG
-    return true;
+
+    return tx;
 }
 
-bool Face::openMemif(int dataroom, std::string gqlserver, std::string appName) {
-    uint32_t id = 0;
-    m_valid = m_client->createFace(id, dataroom, gqlserver);
-
-    if (!isValid()) {
-        LOG_ERROR("unable to open memif face");
+bool Face::connect(int dataroom, std::string gqlserver, std::string appName) {
+    if (!m_client->createFace(0, dataroom, gqlserver)) {
+        LOG_ERROR("unable to create memif");
         return false;
     }
 
 #if (!defined(__APPLE__) && !defined(__MACH__))
     try {
-        this->m_transport = std::make_shared<transport::Memif>(
+        m_transport = std::make_shared<transport::Memif>(
             dataroom, m_client->getSocketPath().c_str(), appName.c_str());
     } catch (const std::exception &e) {
-        m_valid = false;
         LOG_FATAL(e.what());
         return false;
     }
 #endif
 
-    m_transport->setContext(this);
+    if (!m_transport->connect()) {
+        return false;
+    }
 
     m_transport->setOnReceiveCallback(
         [](void *self, const uint8_t *pkt, size_t pktLen) {
             reinterpret_cast<Face *>(self)->onTransportReceive(pkt, pktLen);
-        });
+        },
+        this);
 
     return true;
 }
@@ -199,6 +187,14 @@ void Face::onTransportReceive(const uint8_t *pkt, size_t pktLen) {
         return;
     }
     }
+}
+
+bool Face::isConnected() {
+    return m_transport->isConnected();
+}
+
+bool Face::loop() {
+    return m_transport->loop();
 }
 }; // namespace face
 }; // namespace ndnc

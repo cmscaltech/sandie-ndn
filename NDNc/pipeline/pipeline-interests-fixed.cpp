@@ -77,17 +77,16 @@ void PipelineInterestsFixed::process() {
                            return pi.interestBlockValue;
                        });
 
-        uint16_t n = 0;
-        if (!face->send(std::move(pkts), size, nullptr)) {
+        auto n = face->send(std::move(pkts), size);
+        if (n < 0) {
             LOG_FATAL("unable to send Interest packets on face");
-
             stop();
             return;
         }
 
         m_counters->nTxPackets += n;
 
-        for (n += index; index < n; ++index, --size) {
+        for (n += index; index < (size_t)n; ++index, --size) {
             pendingInterests[index].markAsExpressed();
             // Timeouts handler
             m_queue->push(pendingInterests[index].pitTokenValue);
@@ -105,7 +104,7 @@ void PipelineInterestsFixed::onData(std::shared_ptr<ndn::Data> &&data,
     auto it = m_pit->find(pitKey);
 
     if (it == m_pit->end()) {
-        LOG_DEBUG("unexpected Data packet dropped");
+        LOG_DEBUG("unexpected Data packet dropped"); // TODO: Count this
         return;
     }
 
@@ -122,7 +121,7 @@ void PipelineInterestsFixed::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
 
     auto pitKey = getPITTokenValue(std::move(pitToken));
     if (m_pit->find(pitKey) == m_pit->end()) {
-        LOG_DEBUG("unexpected NACK for packet dropped");
+        LOG_DEBUG("unexpected NACK for packet dropped"); // TODO: Count this
         return;
     }
 
@@ -181,8 +180,8 @@ void PipelineInterestsFixed::onTimeout() {
         interest->refreshNonce();
 
         auto timeoutCounter = pendingInterest.timeoutCounter + 1;
-        LOG_DEBUG("timeout (%li) for %s", timeoutCounter,
-                  interest->getName().toUri().c_str());
+        LOG_INFO("timeout (%li) for %s", timeoutCounter,
+                 interest->getName().toUri().c_str());
 
         if (timeoutCounter < 8) {
             if (!this->enqueueInterest(std::move(interest), timeoutCounter)) {

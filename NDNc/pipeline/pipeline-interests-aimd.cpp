@@ -77,8 +77,8 @@ void PipelineInterestsAimd::process() {
                            return pi.interestBlockValue;
                        });
 
-        uint16_t n = 0;
-        if (!face->send(std::move(pkts), size, nullptr)) {
+        auto n = face->send(std::move(pkts), size);
+        if (n < 0) {
             LOG_FATAL("unable to send Interest packets on face");
 
             stop();
@@ -87,7 +87,7 @@ void PipelineInterestsAimd::process() {
 
         m_counters->nTxPackets += n;
 
-        for (n += index; index < n; ++index, --size) {
+        for (n += index; index < (size_t)n; ++index, --size) {
             pendingInterests[index].markAsExpressed();
             // Timeouts handler
             m_queue->push(pendingInterests[index].pitTokenValue);

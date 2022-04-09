@@ -20,7 +20,7 @@ RUN git clone https://github.com/named-data/ndn-cxx.git && \
 
 RUN git clone https://github.com/FDio/vpp.git && \
     # --single-branch --branch v21.10.1 --depth=1 && \
-    cd vpp && git checkout 8caf9ece87bf22b4326ca3390942e67c775e7529 && cd .. && \
+    cd vpp && git checkout e74c04fc9fb2600470fe79a69d3ec6b0db95faec && cd .. && \
     mkdir libmemif-build && cd libmemif-build && \
     cmake -G Ninja ../vpp/extras/libmemif && \
     ninja && $(which ninja) install && ldconfig && cd ../

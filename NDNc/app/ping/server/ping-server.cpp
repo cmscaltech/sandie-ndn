@@ -36,7 +36,7 @@
 namespace ndnc {
 namespace ping {
 namespace server {
-Runner::Runner(Face &face, Options options)
+Runner::Runner(face::Face &face, Options options)
     : PacketHandler(face), m_options{options}, m_counters{}, m_signatureInfo{} {
 
     auto buff = std::make_unique<ndn::Buffer>();

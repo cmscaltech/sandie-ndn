@@ -49,7 +49,7 @@ class Runner : public std::enable_shared_from_this<Runner> {
         uint32_t nRxData = 0;
     };
 
-    explicit Runner(Face &face, Options options);
+    explicit Runner(face::Face &face, Options options);
     ~Runner();
 
     void run();

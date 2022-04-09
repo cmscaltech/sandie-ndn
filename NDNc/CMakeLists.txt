@@ -35,12 +35,12 @@ add_subdirectory(logger)
 
 # compile ndnc library
 ADD_LIBRARY(ndnc SHARED
-                mgmt/client.cpp
-                face/packet-handler.cpp
                 face/memif.cpp
                 face/face.cpp
+                face/packet-handler.cpp
                 pipeline/pipeline-interests-fixed.cpp
                 pipeline/pipeline-interests-aimd.cpp
+                mgmt/client.cpp
                 utils)
 TARGET_LINK_LIBRARIES(ndnc PRIVATE logger)
 TARGET_LINK_LIBRARIES(ndnc PRIVATE curl)

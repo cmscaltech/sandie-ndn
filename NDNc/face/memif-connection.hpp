@@ -36,12 +36,12 @@ namespace ndnc {
 namespace face {
 namespace transport {
 typedef struct memif_connection {
-    uint16_t index;
-    memif_conn_handle_t handle;
+    // memif connection handle
+    memif_conn_handle_t conn_handle;
     uint8_t is_connected;
     // transmit queue id
     uint16_t tx_qid;
-    /* tx buffers */
+    // tx buffers
     memif_buffer_t *tx_bufs;
     // allocated tx buffers counter
     // number of tx buffers pointing to shared memory
@@ -51,6 +51,7 @@ typedef struct memif_connection {
     // allocated rx buffers counter
     // number of rx buffers pointing to shared memory
     uint16_t rx_buf_num;
+    // ndnc::face::transport
     void *transport;
 } memif_connection_t;
 }; // namespace transport

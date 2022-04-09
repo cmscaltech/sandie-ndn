@@ -132,20 +132,16 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
-    ndnc::Face *face = new ndnc::Face();
-    if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncping-client"))
+    auto face = new ndnc::face::Face();
+    if (!face->connect(opts.mtu, opts.gqlserver, "ndncping-client")) {
         return 2;
-
-    if (!face->isValid()) {
-        cerr << "ERROR: invalid face\n";
-        return -1;
     }
 
     client = new ndnc::ping::client::Runner(*face, opts);
 
     LOG_INFO("running...");
 
-    while (shouldRun && face->isValid() && client->canContinue()) {
+    while (shouldRun && face->isConnected() && client->canContinue()) {
         client->run();
     }
 

@@ -38,7 +38,7 @@
 namespace ndnc {
 namespace ping {
 namespace client {
-Runner::Runner(Face &face, Options options)
+Runner::Runner(face::Face &face, Options options)
     : m_options{options}, m_counters{}, m_stop(false) {
 
     std::random_device rd;

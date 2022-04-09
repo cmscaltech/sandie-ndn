@@ -39,34 +39,34 @@ namespace face {
 namespace transport {
 class Transport {
   public:
-    using Context = void *;
-    using OnReceiveCallback = void (*)(Context ctx, const uint8_t *pkt,
+    using OnReceiveCallback = void (*)(void *ctx, const uint8_t *pkt,
                                        size_t pktLen);
 
   public:
-    virtual Context getInterface(uint32_t id);
+    virtual bool connect() noexcept = 0;
 
-    virtual bool loop() = 0;
-    virtual bool isConnected(Context) = 0;
+    virtual void disconnect() noexcept = 0;
 
-    virtual int send(ndn::Block, Context) = 0;
-    virtual int send(std::vector<ndn::Block> &&, uint16_t, Context) = 0;
+    virtual bool isConnected() noexcept = 0;
 
-    void setContext(Context ctx) {
-        this->context = ctx;
+    virtual bool loop() noexcept = 0;
+
+    virtual int send(ndn::Block pkt) noexcept = 0;
+
+    virtual int send(std::vector<ndn::Block> &&pkt, uint16_t n) noexcept = 0;
+
+    void receive(const uint8_t *pkt, size_t pktLen) noexcept {
+        onReceive(context, pkt, pktLen);
     }
 
-    void setOnReceiveCallback(OnReceiveCallback cb) {
-        onReceiveCallback = cb;
-    }
-
-    void onReceive(const uint8_t *pkt, size_t pktLen) {
-        onReceiveCallback(context, pkt, pktLen);
+    void setOnReceiveCallback(OnReceiveCallback cb, void *ctx) noexcept {
+        this->context = ctx; // face object
+        this->onReceive = cb;
     }
 
   private:
-    Context context = nullptr;
-    OnReceiveCallback onReceiveCallback = nullptr;
+    void *context = nullptr;
+    OnReceiveCallback onReceive = nullptr;
 };
 }; // namespace transport
 }; // namespace face

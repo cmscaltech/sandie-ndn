@@ -32,7 +32,7 @@
 namespace ndnc {
 namespace benchmark {
 namespace ft {
-Runner::Runner(Face &face, ClientOptions options)
+Runner::Runner(face::Face &face, ClientOptions options)
     : m_stop{false}, m_error{false}, m_nReceived{0}, m_metadata{nullptr} {
     m_options = std::make_shared<ClientOptions>(options);
     m_counters = std::make_shared<Counters>();

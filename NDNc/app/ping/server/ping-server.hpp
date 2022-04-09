@@ -49,7 +49,7 @@ class Runner : public PacketHandler,
         uint32_t nTxData = 0;
     };
 
-    explicit Runner(Face &face, Options options);
+    explicit Runner(face::Face &face, Options options);
     ~Runner();
 
     Counters readCounters();

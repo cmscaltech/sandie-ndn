@@ -128,12 +128,8 @@ int main(int argc, char **argv) {
         }
     }
 
-    ndnc::Face *face = new ndnc::Face();
-    if (!face->openMemif(opts.mtu, opts.gqlserver, "ndncping-server"))
-        return 2;
-
-    if (!face->isValid()) {
-        cerr << "ERROR: invalid face\n";
+    auto face = new ndnc::face::Face();
+    if (!face->connect(opts.mtu, opts.gqlserver, "ndncping-server")) {
         return 2;
     }
 
@@ -142,9 +138,9 @@ int main(int argc, char **argv) {
 
     LOG_INFO("running...");
 
-    face->advertiseNamePrefix(opts.name);
+    face->advertise(opts.name);
 
-    while (shouldRun && face->isValid()) {
+    while (shouldRun && face->isConnected()) {
         face->loop();
     }
 

@@ -28,6 +28,8 @@
 #ifndef NDNC_TRANSPORT_MEMIF_HPP
 #define NDNC_TRANSPORT_MEMIF_HPP
 
+#include <array>
+
 #include "logger/logger.hpp"
 #include "memif-connection.hpp"
 #include "transport.hpp"
@@ -35,6 +37,7 @@
 namespace ndnc {
 namespace face {
 namespace transport {
+
 #define MAX_MEMIF_TX_BUFS 256  // send burst size
 #define MAX_MEMIF_RX_BUFS 1024 // receive burst size
 
@@ -44,38 +47,40 @@ class Memif : public Transport {
           const char *appName = "");
     ~Memif();
 
-    void *getInterface(uint32_t id) final;
+    bool connect() noexcept final;
 
-    bool loop() final;
+    void disconnect() noexcept final;
 
-    bool isConnected(void *ctx) final;
+    bool isConnected() noexcept final;
 
-    int send(ndn::Block pkt, void *ctx) final;
+    bool loop() noexcept final;
 
-    int send(std::vector<ndn::Block> &&pkts, uint16_t n, void *ctx) final;
+    int send(ndn::Block pkt) noexcept final;
+
+    int send(std::vector<ndn::Block> &&pkts, uint16_t n) noexcept final;
 
   private:
     bool createSocket(const char *socketPath, const char *appName);
 
-    memif_connection_t *createInterface(uint32_t id);
+    memif_connection_t *createInterface(int id);
 
   private:
-    static int on_connect(memif_conn_handle_t handle, void *ctx);
+    static int handleConnect(memif_conn_handle_t conn_handle, void *ctx);
 
-    static int on_disconnect(memif_conn_handle_t handle, void *ctx);
+    static int handleDisconnect(memif_conn_handle_t conn_handle, void *ctx);
 
-    static int on_interrupt(memif_conn_handle_t handle, void *ctx,
-                            uint16_t qid);
+    static int handleInterrupt(memif_conn_handle_t conn_handle, void *ctx,
+                               uint16_t qid);
 
-    static uint16_t size_to_pow2(size_t len);
+    static void logDetails(memif_connection_t *conn);
 
-    static void print_memif_details(memif_connection_t *conn);
+    static uint16_t pow2(size_t len);
 
   private:
     uint16_t m_dataroom;
-    uint8_t m_conn_count;
+
     memif_socket_handle_t m_socket;
-    memif_connection_t *m_conn[32];
+    memif_connection_t *m_conn;
 };
 }; // namespace transport
 }; // namespace face

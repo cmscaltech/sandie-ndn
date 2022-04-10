@@ -32,7 +32,6 @@ namespace ndnc {
 namespace face {
 Face::Face() : m_transport(nullptr), m_packetHandler(nullptr) {
     m_client = std::make_unique<mgmt::Client>();
-    m_counters = std::make_shared<Counters>();
 }
 
 Face::~Face() {
@@ -67,42 +66,12 @@ bool Face::advertise(const std::string prefix) {
     return m_client->insertFibEntry(prefix);
 }
 
-std::shared_ptr<Face::Counters> Face::readCounters() {
-    return this->m_counters;
-}
-
 int Face::send(ndn::Block pkt) {
-    auto tx = m_transport->send(pkt);
-
-    if (tx < 0) {
-        return tx;
-    }
-
-#ifndef NDEBUG
-    if (tx == 1) {
-        m_counters->nTxPackets += 1;
-        m_counters->nTxBytes += pkt.size();
-    }
-#endif // NDEBUG
-
-    return tx;
+    return m_transport->send(pkt);
 }
 
 int Face::send(std::vector<ndn::Block> &&pkts, uint16_t n) {
-    auto tx = m_transport->send(std::move(pkts), n);
-
-    if (tx < 0) {
-        return tx;
-    }
-
-#ifndef NDEBUG
-    m_counters->nTxPackets += tx;
-    for (auto i = 0; i < tx; ++i) {
-        m_counters->nTxBytes += pkts[i].size();
-    }
-#endif // NDEBUG
-
-    return tx;
+    return m_transport->send(std::move(pkts), n);
 }
 
 bool Face::connect(int dataroom, std::string gqlserver, std::string appName) {
@@ -135,19 +104,11 @@ bool Face::connect(int dataroom, std::string gqlserver, std::string appName) {
 }
 
 void Face::onTransportReceive(const uint8_t *pkt, size_t pktLen) {
-#ifndef NDEBUG
-    ++m_counters->nRxPackets;
-    m_counters->nRxBytes += pktLen;
-#endif // NDEBUG
-
     ndn::Block wire;
     bool isOk;
 
     std::tie(isOk, wire) = ndn::Block::fromBuffer(pkt, pktLen);
     if (!isOk) {
-#ifndef NDEBUG
-        ++m_counters->nErrors;
-#endif // NDEBUG
         return;
     }
 

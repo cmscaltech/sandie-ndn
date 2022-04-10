@@ -268,32 +268,13 @@ int main(int argc, char *argv[]) {
     double goodput = ((double)client->readCounters()->nByte * 8.0) /
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
-#ifndef NDEBUG
-    double throughput = ((double)face->readCounters()->nRxBytes * 8.0) /
-                        (duration / std::chrono::nanoseconds(1)) * 1e9;
-#endif
-
     cout << "\n--- statistics --\n"
          << client->readCounters()->nInterest << " packets transmitted, "
          << client->readCounters()->nData << " packets received\n"
          << "average delay: " << client->readPipeCounters()->averageDelay()
          << "\n"
          << "goodput: " << humanReadableSize(goodput, 'b') << "/s"
-#ifndef NDEBUG
-         << ", throughput: " << humanReadableSize(throughput, 'b') << "/s\n";
-#else
-         << "\n";
-#endif
-
-#ifndef NDEBUG
-    cout << "\n--- face statistics --\n"
-         << face->readCounters()->nTxPackets << " packets transmitted, "
-         << face->readCounters()->nRxPackets << " packets received\n"
-         << face->readCounters()->nTxBytes << " bytes transmitted, "
-         << face->readCounters()->nRxBytes << " bytes received "
-         << "with " << face->readCounters()->nErrors << " errors\n";
-#endif // NDEBUG
-    cout << endl;
+         << "\n\n";
 
     cleanOnExit();
     return 0;

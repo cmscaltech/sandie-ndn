@@ -69,8 +69,6 @@ class Face {
     int send(ndn::Block pkt);
     int send(std::vector<ndn::Block> &&pkts, uint16_t n);
 
-    std::shared_ptr<Counters> readCounters();
-
   private:
     /**
      * @brief Handle peer interupts - packets arrival
@@ -82,7 +80,6 @@ class Face {
 
   private:
     std::unique_ptr<mgmt::Client> m_client;
-    std::shared_ptr<Counters> m_counters;
 
     std::shared_ptr<transport::Transport> m_transport;
     PacketHandler *m_packetHandler;

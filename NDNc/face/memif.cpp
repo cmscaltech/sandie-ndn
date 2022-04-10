@@ -58,8 +58,8 @@ bool Memif::connect() noexcept {
         return false;
     }
 
-    for (int n = 0; !isConnected() && n < 20; ++n) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    for (int n = 0; !isConnected() && n < 1e4; ++n) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
         loop();
     }
 

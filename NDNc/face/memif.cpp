@@ -33,10 +33,8 @@
 namespace ndnc {
 namespace face {
 namespace transport {
-Memif::Memif(uint16_t dataroom, const char *socketPath, const char *appName) {
-    m_dataroom = dataroom;
-    m_socket = nullptr;
-    m_conn = nullptr;
+Memif::Memif(uint16_t dataroom, const char *socketPath, const char *appName)
+    : m_dataroom{dataroom}, m_socket{nullptr}, m_conn{nullptr} {
 
     if (!this->createSocket(socketPath, appName)) {
         throw std::runtime_error("unable to create memif socket");
@@ -49,60 +47,6 @@ Memif::~Memif() {
     if (m_socket != nullptr) {
         memif_delete_socket(&m_socket);
     }
-}
-
-bool Memif::connect() noexcept {
-    m_conn = createInterface(0);
-
-    if (m_conn == nullptr) {
-        return false;
-    }
-
-    for (int n = 0; !isConnected() && n < 1e4; ++n) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        loop();
-    }
-
-    if (!isConnected()) {
-        LOG_FATAL("Unable to connect to memif");
-        return false;
-    }
-
-    return true;
-}
-
-void Memif::disconnect() noexcept {
-    LOG_DEBUG("Disconnecting...");
-
-    if (m_conn == nullptr) {
-        return;
-    }
-
-    m_conn->is_connected = 0;
-
-    if (m_conn->tx_bufs != nullptr) {
-        free(m_conn->tx_bufs);
-    }
-    m_conn->tx_bufs = nullptr;
-    m_conn->tx_buf_num = 0;
-
-    if (m_conn->rx_bufs != nullptr) {
-        free(m_conn->rx_bufs);
-    }
-    m_conn->rx_bufs = nullptr;
-    m_conn->rx_buf_num = 0;
-
-    m_conn->transport = nullptr;
-
-    if (m_conn->conn_handle != nullptr) {
-        memif_delete(&m_conn->conn_handle);
-    }
-
-    free(m_conn);
-}
-
-bool Memif::isConnected() noexcept {
-    return m_conn->is_connected;
 }
 
 bool Memif::createSocket(const char *socketPath, const char *appName) {
@@ -166,6 +110,58 @@ memif_connection_t *Memif::createInterface(int id) {
     return conn;
 }
 
+bool Memif::connect() noexcept {
+    m_conn = createInterface(0);
+
+    if (m_conn == nullptr) {
+        return false;
+    }
+
+    for (auto i = 0; !isConnected() && i < 1e4; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        loop();
+    }
+
+    if (!isConnected()) {
+        LOG_FATAL("unable to connect to memif");
+        return false;
+    }
+
+    return true;
+}
+
+bool Memif::isConnected() noexcept {
+    return m_conn->is_connected;
+}
+
+void Memif::disconnect() noexcept {
+    if (m_conn == nullptr) {
+        return;
+    }
+
+    m_conn->is_connected = 0;
+
+    if (m_conn->tx_bufs != nullptr) {
+        free(m_conn->tx_bufs);
+    }
+    m_conn->tx_bufs = nullptr;
+    m_conn->tx_buf_num = 0;
+
+    if (m_conn->rx_bufs != nullptr) {
+        free(m_conn->rx_bufs);
+    }
+    m_conn->rx_bufs = nullptr;
+    m_conn->rx_buf_num = 0;
+
+    m_conn->transport = nullptr;
+
+    if (m_conn->conn_handle != nullptr) {
+        memif_delete(&m_conn->conn_handle);
+    }
+
+    free(m_conn);
+}
+
 bool Memif::loop() noexcept {
     auto err = memif_poll_event(m_socket, 0);
 
@@ -184,6 +180,8 @@ int Memif::send(ndn::Block pkt) noexcept {
     }
 
     if (m_conn->tx_buf_num >= MAX_MEMIF_TX_BUFS) {
+        LOG_ERROR("memif send drop=max-memif-tx-bufs-exceeded num=%d",
+                  m_conn->tx_buf_num);
         return -1;
     }
 
@@ -232,6 +230,8 @@ int Memif::send(std::vector<ndn::Block> &&pkts, uint16_t n) noexcept {
     }
 
     if (m_conn->tx_buf_num >= MAX_MEMIF_TX_BUFS) {
+        LOG_ERROR("memif send drop=max-memif-tx-bufs-exceeded num=%d",
+                  m_conn->tx_buf_num);
         return -1;
     }
 

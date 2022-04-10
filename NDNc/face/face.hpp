@@ -46,27 +46,22 @@ namespace ndnc {
 namespace face {
 class Face {
   public:
-    // Face counters - enabled for debug builds only
-    struct Counters {
-        std::atomic<uint64_t> nTxPackets = 0;
-        std::atomic<uint64_t> nRxPackets = 0;
-        std::atomic<uint64_t> nTxBytes = 0;
-        std::atomic<uint64_t> nRxBytes = 0;
-        std::atomic<uint16_t> nErrors = 0;
-    };
-
-  public:
     Face();
+
     ~Face();
+
+    bool connect(int dataroom, std::string gqlserver, std::string name);
+
+    bool isConnected();
+
+    bool loop();
 
     bool addPacketHandler(PacketHandler &h);
 
-    bool connect(int dataroom, std::string gqlserver, std::string name);
     bool advertise(const std::string prefix);
-    bool loop();
-    bool isConnected();
 
     int send(ndn::Block pkt);
+
     int send(std::vector<ndn::Block> &&pkts, uint16_t n);
 
   private:
@@ -74,15 +69,15 @@ class Face {
      * @brief Handle peer interupts - packets arrival
      *
      * @param pkt Received packet over memif face
-     * @param pktLen Size of received packet
+     * @param len Size of received packet
      */
-    void onTransportReceive(const uint8_t *pkt, size_t pktLen);
+    void receive(const uint8_t *pkt, size_t len);
 
   private:
-    std::unique_ptr<mgmt::Client> m_client;
-
     std::shared_ptr<transport::Transport> m_transport;
+    std::shared_ptr<mgmt::Client> m_gqlClient;
     PacketHandler *m_packetHandler;
+    bool m_hasError;
 };
 }; // namespace face
 }; // namespace ndnc

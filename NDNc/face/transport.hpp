@@ -40,14 +40,14 @@ namespace transport {
 class Transport {
   public:
     using OnReceiveCallback = void (*)(void *ctx, const uint8_t *pkt,
-                                       size_t pktLen);
+                                       size_t len);
 
   public:
     virtual bool connect() noexcept = 0;
 
-    virtual void disconnect() noexcept = 0;
-
     virtual bool isConnected() noexcept = 0;
+
+    virtual void disconnect() noexcept = 0;
 
     virtual bool loop() noexcept = 0;
 
@@ -55,8 +55,8 @@ class Transport {
 
     virtual int send(std::vector<ndn::Block> &&pkt, uint16_t n) noexcept = 0;
 
-    void receive(const uint8_t *pkt, size_t pktLen) noexcept {
-        onReceive(context, pkt, pktLen);
+    void receive(const uint8_t *pkt, size_t len) noexcept {
+        onReceive(context, pkt, len);
     }
 
     void setOnReceiveCallback(OnReceiveCallback cb, void *ctx) noexcept {

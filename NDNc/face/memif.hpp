@@ -45,24 +45,25 @@ class Memif : public Transport {
   public:
     Memif(uint16_t dataroom = 2048, const char *socketPath = "",
           const char *appName = "");
+
     ~Memif();
 
+  private:
+    bool createSocket(const char *socketPath, const char *appName);
+    memif_connection_t *createInterface(int id);
+
+  public:
     bool connect() noexcept final;
 
-    void disconnect() noexcept final;
-
     bool isConnected() noexcept final;
+
+    void disconnect() noexcept final;
 
     bool loop() noexcept final;
 
     int send(ndn::Block pkt) noexcept final;
 
     int send(std::vector<ndn::Block> &&pkts, uint16_t n) noexcept final;
-
-  private:
-    bool createSocket(const char *socketPath, const char *appName);
-
-    memif_connection_t *createInterface(int id);
 
   private:
     static int handleConnect(memif_conn_handle_t conn_handle, void *ctx);
@@ -78,7 +79,6 @@ class Memif : public Transport {
 
   private:
     uint16_t m_dataroom;
-
     memif_socket_handle_t m_socket;
     memif_connection_t *m_conn;
 };

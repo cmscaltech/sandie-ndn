@@ -30,52 +30,21 @@
 
 namespace ndnc {
 namespace face {
-Face::Face() : m_transport(nullptr), m_packetHandler(nullptr) {
-    m_client = std::make_unique<mgmt::Client>();
+Face::Face()
+    : m_transport{nullptr}, m_packetHandler{nullptr}, m_hasError{false} {
+    m_gqlClient = std::make_shared<mgmt::Client>();
 }
 
 Face::~Face() {
-    if (m_client != nullptr) {
-        m_client->deleteFace();
+    if (m_gqlClient != nullptr) {
+        m_gqlClient->deleteFace();
     }
 
     m_packetHandler = nullptr;
 }
 
-bool Face::addPacketHandler(PacketHandler &h) {
-    m_packetHandler = &h;
-
-    if (m_packetHandler == nullptr) {
-        LOG_ERROR("null packet handler");
-        return false;
-    }
-
-    m_packetHandler->face = this;
-    return true;
-}
-
-bool Face::advertise(const std::string prefix) {
-    if (m_transport == nullptr || !m_transport->isConnected()) {
-        return false;
-    }
-
-    if (m_client == nullptr) {
-        return false;
-    }
-
-    return m_client->insertFibEntry(prefix);
-}
-
-int Face::send(ndn::Block pkt) {
-    return m_transport->send(pkt);
-}
-
-int Face::send(std::vector<ndn::Block> &&pkts, uint16_t n) {
-    return m_transport->send(std::move(pkts), n);
-}
-
 bool Face::connect(int dataroom, std::string gqlserver, std::string appName) {
-    if (!m_client->createFace(0, dataroom, gqlserver)) {
+    if (!m_gqlClient->createFace(0, dataroom, gqlserver)) {
         LOG_ERROR("unable to create memif");
         return false;
     }
@@ -83,7 +52,7 @@ bool Face::connect(int dataroom, std::string gqlserver, std::string appName) {
 #if (!defined(__APPLE__) && !defined(__MACH__))
     try {
         m_transport = std::make_shared<transport::Memif>(
-            dataroom, m_client->getSocketPath().c_str(), appName.c_str());
+            dataroom, m_gqlClient->getSocketPath().c_str(), appName.c_str());
     } catch (const std::exception &e) {
         LOG_FATAL(e.what());
         return false;
@@ -95,19 +64,63 @@ bool Face::connect(int dataroom, std::string gqlserver, std::string appName) {
     }
 
     m_transport->setOnReceiveCallback(
-        [](void *self, const uint8_t *pkt, size_t pktLen) {
-            reinterpret_cast<Face *>(self)->onTransportReceive(pkt, pktLen);
+        [](void *self, const uint8_t *pkt, size_t len) {
+            reinterpret_cast<Face *>(self)->receive(pkt, len);
         },
         this);
 
     return true;
 }
 
-void Face::onTransportReceive(const uint8_t *pkt, size_t pktLen) {
+bool Face::isConnected() {
+    return m_transport != nullptr && m_transport->isConnected() && !m_hasError;
+}
+
+bool Face::loop() {
+    return m_transport->loop();
+}
+
+bool Face::addPacketHandler(PacketHandler &h) {
+    m_packetHandler = &h;
+
+    if (m_packetHandler == nullptr) {
+        LOG_FATAL("add null packet handler");
+        m_hasError = true;
+
+        return false;
+    }
+
+    m_packetHandler->face = this;
+    return true;
+}
+
+bool Face::advertise(const std::string prefix) {
+    if (!isConnected()) {
+        return false;
+    }
+
+    return m_gqlClient->insertFibEntry(prefix);
+}
+
+int Face::send(ndn::Block pkt) {
+    return m_transport->send(pkt);
+}
+
+int Face::send(std::vector<ndn::Block> &&pkts, uint16_t n) {
+    return m_transport->send(std::move(pkts), n);
+}
+
+void Face::receive(const uint8_t *pkt, size_t len) {
+    if (m_packetHandler == nullptr) {
+        LOG_FATAL("packet handler is null");
+        m_hasError = true;
+        return;
+    }
+
     ndn::Block wire;
     bool isOk;
 
-    std::tie(isOk, wire) = ndn::Block::fromBuffer(pkt, pktLen);
+    std::tie(isOk, wire) = ndn::Block::fromBuffer(pkt, len);
     if (!isOk) {
         return;
     }
@@ -144,18 +157,10 @@ void Face::onTransportReceive(const uint8_t *pkt, size_t pktLen) {
     }
 
     default: {
-        LOG_WARN("unexpected packet type=%i", netPacket.type());
+        LOG_WARN("received unexpected packet type=%i", netPacket.type());
         return;
     }
     }
-}
-
-bool Face::isConnected() {
-    return m_transport->isConnected();
-}
-
-bool Face::loop() {
-    return m_transport->loop();
 }
 }; // namespace face
 }; // namespace ndnc

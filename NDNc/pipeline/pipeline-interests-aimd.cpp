@@ -30,7 +30,7 @@
 
 namespace ndnc {
 PipelineInterestsAimd::PipelineInterestsAimd(Face &face, size_t windowSize)
-    : PipelineInterests(face), m_ssthresh{windowSize}, m_windowSize(30),
+    : PipelineInterests(face), m_ssthresh{windowSize}, m_windowSize{64},
       m_windowIncCounter{0}, m_lastDecrease{ndn::time::steady_clock::now()} {
 }
 

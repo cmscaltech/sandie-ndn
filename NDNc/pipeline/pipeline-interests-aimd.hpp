@@ -56,9 +56,9 @@ class PipelineInterestsAimd : public PipelineInterests {
     size_t m_windowSize;
     size_t m_windowIncCounter;
     ndn::time::steady_clock::time_point m_lastDecrease;
-    size_t MAX_WINDOW = 65536;
-    size_t MIN_WINDOW = 8;
-    ndn::time::milliseconds MAX_RTT = ndn::time::milliseconds{3};
+    const size_t MAX_WINDOW = 65536;
+    const size_t MIN_WINDOW = 64;
+    ndn::time::milliseconds MAX_RTT = ndn::time::milliseconds{200};
 };
 }; // namespace ndnc
 

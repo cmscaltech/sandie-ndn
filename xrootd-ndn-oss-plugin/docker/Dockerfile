@@ -14,9 +14,9 @@ RUN yum -y install sudo vim htop git curl.x86_64 bind-utils.x86_64 \
         xrootd-server-devel.x86_64 xrootd-server-libs.x86_64 centos-release-scl
 RUN yum -y install devtoolset-8-gcc*
 RUN sudo sh -c "printf '\
-export PATH=\$PATH:/opt/rh/devtoolset-8/root/usr/bin\n\
-scl_source enable devtoolset-8\
-' > /etc/profile.d/container.sh"
+        export PATH=\$PATH:/opt/rh/devtoolset-8/root/usr/bin\n\
+        scl_source enable devtoolset-8\
+        ' > /etc/profile.d/container.sh"
 
 # Install NDN Software Stack
 WORKDIR ${HOME}
@@ -27,14 +27,16 @@ WORKDIR ${HOME}/sandie-ndn-repo/RPMS/x86_64/
 RUN rpm -i boost1_69_0/boost-license1_69_0-1.69.0-1.x86_64.rpm \
         boost1_69_0/libboost_* boost1_69_0/boost-devel-1.69.0-1.x86_64.rpm \
         ndn-cxx-0.7.0/libndn-cxx-* ndn-tools-0.7/ndn-tools-0.7-10.el7.x86_64.rpm \
-        nfd-0.7.0/nfd-0.7.0-24.el7.x86_64.rpm xrdndn-consumer-0.2.0-4.el7.x86_64.rpm \
-        xrdndn-producer-0.2.0-4.el7.x86_64.rpm xrootd-ndn-fs-0.2.0-4.el7.x86_64.rpm
+        nfd-0.7.0/nfd-0.7.0-24.el7.x86_64.rpm
+RUN ldconfig
 WORKDIR ${HOME}/sandie-ndn
 
 # Build xrdndn-consumer xrdndn-producer xrdndn-fs
 RUN mkdir -p ${HOME}/sandie-ndn/xrootd-ndn-oss-plugin/build
 WORKDIR ${HOME}/sandie-ndn/xrootd-ndn-oss-plugin/build
 RUN source ~/.bashrc && cmake3 ../
+RUN make -j16
 RUN make install
+RUN ldconfig
 
 WORKDIR ${HOME}

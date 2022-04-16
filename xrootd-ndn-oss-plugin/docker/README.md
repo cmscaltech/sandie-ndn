@@ -17,8 +17,12 @@ user@cms:~$ docker run -d -it --name=sandiendn --cap-add=NET_ADMIN --net=host sa
 ## Run simple test
 ```console
 user@cms:~$ docker exec -it sandiendn bash
-# Check: https://github.com/named-data/NFD/blob/master/docs/INSTALL.rst for config
+
+// For how to run or configure the NFD forwarder check:
+// https://github.com/named-data/NFD/blob/master/docs/INSTALL.rst#running
+
 user@cms:~$ cp /etc/ndn/nfd.conf.sample /etc/ndn/nfd.conf
+
 user@cms:~$ xrdndn-producer
 user@cms:~$ xrdndn-consumer --input-file <filepath>
 ```

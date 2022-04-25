@@ -33,9 +33,8 @@ namespace ndnc {
 namespace benchmark {
 namespace ft {
 Runner::Runner(face::Face &face, ClientOptions options)
-    : m_stop{false}, m_error{false}, m_nReceived{0} {
+    : m_stop{false}, m_error{false} {
     m_options = std::make_shared<ClientOptions>(options);
-    m_counters = std::make_shared<Counters>();
 
     switch (m_options->pipelineType) {
     case aimd:
@@ -67,11 +66,7 @@ void Runner::stop() {
     }
 }
 
-std::shared_ptr<Runner::Counters> Runner::readCounters() {
-    return m_counters;
-}
-
-std::shared_ptr<PipelineInterests::Counters> Runner::readPipeCounters() {
+std::shared_ptr<PipelineInterests::Counters> Runner::readCounters() {
     return m_pipeline->counters();
 }
 
@@ -96,7 +91,6 @@ bool Runner::getFileMetadata(FileMetadata &metadata) {
         return false;
     }
 
-    ++m_counters->nData;
     if (data == nullptr) {
         LOG_ERROR(
             "error in pipeline"); // TODO: This can also mean RDR Nack error
@@ -106,7 +100,6 @@ bool Runner::getFileMetadata(FileMetadata &metadata) {
     if (!data->hasContent() ||
         data->getContentType() == ndn::tlv::ContentType_Nack) {
         LOG_FATAL("unable to open file '%s'", m_options->file.c_str());
-        m_error = true;
         return false;
     }
 
@@ -133,13 +126,12 @@ void Runner::requestFileContent(int wid, FileMetadata metadata) {
             continue;
         }
 
-        size_t nTx = 0;
         std::vector<std::shared_ptr<ndn::Interest>> interests;
         interests.reserve(npackets);
 
-        for (uint64_t nextSegment = segmentNo;
-             nextSegment <= metadata.getFinalBlockId() && nTx < npackets;
-             ++nextSegment, ++nTx) {
+        for (uint64_t nextSegment = segmentNo, n = 0;
+             nextSegment <= metadata.getFinalBlockId() && n < npackets;
+             ++nextSegment, ++n) {
 
             auto interest = std::make_shared<ndn::Interest>(
                 metadata.getVersionedName().deepCopy().appendSegment(
@@ -149,7 +141,8 @@ void Runner::requestFileContent(int wid, FileMetadata metadata) {
             interests.emplace_back(std::move(interest));
         }
 
-        if (!requestData(std::move(interests), nTx)) {
+        if (!requestData(std::move(interests))) {
+            m_error = true;
             return;
         }
 
@@ -162,63 +155,46 @@ bool Runner::requestData(std::shared_ptr<ndn::Interest> &&interest) {
 
     if (!m_pipeline->enqueueInterest(std::move(interest))) {
         LOG_FATAL("unable to enqueue Interest packet");
-        m_error = true;
         return false;
     }
 
-    ++m_counters->nInterest;
     return true;
 }
 
 bool Runner::requestData(
-    std::vector<std::shared_ptr<ndn::Interest>> &&interests, size_t n) {
+    std::vector<std::shared_ptr<ndn::Interest>> &&interests) {
     if (!m_pipeline->enqueueInterests(std::move(interests))) {
         LOG_FATAL("unable to enqueue Interest packets");
-        m_error = true;
         return false;
     }
 
-    m_counters->nInterest += n;
     return true;
 }
 
 void Runner::receiveFileContent(NotifyProgressStatus onProgress,
-                                FileMetadata metadata) {
-    uint64_t nBytes = 0;
-    uint64_t nPackets = 0;
-
-    while (canContinue() && m_nReceived <= metadata.getFinalBlockId()) {
+                                std::atomic<uint64_t> &bytesCount,
+                                std::atomic<uint64_t> &segmentsCount,
+                                uint64_t finalBlockId) {
+    while (canContinue() && segmentsCount <= finalBlockId) {
         std::shared_ptr<ndn::Data> data;
         if (!m_pipeline->dequeueData(data)) {
             continue;
         }
 
-        if (!canContinue()) {
-            break;
-        }
-
         if (data == nullptr) {
-            LOG_ERROR("error in pipeline");
-            break;
+            LOG_FATAL("pipeline error on receive file content");
+            return;
         }
 
-        auto size = data->getContent().value_size();
-        nBytes += size;
-        m_counters->nByte += size;
-        ++nPackets;
+        bytesCount += data->getContent().value_size();
+        segmentsCount += 1;
 
-        if (nBytes >= 10485760) {
-            onProgress(nBytes, nPackets);
-
-            nBytes = 0;
-            nPackets = 0;
+        if (bytesCount % 5242880 == 0) {
+            onProgress();
         }
-
-        ++m_nReceived;
-        ++m_counters->nData;
     }
 
-    onProgress(nBytes, nPackets);
+    onProgress();
 }
 }; // namespace ft
 }; // namespace benchmark

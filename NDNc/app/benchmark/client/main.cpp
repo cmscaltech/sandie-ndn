@@ -249,17 +249,20 @@ int main(int argc, char *argv[]) {
     }
 
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
+
+        std::atomic<uint64_t> bytesCount = 0;
+        std::atomic<uint64_t> segmentsCount = 0;
         workers.push_back(std::thread(
             &ndnc::benchmark::ft::Runner::receiveFileContent, client,
-            [&](uint64_t /*progress*/, uint64_t /*packets*/) {
-                // TODO: submit data to influx db
-                bar.set_progress(client->readCounters()->nByte);
-                bar.set_option(option::PostfixText{
-                    to_string(client->readCounters()->nByte) + "/" +
-                    to_string(metadata.getFileSize())});
+            [&]() {
+                bar.set_progress(bytesCount);
+                bar.set_option(
+                    option::PostfixText{to_string(bytesCount) + "/" +
+                                        to_string(metadata.getFileSize())});
                 bar.tick();
             },
-            metadata));
+            std::ref(bytesCount), std::ref(segmentsCount),
+            metadata.getFinalBlockId()));
     }
 
     for (auto it = workers.begin(); it != workers.end(); ++it) {
@@ -269,18 +272,14 @@ int main(int argc, char *argv[]) {
     }
 
     auto duration = std::chrono::high_resolution_clock::now() - start;
-    double goodput = ((double)client->readCounters()->nByte * 8.0) /
+    double goodput = ((double)metadata.getFileSize() * 8.0) /
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
     cout << "\n--- statistics --\n"
-         << client->readCounters()->nInterest
-         << " packets transmitted, "
-         // TODO: Get from the Pipeline
-         << client->readCounters()->nData
-         << " packets received\n"
-         // TODO: Get from the pipeline
-         << "average delay: " << client->readPipeCounters()->averageDelay()
-         << "\n"
+         << client->readCounters()->nTxPackets
+         << " interest packets transmitted, "
+         << client->readCounters()->nRxPackets << " data packets received\n"
+         << "average delay: " << client->readCounters()->averageDelay() << "\n"
          << "goodput: " << humanReadableSize(goodput, 'b') << "/s"
          << "\n\n";
 

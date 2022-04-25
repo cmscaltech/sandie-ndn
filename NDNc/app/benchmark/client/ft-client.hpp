@@ -59,13 +59,7 @@ struct ClientOptions {
 
 class Runner : public std::enable_shared_from_this<Runner> {
   public:
-    using NotifyProgressStatus = std::function<void(uint64_t, uint64_t)>;
-
-    struct Counters {
-        std::atomic<uint64_t> nInterest = 0;
-        std::atomic<uint64_t> nData = 0;
-        std::atomic<uint64_t> nByte = 0;
-    };
+    using NotifyProgressStatus = std::function<void()>;
 
   public:
     explicit Runner(face::Face &face, ClientOptions options);
@@ -73,27 +67,26 @@ class Runner : public std::enable_shared_from_this<Runner> {
 
     void stop();
 
-    std::shared_ptr<Counters> readCounters();
-    std::shared_ptr<PipelineInterests::Counters> readPipeCounters();
-
     bool getFileMetadata(FileMetadata &metadata);
     void requestFileContent(int wid, FileMetadata metadata);
     void receiveFileContent(NotifyProgressStatus onProgress,
-                            FileMetadata metadata);
+                            std::atomic<uint64_t> &bytesCount,
+                            std::atomic<uint64_t> &segmentsCount,
+                            uint64_t finalBlockId);
+
+    std::shared_ptr<PipelineInterests::Counters> readCounters();
 
   private:
     bool canContinue();
 
     bool requestData(std::shared_ptr<ndn::Interest> &&);
-    bool requestData(std::vector<std::shared_ptr<ndn::Interest>> &&, size_t);
+    bool requestData(std::vector<std::shared_ptr<ndn::Interest>> &&);
 
   private:
     std::atomic_bool m_stop;
     std::atomic_bool m_error;
-    std::atomic<uint64_t> m_nReceived;
 
     std::shared_ptr<ClientOptions> m_options;
-    std::shared_ptr<Counters> m_counters;
     std::shared_ptr<PipelineInterests> m_pipeline;
 };
 }; // namespace ft

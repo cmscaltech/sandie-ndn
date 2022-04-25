@@ -230,9 +230,9 @@ int main(int argc, char *argv[]) {
     }
 
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
-
         std::atomic<uint64_t> bytesCount = 0;
         std::atomic<uint64_t> segmentsCount = 0;
+
         workers.push_back(std::thread(
             &ndnc::benchmark::ft::Runner::receiveFileContent, client,
             [&]() {

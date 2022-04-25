@@ -47,8 +47,10 @@ class PipelineInterests : public PacketHandler {
     struct Counters {
         uint64_t nTxPackets = 0;
         uint64_t nRxPackets = 0;
+        uint64_t nUnexpectedRxPackets = 0;
         uint64_t nNacks = 0;
         uint64_t nTimeouts = 0;
+
         ndn::time::milliseconds delay = ndn::time::milliseconds{0};
 
         ndn::time::milliseconds averageDelay() {

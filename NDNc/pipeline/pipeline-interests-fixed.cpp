@@ -104,7 +104,8 @@ void PipelineInterestsFixed::onData(std::shared_ptr<ndn::Data> &&data,
     auto it = m_pit->find(pitKey);
 
     if (it == m_pit->end()) {
-        LOG_DEBUG("unexpected Data packet dropped"); // TODO: Count this
+        LOG_DEBUG("unexpected Data packet dropped");
+        ++m_counters->nUnexpectedRxPackets;
         return;
     }
 
@@ -116,12 +117,13 @@ void PipelineInterestsFixed::onData(std::shared_ptr<ndn::Data> &&data,
 
 void PipelineInterestsFixed::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
                                     ndn::lp::PitToken &&pitToken) {
-
     ++m_counters->nNacks;
 
     auto pitKey = getPITTokenValue(std::move(pitToken));
+
     if (m_pit->find(pitKey) == m_pit->end()) {
-        LOG_DEBUG("unexpected NACK for packet dropped"); // TODO: Count this
+        LOG_DEBUG("unexpected NACK for packet dropped");
+        ++m_counters->nUnexpectedRxPackets;
         return;
     }
 

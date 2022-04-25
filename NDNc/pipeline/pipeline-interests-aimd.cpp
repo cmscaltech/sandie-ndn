@@ -29,7 +29,8 @@
 #include "pipeline-interests-aimd.hpp"
 
 namespace ndnc {
-PipelineInterestsAimd::PipelineInterestsAimd(Face &face, size_t windowSize)
+PipelineInterestsAimd::PipelineInterestsAimd(face::Face &face,
+                                             size_t windowSize)
     : PipelineInterests(face), m_ssthresh{windowSize}, m_windowSize{64},
       m_windowIncCounter{0}, m_lastDecrease{ndn::time::steady_clock::now()} {
 }
@@ -106,6 +107,7 @@ void PipelineInterestsAimd::onData(std::shared_ptr<ndn::Data> &&data,
     auto it = m_pit->find(pitKey);
     if (it == m_pit->end()) {
         LOG_DEBUG("unexpected Data packet dropped");
+        ++m_counters->nUnexpectedRxPackets;
         return;
     }
 
@@ -124,12 +126,13 @@ void PipelineInterestsAimd::onData(std::shared_ptr<ndn::Data> &&data,
 
 void PipelineInterestsAimd::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
                                    ndn::lp::PitToken &&pitToken) {
-
     ++m_counters->nNacks;
 
     auto pitKey = getPITTokenValue(std::move(pitToken));
+
     if (m_pit->find(pitKey) == m_pit->end()) {
         LOG_DEBUG("unexpected NACK for packet dropped");
+        ++m_counters->nUnexpectedRxPackets;
         return;
     }
 

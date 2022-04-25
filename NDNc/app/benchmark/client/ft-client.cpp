@@ -91,8 +91,7 @@ bool Runner::getFileMetadata(FileMetadata &metadata) {
     }
 
     if (data == nullptr) {
-        LOG_ERROR(
-            "error in pipeline"); // TODO: This can also mean RDR Nack error
+        LOG_ERROR("pipeline error on receive file metadata");
         return false;
     }
 

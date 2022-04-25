@@ -26,7 +26,6 @@
  */
 
 #include "ft-client.hpp"
-#include "influxdb_upload.hpp"
 #include "logger/logger.hpp"
 
 namespace ndnc {

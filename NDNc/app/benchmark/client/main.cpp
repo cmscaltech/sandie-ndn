@@ -41,7 +41,6 @@
 
 #include "ft-client-utils.hpp"
 #include "ft-client.hpp"
-#include "influxdb_upload.hpp"
 #include "logger/logger.hpp"
 
 using namespace std;
@@ -51,7 +50,6 @@ namespace al = boost::algorithm;
 
 static ndnc::face::Face *face;
 static ndnc::benchmark::ft::Runner *client;
-static ndnc::InfluxDBClient *influxDBClient;
 static std::vector<std::thread> workers;
 
 void cleanOnExit() {
@@ -69,10 +67,6 @@ void cleanOnExit() {
 
     if (face != nullptr) {
         delete face;
-    }
-
-    if (influxDBClient != nullptr) {
-        delete influxDBClient;
     }
 }
 
@@ -102,14 +96,6 @@ int main(int argc, char *argv[]) {
         "gqlserver",
         po::value<string>(&opts.gqlserver)->default_value(opts.gqlserver),
         "The GraphQL server address");
-    // description.add_options()(
-    //     "influxdb-addr",
-    //     po::value<string>(&opts.influxdbaddr)->default_value(opts.influxdbaddr),
-    //     "InfluxDB server address");
-    // description.add_options()(
-    //     "influxdb-name",
-    //     po::value<string>(&opts.influxdbname)->default_value(opts.influxdbname),
-    //     "InfluxDB name");
     description.add_options()(
         "lifetime",
         po::value<ndn::time::milliseconds::rep>()->default_value(
@@ -206,11 +192,6 @@ int main(int argc, char *argv[]) {
         usage(cout, app, description);
         return 2;
     }
-
-    // if (!opts.influxdbaddr.empty() && !opts.influxdbname.empty()) {
-    //     influxDBClient =
-    //         new ndnc::InfluxDBClient(opts.influxdbaddr, opts.influxdbname);
-    // }
 
     opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;
 

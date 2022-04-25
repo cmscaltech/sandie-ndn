@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
     LOG_INFO("running...");
 
     uint64_t totalBytesToTransfer = 0;
-    client->getFileInfo(&totalBytesToTransfer);
+    client->getFileMetadata(&totalBytesToTransfer);
 
     if (totalBytesToTransfer == 0) {
         cleanOnExit();
@@ -269,8 +269,12 @@ int main(int argc, char *argv[]) {
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
     cout << "\n--- statistics --\n"
-         << client->readCounters()->nInterest << " packets transmitted, "
-         << client->readCounters()->nData << " packets received\n"
+         << client->readCounters()->nInterest
+         << " packets transmitted, "
+         // TODO: Get from the Pipeline
+         << client->readCounters()->nData
+         << " packets received\n"
+         // TODO: Get from the pipeline
          << "average delay: " << client->readPipeCounters()->averageDelay()
          << "\n"
          << "goodput: " << humanReadableSize(goodput, 'b') << "/s"

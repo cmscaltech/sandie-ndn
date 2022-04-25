@@ -51,7 +51,7 @@ class Runner : public PacketHandler {
                     ndn::lp::PitToken &&pitToken) final;
 
   private:
-    std::shared_ptr<ndn::Data> getFileInfoData(const ndn::Name name);
+    std::shared_ptr<ndn::Data> getFileMetadata(const ndn::Name name);
     std::shared_ptr<ndn::Data> getFileContentData(const ndn::Name name);
 
   private:

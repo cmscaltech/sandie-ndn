@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 
     server = new ndnc::benchmark::ft::Runner(*face, opts);
 
-    if (!face->advertise(ndnc::benchmark::namePrefixUri)) {
+    if (!face->advertise(ndnc::NDNC_NAME_PREFIX)) {
         cerr << "ERROR: unable to advertise prefix on face\n";
         return 2;
     }

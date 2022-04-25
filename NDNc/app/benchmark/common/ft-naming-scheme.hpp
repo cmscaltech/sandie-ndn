@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2021 California Institute of Technology
+ * Copyright (c) 2022 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,42 +25,21 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_APP_BENCHMARK_FT_COMMON_NAMING_SCHEME_HPP
-#define NDNC_APP_BENCHMARK_FT_COMMON_NAMING_SCHEME_HPP
-
-#include <string>
+#ifndef NDNC_APP_COMMON_FILE_TRANSFER_NAMING_SCHEME_HPP
+#define NDNC_APP_COMMON_FILE_TRANSFER_NAMING_SCHEME_HPP
 
 #include <ndn-cxx/name.hpp>
+#include <string>
 
+/**
+ * @brief NDN Name related constants in NDNc file transfer (ft) applications
+ *
+ */
 namespace ndnc {
-namespace benchmark {
-static const std::string namePrefixUri = std::string("/ndnc/ft");
-static const ndn::Name namePrefix = ndn::Name(namePrefixUri);
-static const uint8_t namePrefixNoComponents = 2;
-
-static const ndn::Name::Component metadataNameSuffixComponent =
-    ndn::Name::Component::fromEscapedString("32=metadata");
-
-inline static const ndn::Name getNameForMetadata(std::string filePath) {
-    return ndn::Name(namePrefixUri + filePath)
-        .append(metadataNameSuffixComponent);
-}
-
-inline static const std::string
-getFilePathFromMetadataName(const ndn::Name name) {
-    return name.getPrefix(-1).getSubName(namePrefixNoComponents).toUri();
-}
-
-inline static const std::string
-getFilePathFromNameWithSegment(const ndn::Name name) {
-    return name.getPrefix(-2).getSubName(namePrefixNoComponents).toUri();
-}
-
-inline static bool isMetadataName(const ndn::Name name) {
-    return !name.at(-1).isSegment() &&
-           name.at(-1) == metadataNameSuffixComponent;
-}
-}; // namespace benchmark
+// NDNc Name prefix
+static const ndn::Name NDNC_NAME_PREFIX = ndn::Name("/ndnc/ft");
+// NDNc Name prefix components count
+static const uint8_t NDNC_NAME_PREFIX_NO_COMPONENTS = 2;
 }; // namespace ndnc
 
-#endif // NDNC_APP_BENCHMARK_FT_COMMON_NAMING_SCHEME_HPP
+#endif // NDNC_APP_COMMON_FILE_TRANSFER_NAMING_SCHEME_HPP

@@ -75,11 +75,11 @@ std::shared_ptr<PipelineInterests::Counters> Runner::readPipeCounters() {
     return m_pipeline->counters();
 }
 
-void Runner::getFileInfo(uint64_t *size) {
+void Runner::getFileMetadata(uint64_t *size) {
     // Compose Interest packet
-    auto interest =
-        std::make_shared<ndn::Interest>(getNameForMetadata(m_options->file));
-    interest->setInterestLifetime(m_options->lifetime);
+    auto interest = std::make_shared<ndn::Interest>(
+        rdrDiscoveryInterestNameFromFilePath(m_options->file));
+
     interest->setCanBePrefix(true);
     interest->setMustBeFresh(true);
 
@@ -98,7 +98,8 @@ void Runner::getFileInfo(uint64_t *size) {
 
     ++m_counters->nData;
     if (data == nullptr) {
-        LOG_ERROR("error in pipeline");
+        LOG_ERROR(
+            "error in pipeline"); // TODO: This can also mean RDR Nack error
         return;
     }
 
@@ -112,17 +113,17 @@ void Runner::getFileInfo(uint64_t *size) {
     m_metadata = std::make_shared<FileMetadata>(data->getContent());
     *size = m_metadata->getFileSize();
 
-    LOG_INFO("opened file: '%s' with size=%li (%lix%li) version=%li",
+    LOG_INFO("file: '%s' size=%li (%lix%li) versioned name: %s",
              m_options->file.c_str(), m_metadata->getFileSize(),
-             m_metadata->getSegmentSize(), m_metadata->getLastSegment(),
-             m_metadata->getVersionedName().get(-1).toVersion());
+             m_metadata->getSegmentSize(), m_metadata->getFinalBlockId(),
+             m_metadata->getVersionedName().toUri().c_str());
 }
 
 void Runner::requestFileContent(int wid) {
     uint64_t npackets = 64;
 
     for (uint64_t segmentNo = wid * npackets;
-         segmentNo <= m_metadata->getLastSegment() && canContinue();) {
+         segmentNo <= m_metadata->getFinalBlockId() && canContinue();) {
 
         if (m_pipeline->getPendingRequestsCount() > 65536) {
             // backoff; plenty of work to be done by the pipeline
@@ -134,7 +135,7 @@ void Runner::requestFileContent(int wid) {
         interests.reserve(npackets);
 
         for (uint64_t nextSegment = segmentNo;
-             nextSegment <= m_metadata->getLastSegment() && nTx < npackets;
+             nextSegment <= m_metadata->getFinalBlockId() && nTx < npackets;
              ++nextSegment, ++nTx) {
 
             auto interest = std::make_shared<ndn::Interest>(
@@ -182,7 +183,7 @@ void Runner::receiveFileContent(NotifyProgressStatus onProgress) {
     uint64_t nBytes = 0;
     uint64_t nPackets = 0;
 
-    while (canContinue() && m_nReceived <= m_metadata->getLastSegment()) {
+    while (canContinue() && m_nReceived <= m_metadata->getFinalBlockId()) {
         std::shared_ptr<ndn::Data> data;
         if (!m_pipeline->dequeueData(data)) {
             continue;

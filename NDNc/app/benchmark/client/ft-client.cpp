@@ -33,7 +33,7 @@ namespace ndnc {
 namespace benchmark {
 namespace ft {
 Runner::Runner(face::Face &face, ClientOptions options)
-    : m_stop{false}, m_error{false}, m_nReceived{0}, m_metadata{nullptr} {
+    : m_stop{false}, m_error{false}, m_nReceived{0} {
     m_options = std::make_shared<ClientOptions>(options);
     m_counters = std::make_shared<Counters>();
 
@@ -75,7 +75,7 @@ std::shared_ptr<PipelineInterests::Counters> Runner::readPipeCounters() {
     return m_pipeline->counters();
 }
 
-void Runner::getFileMetadata(uint64_t *size) {
+bool Runner::getFileMetadata(FileMetadata &metadata) {
     // Compose Interest packet
     auto interest = std::make_shared<ndn::Interest>(
         rdrDiscoveryInterestNameFromFilePath(m_options->file));
@@ -85,7 +85,7 @@ void Runner::getFileMetadata(uint64_t *size) {
 
     // Express Interest
     if (!requestData(std::move(interest))) {
-        return;
+        return false;
     }
 
     // Wait for Data
@@ -93,37 +93,40 @@ void Runner::getFileMetadata(uint64_t *size) {
     while (canContinue() && !m_pipeline->dequeueData(data)) {}
 
     if (!canContinue()) {
-        return;
+        return false;
     }
 
     ++m_counters->nData;
     if (data == nullptr) {
         LOG_ERROR(
             "error in pipeline"); // TODO: This can also mean RDR Nack error
-        return;
+        return false;
     }
 
     if (!data->hasContent() ||
         data->getContentType() == ndn::tlv::ContentType_Nack) {
         LOG_FATAL("unable to open file '%s'", m_options->file.c_str());
         m_error = true;
-        return;
+        return false;
     }
 
-    m_metadata = std::make_shared<FileMetadata>(data->getContent());
-    *size = m_metadata->getFileSize();
+    metadata = FileMetadata(data->getContent());
 
-    LOG_INFO("file: '%s' size=%li (%lix%li) versioned name: %s",
-             m_options->file.c_str(), m_metadata->getFileSize(),
-             m_metadata->getSegmentSize(), m_metadata->getFinalBlockId(),
-             m_metadata->getVersionedName().toUri().c_str());
+    if (metadata.isFile()) {
+        LOG_INFO("file: '%s' size=%li (%lix%li) versioned name: %s",
+                 m_options->file.c_str(), metadata.getFileSize(),
+                 metadata.getSegmentSize(), metadata.getFinalBlockId(),
+                 metadata.getVersionedName().toUri().c_str());
+    }
+
+    return true;
 }
 
-void Runner::requestFileContent(int wid) {
+void Runner::requestFileContent(int wid, FileMetadata metadata) {
     uint64_t npackets = 64;
 
     for (uint64_t segmentNo = wid * npackets;
-         segmentNo <= m_metadata->getFinalBlockId() && canContinue();) {
+         segmentNo <= metadata.getFinalBlockId() && canContinue();) {
 
         if (m_pipeline->getPendingRequestsCount() > 65536) {
             // backoff; plenty of work to be done by the pipeline
@@ -135,11 +138,11 @@ void Runner::requestFileContent(int wid) {
         interests.reserve(npackets);
 
         for (uint64_t nextSegment = segmentNo;
-             nextSegment <= m_metadata->getFinalBlockId() && nTx < npackets;
+             nextSegment <= metadata.getFinalBlockId() && nTx < npackets;
              ++nextSegment, ++nTx) {
 
             auto interest = std::make_shared<ndn::Interest>(
-                m_metadata->getVersionedName().deepCopy().appendSegment(
+                metadata.getVersionedName().deepCopy().appendSegment(
                     nextSegment));
 
             interest->setInterestLifetime(m_options->lifetime);
@@ -179,11 +182,12 @@ bool Runner::requestData(
     return true;
 }
 
-void Runner::receiveFileContent(NotifyProgressStatus onProgress) {
+void Runner::receiveFileContent(NotifyProgressStatus onProgress,
+                                FileMetadata metadata) {
     uint64_t nBytes = 0;
     uint64_t nPackets = 0;
 
-    while (canContinue() && m_nReceived <= m_metadata->getFinalBlockId()) {
+    while (canContinue() && m_nReceived <= metadata.getFinalBlockId()) {
         std::shared_ptr<ndn::Data> data;
         if (!m_pipeline->dequeueData(data)) {
             continue;

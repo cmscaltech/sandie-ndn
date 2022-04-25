@@ -223,10 +223,13 @@ int main(int argc, char *argv[]) {
 
     LOG_INFO("running...");
 
-    uint64_t totalBytesToTransfer = 0;
-    client->getFileMetadata(&totalBytesToTransfer);
+    ndnc::FileMetadata metadata{};
+    if (!client->getFileMetadata(metadata)) {
+        cleanOnExit();
+        return -2;
+    }
 
-    if (totalBytesToTransfer == 0) {
+    if (!metadata.isFile() || metadata.getFileSize() == 0) {
         cleanOnExit();
         return -2;
     }
@@ -234,14 +237,15 @@ int main(int argc, char *argv[]) {
     BlockProgressBar bar{option::BarWidth{80},
                          option::PrefixText{"Downloading "},
                          option::ShowPercentage{true},
-                         option::MaxProgress{totalBytesToTransfer}};
+                         option::MaxProgress{metadata.getFileSize()}};
     show_console_cursor(true);
 
     auto start = std::chrono::high_resolution_clock::now();
 
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
-        workers.push_back(std::thread(
-            &ndnc::benchmark::ft::Runner::requestFileContent, client, wid));
+        workers.push_back(
+            std::thread(&ndnc::benchmark::ft::Runner::requestFileContent,
+                        client, wid, metadata));
     }
 
     for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
@@ -249,13 +253,13 @@ int main(int argc, char *argv[]) {
             &ndnc::benchmark::ft::Runner::receiveFileContent, client,
             [&](uint64_t /*progress*/, uint64_t /*packets*/) {
                 // TODO: submit data to influx db
-
                 bar.set_progress(client->readCounters()->nByte);
                 bar.set_option(option::PostfixText{
                     to_string(client->readCounters()->nByte) + "/" +
-                    to_string(totalBytesToTransfer)});
+                    to_string(metadata.getFileSize())});
                 bar.tick();
-            }));
+            },
+            metadata));
     }
 
     for (auto it = workers.begin(); it != workers.end(); ++it) {

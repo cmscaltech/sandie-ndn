@@ -76,9 +76,10 @@ class Runner : public std::enable_shared_from_this<Runner> {
     std::shared_ptr<Counters> readCounters();
     std::shared_ptr<PipelineInterests::Counters> readPipeCounters();
 
-    void getFileMetadata(uint64_t *size);
-    void requestFileContent(int wid);
-    void receiveFileContent(NotifyProgressStatus);
+    bool getFileMetadata(FileMetadata &metadata);
+    void requestFileContent(int wid, FileMetadata metadata);
+    void receiveFileContent(NotifyProgressStatus onProgress,
+                            FileMetadata metadata);
 
   private:
     bool canContinue();
@@ -94,7 +95,6 @@ class Runner : public std::enable_shared_from_this<Runner> {
     std::shared_ptr<ClientOptions> m_options;
     std::shared_ptr<Counters> m_counters;
     std::shared_ptr<PipelineInterests> m_pipeline;
-    std::shared_ptr<FileMetadata> m_metadata;
 };
 }; // namespace ft
 }; // namespace benchmark

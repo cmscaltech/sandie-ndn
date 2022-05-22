@@ -42,6 +42,8 @@ namespace benchmark {
 namespace ft {
 
 struct ClientOptions {
+    std::string namePrefix = NDNC_NAME_PREFIX;
+
     size_t mtu = 9000;                                 // Dataroom size
     std::string gqlserver = "http://172.17.0.2:3030/"; // GraphQL server address
     // Interest lifetime

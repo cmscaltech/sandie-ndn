@@ -37,13 +37,13 @@ namespace ndnc {
  * https://github.com/yoursunny/ndn6-tools/blob/main/file-server.md#protocol-details
  *
  * @param path The file path
+ * @param prefix The Name prefix
  * @return const ndn::Name The NDN Name
  */
-inline static const ndn::Name
-rdrDiscoveryInterestNameFromFilePath(std::string path) {
-    return ndn::Name(NDNC_NAME_PREFIX)
-        .append(path)
-        .append(ndn::Name::Component::fromEscapedString("32=metadata"));
+inline static const ndn::Name rdrDiscoveryInterestNameFromFilePath(
+    const std::string path, const std::string prefix = NDNC_NAME_PREFIX) {
+    return ndn::Name(prefix).append(path).append(
+        ndn::Name::Component::fromEscapedString("32=metadata"));
 }
 
 /**
@@ -51,14 +51,14 @@ rdrDiscoveryInterestNameFromFilePath(std::string path) {
  * https://redmine.named-data.net/projects/ndn-tlv/wiki/RDR
  * https://github.com/yoursunny/ndn6-tools/blob/main/file-server.md#protocol-details
  *
- * @param name
+ * @param name The Interest Name
+ * @param prefixNoComponents The number of components of the prefix of this Name
  * @return const std::string
  */
-inline static const std::string
-rdrFilePathFromDiscoveryInterestName(const ndn::Name name) {
-    return name.getPrefix(-1)
-        .getSubName(NDNC_NAME_PREFIX_NO_COMPONENTS)
-        .toUri();
+inline static const std::string rdrFilePathFromDiscoveryInterestName(
+    const ndn::Name name,
+    const size_t prefixNoComponents = NDNC_NAME_PREFIX_NO_COMPONENTS) {
+    return name.getPrefix(-1).getSubName(prefixNoComponents).toUri();
 }
 
 /**

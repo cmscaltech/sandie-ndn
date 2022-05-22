@@ -106,6 +106,11 @@ int main(int argc, char *argv[]) {
         "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
         "Dataroom size. Specify a positive integer between 64 and 9000");
     description.add_options()(
+        "name-prefix",
+        po::value<string>(&opts.namePrefix)->default_value(opts.namePrefix),
+        "The NDN Name prefix this consumer application publishes its "
+        "Interest packets. Specify a non-empty string");
+    description.add_options()(
         "nthreads",
         po::value<uint16_t>(&opts.nthreads)
             ->default_value(opts.nthreads)
@@ -121,6 +126,7 @@ int main(int argc, char *argv[]) {
                                   ->default_value(opts.pipelineSize),
                               "The maximum pipeline size for `fixed` type or "
                               "the initial ssthresh for `aimd` type");
+
     description.add_options()("help,h", "Print this help message and exit");
 
     po::variables_map vm;
@@ -192,6 +198,14 @@ int main(int argc, char *argv[]) {
         cerr << "ERROR: invalid pipeline type\n\n";
         usage(cout, app, description);
         return 2;
+    }
+
+    if (vm.count("name-prefix") > 0) {
+        if (opts.namePrefix.empty()) {
+            cerr << "ERROR: empty name prefix value\n\n";
+            usage(cout, app, description);
+            return 2;
+        }
     }
 
     opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;

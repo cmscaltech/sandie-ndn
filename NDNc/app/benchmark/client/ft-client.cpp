@@ -72,7 +72,7 @@ std::shared_ptr<PipelineInterests::Counters> Runner::readCounters() {
 bool Runner::getFileMetadata(std::string path, FileMetadata &metadata) {
     // Compose Interest packet
     auto interest = std::make_shared<ndn::Interest>(
-        rdrDiscoveryInterestNameFromFilePath(path));
+        rdrDiscoveryInterestNameFromFilePath(path, m_options->namePrefix));
 
     interest->setCanBePrefix(true);
     interest->setMustBeFresh(true);

@@ -36,6 +36,8 @@ namespace benchmark {
 namespace ft {
 
 struct ServerOptions {
+    std::string namePrefix = NDNC_NAME_PREFIX;
+    size_t namePrefixNoComponents = 1;
     size_t segmentSize = 6600;
     size_t mtu = 9000;                                // Dataroom size
     std::string gqlserver = "http://localhost:3030/"; // GraphQL server address

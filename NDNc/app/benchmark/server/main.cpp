@@ -67,6 +67,11 @@ int main(int argc, char **argv) {
         "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
         "Dataroom size. Specify a positive integer between 64 and 9000");
     description.add_options()(
+        "name-prefix",
+        po::value<string>(&opts.namePrefix)->default_value(opts.namePrefix),
+        "The NDN Name prefix this producer application advertises. Specify a "
+        "non-empty string");
+    description.add_options()(
         "segment-size",
         po::value<size_t>(&opts.segmentSize)->default_value(opts.segmentSize),
         string("The maximum segment size of each Data packet that has "
@@ -118,6 +123,16 @@ int main(int argc, char **argv) {
         }
     }
 
+    if (vm.count("name-prefix") > 0) {
+        if (opts.namePrefix.empty()) {
+            cerr << "ERROR: empty name prefix value\n\n";
+            usage(cout, description);
+            return 2;
+        }
+    }
+
+    opts.namePrefixNoComponents = ndn::Name(opts.namePrefix).size();
+
     face = new ndnc::face::Face();
     if (!face->connect(opts.mtu, opts.gqlserver, "ndncft-server")) {
         return 2;
@@ -125,7 +140,7 @@ int main(int argc, char **argv) {
 
     server = new ndnc::benchmark::ft::Runner(*face, opts);
 
-    if (!face->advertise(ndnc::NDNC_NAME_PREFIX.toUri())) {
+    if (!face->advertise(opts.namePrefix)) {
         cerr << "ERROR: unable to advertise prefix on face\n";
         return 2;
     }

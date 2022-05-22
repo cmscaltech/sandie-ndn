@@ -37,9 +37,9 @@
  */
 namespace ndnc {
 // NDNc Name prefix
-static const ndn::Name NDNC_NAME_PREFIX = ndn::Name("/ndnc/ft");
+static const std::string NDNC_NAME_PREFIX = "/ndnc/ft";
 // NDNc Name prefix components count
-static const uint8_t NDNC_NAME_PREFIX_NO_COMPONENTS = 2;
+static const size_t NDNC_NAME_PREFIX_NO_COMPONENTS = 2;
 }; // namespace ndnc
 
 #endif // NDNC_APP_COMMON_FILE_TRANSFER_NAMING_SCHEME_HPP

@@ -41,6 +41,7 @@
 
 #include "ft-client-utils.hpp"
 #include "ft-client.hpp"
+#include "indicators/indicators.hpp"
 #include "logger/logger.hpp"
 
 using namespace std;
@@ -109,8 +110,8 @@ int main(int argc, char *argv[]) {
         po::value<uint16_t>(&opts.nthreads)
             ->default_value(opts.nthreads)
             ->implicit_value(opts.nthreads),
-        "The number of worker threads. Half will request "
-        "the Interest packets and half will process the Data packets");
+        "The number of worker threads. Half will request the Interest packets "
+        "and half will process the Data packets");
     description.add_options()(
         "pipeline-type",
         po::value<string>(&pipelineType)->default_value(pipelineType),
@@ -175,7 +176,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (opts.file.empty()) {
-        cerr << "\nERROR: the file path argument cannot be an empty string\n";
+        cerr << "\nERROR: the file path argument cannot be an empty string\n\n";
         return 2;
     }
 
@@ -195,6 +196,7 @@ int main(int argc, char *argv[]) {
 
     opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;
 
+    // Open face
     face = new ndnc::face::Face();
     if (!face->connect(opts.mtu, opts.gqlserver, "ndncft-client")) {
         return 2;
@@ -202,10 +204,8 @@ int main(int argc, char *argv[]) {
 
     client = new ndnc::benchmark::ft::Runner(*face, opts);
 
-    LOG_INFO("running...");
-
     ndnc::FileMetadata metadata{};
-    if (!client->getFileMetadata(metadata)) {
+    if (!client->getFileMetadata(opts.file, metadata)) {
         cleanOnExit();
         return -2;
     }
@@ -218,33 +218,56 @@ int main(int argc, char *argv[]) {
     BlockProgressBar bar{option::BarWidth{80},
                          option::PrefixText{"Downloading "},
                          option::ShowPercentage{true},
+                         option::ShowElapsedTime{true},
+                         option::ShowRemainingTime{true},
+                         option::ForegroundColor{Color::white},
                          option::MaxProgress{metadata.getFileSize()}};
+
+    DynamicProgress<BlockProgressBar> bars(bar);
+
     show_console_cursor(true);
+    // Do not hide bars when completed
+    bars.set_option(option::HideBarWhenComplete{false});
+
+    std::atomic<uint64_t> currentByteCount = 0;
+    std::atomic<uint64_t> currentSegmentsCount = 0;
+
+    auto receiveWorker = [&](int wid) {
+        client->receiveFileContent(
+            [&](uint64_t bytes) {
+                if (bars[0].is_completed()) {
+                    return;
+                }
+
+                currentByteCount += bytes;
+
+                bars[0].set_progress(currentByteCount);
+                bars[0].set_option(
+                    option::PostfixText{to_string(currentByteCount) + "/" +
+                                        to_string(metadata.getFileSize())});
+                bars[0].tick();
+
+                if (currentByteCount == metadata.getFileSize()) {
+                    bars[0].set_option(
+                        option::PrefixText{"Download complete "});
+                    bars[0].mark_as_completed();
+                }
+            },
+            std::ref(currentSegmentsCount), metadata.getFinalBlockID());
+    };
+
+    auto requestWorker = [&](int wid) {
+        client->requestFileContent(wid, opts.nthreads / 2,
+                                   metadata.getFinalBlockID(),
+                                   metadata.getVersionedName());
+    };
+
+    for (int i = 0; i < opts.nthreads / 2; ++i) {
+        workers.push_back(std::thread(receiveWorker, i));
+        workers.push_back(std::thread(requestWorker, i));
+    }
 
     auto start = std::chrono::high_resolution_clock::now();
-
-    for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
-        workers.push_back(
-            std::thread(&ndnc::benchmark::ft::Runner::requestFileContent,
-                        client, wid, metadata));
-    }
-
-    for (auto wid = 0; wid < opts.nthreads / 2; ++wid) {
-        std::atomic<uint64_t> bytesCount = 0;
-        std::atomic<uint64_t> segmentsCount = 0;
-
-        workers.push_back(std::thread(
-            &ndnc::benchmark::ft::Runner::receiveFileContent, client,
-            [&]() {
-                bar.set_progress(bytesCount);
-                bar.set_option(
-                    option::PostfixText{to_string(bytesCount) + "/" +
-                                        to_string(metadata.getFileSize())});
-                bar.tick();
-            },
-            std::ref(bytesCount), std::ref(segmentsCount),
-            metadata.getFinalBlockId()));
-    }
 
     for (auto it = workers.begin(); it != workers.end(); ++it) {
         if (it->joinable()) {
@@ -252,16 +275,20 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    auto duration = std::chrono::high_resolution_clock::now() - start;
+    auto end = std::chrono::high_resolution_clock::now();
+
+    auto duration = end - start;
     double goodput = ((double)metadata.getFileSize() * 8.0) /
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
     cout << "\n--- statistics --\n"
          << client->readCounters()->nTxPackets
          << " interest packets transmitted, "
-         << client->readCounters()->nRxPackets << " data packets received\n"
+         << client->readCounters()->nRxPackets << " data packets received, "
+         << client->readCounters()->nTimeouts
+         << " packets retransmitted on timeout\n"
          << "average delay: " << client->readCounters()->averageDelay() << "\n"
-         << "goodput: " << humanReadableSize(goodput, 'b') << "/s"
+         << "goodput: " << binaryPrefix(goodput) << "bit/s"
          << "\n\n";
 
     cleanOnExit();

@@ -30,19 +30,27 @@
 
 #include <string>
 
-#include "indicators.hpp"
+/**
+ * @brief Convert number to binary prefix.
+ * https://en.wikipedia.org/wiki/Binary_prefix
+ *
+ * @param value The input number
+ * @return char* The binary prefix
+ */
+static std::string binaryPrefix(double value) {
+    char output[1024];
 
-static std::string humanReadableSize(double bytes, char suffix = 'B') {
-    static char output[1024];
     for (auto unit : {"", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"}) {
-        if (abs(bytes) < 1024.0) {
-            sprintf(output, "%3.1f %s%c", bytes, unit, suffix);
-            return std::string(output);
+        if (abs(value) >= 1024.0) {
+            value /= 1024.0;
+            continue;
         }
-        bytes /= 1024.0;
+
+        sprintf(output, "%3.1f %s", value, unit);
+        return std::string(output);
     }
 
-    sprintf(output, "%.1f Yi%c", bytes, suffix);
+    sprintf(output, "%.1f Yi", value);
     return std::string(output);
 }
 

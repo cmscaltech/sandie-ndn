@@ -3,18 +3,19 @@
 #define INDICATORS_COLOR
 
 namespace indicators {
-enum class Color {
-    grey,
-    red,
-    green,
-    yellow,
-    blue,
-    magenta,
-    cyan,
+enum class Color
+{
     white,
+    cyan,
+    magenta,
+    blue,
+    yellow,
+    green,
+    red,
+    grey,
     unspecified
 };
-}
+} // namespace indicators
 
 #endif
 
@@ -22,7 +23,8 @@ enum class Color {
 #define INDICATORS_FONT_STYLE
 
 namespace indicators {
-enum class FontStyle {
+enum class FontStyle
+{
     bold,
     dark,
     italic,
@@ -32,7 +34,7 @@ enum class FontStyle {
     concealed,
     crossed
 };
-}
+} // namespace indicators
 
 #endif
 
@@ -40,8 +42,12 @@ enum class FontStyle {
 #define INDICATORS_PROGRESS_TYPE
 
 namespace indicators {
-enum class ProgressType { incremental, decremental };
-}
+enum class ProgressType
+{
+    incremental,
+    decremental
+};
+} // namespace indicators
 
 #endif
 
@@ -863,7 +869,8 @@ SOFTWARE.
 #define INDICATORS_COLOR
 
 namespace indicators {
-enum class Color {
+enum class Color
+{
     grey,
     red,
     green,
@@ -874,7 +881,7 @@ enum class Color {
     white,
     unspecified
 };
-}
+} // namespace indicators
 
 #endif
 
@@ -883,7 +890,8 @@ enum class Color {
 #define INDICATORS_FONT_STYLE
 
 namespace indicators {
-enum class FontStyle {
+enum class FontStyle
+{
     bold,
     dark,
     italic,
@@ -893,7 +901,7 @@ enum class FontStyle {
     concealed,
     crossed
 };
-}
+} // namespace indicators
 
 #endif
 
@@ -902,8 +910,12 @@ enum class FontStyle {
 #define INDICATORS_PROGRESS_TYPE
 
 namespace indicators {
-enum class ProgressType { incremental, decremental };
-}
+enum class ProgressType
+{
+    incremental,
+    decremental
+};
+} // namespace indicators
 
 #endif
 #include <string>
@@ -951,7 +963,8 @@ template <typename Op, typename... TailOps>
 struct disjunction<Op, TailOps...>
     : if_else_type<Op::value, std::true_type, disjunction<TailOps...>>::type {};
 
-enum class ProgressBarOption {
+enum class ProgressBarOption
+{
     bar_width = 0,
     prefix_text,
     postfix_text,
@@ -981,7 +994,8 @@ template <typename T, ProgressBarOption Id> struct Setting {
     template <typename... Args,
               typename = typename std::enable_if<
                   std::is_constructible<T, Args...>::value>::type>
-    explicit Setting(Args &&...args) : value(std::forward<Args>(args)...) {}
+    explicit Setting(Args &&...args) : value(std::forward<Args>(args)...) {
+    }
     Setting(const Setting &) = default;
     Setting(Setting &&) = default;
 
@@ -1159,10 +1173,38 @@ static inline void show_console_cursor(bool const show) {
     SetConsoleCursorInfo(out, &cursorInfo);
 }
 
+static inline void erase_line() {
+    auto hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (!hStdout)
+        return;
+
+    CONSOLE_SCREEN_BUFFER_INFO csbiInfo;
+    GetConsoleScreenBufferInfo(hStdout, &csbiInfo);
+
+    COORD cursor;
+
+    cursor.X = 0;
+    cursor.Y = csbiInfo.dwCursorPosition.Y;
+
+    DWORD count = 0;
+
+    FillConsoleOutputCharacterA(hStdout, ' ', csbiInfo.dwSize.X, cursor,
+                                &count);
+
+    FillConsoleOutputAttribute(hStdout, csbiInfo.wAttributes, csbiInfo.dwSize.X,
+                               cursor, &count);
+
+    SetConsoleCursorPosition(hStdout, cursor);
+}
+
 #else
 
 static inline void show_console_cursor(bool const show) {
     std::fputs(show ? "\033[?25h" : "\033[?25l", stdout);
+}
+
+static inline void erase_line() {
+    std::fputs("\r\033[K", stdout);
 }
 
 #endif
@@ -1676,7 +1718,8 @@ template <typename Op, typename... TailOps>
 struct disjunction<Op, TailOps...>
     : if_else_type<Op::value, std::true_type, disjunction<TailOps...>>::type {};
 
-enum class ProgressBarOption {
+enum class ProgressBarOption
+{
     bar_width = 0,
     prefix_text,
     postfix_text,
@@ -1706,7 +1749,8 @@ template <typename T, ProgressBarOption Id> struct Setting {
     template <typename... Args,
               typename = typename std::enable_if<
                   std::is_constructible<T, Args...>::value>::type>
-    explicit Setting(Args &&...args) : value(std::forward<Args>(args)...) {}
+    explicit Setting(Args &&...args) : value(std::forward<Args>(args)...) {
+    }
     Setting(const Setting &) = default;
     Setting(Setting &&) = default;
 
@@ -2693,7 +2737,8 @@ inline std::ostream &write_duration(std::ostream &os,
 class BlockProgressScaleWriter {
   public:
     BlockProgressScaleWriter(std::ostream &os, size_t bar_width)
-        : os(os), bar_width(bar_width) {}
+        : os(os), bar_width(bar_width) {
+    }
 
     std::ostream &write(float progress) {
         std::string fill_text{"█"};
@@ -2725,7 +2770,8 @@ class ProgressScaleWriter {
                         const std::string &fill, const std::string &lead,
                         const std::string &remainder)
         : os(os), bar_width(bar_width), fill(fill), lead(lead),
-          remainder(remainder) {}
+          remainder(remainder) {
+    }
 
     std::ostream &write(float progress) {
         auto pos = static_cast<size_t>(progress * bar_width / 100.0);
@@ -2771,7 +2817,8 @@ class IndeterminateProgressScaleWriter {
     IndeterminateProgressScaleWriter(std::ostream &os, size_t bar_width,
                                      const std::string &fill,
                                      const std::string &lead)
-        : os(os), bar_width(bar_width), fill(fill), lead(lead) {}
+        : os(os), bar_width(bar_width), fill(fill), lead(lead) {
+    }
 
     std::ostream &write(size_t progress) {
         for (size_t i = 0; i < bar_width;) {
@@ -2928,7 +2975,8 @@ inline std::ostream &write_duration(std::ostream &os,
 class BlockProgressScaleWriter {
   public:
     BlockProgressScaleWriter(std::ostream &os, size_t bar_width)
-        : os(os), bar_width(bar_width) {}
+        : os(os), bar_width(bar_width) {
+    }
 
     std::ostream &write(float progress) {
         std::string fill_text{"█"};
@@ -2960,7 +3008,8 @@ class ProgressScaleWriter {
                         const std::string &fill, const std::string &lead,
                         const std::string &remainder)
         : os(os), bar_width(bar_width), fill(fill), lead(lead),
-          remainder(remainder) {}
+          remainder(remainder) {
+    }
 
     std::ostream &write(float progress) {
         auto pos = static_cast<size_t>(progress * bar_width / 100.0);
@@ -3006,7 +3055,8 @@ class IndeterminateProgressScaleWriter {
     IndeterminateProgressScaleWriter(std::ostream &os, size_t bar_width,
                                      const std::string &fill,
                                      const std::string &lead)
-        : os(os), bar_width(bar_width), fill(fill), lead(lead) {}
+        : os(os), bar_width(bar_width), fill(fill), lead(lead) {
+    }
 
     std::ostream &write(size_t progress) {
         for (size_t i = 0; i < bar_width;) {
@@ -3539,7 +3589,8 @@ class BlockProgressBar {
               details::get<details::ProgressBarOption::max_progress>(
                   option::MaxProgress{100}, std::forward<Args>(args)...),
               details::get<details::ProgressBarOption::stream>(
-                  option::Stream{std::cout}, std::forward<Args>(args)...)) {}
+                  option::Stream{std::cout}, std::forward<Args>(args)...)) {
+    }
 
     template <typename T, details::ProgressBarOption id>
     void set_option(details::Setting<T, id> &&setting) {
@@ -3831,7 +3882,11 @@ class IndeterminateProgressBar {
                    option::MaxPostfixTextLen, option::Completed,
                    option::ForegroundColor, option::FontStyles, option::Stream>;
 
-    enum class Direction { forward, backward };
+    enum class Direction
+    {
+        forward,
+        backward
+    };
 
     Direction direction_{Direction::forward};
 
@@ -4223,6 +4278,74 @@ template <typename Indicator, size_t count> class MultiProgress {
 #include <functional>
 // #include <indicators/color.hpp>
 // #include <indicators/setting.hpp>
+// #include <indicators/cursor_control.hpp>
+#ifndef INDICATORS_CURSOR_CONTROL
+#define INDICATORS_CURSOR_CONTROL
+
+#if defined(_MSC_VER)
+#if !defined(NOMINMAX)
+#define NOMINMAX
+#endif
+#include <io.h>
+#include <windows.h>
+#else
+#include <cstdio>
+#endif
+
+namespace indicators {
+
+#if defined(_MSC_VER)
+
+static inline void show_console_cursor(bool const show) {
+    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    CONSOLE_CURSOR_INFO cursorInfo;
+
+    GetConsoleCursorInfo(out, &cursorInfo);
+    cursorInfo.bVisible = show; // set the cursor visibility
+    SetConsoleCursorInfo(out, &cursorInfo);
+}
+
+static inline void erase_line() {
+    auto hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (!hStdout)
+        return;
+
+    CONSOLE_SCREEN_BUFFER_INFO csbiInfo;
+    GetConsoleScreenBufferInfo(hStdout, &csbiInfo);
+
+    COORD cursor;
+
+    cursor.X = 0;
+    cursor.Y = csbiInfo.dwCursorPosition.Y;
+
+    DWORD count = 0;
+
+    FillConsoleOutputCharacterA(hStdout, ' ', csbiInfo.dwSize.X, cursor,
+                                &count);
+
+    FillConsoleOutputAttribute(hStdout, csbiInfo.wAttributes, csbiInfo.dwSize.X,
+                               cursor, &count);
+
+    SetConsoleCursorPosition(hStdout, cursor);
+}
+
+#else
+
+static inline void show_console_cursor(bool const show) {
+    std::fputs(show ? "\033[?25h" : "\033[?25l", stdout);
+}
+
+static inline void erase_line() {
+    std::fputs("\r\033[K", stdout);
+}
+
+#endif
+
+} // namespace indicators
+
+#endif
+// #include <indicators/cursor_movement.hpp>
 // #include <indicators/details/stream_helper.hpp>
 #include <iostream>
 #include <mutex>
@@ -4307,8 +4430,11 @@ template <typename Indicator> class DynamicProgress {
         if (hide_bar_when_complete) {
             // Hide completed bars
             if (started_) {
-                for (size_t i = 0; i < incomplete_count_; ++i)
-                    std::cout << "\033[A\r\033[K" << std::flush;
+                for (size_t i = 0; i < incomplete_count_; ++i) {
+                    move_up(1);
+                    erase_line();
+                    std::cout << std::flush;
+                }
             }
             incomplete_count_ = 0;
             for (auto &bar : bars_) {
@@ -4322,10 +4448,8 @@ template <typename Indicator> class DynamicProgress {
                 started_ = true;
         } else {
             // Don't hide any bars
-            if (started_) {
-                for (size_t i = 0; i < total_count_; ++i)
-                    std::cout << "\x1b[A";
-            }
+            if (started_)
+                move_up(static_cast<int>(total_count_));
             for (auto &bar : bars_) {
                 bar.get().print_progress(true);
                 std::cout << "\n";
@@ -4411,7 +4535,8 @@ class ProgressSpinner {
               details::get<details::ProgressBarOption::max_progress>(
                   option::MaxProgress{100}, std::forward<Args>(args)...),
               details::get<details::ProgressBarOption::stream>(
-                  option::Stream{std::cout}, std::forward<Args>(args)...)) {}
+                  option::Stream{std::cout}, std::forward<Args>(args)...)) {
+    }
 
     template <typename T, details::ProgressBarOption id>
     void set_option(details::Setting<T, id> &&setting) {

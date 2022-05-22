@@ -226,7 +226,7 @@ class FileMetadata {
         return this->m_versionedName;
     }
 
-    uint64_t getFinalBlockId() {
+    uint64_t getFinalBlockID() {
         return this->m_finalBlockId;
     }
 

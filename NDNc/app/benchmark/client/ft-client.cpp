@@ -69,10 +69,10 @@ std::shared_ptr<PipelineInterests::Counters> Runner::readCounters() {
     return m_pipeline->counters();
 }
 
-bool Runner::getFileMetadata(FileMetadata &metadata) {
+bool Runner::getFileMetadata(std::string path, FileMetadata &metadata) {
     // Compose Interest packet
     auto interest = std::make_shared<ndn::Interest>(
-        rdrDiscoveryInterestNameFromFilePath(m_options->file));
+        rdrDiscoveryInterestNameFromFilePath(path));
 
     interest->setCanBePrefix(true);
     interest->setMustBeFresh(true);
@@ -90,6 +90,8 @@ bool Runner::getFileMetadata(FileMetadata &metadata) {
         return false;
     }
 
+    // TODO: sync_request
+
     if (data == nullptr) {
         LOG_ERROR("pipeline error on receive file metadata");
         return false;
@@ -97,7 +99,7 @@ bool Runner::getFileMetadata(FileMetadata &metadata) {
 
     if (!data->hasContent() ||
         data->getContentType() == ndn::tlv::ContentType_Nack) {
-        LOG_FATAL("unable to open file '%s'", m_options->file.c_str());
+        LOG_FATAL("unable to open file '%s'", path.c_str());
         return false;
     }
 
@@ -105,19 +107,23 @@ bool Runner::getFileMetadata(FileMetadata &metadata) {
 
     if (metadata.isFile()) {
         LOG_INFO("file: '%s' size=%li (%lix%li) versioned name: %s",
-                 m_options->file.c_str(), metadata.getFileSize(),
-                 metadata.getSegmentSize(), metadata.getFinalBlockId(),
+                 path.c_str(), metadata.getFileSize(),
+                 metadata.getSegmentSize(), metadata.getFinalBlockID(),
                  metadata.getVersionedName().toUri().c_str());
+    } else {
+        LOG_DEBUG("directory: '%s", path.c_str());
+        LOG_DEBUG("directories are not yet supported");
     }
 
     return true;
 }
 
-void Runner::requestFileContent(int wid, FileMetadata metadata) {
+void Runner::requestFileContent(int wid, int wcount, uint64_t finalBlockID,
+                                ndn::Name prefix) {
     uint64_t npackets = 64;
 
     for (uint64_t segmentNo = wid * npackets;
-         segmentNo <= metadata.getFinalBlockId() && canContinue();) {
+         segmentNo <= finalBlockID && canContinue();) {
 
         if (m_pipeline->getPendingRequestsCount() > 65536) {
             // backoff; plenty of work to be done by the pipeline
@@ -128,12 +134,10 @@ void Runner::requestFileContent(int wid, FileMetadata metadata) {
         interests.reserve(npackets);
 
         for (uint64_t nextSegment = segmentNo, n = 0;
-             nextSegment <= metadata.getFinalBlockId() && n < npackets;
-             ++nextSegment, ++n) {
+             nextSegment <= finalBlockID && n < npackets; ++nextSegment, ++n) {
 
             auto interest = std::make_shared<ndn::Interest>(
-                metadata.getVersionedName().deepCopy().appendSegment(
-                    nextSegment));
+                prefix.deepCopy().appendSegment(nextSegment));
 
             interest->setInterestLifetime(m_options->lifetime);
             interests.emplace_back(std::move(interest));
@@ -144,7 +148,7 @@ void Runner::requestFileContent(int wid, FileMetadata metadata) {
             return;
         }
 
-        segmentNo += (m_options->nthreads * 0.5) * npackets;
+        segmentNo += wcount * npackets;
     }
 }
 
@@ -161,6 +165,9 @@ bool Runner::requestData(std::shared_ptr<ndn::Interest> &&interest) {
 
 bool Runner::requestData(
     std::vector<std::shared_ptr<ndn::Interest>> &&interests) {
+
+    // TODO: async_request
+
     if (!m_pipeline->enqueueInterests(std::move(interests))) {
         LOG_FATAL("unable to enqueue Interest packets");
         return false;
@@ -170,10 +177,11 @@ bool Runner::requestData(
 }
 
 void Runner::receiveFileContent(NotifyProgressStatus onProgress,
-                                std::atomic<uint64_t> &bytesCount,
                                 std::atomic<uint64_t> &segmentsCount,
-                                uint64_t finalBlockId) {
-    while (canContinue() && segmentsCount <= finalBlockId) {
+                                uint64_t finalBlockID) {
+    uint64_t bytesCount = 0;
+
+    while (canContinue() && segmentsCount <= finalBlockID) {
         std::shared_ptr<ndn::Data> data;
         if (!m_pipeline->dequeueData(data)) {
             continue;
@@ -187,12 +195,13 @@ void Runner::receiveFileContent(NotifyProgressStatus onProgress,
         bytesCount += data->getContent().value_size();
         segmentsCount += 1;
 
-        if (bytesCount % 5242880 == 0) {
-            onProgress();
+        if (bytesCount > 5242880) {
+            onProgress(bytesCount);
+            bytesCount = 0;
         }
     }
 
-    onProgress();
+    onProgress(bytesCount);
 }
 }; // namespace ft
 }; // namespace benchmark

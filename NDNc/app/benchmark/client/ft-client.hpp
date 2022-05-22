@@ -56,7 +56,7 @@ struct ClientOptions {
 
 class Runner : public std::enable_shared_from_this<Runner> {
   public:
-    using NotifyProgressStatus = std::function<void()>;
+    using NotifyProgressStatus = std::function<void(uint64_t bytes)>;
 
   public:
     explicit Runner(face::Face &face, ClientOptions options);
@@ -64,12 +64,12 @@ class Runner : public std::enable_shared_from_this<Runner> {
 
     void stop();
 
-    bool getFileMetadata(FileMetadata &metadata);
-    void requestFileContent(int wid, FileMetadata metadata);
+    bool getFileMetadata(std::string path, FileMetadata &metadata);
+    void requestFileContent(int wid, int wcount, uint64_t finalBlockID,
+                            ndn::Name prefix);
     void receiveFileContent(NotifyProgressStatus onProgress,
-                            std::atomic<uint64_t> &bytesCount,
                             std::atomic<uint64_t> &segmentsCount,
-                            uint64_t finalBlockId);
+                            uint64_t finalBlockID);
 
     std::shared_ptr<PipelineInterests::Counters> readCounters();
 

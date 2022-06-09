@@ -109,6 +109,7 @@ class Client {
         auto postFields = strdup(request.dump().c_str());
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postFields);
 
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 4L);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
 
         std::string data;

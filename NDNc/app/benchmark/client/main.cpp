@@ -293,9 +293,9 @@ int main(int argc, char *argv[]) {
                                    metadata.getVersionedName());
     };
 
-    // Copy all paths one at a time
     auto start = std::chrono::high_resolution_clock::now();
 
+    // Copy all paths one at a time
     for (auto i = 0; i < static_cast<int>(metadata.size()); ++i) {
         std::atomic<uint64_t> segmentCount = 0;
 
@@ -310,8 +310,6 @@ int main(int argc, char *argv[]) {
                 it->join();
             }
         }
-
-        // Store information
     }
 
     auto end = std::chrono::high_resolution_clock::now();

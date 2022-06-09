@@ -119,7 +119,7 @@ bool Runner::getFileMetadata(std::string path, FileMetadata &metadata) {
 }
 
 void Runner::requestFileContent(int wid, int wcount, uint64_t finalBlockID,
-                                ndn::Name prefix) {
+                                ndn::Name name) {
     uint64_t npackets = 64;
 
     for (uint64_t segmentNo = wid * npackets;
@@ -137,7 +137,7 @@ void Runner::requestFileContent(int wid, int wcount, uint64_t finalBlockID,
              nextSegment <= finalBlockID && n < npackets; ++nextSegment, ++n) {
 
             auto interest = std::make_shared<ndn::Interest>(
-                prefix.deepCopy().appendSegment(nextSegment));
+                name.deepCopy().appendSegment(nextSegment));
 
             interest->setInterestLifetime(m_options->lifetime);
             interests.emplace_back(std::move(interest));

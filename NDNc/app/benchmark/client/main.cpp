@@ -44,58 +44,29 @@
 #include "indicators/indicators.hpp"
 #include "logger/logger.hpp"
 
-using namespace std;
-using namespace indicators;
 namespace po = boost::program_options;
 namespace al = boost::algorithm;
 
-static ndnc::face::Face *face;
-static ndnc::benchmark::ft::Runner *client;
+static std::unique_ptr<ndnc::face::Face> face;
+static std::unique_ptr<ndnc::benchmark::ft::Runner> client;
 static std::vector<std::thread> workers;
 
-void cleanOnExit() {
-    if (client != nullptr) {
-        client->stop();
-
-        for (auto it = workers.begin(); it != workers.end(); ++it) {
-            if (it->joinable()) {
-                it->join();
-            }
-        }
-
-        delete client;
-    }
-
-    if (face != nullptr) {
-        delete face;
-    }
-}
-
-void handler(sig_atomic_t signum) {
-    cleanOnExit();
-    exit(signum);
-}
-
-static void usage(ostream &os, const string &app,
-                  const po::options_description &desc) {
+static void programUsage(std::ostream &os, const std::string &app,
+                         const po::options_description &desc) {
     os << "Usage: " << app
-       << " [options]\nNote: This application needs --file argument "
+       << " [options]\nNote: This application needs --paths argument "
           "specified\n\n"
        << desc;
 }
 
-int main(int argc, char *argv[]) {
-    signal(SIGINT, handler);
-
-    ndnc::benchmark::ft::ClientOptions opts;
+static void programOptions(int argc, char *argv[],
+                           ndnc::benchmark::ft::ClientOptions &opts) {
+    po::options_description description("Options", 120);
     std::string pipelineType = "fixed";
 
-    po::options_description description("Options", 120);
-    description.add_options()("file", po::value<string>(&opts.file),
-                              "The path to the file to be copied over NDN");
     description.add_options()(
         "gqlserver",
-        po::value<string>(&opts.gqlserver)->default_value(opts.gqlserver),
+        po::value<std::string>(&opts.gqlserver)->default_value(opts.gqlserver),
         "The GraphQL server address");
     description.add_options()(
         "lifetime",
@@ -107,7 +78,8 @@ int main(int argc, char *argv[]) {
         "Dataroom size. Specify a positive integer between 64 and 9000");
     description.add_options()(
         "name-prefix",
-        po::value<string>(&opts.namePrefix)->default_value(opts.namePrefix),
+        po::value<std::string>(&opts.namePrefix)
+            ->default_value(opts.namePrefix),
         "The NDN Name prefix this consumer application publishes its "
         "Interest packets. Specify a non-empty string");
     description.add_options()(
@@ -118,8 +90,11 @@ int main(int argc, char *argv[]) {
         "The number of worker threads. Half will request the Interest packets "
         "and half will process the Data packets");
     description.add_options()(
+        "paths", po::value<std::vector<std::string>>(&opts.paths)->multitoken(),
+        "The list of paths to be copied over NDN");
+    description.add_options()(
         "pipeline-type",
-        po::value<string>(&pipelineType)->default_value(pipelineType),
+        po::value<std::string>(&pipelineType)->default_value(pipelineType),
         "The pipeline type. Available options: fixed, aimd");
     description.add_options()("pipeline-size",
                               po::value<uint16_t>(&opts.pipelineSize)
@@ -135,32 +110,33 @@ int main(int argc, char *argv[]) {
             po::command_line_parser(argc, argv).options(description).run(), vm);
         po::notify(vm);
     } catch (const po::error &e) {
-        cerr << "ERROR: " << e.what() << "\n";
-        return 2;
+        std::cerr << "ERROR: " << e.what() << "\n";
+        exit(2);
     } catch (const boost::bad_any_cast &e) {
-        cerr << "ERROR: " << e.what() << "\n";
-        return 2;
+        std::cerr << "ERROR: " << e.what() << "\n";
+        exit(2);
     }
 
-    const string app = argv[0];
+    const std::string app = argv[0];
+
     if (vm.count("help") > 0) {
-        usage(cout, app, description);
-        return 0;
+        programUsage(std::cout, app, description);
+        exit(0);
     }
 
     if (vm.count("mtu") > 0) {
         if (opts.mtu < 64 || opts.mtu > 9000) {
-            cerr << "ERROR: invalid MTU size\n\n";
-            usage(cout, app, description);
-            return 2;
+            std::cerr << "ERROR: invalid MTU size\n\n";
+            programUsage(std::cout, app, description);
+            exit(2);
         }
     }
 
     if (vm.count("gqlserver") > 0) {
         if (opts.gqlserver.empty()) {
-            cerr << "ERROR: empty gqlserver argument value\n\n";
-            usage(cout, app, description);
-            return 2;
+            std::cerr << "ERROR: empty gqlserver argument value\n\n";
+            programUsage(std::cout, app, description);
+            exit(2);
         }
     }
 
@@ -170,20 +146,21 @@ int main(int argc, char *argv[]) {
     }
 
     if (opts.lifetime < ndn::time::milliseconds{0}) {
-        cerr << "ERROR: negative lifetime argument value\n\n";
-        usage(cout, app, description);
-        return 2;
+        std::cerr << "ERROR: negative lifetime argument value\n\n";
+        programUsage(std::cout, app, description);
+        exit(2);
     }
 
-    if (vm.count("file") == 0) {
-        cerr << "ERROR: no file path specified\n\n";
-        usage(cerr, app, description);
-        return 2;
+    if (vm.count("paths") == 0) {
+        std::cerr << "ERROR: no paths specified\n\n";
+        programUsage(std::cerr, app, description);
+        exit(2);
     }
 
-    if (opts.file.empty()) {
-        cerr << "\nERROR: the file path argument cannot be an empty string\n\n";
-        return 2;
+    if (opts.paths.empty()) {
+        std::cerr
+            << "\nERROR: the paths argument cannot be an empty string\n\n";
+        exit(2);
     }
 
     if (al::to_lower_copy(pipelineType).compare("fixed") == 0) {
@@ -195,116 +172,168 @@ int main(int argc, char *argv[]) {
     }
 
     if (opts.pipelineType == ndnc::PipelineType::invalid) {
-        cerr << "ERROR: invalid pipeline type\n\n";
-        usage(cout, app, description);
-        return 2;
+        std::cerr << "ERROR: invalid pipeline type\n\n";
+        programUsage(std::cout, app, description);
+        exit(2);
     }
 
     if (vm.count("name-prefix") > 0) {
         if (opts.namePrefix.empty()) {
-            cerr << "ERROR: empty name prefix value\n\n";
-            usage(cout, app, description);
-            return 2;
+            std::cerr << "ERROR: empty name prefix value\n\n";
+            programUsage(std::cout, app, description);
+            exit(2);
         }
     }
 
     opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;
+}
 
-    // Open face
-    face = new ndnc::face::Face();
+static void programTerminate() {
+    if (client != nullptr) {
+        client->stop();
+
+        for (auto it = workers.begin(); it != workers.end(); ++it) {
+            if (it->joinable()) {
+                it->join();
+            }
+        }
+    }
+}
+
+static void signalHandler(sig_atomic_t signum) {
+    programTerminate();
+    exit(signum);
+}
+
+int main(int argc, char *argv[]) {
+    // Register signal handler for program clean exit
+    signal(SIGINT, signalHandler);
+
+    // Parse command line arguments
+    ndnc::benchmark::ft::ClientOptions opts;
+    programOptions(argc, argv, opts);
+
+    // Open memif face
+    face = std::make_unique<ndnc::face::Face>();
     if (!face->connect(opts.mtu, opts.gqlserver, "ndncft-client")) {
         return 2;
     }
 
-    client = new ndnc::benchmark::ft::Runner(*face, opts);
+    // Init client
+    client = std::make_unique<ndnc::benchmark::ft::Runner>(*face, opts);
 
-    ndnc::FileMetadata metadata{};
-    if (!client->getFileMetadata(opts.file, metadata)) {
-        cleanOnExit();
+    std::vector<ndnc::FileMetadata> metadata{};
+    uint64_t totalByteCount = 0;
+
+    // Get Metadata for all paths
+    for (auto path : opts.paths) {
+        ndnc::FileMetadata md{};
+
+        if (!client->getFileMetadata(path, md)) {
+            LOG_WARN("unable to get File Metadata for: '%s. will skip...",
+                     path.c_str());
+            continue;
+        }
+
+        if (!md.isFile()) {
+            LOG_WARN("'%s' is a directory. will skip...", path.c_str());
+            continue;
+        }
+
+        if (md.getFileSize() == 0) {
+            LOG_WARN("'%s' file is empty. will skip...", path.c_str());
+            continue;
+        }
+
+        totalByteCount += md.getFileSize();
+        metadata.push_back(md);
+    }
+
+    if (totalByteCount == 0) {
+        LOG_WARN("no bytes to be transfered");
+        programTerminate();
         return -2;
     }
 
-    if (!metadata.isFile() || metadata.getFileSize() == 0) {
-        cleanOnExit();
-        return -2;
-    }
-
-    BlockProgressBar bar{option::BarWidth{80},
-                         option::PrefixText{"Downloading "},
-                         option::ShowPercentage{true},
-                         option::ShowElapsedTime{true},
-                         option::ShowRemainingTime{true},
-                         option::ForegroundColor{Color::white},
-                         option::MaxProgress{metadata.getFileSize()}};
-
-    DynamicProgress<BlockProgressBar> bars(bar);
-
-    show_console_cursor(true);
-    // Do not hide bars when completed
-    bars.set_option(option::HideBarWhenComplete{false});
+    // Prepare progress bar indicator for terminal output
+    indicators::BlockProgressBar bar{
+        indicators::option::BarWidth{80},
+        indicators::option::PrefixText{"Transferring "},
+        indicators::option::ShowPercentage{true},
+        indicators::option::ShowElapsedTime{true},
+        indicators::option::ShowRemainingTime{true},
+        indicators::option::MaxProgress{totalByteCount}};
+    indicators::show_console_cursor(true);
 
     std::atomic<uint64_t> currentByteCount = 0;
-    std::atomic<uint64_t> currentSegmentsCount = 0;
 
-    auto receiveWorker = [&](int wid) {
+    auto receiveWorker = [&currentByteCount, &totalByteCount,
+                          &bar](ndnc::FileMetadata metadata,
+                                std::atomic<uint64_t> &segmentCount) {
         client->receiveFileContent(
             [&](uint64_t bytes) {
-                if (bars[0].is_completed()) {
+                if (bar.is_completed()) {
                     return;
                 }
 
                 currentByteCount += bytes;
 
-                bars[0].set_progress(currentByteCount);
-                bars[0].set_option(
-                    option::PostfixText{to_string(currentByteCount) + "/" +
-                                        to_string(metadata.getFileSize())});
-                bars[0].tick();
-
-                if (currentByteCount == metadata.getFileSize()) {
-                    bars[0].set_option(
-                        option::PrefixText{"Download complete "});
-                    bars[0].mark_as_completed();
-                }
+                bar.set_option(indicators::option::PostfixText{
+                    "[" + std::to_string(currentByteCount) + "/" +
+                    std::to_string(totalByteCount) + "]"});
+                bar.set_progress(currentByteCount);
+                bar.tick();
             },
-            std::ref(currentSegmentsCount), metadata.getFinalBlockID());
+            std::ref(segmentCount), metadata.getFinalBlockID());
     };
 
-    auto requestWorker = [&](int wid) {
+    auto requestWorker = [&opts](ndnc::FileMetadata metadata, int wid) {
         client->requestFileContent(wid, opts.nthreads / 2,
                                    metadata.getFinalBlockID(),
                                    metadata.getVersionedName());
     };
 
-    for (int i = 0; i < opts.nthreads / 2; ++i) {
-        workers.push_back(std::thread(receiveWorker, i));
-        workers.push_back(std::thread(requestWorker, i));
-    }
-
+    // Copy all paths one at a time
     auto start = std::chrono::high_resolution_clock::now();
 
-    for (auto it = workers.begin(); it != workers.end(); ++it) {
-        if (it->joinable()) {
-            it->join();
+    for (auto i = 0; i < static_cast<int>(metadata.size()); ++i) {
+        std::atomic<uint64_t> segmentCount = 0;
+
+        for (int wid = 0; wid < opts.nthreads / 2; ++wid) {
+            workers.push_back(std::thread(receiveWorker, metadata[i],
+                                          std::ref(segmentCount)));
+            workers.push_back(std::thread(requestWorker, metadata[i], wid));
         }
+
+        for (auto it = workers.begin(); it != workers.end(); ++it) {
+            if (it->joinable()) {
+                it->join();
+            }
+        }
+
+        // Store information
     }
 
     auto end = std::chrono::high_resolution_clock::now();
 
+    bar.set_option(indicators::option::PrefixText{"Transfer completed "});
+    bar.mark_as_completed();
+
     auto duration = end - start;
-    double goodput = ((double)metadata.getFileSize() * 8.0) /
+    double goodput = ((double)totalByteCount * 8.0) /
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
-    cout << "\n--- statistics --\n"
-         << client->readCounters()->nTxPackets
-         << " interest packets transmitted, "
-         << client->readCounters()->nRxPackets << " data packets received, "
-         << client->readCounters()->nTimeouts
-         << " packets retransmitted on timeout\n"
-         << "average delay: " << client->readCounters()->averageDelay() << "\n"
-         << "goodput: " << binaryPrefix(goodput) << "bit/s"
-         << "\n\n";
+    std::cout << "\n--- statistics --\n"
+              << client->readCounters()->nTxPackets
+              << " interest packets transmitted, "
+              << client->readCounters()->nRxPackets
+              << " data packets received, " << client->readCounters()->nTimeouts
+              << " packets retransmitted on timeout\n"
+              << "average delay: " << client->readCounters()->averageDelay()
+              << "\n"
+              << "goodput: " << binaryPrefix(goodput) << "bit/s"
+              << "\n\n";
 
-    cleanOnExit();
+    programTerminate();
     return 0;
 }

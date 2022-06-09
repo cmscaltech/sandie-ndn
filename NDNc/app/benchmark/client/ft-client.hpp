@@ -49,8 +49,8 @@ struct ClientOptions {
     // Interest lifetime
     ndn::time::milliseconds lifetime = ndn::time::seconds{2};
 
-    std::string file;      // The file path
-    uint16_t nthreads = 2; // The number of worker threads
+    std::vector<std::string> paths; // List of paths to be copied over NDN
+    uint16_t nthreads = 2;          // The number of worker threads
 
     PipelineType pipelineType = PipelineType::aimd;
     uint16_t pipelineSize = 32768;
@@ -68,7 +68,7 @@ class Runner : public std::enable_shared_from_this<Runner> {
 
     bool getFileMetadata(std::string path, FileMetadata &metadata);
     void requestFileContent(int wid, int wcount, uint64_t finalBlockID,
-                            ndn::Name prefix);
+                            ndn::Name name);
     void receiveFileContent(NotifyProgressStatus onProgress,
                             std::atomic<uint64_t> &segmentsCount,
                             uint64_t finalBlockID);

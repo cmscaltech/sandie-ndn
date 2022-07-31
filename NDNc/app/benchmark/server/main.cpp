@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    LOG_INFO("running... ");
+    LOG_INFO("running…");
 
     while (shouldRun && face->isConnected()) {
         face->loop();

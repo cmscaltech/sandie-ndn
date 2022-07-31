@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
     ndnc::ping::server::Runner *server =
         new ndnc::ping::server::Runner(*face, opts);
 
-    LOG_INFO("running...");
+    LOG_INFO("running…");
 
     face->advertise(opts.name);
 

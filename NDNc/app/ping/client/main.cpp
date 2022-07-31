@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
 
     client = new ndnc::ping::client::Runner(*face, opts);
 
-    LOG_INFO("running...");
+    LOG_INFO("running…");
 
     while (shouldRun && face->isConnected() && client->canContinue()) {
         client->run();

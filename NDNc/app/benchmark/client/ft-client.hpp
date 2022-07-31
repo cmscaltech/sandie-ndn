@@ -42,7 +42,7 @@ namespace benchmark {
 namespace ft {
 
 struct ClientOptions {
-    std::string namePrefix = NDNC_NAME_PREFIX;
+    std::string namePrefix = NDNC_NAME_PREFIX_DEFAULT;
 
     size_t mtu = 9000;                                 // Dataroom size
     std::string gqlserver = "http://172.17.0.2:3030/"; // GraphQL server address
@@ -66,20 +66,30 @@ class Runner : public std::enable_shared_from_this<Runner> {
 
     void stop();
 
-    bool getFileMetadata(std::string path, FileMetadata &metadata);
+    void listFile(std::string file, std::shared_ptr<FileMetadata> &);
+    void listDir(std::string dir, std::vector<std::shared_ptr<FileMetadata>> &);
+    void listDirRecursive(std::string dir,
+                          std::vector<std::shared_ptr<FileMetadata>> &);
+
     void requestFileContent(int wid, int wcount, uint64_t finalBlockID,
                             ndn::Name name);
     void receiveFileContent(NotifyProgressStatus onProgress,
                             std::atomic<uint64_t> &segmentsCount,
                             uint64_t finalBlockID);
 
-    std::shared_ptr<PipelineInterests::Counters> readCounters();
+    std::shared_ptr<PipelineInterests::Counters> getCounters();
 
   private:
     bool canContinue();
 
     bool requestData(std::shared_ptr<ndn::Interest> &&);
     bool requestData(std::vector<std::shared_ptr<ndn::Interest>> &&);
+
+    std::shared_ptr<ndn::Data>
+    syncRequestDataFor(std::shared_ptr<ndn::Interest> &&);
+
+    std::vector<std::shared_ptr<ndn::Data>>
+    syncRequestDataFor(std::vector<std::shared_ptr<ndn::Interest>> &&);
 
   private:
     std::atomic_bool m_stop;

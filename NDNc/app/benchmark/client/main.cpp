@@ -205,6 +205,38 @@ static void signalHandler(sig_atomic_t signum) {
     exit(signum);
 }
 
+// void getMetadata(std::vector<std::string> paths,
+//                  std::vector<std::shared_ptr<ndnc::FileMetadata>> md) {
+//     for (auto path : paths) {
+//         LOG_INFO("current path: %s", path.c_str());
+//         auto metadata = client->listFile(path);
+
+//         if (metadata == nullptr) {
+//             LOG_WARN("unable to list: '%s'. will skip…", path.c_str());
+//             continue;
+//         }
+
+//         if (metadata->isFile()) {
+//             // TODO later
+//             // if (metadata->getFileSize() == 0) {
+//             //     LOG_WARN("file: '%s' is empty. will skip…", path.c_str());
+//             //     continue;
+//             // }
+
+//             // totalByteCount += metadata->getFileSize();
+//             md.push_back(metadata);
+//         } else {
+//             auto dir = client->listDir(path);
+
+//             if (!dir.empty()) {
+//                 getMetadata(dir, md);
+//             } else {
+//                 LOG_INFO("dir is empty");
+//             }
+//         }
+//     }
+// }
+
 int main(int argc, char *argv[]) {
     // Register signal handler for program clean exit
     signal(SIGINT, signalHandler);
@@ -222,32 +254,28 @@ int main(int argc, char *argv[]) {
     // Init client
     client = std::make_unique<ndnc::benchmark::ft::Runner>(*face, opts);
 
-    std::vector<ndnc::FileMetadata> metadata{};
+    std::vector<std::shared_ptr<ndnc::FileMetadata>> metadata{};
     uint64_t totalByteCount = 0;
 
     // Get Metadata for all paths
+    // TODO: Compute file size
+    // TODO: Print the entire list of files and total size
+    // TODO: Print mtime
+
+    // getMetadata(opts.paths, metadata);
+
     for (auto path : opts.paths) {
-        ndnc::FileMetadata md{};
+        std::vector<std::shared_ptr<ndnc::FileMetadata>> md{};
+        client->listDirRecursive(path, md);
 
-        if (!client->getFileMetadata(path, md)) {
-            LOG_WARN("unable to get File Metadata for: '%s. will skip...",
-                     path.c_str());
-            continue;
-        }
-
-        if (!md.isFile()) {
-            LOG_WARN("'%s' is a directory. will skip...", path.c_str());
-            continue;
-        }
-
-        if (md.getFileSize() == 0) {
-            LOG_WARN("'%s' file is empty. will skip...", path.c_str());
-            continue;
-        }
-
-        totalByteCount += md.getFileSize();
-        metadata.push_back(md);
+        metadata.insert(std::end(metadata), std::begin(md), std::end(md));
     }
+
+    for (auto md : metadata) {
+        std::cout << ndnc::rdrFilePath(md->getVersionedName()) << "\n";
+    }
+
+    return 0;
 
     if (totalByteCount == 0) {
         LOG_WARN("no bytes to be transfered");
@@ -268,7 +296,7 @@ int main(int argc, char *argv[]) {
     std::atomic<uint64_t> currentByteCount = 0;
 
     auto receiveWorker = [&currentByteCount, &totalByteCount,
-                          &bar](ndnc::FileMetadata metadata,
+                          &bar](std::shared_ptr<ndnc::FileMetadata> metadata,
                                 std::atomic<uint64_t> &segmentCount) {
         client->receiveFileContent(
             [&](uint64_t bytes) {
@@ -284,13 +312,14 @@ int main(int argc, char *argv[]) {
                 bar.set_progress(currentByteCount);
                 bar.tick();
             },
-            std::ref(segmentCount), metadata.getFinalBlockID());
+            std::ref(segmentCount), metadata->getFinalBlockID());
     };
 
-    auto requestWorker = [&opts](ndnc::FileMetadata metadata, int wid) {
+    auto requestWorker = [&opts](std::shared_ptr<ndnc::FileMetadata> metadata,
+                                 int wid) {
         client->requestFileContent(wid, opts.nthreads / 2,
-                                   metadata.getFinalBlockID(),
-                                   metadata.getVersionedName());
+                                   metadata->getFinalBlockID(),
+                                   metadata->getVersionedName());
     };
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -321,14 +350,14 @@ int main(int argc, char *argv[]) {
     double goodput = ((double)totalByteCount * 8.0) /
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
+    auto clientCounters = client->getCounters();
+
     std::cout << "\n--- statistics --\n"
-              << client->readCounters()->nTxPackets
-              << " interest packets transmitted, "
-              << client->readCounters()->nRxPackets
-              << " data packets received, " << client->readCounters()->nTimeouts
+              << clientCounters->nTxPackets << " interest packets transmitted, "
+              << clientCounters->nRxPackets << " data packets received, "
+              << clientCounters->nTimeouts
               << " packets retransmitted on timeout\n"
-              << "average delay: " << client->readCounters()->averageDelay()
-              << "\n"
+              << "average delay: " << clientCounters->averageDelay() << "\n"
               << "goodput: " << binaryPrefix(goodput) << "bit/s"
               << "\n\n";
 

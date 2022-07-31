@@ -98,7 +98,7 @@ class PipelineInterests : public PacketHandler {
         return m_requestQueue.size_approx();
     }
 
-    std::shared_ptr<Counters> counters() {
+    std::shared_ptr<Counters> getCounters() {
         return this->m_counters;
     }
 

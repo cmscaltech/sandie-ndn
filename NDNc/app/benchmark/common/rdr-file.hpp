@@ -25,40 +25,50 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_APP_COMMON_RDR_FILE_HPP
-#define NDNC_APP_COMMON_RDR_FILE_HPP
+#ifndef NDNC_RDR_HPP
+#define NDNC_RDR_HPP
 
 #include "ft-naming-scheme.hpp"
 
 namespace ndnc {
+static const ndn::Name::Component metadataComponent =
+    ndn::Name::Component::fromEscapedString("32=metadata");
+static const ndn::Name::Component lsComponent =
+    ndn::Name::Component::fromEscapedString("32=ls");
+}; // namespace ndnc
+
+namespace ndnc {
 /**
- * @brief Get RDR discovery Interest Name for FILE RETRIEVAL
+ * @brief Get RDR discovery packet Name for FILE RETRIEVAL
  * https://redmine.named-data.net/projects/ndn-tlv/wiki/RDR
  * https://github.com/yoursunny/ndn6-tools/blob/main/file-server.md#protocol-details
  *
  * @param path The file path
  * @param prefix The Name prefix
- * @return const ndn::Name The NDN Name
+ * @return const ndn::Name The NDN packet Name
  */
-inline static const ndn::Name rdrDiscoveryInterestNameFromFilePath(
-    const std::string path, const std::string prefix = NDNC_NAME_PREFIX) {
-    return ndn::Name(prefix).append(path).append(
-        ndn::Name::Component::fromEscapedString("32=metadata"));
+inline static const ndn::Name rdrDiscoveryNameFileRetrieval(
+    const std::string path,
+    const std::string prefix = NDNC_NAME_PREFIX_DEFAULT) {
+    return ndn::Name(prefix).append(path).append(metadataComponent);
 }
 
 /**
- * @brief Get the file path from a FILE RETRIEVAL RDR discovery packet Name
+ * @brief Get RDR discovery packet Name for DIRECTORY LISTING
  * https://redmine.named-data.net/projects/ndn-tlv/wiki/RDR
  * https://github.com/yoursunny/ndn6-tools/blob/main/file-server.md#protocol-details
  *
- * @param name The Interest Name
- * @param prefixNoComponents The number of components of the prefix of this Name
- * @return const std::string
+ * @param path The dir path
+ * @param prefix The Name prefix
+ * @return const ndn::Name The NDN packet Name
  */
-inline static const std::string rdrFilePathFromDiscoveryInterestName(
-    const ndn::Name name,
-    const size_t prefixNoComponents = NDNC_NAME_PREFIX_NO_COMPONENTS) {
-    return name.getPrefix(-1).getSubName(prefixNoComponents).toUri();
+inline static const ndn::Name rdrDiscoveryNameDirListing(
+    const std::string path,
+    const std::string prefix = NDNC_NAME_PREFIX_DEFAULT) {
+    return ndn::Name(prefix)
+        .append(path)
+        .append(lsComponent)
+        .append(metadataComponent);
 }
 
 /**
@@ -66,15 +76,43 @@ inline static const std::string rdrFilePathFromDiscoveryInterestName(
  * https://redmine.named-data.net/projects/ndn-tlv/wiki/RDR
  * https://github.com/yoursunny/ndn6-tools/blob/main/file-server.md#protocol-details
  *
- * @param name The NDN Name
+ * @param name The NDN packet Name
  * @return true
  * @return false
  */
-inline static bool isRDRDiscovery(const ndn::Name name) {
-    return !name.at(-1).isSegment() &&
-           name.at(-1) ==
-               ndn::Name::Component::fromEscapedString("32=metadata");
+inline static bool isRDRDiscoveryName(const ndn::Name name) {
+    return !name.at(-1).isSegment() && name.at(-1) == metadataComponent;
+}
+
+/**
+ * @brief Get the file path from a FILE RETRIEVAL RDR discovery packet Name
+ * https://redmine.named-data.net/projects/ndn-tlv/wiki/RDR
+ * https://github.com/yoursunny/ndn6-tools/blob/main/file-server.md#protocol-details
+ *
+ * @param name The NDN packet Name
+ * @param prefixNoComponents The number of components of the prefix of this Name
+ * @return const std::string The file path
+ */
+inline static const std::string rdrFilePath(
+    const ndn::Name name,
+    const size_t prefixNoComponents = NDNC_NAME_PREFIX_DEFAULT_NO_COMPONENTS) {
+    return name.getPrefix(-1).getSubName(prefixNoComponents).toUri();
+}
+
+/**
+ * @brief Get the directory path from a DIRECTORY LISTING RDR discovery packet
+ * Name https://redmine.named-data.net/projects/ndn-tlv/wiki/RDR
+ * https://github.com/yoursunny/ndn6-tools/blob/main/file-server.md#protocol-details
+ *
+ * @param name The NDN packet Name
+ * @param prefixNoComponents The number of components of the prefix of this Name
+ * @return const std::string The directory path
+ */
+inline static const std::string rdrDir(
+    const ndn::Name name,
+    const size_t prefixNoComponents = NDNC_NAME_PREFIX_DEFAULT_NO_COMPONENTS) {
+    return name.getPrefix(-2).getSubName(prefixNoComponents).toUri();
 }
 }; // namespace ndnc
 
-#endif // NDNC_APP_COMMON_RDR_FILE_HPP
+#endif // NDNC_RDR_HPP

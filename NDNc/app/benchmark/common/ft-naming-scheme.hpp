@@ -25,21 +25,22 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_APP_COMMON_FILE_TRANSFER_NAMING_SCHEME_HPP
-#define NDNC_APP_COMMON_FILE_TRANSFER_NAMING_SCHEME_HPP
+#ifndef NDNC_NAMING_SCHEME_HPP
+#define NDNC_NAMING_SCHEME_HPP
 
-#include <ndn-cxx/name.hpp>
 #include <string>
 
+#include <ndn-cxx/name.hpp>
+
 /**
- * @brief NDN Name related constants in NDNc file transfer (ft) applications
+ * @brief NDN Name related constants in NDNc file transfer applications
  *
  */
 namespace ndnc {
-// NDNc Name prefix
-static const std::string NDNC_NAME_PREFIX = "/ndnc/ft";
-// NDNc Name prefix components count
-static const size_t NDNC_NAME_PREFIX_NO_COMPONENTS = 2;
+// NDNc default Name prefix
+static const std::string NDNC_NAME_PREFIX_DEFAULT = "/ndnc/ft";
+// NDNc default Name prefix components count
+static const size_t NDNC_NAME_PREFIX_DEFAULT_NO_COMPONENTS = 2;
 }; // namespace ndnc
 
-#endif // NDNC_APP_COMMON_FILE_TRANSFER_NAMING_SCHEME_HPP
+#endif // NDNC_NAMING_SCHEME_HPP

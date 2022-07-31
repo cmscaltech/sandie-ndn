@@ -65,57 +65,241 @@ void Runner::stop() {
     }
 }
 
-std::shared_ptr<PipelineInterests::Counters> Runner::readCounters() {
-    return m_pipeline->counters();
+std::shared_ptr<PipelineInterests::Counters> Runner::getCounters() {
+    return m_pipeline->getCounters();
 }
 
-bool Runner::getFileMetadata(std::string path, FileMetadata &metadata) {
-    // Compose Interest packet
+std::shared_ptr<ndn::Data>
+Runner::syncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest) {
+    // Insert the Interest packet in the pipeline
+    if (!m_pipeline->enqueueInterest(std::move(interest))) {
+        LOG_FATAL("unable to insert Interest packet in the pipeline");
+        return nullptr;
+    }
+
+    // Wait for the response from the pipeline
+    std::shared_ptr<ndn::Data> packet(nullptr);
+    while (this->canContinue() && !m_pipeline->dequeueData(packet)) {}
+
+    return packet;
+}
+
+std::vector<std::shared_ptr<ndn::Data>> Runner::syncRequestDataFor(
+    std::vector<std::shared_ptr<ndn::Interest>> &&interests) {
+    auto npackets = interests.size();
+
+    if (!m_pipeline->enqueueInterests(std::move(interests))) {
+        LOG_FATAL("unable to insert Interest packets in the pipeline");
+        return {};
+    }
+
+    std::vector<std::shared_ptr<ndn::Data>> packets(npackets);
+
+    for (; npackets > 0; --npackets) {
+        std::shared_ptr<ndn::Data> packet(nullptr);
+        while (this->canContinue() && !m_pipeline->dequeueData(packet)) {}
+
+        if (!this->canContinue() || packet == nullptr) {
+            return {};
+        }
+
+        if (!packet->getName().at(-1).isSegment()) {
+            LOG_FATAL("last name component of Data packet is not a segment");
+            m_error = true;
+            return {};
+        }
+
+        try {
+            packets[packet->getName().at(-1).toSegment()] = packet;
+        } catch (ndn::Name::Error &error) {
+            LOG_FATAL("unable to get the segment from the Data Name");
+            return {};
+        }
+    }
+
+    return packets;
+}
+
+void Runner::listFile(std::string file,
+                      std::shared_ptr<FileMetadata> &metadata) {
+    metadata = nullptr;
+
     auto interest = std::make_shared<ndn::Interest>(
-        rdrDiscoveryInterestNameFromFilePath(path, m_options->namePrefix));
+        rdrDiscoveryNameFileRetrieval(file, m_options->namePrefix));
 
     interest->setCanBePrefix(true);
     interest->setMustBeFresh(true);
+    interest->setInterestLifetime(m_options->lifetime);
 
-    // Express Interest
-    if (!requestData(std::move(interest))) {
-        return false;
+    auto data = syncRequestDataFor(std::move(interest));
+
+    if (data == nullptr || !data->hasContent()) {
+        return;
     }
 
-    // Wait for Data
-    std::shared_ptr<ndn::Data> data;
-    while (canContinue() && !m_pipeline->dequeueData(data)) {}
-
-    if (!canContinue()) {
-        return false;
+    if (data->getContentType() == ndn::tlv::ContentType_Nack) {
+        LOG_ERROR("unable to list file '%s'", file.c_str());
+        return;
     }
 
-    // TODO: sync_request
+    metadata = std::make_shared<FileMetadata>(data->getContent());
 
-    if (data == nullptr) {
-        LOG_ERROR("pipeline error on receive file metadata");
-        return false;
+    // TODO: Remove
+    // if (metadata->isFile()) {
+    //     LOG_INFO("file: '%s' size=%li (%lix%li) versioned name: %s",
+    //              file.c_str(), metadata->getFileSize(),
+    //              metadata->getSegmentSize(), metadata->getFinalBlockID(),
+    //              metadata->getVersionedName().toUri().c_str());
+    // } else {
+    //     LOG_INFO("dir: '%s'", file.c_str());
+    // }
+}
+
+void Runner::listDir(std::string dir, // TODO -> path
+                     std::vector<std::shared_ptr<FileMetadata>> &all) {
+    std::shared_ptr<FileMetadata> metadata(nullptr);
+
+    all.clear();
+
+    {
+        // Get list dir Metadata
+        auto interest = std::make_shared<ndn::Interest>(
+            rdrDiscoveryNameDirListing(dir, m_options->namePrefix));
+
+        interest->setCanBePrefix(true);
+        interest->setMustBeFresh(true);
+        interest->setInterestLifetime(m_options->lifetime);
+
+        auto data = syncRequestDataFor(std::move(interest));
+
+        if (data == nullptr || !data->hasContent()) {
+            return;
+        }
+
+        if (data->getContentType() == ndn::tlv::ContentType_Nack) {
+            LOG_ERROR("unable to list dir: '%s'", dir.c_str());
+            return;
+        }
+
+        metadata = std::make_shared<FileMetadata>(data->getContent());
     }
 
-    if (!data->hasContent() ||
-        data->getContentType() == ndn::tlv::ContentType_Nack) {
-        LOG_FATAL("unable to open file '%s'", path.c_str());
-        return false;
+    if (metadata == nullptr) {
+        LOG_ERROR("unable to list dir: '%s'", dir.c_str());
+        return;
     }
 
-    metadata = FileMetadata(data->getContent());
-
-    if (metadata.isFile()) {
-        LOG_INFO("file: '%s' size=%li (%lix%li) versioned name: %s",
-                 path.c_str(), metadata.getFileSize(),
-                 metadata.getSegmentSize(), metadata.getFinalBlockID(),
-                 metadata.getVersionedName().toUri().c_str());
-    } else {
-        LOG_DEBUG("directory: '%s", path.c_str());
-        LOG_DEBUG("directories are not yet supported");
+    if (!metadata->isDir()) {
+        LOG_ERROR("request to list dir on a file path: '%s'", dir.c_str());
+        return;
     }
 
-    return true;
+    uint8_t *byteContent =
+        (uint8_t *)malloc(8800 * (metadata->getFinalBlockID() + 1));
+
+    if (NULL == byteContent) {
+        LOG_FATAL("unable to allocate memory for retrieving dir list content");
+        m_error = true;
+        return;
+    }
+
+    uint64_t byteContentOffset = 0;
+    uint64_t contentFinalBlockId = 0;
+    {
+        // Get all list dir content
+        for (uint64_t i = 0; i <= contentFinalBlockId; ++i) {
+            auto interest = std::make_shared<ndn::Interest>(
+                metadata->getVersionedName().appendSegment(i));
+
+            interest->setInterestLifetime(m_options->lifetime);
+
+            auto data = syncRequestDataFor(std::move(interest));
+
+            if (data == nullptr || !data->hasContent()) {
+                return;
+            }
+
+            if (data->getContentType() == ndn::tlv::ContentType_Nack) {
+                LOG_FATAL("unable to get list dir content '%s'", dir.c_str());
+                return;
+            } else {
+                if (!data->getFinalBlock()->isSegment()) {
+                    LOG_ERROR(
+                        "dir list data content FinalBlockId is not a segment");
+                    return;
+                } else {
+                    contentFinalBlockId = data->getFinalBlock()->toSegment();
+                }
+            }
+
+            memcpy(byteContent + byteContentOffset, data->getContent().value(),
+                   data->getContent().value_size());
+            byteContentOffset += data->getContent().value_size();
+        }
+    }
+
+    // Parse dir list byteContent to a list of paths
+    std::vector<std::string> content = {};
+    for (uint64_t i = 0, j = 0;
+         j <= byteContentOffset && i <= byteContentOffset; ++j) {
+        if (byteContent[j] != '\0') {
+            continue;
+        }
+
+        if (byteContent[i] == '\0') {
+            break;
+        }
+
+        auto suffix = std::string((const char *)(byteContent + i), j - i);
+        auto prefix = dir.back() == '/' ? dir : dir + "/";
+
+        content.push_back(prefix + suffix);
+        i = j + 1;
+    }
+
+    free(byteContent);
+
+    // Request Metadata for all files in the directory
+    for (auto file : content) {
+        metadata = nullptr;
+        listFile(file, metadata);
+
+        if (metadata == nullptr) {
+            continue;
+        } else {
+            all.push_back(metadata);
+        }
+    }
+}
+
+void Runner::listDirRecursive(std::string dir,
+                              std::vector<std::shared_ptr<FileMetadata>> &all) {
+    {
+        std::shared_ptr<FileMetadata> metadata(nullptr);
+        listFile(dir, metadata);
+
+        if (metadata == nullptr) {
+            return;
+        }
+
+        if (metadata->isFile()) {
+            all.push_back(metadata);
+            return;
+        }
+    }
+
+    {
+        std::vector<std::shared_ptr<FileMetadata>> metadata{};
+        listDir(dir, metadata);
+
+        for (auto md : metadata) {
+            if (md->isFile()) {
+                all.push_back(md);
+            } else {
+                listDirRecursive(ndnc::rdrDir(md->getVersionedName()), all);
+            }
+        }
+    }
 }
 
 void Runner::requestFileContent(int wid, int wcount, uint64_t finalBlockID,

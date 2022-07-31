@@ -50,8 +50,8 @@ void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
                         ndn::lp::PitToken &&pitToken) {
 
     auto name = interest->getName();
-    auto data =
-        isRDRDiscovery(name) ? getFileMetadata(name) : getFileContentData(name);
+    auto data = isRDRDiscoveryName(name) ? getFileMetadata(name)
+                                         : getFileContentData(name);
 
     data->setSignatureInfo(m_signatureInfo);
     data->setSignatureValue(std::make_shared<ndn::Buffer>());
@@ -68,8 +68,7 @@ std::shared_ptr<ndn::Data> Runner::getFileMetadata(const ndn::Name name) {
     auto data = std::make_shared<ndn::Data>(name);
     FileMetadata metadata{m_options.segmentSize};
 
-    if (metadata.prepare(rdrFilePathFromDiscoveryInterestName(
-                             name, m_options.namePrefixNoComponents),
+    if (metadata.prepare(rdrFilePath(name, m_options.namePrefixNoComponents),
                          name.getPrefix(-1))) {
         data->setContent(metadata.encode());
         data->setContentType(ndn::tlv::ContentType_Blob);

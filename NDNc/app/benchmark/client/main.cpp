@@ -259,22 +259,34 @@ int main(int argc, char *argv[]) {
     uint64_t totalByteCount = 0;
     uint64_t totalFileCount = 0;
 
-    for (auto md : metadata) {
-        if (md->isFile()) {
+    if (list) {
+        for (auto md : metadata) {
+            if (md->isFile()) {
+                std::cout << ndnc::rdrFileUri(md->getVersionedName()) << "\n";
+                totalByteCount += md->getFileSize();
+            } else {
+                std::cout << ndnc::rdrDirUri(md->getVersionedName()) << "\n";
+            }
+
+            totalFileCount += 1;
+        }
+
+        return 0;
+    } else {
+        for (auto md : metadata) {
+            // Ignore listing directories because only files will be transferred
+            if (md->isDir()) {
+                continue;
+            }
+
             std::cout << ndnc::rdrFileUri(md->getVersionedName()) << "\n";
             totalByteCount += md->getFileSize();
             totalFileCount += 1;
-        } else {
-            std::cout << ndnc::rdrDirUri(md->getVersionedName()) << "\n";
         }
     }
 
     std::cout << "\ntotal " << totalFileCount << "\n";
     std::cout << "total size " << totalByteCount << "\n";
-
-    if (list) {
-        return 0;
-    }
 
     if (totalByteCount == 0) {
         programTerminate();

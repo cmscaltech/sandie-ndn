@@ -120,12 +120,34 @@ std::vector<std::shared_ptr<ndn::Data>> Runner::syncRequestDataFor(
     return packets;
 }
 
-void Runner::listFile(std::string file,
+bool Runner::asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest) {
+    interest->setInterestLifetime(m_options->lifetime);
+
+    if (!m_pipeline->enqueueInterest(std::move(interest))) {
+        LOG_FATAL("unable to insert Interest packet in the pipeline");
+        return false;
+    }
+
+    return true;
+}
+
+bool Runner::asyncRequestDataFor(
+    std::vector<std::shared_ptr<ndn::Interest>> &&interests) {
+
+    if (!m_pipeline->enqueueInterests(std::move(interests))) {
+        LOG_FATAL("unable to insert Interest packets in the pipeline");
+        return false;
+    }
+
+    return true;
+}
+
+void Runner::listFile(std::string path,
                       std::shared_ptr<FileMetadata> &metadata) {
     metadata = nullptr;
 
     auto interest = std::make_shared<ndn::Interest>(
-        rdrDiscoveryNameFileRetrieval(file, m_options->namePrefix));
+        rdrDiscoveryNameFileRetrieval(path, m_options->namePrefix));
 
     interest->setCanBePrefix(true);
     interest->setMustBeFresh(true);
@@ -138,33 +160,22 @@ void Runner::listFile(std::string file,
     }
 
     if (data->getContentType() == ndn::tlv::ContentType_Nack) {
-        LOG_ERROR("unable to list file '%s'", file.c_str());
+        LOG_ERROR("unable to list file '%s'", path.c_str());
         return;
     }
 
     metadata = std::make_shared<FileMetadata>(data->getContent());
-
-    // TODO: Remove
-    // if (metadata->isFile()) {
-    //     LOG_INFO("file: '%s' size=%li (%lix%li) versioned name: %s",
-    //              file.c_str(), metadata->getFileSize(),
-    //              metadata->getSegmentSize(), metadata->getFinalBlockID(),
-    //              metadata->getVersionedName().toUri().c_str());
-    // } else {
-    //     LOG_INFO("dir: '%s'", file.c_str());
-    // }
 }
 
-void Runner::listDir(std::string dir, // TODO -> path
+void Runner::listDir(std::string path,
                      std::vector<std::shared_ptr<FileMetadata>> &all) {
     std::shared_ptr<FileMetadata> metadata(nullptr);
-
     all.clear();
 
     {
         // Get list dir Metadata
         auto interest = std::make_shared<ndn::Interest>(
-            rdrDiscoveryNameDirListing(dir, m_options->namePrefix));
+            rdrDiscoveryNameDirListing(path, m_options->namePrefix));
 
         interest->setCanBePrefix(true);
         interest->setMustBeFresh(true);
@@ -177,7 +188,7 @@ void Runner::listDir(std::string dir, // TODO -> path
         }
 
         if (data->getContentType() == ndn::tlv::ContentType_Nack) {
-            LOG_ERROR("unable to list dir: '%s'", dir.c_str());
+            LOG_ERROR("unable to list dir: '%s'", path.c_str());
             return;
         }
 
@@ -185,12 +196,12 @@ void Runner::listDir(std::string dir, // TODO -> path
     }
 
     if (metadata == nullptr) {
-        LOG_ERROR("unable to list dir: '%s'", dir.c_str());
+        LOG_ERROR("unable to list dir: '%s'", path.c_str());
         return;
     }
 
     if (!metadata->isDir()) {
-        LOG_ERROR("request to list dir on a file path: '%s'", dir.c_str());
+        LOG_ERROR("request to list dir on a file path: '%s'", path.c_str());
         return;
     }
 
@@ -220,7 +231,7 @@ void Runner::listDir(std::string dir, // TODO -> path
             }
 
             if (data->getContentType() == ndn::tlv::ContentType_Nack) {
-                LOG_FATAL("unable to get list dir content '%s'", dir.c_str());
+                LOG_FATAL("unable to get list dir content '%s'", path.c_str());
                 return;
             } else {
                 if (!data->getFinalBlock()->isSegment()) {
@@ -251,7 +262,7 @@ void Runner::listDir(std::string dir, // TODO -> path
         }
 
         auto suffix = std::string((const char *)(byteContent + i), j - i);
-        auto prefix = dir.back() == '/' ? dir : dir + "/";
+        auto prefix = path.back() == '/' ? path : path + "/";
 
         content.push_back(prefix + suffix);
         i = j + 1;
@@ -272,11 +283,11 @@ void Runner::listDir(std::string dir, // TODO -> path
     }
 }
 
-void Runner::listDirRecursive(std::string dir,
+void Runner::listDirRecursive(std::string path,
                               std::vector<std::shared_ptr<FileMetadata>> &all) {
     {
         std::shared_ptr<FileMetadata> metadata(nullptr);
-        listFile(dir, metadata);
+        listFile(path, metadata);
 
         if (metadata == nullptr) {
             return;
@@ -290,13 +301,13 @@ void Runner::listDirRecursive(std::string dir,
 
     {
         std::vector<std::shared_ptr<FileMetadata>> metadata{};
-        listDir(dir, metadata);
+        listDir(path, metadata);
 
         for (auto md : metadata) {
             if (md->isFile()) {
                 all.push_back(md);
             } else {
-                listDirRecursive(ndnc::rdrDir(md->getVersionedName()), all);
+                listDirRecursive(ndnc::rdrDirUri(md->getVersionedName()), all);
             }
         }
     }
@@ -327,37 +338,13 @@ void Runner::requestFileContent(int wid, int wcount, uint64_t finalBlockID,
             interests.emplace_back(std::move(interest));
         }
 
-        if (!requestData(std::move(interests))) {
+        if (!asyncRequestDataFor(std::move(interests))) {
             m_error = true;
             return;
         }
 
         segmentNo += wcount * npackets;
     }
-}
-
-bool Runner::requestData(std::shared_ptr<ndn::Interest> &&interest) {
-    interest->setInterestLifetime(m_options->lifetime);
-
-    if (!m_pipeline->enqueueInterest(std::move(interest))) {
-        LOG_FATAL("unable to enqueue Interest packet");
-        return false;
-    }
-
-    return true;
-}
-
-bool Runner::requestData(
-    std::vector<std::shared_ptr<ndn::Interest>> &&interests) {
-
-    // TODO: async_request
-
-    if (!m_pipeline->enqueueInterests(std::move(interests))) {
-        LOG_FATAL("unable to enqueue Interest packets");
-        return false;
-    }
-
-    return true;
 }
 
 void Runner::receiveFileContent(NotifyProgressStatus onProgress,

@@ -93,7 +93,7 @@ inline static bool isRDRDiscoveryName(const ndn::Name name) {
  * @param prefixNoComponents The number of components of the prefix of this Name
  * @return const std::string The file path
  */
-inline static const std::string rdrFilePath(
+inline static const std::string rdrFileUri(
     const ndn::Name name,
     const size_t prefixNoComponents = NDNC_NAME_PREFIX_DEFAULT_NO_COMPONENTS) {
     return name.getPrefix(-1).getSubName(prefixNoComponents).toUri();
@@ -108,7 +108,7 @@ inline static const std::string rdrFilePath(
  * @param prefixNoComponents The number of components of the prefix of this Name
  * @return const std::string The directory path
  */
-inline static const std::string rdrDir(
+inline static const std::string rdrDirUri(
     const ndn::Name name,
     const size_t prefixNoComponents = NDNC_NAME_PREFIX_DEFAULT_NO_COMPONENTS) {
     return name.getPrefix(-2).getSubName(prefixNoComponents).toUri();

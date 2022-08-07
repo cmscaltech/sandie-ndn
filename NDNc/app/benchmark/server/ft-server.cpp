@@ -68,7 +68,7 @@ std::shared_ptr<ndn::Data> Runner::getFileMetadata(const ndn::Name name) {
     auto data = std::make_shared<ndn::Data>(name);
     FileMetadata metadata{m_options.segmentSize};
 
-    if (metadata.prepare(rdrFilePath(name, m_options.namePrefixNoComponents),
+    if (metadata.prepare(rdrFileUri(name, m_options.namePrefixNoComponents),
                          name.getPrefix(-1))) {
         data->setContent(metadata.encode());
         data->setContentType(ndn::tlv::ContentType_Blob);

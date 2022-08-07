@@ -66,9 +66,10 @@ class Runner : public std::enable_shared_from_this<Runner> {
 
     void stop();
 
-    void listFile(std::string file, std::shared_ptr<FileMetadata> &);
-    void listDir(std::string dir, std::vector<std::shared_ptr<FileMetadata>> &);
-    void listDirRecursive(std::string dir,
+    void listFile(std::string path, std::shared_ptr<FileMetadata> &);
+    void listDir(std::string path,
+                 std::vector<std::shared_ptr<FileMetadata>> &);
+    void listDirRecursive(std::string path,
                           std::vector<std::shared_ptr<FileMetadata>> &);
 
     void requestFileContent(int wid, int wcount, uint64_t finalBlockID,
@@ -82,14 +83,15 @@ class Runner : public std::enable_shared_from_this<Runner> {
   private:
     bool canContinue();
 
-    bool requestData(std::shared_ptr<ndn::Interest> &&);
-    bool requestData(std::vector<std::shared_ptr<ndn::Interest>> &&);
-
     std::shared_ptr<ndn::Data>
     syncRequestDataFor(std::shared_ptr<ndn::Interest> &&);
 
     std::vector<std::shared_ptr<ndn::Data>>
     syncRequestDataFor(std::vector<std::shared_ptr<ndn::Interest>> &&);
+
+    bool asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&);
+
+    bool asyncRequestDataFor(std::vector<std::shared_ptr<ndn::Interest>> &&);
 
   private:
     std::atomic_bool m_stop;

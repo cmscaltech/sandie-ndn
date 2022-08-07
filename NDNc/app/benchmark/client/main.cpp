@@ -54,16 +54,21 @@ static std::vector<std::thread> workers;
 static void programUsage(std::ostream &os, const std::string &app,
                          const po::options_description &desc) {
     os << "Usage: " << app
-       << " [options]\nNote: This application needs --paths argument "
-          "specified\n\n"
+       << " [options]\nNote: This application requires only one of the "
+          "arguments: --list, --copy, to be specified\n\n"
        << desc;
 }
 
 static void programOptions(int argc, char *argv[],
-                           ndnc::benchmark::ft::ClientOptions &opts) {
+                           ndnc::benchmark::ft::ClientOptions &opts, bool &copy,
+                           bool &list, bool &recursive) {
     po::options_description description("Options", 120);
-    std::string pipelineType = "fixed";
+    std::string pipelineType = "aimd";
 
+    description.add_options()(
+        "copy,c",
+        po::value<std::vector<std::string>>(&opts.paths)->multitoken(),
+        "Copy a list files or directories over NDN");
     description.add_options()(
         "gqlserver",
         po::value<std::string>(&opts.gqlserver)->default_value(opts.gqlserver),
@@ -73,6 +78,10 @@ static void programOptions(int argc, char *argv[],
         po::value<ndn::time::milliseconds::rep>()->default_value(
             opts.lifetime.count()),
         "The Interest lifetime in milliseconds. Specify a positive integer");
+    description.add_options()(
+        "list,l",
+        po::value<std::vector<std::string>>(&opts.paths)->multitoken(),
+        "List one or more files or directories");
     description.add_options()(
         "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
         "Dataroom size. Specify a positive integer between 64 and 9000");
@@ -90,9 +99,6 @@ static void programOptions(int argc, char *argv[],
         "The number of worker threads. Half will request the Interest packets "
         "and half will process the Data packets");
     description.add_options()(
-        "paths", po::value<std::vector<std::string>>(&opts.paths)->multitoken(),
-        "The list of paths to be copied over NDN");
-    description.add_options()(
         "pipeline-type",
         po::value<std::string>(&pipelineType)->default_value(pipelineType),
         "The pipeline type. Available options: fixed, aimd");
@@ -101,6 +107,8 @@ static void programOptions(int argc, char *argv[],
                                   ->default_value(opts.pipelineSize),
                               "The maximum pipeline size for `fixed` type or "
                               "the initial ssthresh for `aimd` type");
+    description.add_options()("recursive,r", po::bool_switch(&recursive),
+                              "Set recursive copy or list of directories");
 
     description.add_options()("help,h", "Print this help message and exit");
 
@@ -151,10 +159,13 @@ static void programOptions(int argc, char *argv[],
         exit(2);
     }
 
-    if (vm.count("paths") == 0) {
-        std::cerr << "ERROR: no paths specified\n\n";
+    if ((vm.count("copy") == 0 && vm.count("list") == 0) ||
+        (vm.count("copy") != 0 && vm.count("list") != 0)) {
         programUsage(std::cerr, app, description);
         exit(2);
+    } else {
+        copy = vm.count("copy") != 0;
+        list = vm.count("list") != 0;
     }
 
     if (opts.paths.empty()) {
@@ -205,45 +216,14 @@ static void signalHandler(sig_atomic_t signum) {
     exit(signum);
 }
 
-// void getMetadata(std::vector<std::string> paths,
-//                  std::vector<std::shared_ptr<ndnc::FileMetadata>> md) {
-//     for (auto path : paths) {
-//         LOG_INFO("current path: %s", path.c_str());
-//         auto metadata = client->listFile(path);
-
-//         if (metadata == nullptr) {
-//             LOG_WARN("unable to list: '%s'. will skip…", path.c_str());
-//             continue;
-//         }
-
-//         if (metadata->isFile()) {
-//             // TODO later
-//             // if (metadata->getFileSize() == 0) {
-//             //     LOG_WARN("file: '%s' is empty. will skip…", path.c_str());
-//             //     continue;
-//             // }
-
-//             // totalByteCount += metadata->getFileSize();
-//             md.push_back(metadata);
-//         } else {
-//             auto dir = client->listDir(path);
-
-//             if (!dir.empty()) {
-//                 getMetadata(dir, md);
-//             } else {
-//                 LOG_INFO("dir is empty");
-//             }
-//         }
-//     }
-// }
-
 int main(int argc, char *argv[]) {
     // Register signal handler for program clean exit
     signal(SIGINT, signalHandler);
 
     // Parse command line arguments
     ndnc::benchmark::ft::ClientOptions opts;
-    programOptions(argc, argv, opts);
+    bool copy = false, list = false, recursive = false;
+    programOptions(argc, argv, opts, copy, list, recursive);
 
     // Open memif face
     face = std::make_unique<ndnc::face::Face>();
@@ -254,33 +234,51 @@ int main(int argc, char *argv[]) {
     // Init client
     client = std::make_unique<ndnc::benchmark::ft::Runner>(*face, opts);
 
+    // Get all file information
     std::vector<std::shared_ptr<ndnc::FileMetadata>> metadata{};
-    uint64_t totalByteCount = 0;
-
-    // Get Metadata for all paths
-    // TODO: Compute file size
-    // TODO: Print the entire list of files and total size
-    // TODO: Print mtime
-
-    // getMetadata(opts.paths, metadata);
-
     for (auto path : opts.paths) {
-        std::vector<std::shared_ptr<ndnc::FileMetadata>> md{};
-        client->listDirRecursive(path, md);
+        std::shared_ptr<ndnc::FileMetadata> md;
+        client->listFile(path, md);
 
-        metadata.insert(std::end(metadata), std::begin(md), std::end(md));
+        if (md->isFile()) {
+            metadata.push_back(md);
+        } else {
+            std::vector<std::shared_ptr<ndnc::FileMetadata>> partial{};
+
+            if (recursive) {
+                client->listDirRecursive(path, partial);
+            } else {
+                client->listDir(path, partial);
+            }
+
+            metadata.insert(std::end(metadata), std::begin(partial),
+                            std::end(partial));
+        }
     }
+
+    uint64_t totalByteCount = 0;
+    uint64_t totalFileCount = 0;
 
     for (auto md : metadata) {
-        std::cout << ndnc::rdrFilePath(md->getVersionedName()) << "\n";
+        if (md->isFile()) {
+            std::cout << ndnc::rdrFileUri(md->getVersionedName()) << "\n";
+            totalByteCount += md->getFileSize();
+            totalFileCount += 1;
+        } else {
+            std::cout << ndnc::rdrDirUri(md->getVersionedName()) << "\n";
+        }
     }
 
-    return 0;
+    std::cout << "\ntotal " << totalFileCount << "\n";
+    std::cout << "total size " << totalByteCount << "\n";
+
+    if (list) {
+        return 0;
+    }
 
     if (totalByteCount == 0) {
-        LOG_WARN("no bytes to be transfered");
         programTerminate();
-        return -2;
+        return 0;
     }
 
     // Prepare progress bar indicator for terminal output
@@ -324,8 +322,12 @@ int main(int argc, char *argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Copy all paths one at a time
+    // Copy all files one at a time
     for (auto i = 0; i < static_cast<int>(metadata.size()); ++i) {
+        if (metadata[i]->isDir()) {
+            continue;
+        }
+
         std::atomic<uint64_t> segmentCount = 0;
 
         for (int wid = 0; wid < opts.nthreads / 2; ++wid) {
@@ -352,7 +354,7 @@ int main(int argc, char *argv[]) {
 
     auto clientCounters = client->getCounters();
 
-    std::cout << "\n--- statistics --\n"
+    std::cout << "\n--- statistics ---\n"
               << clientCounters->nTxPackets << " interest packets transmitted, "
               << clientCounters->nRxPackets << " data packets received, "
               << clientCounters->nTimeouts

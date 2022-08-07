@@ -1,0 +1,201 @@
+@startuml LAYOUT_LANDSCAPE N-DISE Deployment Diagram
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_LANDSCAPE()
+
+System_Boundary(sitea, "Site A, eg. Caltech") {
+    ' Person(user, "CMS User", "Writes and runs scientific applications that use data from HEP event files.")
+    Container_Ext(cmssw_jobs, "CMSSW Applications", "Running as jobs at the local site.")
+
+    ' System_Boundary(xrootd_docker, "Docker Container") {
+        System_Ext(xrootd, "XRootD", "Software framework serving natively any kind of data.")
+        Container(xrootd_ndn_oss_plugin, "XRootD NDNc Based Open Storage System plugin", "Implements handlers for all related file system calls. Sends and receives NDN Interest/Data packets to/from the local forwarder.")
+    ' }
+
+    ' System_Boundary(ndn_dpdk_forwarder_docker_1, "Docker Container") {
+        System_Ext(ndn_dpdk_forwarder_1, "NDN-DPDK Forwarder", "High-speed NDN forwarder. Runs locally, on the same node as XRootD.")
+    ' }
+}
+
+System_Boundary(siteb, "Site B, eg. Fermilab") {
+    ' System_Boundary(ndn_dpdk_forwarder_docker_2, "Docker Container") {
+        System_Ext(ndn_dpdk_forwarder_2, "NDN-DPDK Forwarder", "High-speed NDN forwarder. Runs locally, on the same node as NDNc producer application.")
+    ' }
+
+    ' System_Boundary(producer_docker, "Docker Container") {
+        Container(ndn_producer, "NDNc Producer Application", "Sends and receives NDN Data/Interest packets to/from the local forwarder. Translates Interest Names to filesystem calls on file paths and uses the response as content for Data packets.")
+        SystemDb_Ext(hadoop_storage, "CMS Storage", "CephFS, HDFS, POSIX, dCache, EOS, STORM, Lustre, GPFS, cernvm-fs")
+    ' }
+}
+
+' Rel_Left(user, cmssw_jobs, "Submit")
+Rel_Down(cmssw_jobs, xrootd, "Uses")
+Rel_Right(xrootd, xrootd_ndn_oss_plugin, "Uses", "open/fstat/read/close")
+Rel_Right(xrootd_ndn_oss_plugin, ndn_dpdk_forwarder_1, "Send/Receive packets", "via memif interface")
+
+Rel_Down(ndn_dpdk_forwarder_1, ndn_dpdk_forwarder_2, "Send/Receive", "L2 packets")
+
+Rel_Left(ndn_dpdk_forwarder_2, ndn_producer, "Send/Receive packets", "via memif interface")
+Rel_Left(ndn_producer, hadoop_storage, "Access", "filesystem calls")
+@enduml
+
+@startuml LAYOUT_LANDSCAPE N-DISE Deployment Diagram Simplified
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_LANDSCAPE()
+
+System_Boundary(sitea, "Site A, eg. Caltech") {
+    ' Person(user, "CMS User", "Writes and runs scientific applications that use data from HEP event files.")
+    Container_Ext(cmssw_jobs, "CMSSW Jobs", "")
+
+    ' System_Boundary(xrootd_docker, "Docker Container") {
+        System_Ext(xrootd, "XRootD", "Serving any data")
+        Container(xrootd_ndn_oss_plugin, "XRootD NDNc Based Open Storage System plugin", "")
+    ' }
+
+    ' System_Boundary(ndn_dpdk_forwarder_docker_1, "Docker Container") {
+        System_Ext(ndn_dpdk_forwarder_1, "NDN-DPDK Forwarder", "High-speed forwarder")
+    ' }
+}
+
+System_Boundary(siteb, "Site B, eg. Fermilab") {
+    ' System_Boundary(ndn_dpdk_forwarder_docker_2, "Docker Container") {
+        System_Ext(ndn_dpdk_forwarder_2, "NDN-DPDK Forwarder", "High-speed forwarder")
+    ' }
+
+    ' System_Boundary(producer_docker, "Docker Container") {
+        Container(ndn_producer, "NDNc Producer Application", "")
+        SystemDb_Ext(hadoop_storage, "CMS Storage", "CephFS, HDFS")
+    ' }
+}
+
+' Rel_Left(user, cmssw_jobs, "Submit")
+Rel_Down(cmssw_jobs, xrootd, "Uses")
+Rel_Right(xrootd, xrootd_ndn_oss_plugin, "Uses", "open/read")
+Rel_Right(xrootd_ndn_oss_plugin, ndn_dpdk_forwarder_1, "Send/Receive packets", "memif interface")
+
+Rel_Down(ndn_dpdk_forwarder_1, ndn_dpdk_forwarder_2, "Send/Receive", "L2 packets")
+
+Rel_Left(ndn_dpdk_forwarder_2, ndn_producer, "Send/Receive packets", "memif interface")
+Rel_Left(ndn_producer, hadoop_storage, "Access", "filesystem calls")
+@enduml
+
+
+
+@startuml LAYOUT_LANDSCAPE Component diagram for the NDNc consumer application
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_LANDSCAPE()
+SHOW_PERSON_OUTLINE()
+
+Person(user, "User", "Transfer files using the NDNc consumer application")
+
+
+System_Boundary(ndnc_consumer, "NDNc Consumer Application") {
+    Component(graphql_client, "GraphQL Client", "Configures the local NDN-DPDK forwarder: create/destroy face or advertise Name prefixes.")
+    Component(parser, "Input Parser", "Parses command line arguments as defined by the user and performs component initialization.")
+
+    Component(send_workers, "Interest Sender", "Worker crew for composing Interest packets to request metadata or file content by segmentation.")
+    Component(receive_workers, "Data Receiver", "Worker crew for validating Data packets and composing the final result: output file.")
+    
+    Component(pipeline, "Pipeline", "Runs a congestion window (e.g., fixed size, aimd), sends and receives requests to/from the face. Handles NACK and Timeout.")
+    Component(face, "Face", "Encode/Decode NDN L2/L3 packets and polls the transport component.")
+    Component(transport, "Transport", "Implements a memif interface that is able to communicate with the NDN-DPDK forwarder.")
+
+
+    Rel_Up(parser, send_workers, "Call", "file path")
+    Rel(parser, graphql_client, "Call", "Configure")
+    
+    Rel_Right(send_workers, pipeline, "Enqueue", "Interest packets")
+    Rel_Down(receive_workers, pipeline, "Dequeue", "Data packets")
+
+    Rel_Right(pipeline, face, "Send/Receive", "NDN L3 packets")
+    Rel_Down(face, transport, "Send/Receive", "NDN L2 packets")
+}
+
+System_Ext(ndn_dpdk_forwarder, "NDN-DPDK Forwarder", "High-speed NDN forwarder. Runs locally, on the same machine as the consumer.")
+
+Rel_Left(receive_workers, user, "Call", "file content")
+Rel(graphql_client, ndn_dpdk_forwarder, "Query")
+Rel_Up(user, parser, "Uses")
+Rel_Down(transport, ndn_dpdk_forwarder, "Send/Receive", "via memif interface")
+
+@enduml
+
+@startuml LAYOUT_LANDSCAPE Component diagram for the NDNc consumer application Simplified
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_LANDSCAPE()
+SHOW_PERSON_OUTLINE()
+
+Person(user, "User", "Transfer file using the NDNc consumer application")
+
+System_Boundary(ndnc_consumer, "NDNc Consumer Application") {
+    Component(graphql_client, "GraphQL Client", "Configures the local NDN-DPDK forwarder: create/destroy face or advertise Name prefixes.")
+
+    Component(parser, "Input Parser", "Parses command line arguments as defined by the user and performs component initialization.")
+
+    Component(send_workers, "Interest Sender", "Worker crew for composing Interest packets to request metadata or file content by segmentation.")
+    Component(receive_workers, "Data Receiver", "Worker crew for validating Data packets and composing the final result: output file.")
+    
+    Component(pipeline, "Pipeline", "Runs a congestion window (e.g., fixed size, aimd), sends and receives requests to/from the face. Handles NACK and Timeout.")
+    Component(face, "Face", "Encode/Decode NDN L2/L3 packets and polls the transport component.")
+    Component(transport, "Transport", "Implements a memif interface that is able to communicate with the NDN-DPDK forwarder.")
+
+
+    Rel_Up(parser, send_workers, "Call", "file path")
+    Rel_Left(receive_workers, parser, "Call", "file content")
+
+    Rel_Right(send_workers, pipeline, "Enqueue", "Interest packets")
+    Rel_Down(receive_workers, pipeline, "Dequeue", "Data packets")
+
+    Rel_Right(pipeline, face, "Send/Receive", "NDN L3 packets")
+    Rel_Up(face, transport, "Send/Receive", "NDN L2 packets")
+}
+
+System_Ext(ndn_dpdk_forwarder, "NDN-DPDK Forwarder", "High-speed NDN forwarder. Runs locally, on the same machine as the consumer.")
+
+Rel_Right(graphql_client, ndn_dpdk_forwarder, "Query")
+Rel_Right(user, parser, "Uses")
+Rel_Down(transport, ndn_dpdk_forwarder, "Send/Receive", "via memif interface")
+
+@enduml
+
+@startuml LAYOUT_TOP_DOWN Component diagram for the NDNc consumer application 2
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_TOP_DOWN()
+SHOW_PERSON_OUTLINE()
+
+Person(user, "User", "Download file over NDN")
+System_Ext(ndn_dpdk_forwarder, "NDN-DPDK Forwarder", "High-speed NDN forwarder")
+
+System_Boundary(ndnc_consumer, "NDNc Consumer Application") {
+    Component(graphql_client, "GraphQL Client", "Configure forwarder")
+    Component(main, "Main", "Send/Receive NDN Interest/Data packets")
+    Component(pipeline, "Pipeline", "Congestion window. Handle NACK and timeout")
+    Component(face, "Face", "Encode/Decode NDN L2/L3 packets and polls memif interface")
+
+    Rel_Down(main, graphql_client, "Call", "")
+
+    Rel_Right(main, pipeline, "Enqueue", "Interest packets")
+    Rel_Left(pipeline, main, "Dequeue", "Data packets")
+
+    Rel_Right(pipeline, face, "Send", "")
+    Rel_Left(face, pipeline, "Receive", "")
+}
+
+Rel(user, main, "Request/Receive", "file")
+Rel_Down(graphql_client, ndn_dpdk_forwarder, "Query")
+Rel_Down(face, ndn_dpdk_forwarder, "Send", "via memif")
+Rel_Up(ndn_dpdk_forwarder, face, "Poll", "via memif")
+
+' Rel_Left(receive_workers, user, "Call", "file content")
+' Rel(graphql_client, ndn_dpdk_forwarder, "Query")
+' Rel_Up(user, parser, "Uses")
+' Rel_Down(transport, ndn_dpdk_forwarder, "Send/Receive", "via memif interface")
+
+@enduml

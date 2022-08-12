@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_UTILS_RAND_NUM_GEN_HPP
-#define NDNC_UTILS_RAND_NUM_GEN_HPP
+#ifndef NDNC_UTILS_RANDOM_NUMBER_GENERATOR_HPP
+#define NDNC_UTILS_RANDOM_NUMBER_GENERATOR_HPP
 
 #include <mutex>
 #include <random>
@@ -51,4 +51,4 @@ template <typename T> class RandomNumberGenerator {
 };
 } // namespace ndnc
 
-#endif // NDNC_UTIL_RAND_NUM_GEN_HPP
+#endif // NDNC_UTILS_RANDOM_NUMBER_GENERATOR_HPP

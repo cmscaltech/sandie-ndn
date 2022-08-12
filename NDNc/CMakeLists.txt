@@ -38,8 +38,8 @@ ADD_LIBRARY(ndnc SHARED
                 face/memif.cpp
                 face/face.cpp
                 face/packet-handler.cpp
-                pipeline/pipeline-interests-fixed.cpp
-                pipeline/pipeline-interests-aimd.cpp
+                congestion-control/pipeline-interests-fixed.cpp
+                congestion-control/pipeline-interests-aimd.cpp
                 mgmt/client.cpp
                 utils)
 TARGET_LINK_LIBRARIES(ndnc PRIVATE logger)
@@ -70,8 +70,8 @@ SET_TARGET_PROPERTIES(ndncping-server PROPERTIES LINKER_LANGUAGE CXX)
 
 # compile ndncft apps
 ADD_EXECUTABLE(ndncft-client
-                app/benchmark/client/main.cpp
-                app/benchmark/client/ft-client.cpp)
+                app/file-transfer/client/main.cpp
+                app/file-transfer/client/ft-client.cpp)
 
 TARGET_LINK_LIBRARIES(ndncft-client LINK_PUBLIC ${Boost_LIBRARIES})
 TARGET_LINK_LIBRARIES(ndncft-client PRIVATE Threads::Threads)
@@ -80,8 +80,8 @@ TARGET_LINK_LIBRARIES(ndncft-client PRIVATE curl)
 SET_TARGET_PROPERTIES(ndncft-client PROPERTIES LINKER_LANGUAGE CXX)
 
 ADD_EXECUTABLE(ndncft-server
-                app/benchmark/server/main.cpp
-                app/benchmark/server/ft-server.cpp)
+                app/file-transfer/server/main.cpp
+                app/file-transfer/server/ft-server.cpp)
 
 TARGET_LINK_LIBRARIES(ndncft-server LINK_PUBLIC ${Boost_LIBRARIES})
 TARGET_LINK_LIBRARIES(ndncft-server PRIVATE nlohmann_json::nlohmann_json)

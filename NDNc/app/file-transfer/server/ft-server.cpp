@@ -31,9 +31,8 @@
 #include "logger/logger.hpp"
 
 namespace ndnc {
-namespace benchmark {
 namespace ft {
-Runner::Runner(face::Face &face, ServerOptions options)
+Server::Server(face::Face &face, ServerOptions options)
     : PacketHandler(face), m_options{options}, m_signatureInfo{} {
 
     auto buff = std::make_unique<ndn::Buffer>();
@@ -43,10 +42,10 @@ Runner::Runner(face::Face &face, ServerOptions options)
     m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
 }
 
-Runner::~Runner() {
+Server::~Server() {
 }
 
-void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
+void Server::onInterest(std::shared_ptr<ndn::Interest> &&interest,
                         ndn::lp::PitToken &&pitToken) {
 
     auto name = interest->getName();
@@ -62,7 +61,7 @@ void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
     }
 }
 
-std::shared_ptr<ndn::Data> Runner::getFileMetadata(const ndn::Name name) {
+std::shared_ptr<ndn::Data> Server::getFileMetadata(const ndn::Name name) {
     LOG_INFO("received meta Interest %s", name.toUri().c_str());
 
     auto data = std::make_shared<ndn::Data>(name);
@@ -81,7 +80,7 @@ std::shared_ptr<ndn::Data> Runner::getFileMetadata(const ndn::Name name) {
     return data;
 }
 
-std::shared_ptr<ndn::Data> Runner::getFileContentData(const ndn::Name name) {
+std::shared_ptr<ndn::Data> Server::getFileContentData(const ndn::Name name) {
     auto data = std::make_shared<ndn::Data>(name);
 
     data->setContent(m_payload);
@@ -89,5 +88,4 @@ std::shared_ptr<ndn::Data> Runner::getFileContentData(const ndn::Name name) {
     return data;
 }
 }; // namespace ft
-}; // namespace benchmark
 }; // namespace ndnc

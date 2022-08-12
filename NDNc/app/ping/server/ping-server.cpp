@@ -35,8 +35,7 @@
 
 namespace ndnc {
 namespace ping {
-namespace server {
-Runner::Runner(face::Face &face, Options options)
+Server::Server(face::Face &face, ServerOptions options)
     : PacketHandler(face), m_options{options}, m_counters{}, m_signatureInfo{} {
 
     auto buff = std::make_unique<ndn::Buffer>();
@@ -46,10 +45,10 @@ Runner::Runner(face::Face &face, Options options)
     m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
 }
 
-Runner::~Runner() {
+Server::~Server() {
 }
 
-void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
+void Server::onInterest(std::shared_ptr<ndn::Interest> &&interest,
                         ndn::lp::PitToken &&pitToken) {
     ++m_counters.nRxInterests;
 
@@ -72,9 +71,8 @@ void Runner::onInterest(std::shared_ptr<ndn::Interest> &&interest,
     ++m_counters.nTxData;
 }
 
-Runner::Counters Runner::readCounters() {
+Server::Counters Server::getCounters() {
     return m_counters;
 }
-}; // namespace server
 }; // namespace ping
 }; // namespace ndnc

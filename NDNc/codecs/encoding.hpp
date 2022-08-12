@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_ENCODING_HPP
-#define NDNC_ENCODING_HPP
+#ifndef NDNC_CODECS_ENCODING_HPP
+#define NDNC_CODECS_ENCODING_HPP
 
 #include <ndn-cxx/data.hpp>
 #include <ndn-cxx/interest.hpp>
@@ -76,4 +76,4 @@ inline uint64_t getPITTokenValue(ndn::lp::PitToken &&pitToken) {
 }
 } // namespace ndnc
 
-#endif // NDNC_ENCODING_HPP
+#endif // NDNC_CODECS_ENCODING_HPP

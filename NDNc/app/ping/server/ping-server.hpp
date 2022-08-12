@@ -25,48 +25,46 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_APP_PING_SERVER_HPP
-#define NDNC_APP_PING_SERVER_HPP
+#ifndef NDNC_APP_PING_SERVER_PING_SERVER_HPP
+#define NDNC_APP_PING_SERVER_PING_SERVER_HPP
 
 #include "face/packet-handler.hpp"
 
 namespace ndnc {
 namespace ping {
-namespace server {
 
-struct Options {
+struct ServerOptions {
     size_t mtu = 9000;                                // Dataroom size
     std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
     std::string name;                                 // Name prefix
     size_t payloadLength = 0;                         // Payload length
 };
 
-class Runner : public PacketHandler,
-               public std::enable_shared_from_this<Runner> {
+class Server : public PacketHandler,
+               public std::enable_shared_from_this<Server> {
   public:
     struct Counters {
         uint32_t nRxInterests = 0;
         uint32_t nTxData = 0;
     };
 
-    explicit Runner(face::Face &face, Options options);
-    ~Runner();
+    explicit Server(face::Face &face, ServerOptions options);
+    ~Server();
 
-    Counters readCounters();
+    Counters getCounters();
 
   private:
     void onInterest(std::shared_ptr<ndn::Interest> &&interest,
                     ndn::lp::PitToken &&pitToken) final;
 
   private:
-    Options m_options;
+    ServerOptions m_options;
     Counters m_counters;
 
     ndn::Block m_payload;
     ndn::SignatureInfo m_signatureInfo;
 };
-}; // namespace server
 }; // namespace ping
 }; // namespace ndnc
 
-#endif // NDNC_APP_PING_SERVER_HPP
+#endif // NDNC_APP_PING_SERVER_PING_SERVER_HPP

@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_PIPELINE_INTERESTS_AIMD_HPP
-#define NDNC_PIPELINE_INTERESTS_AIMD_HPP
+#ifndef NDNC_CONGESTION_CONTROL_PIPELINE_INTERESTS_AIMD_HPP
+#define NDNC_CONGESTION_CONTROL_PIPELINE_INTERESTS_AIMD_HPP
 
 #include "pipeline-interests.hpp"
 
@@ -62,4 +62,4 @@ class PipelineInterestsAimd : public PipelineInterests {
 };
 }; // namespace ndnc
 
-#endif // NDNC_PIPELINE_INTERESTS_AIMD_HPP
+#endif // NDNC_CONGESTION_CONTROL_PIPELINE_INTERESTS_AIMD_HPP

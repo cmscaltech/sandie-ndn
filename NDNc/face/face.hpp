@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_FACE_HPP
-#define NDNC_FACE_HPP
+#ifndef NDNC_FACE_FACE_HPP
+#define NDNC_FACE_FACE_HPP
 
 #include <atomic>
 #include <memory>
@@ -82,4 +82,4 @@ class Face {
 }; // namespace face
 }; // namespace ndnc
 
-#endif // NDNC_FACE_HPP
+#endif // NDNC_FACE_FACE_HPP

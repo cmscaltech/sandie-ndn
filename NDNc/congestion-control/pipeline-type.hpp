@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2022 California Institute of Technology
+ * Copyright (c) 2021 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,22 +25,16 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_NAMING_SCHEME_HPP
-#define NDNC_NAMING_SCHEME_HPP
+#ifndef NDNC_CONGESTION_CONTROL_PIPELINE_TYPE_HPP
+#define NDNC_CONGESTION_CONTROL_PIPELINE_TYPE_HPP
 
-#include <string>
-
-#include <ndn-cxx/name.hpp>
-
-/**
- * @brief NDN Name related constants in NDNc file transfer applications
- *
- */
 namespace ndnc {
-// NDNc default Name prefix
-static const std::string NDNC_NAME_PREFIX_DEFAULT = "/ndnc/ft";
-// NDNc default Name prefix components count
-static const size_t NDNC_NAME_PREFIX_DEFAULT_NO_COMPONENTS = 2;
+enum PipelineType
+{
+    fixed = 0,
+    aimd = 1,
+    invalid
+};
 }; // namespace ndnc
 
-#endif // NDNC_NAMING_SCHEME_HPP
+#endif // NDNC_CONGESTION_CONTROL_PIPELINE_TYPE_HPP

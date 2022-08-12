@@ -41,7 +41,7 @@ using namespace std;
 namespace po = boost::program_options;
 
 static ndnc::face::Face *face;
-static ndnc::benchmark::ft::Runner *server;
+static ndnc::ft::Server *server;
 static bool shouldRun = true;
 
 void handler(sig_atomic_t) {
@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, handler);
     signal(SIGABRT, handler);
 
-    ndnc::benchmark::ft::ServerOptions opts;
+    ndnc::ft::ServerOptions opts;
 
     po::options_description description("Options", 120);
     description.add_options()(
@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    server = new ndnc::benchmark::ft::Runner(*face, opts);
+    server = new ndnc::ft::Server(*face, opts);
 
     if (!face->advertise(opts.namePrefix)) {
         cerr << "ERROR: unable to advertise prefix on face\n";

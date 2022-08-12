@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_FILE_METADATA_HPP
-#define NDNC_FILE_METADATA_HPP
+#ifndef NDNC_APP_FILE_TRANSFER_COMMON_FILE_METADATA_HPP
+#define NDNC_APP_FILE_TRANSFER_COMMON_FILE_METADATA_HPP
 
 #include <cstdint>
 #include <math.h>
@@ -276,4 +276,4 @@ class FileMetadata {
 };
 }; // namespace ndnc
 
-#endif // NDNC_FILE_METADATA_HPP
+#endif // NDNC_APP_FILE_TRANSFER_COMMON_FILE_METADATA_HPP

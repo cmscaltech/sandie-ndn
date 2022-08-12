@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_RDR_HPP
-#define NDNC_RDR_HPP
+#ifndef NDNC_APP_FILE_TRANSFER_COMMON_RDR_FILE_HPP
+#define NDNC_APP_FILE_TRANSFER_COMMON_RDR_FILE_HPP
 
 #include "ft-naming-scheme.hpp"
 
@@ -115,4 +115,4 @@ inline static const std::string rdrDirUri(
 }
 }; // namespace ndnc
 
-#endif // NDNC_RDR_HPP
+#endif // NDNC_APP_FILE_TRANSFER_COMMON_RDR_FILE_HPP

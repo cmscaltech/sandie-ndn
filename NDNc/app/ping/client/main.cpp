@@ -39,7 +39,7 @@ using namespace std;
 namespace po = boost::program_options;
 
 static bool shouldRun = true;
-static ndnc::ping::client::Runner *client;
+static ndnc::ping::Client *client;
 
 void handler(sig_atomic_t) {
     shouldRun = false;
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, handler);
     signal(SIGABRT, handler);
 
-    ndnc::ping::client::Options opts;
+    ndnc::ping::ClientOptions opts;
     po::options_description description("Options", 120);
     description.add_options()(
         "gqlserver",
@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
-    client = new ndnc::ping::client::Runner(*face, opts);
+    client = new ndnc::ping::Client(*face, opts);
 
     LOG_INFO("running…");
 
@@ -145,14 +145,14 @@ int main(int argc, char *argv[]) {
         client->run();
     }
 
-    auto lossRation = (1.0 - ((double)client->readCounters().nRxData /
-                              (double)client->readCounters().nTxInterests)) *
+    auto lossRation = (1.0 - ((double)client->getCounters().nRxData /
+                              (double)client->getCounters().nTxInterests)) *
                       100;
 
     cout << "\n--- statistics --\n"
-         << client->readCounters().nTxInterests << " packets transmitted, "
-         << client->readCounters().nRxData << " packets received, "
-         << lossRation << "% packet loss\n\n";
+         << client->getCounters().nTxInterests << " packets transmitted, "
+         << client->getCounters().nRxData << " packets received, " << lossRation
+         << "% packet loss\n\n";
 
     if (client != nullptr) {
         delete client;

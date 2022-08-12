@@ -25,10 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_TRANSPORT_MEMIF_HPP
-#define NDNC_TRANSPORT_MEMIF_HPP
-
-#include <array>
+#ifndef NDNC_FACE_MEMIF_HPP
+#define NDNC_FACE_MEMIF_HPP
 
 #include "logger/logger.hpp"
 #include "memif-connection.hpp"
@@ -86,4 +84,4 @@ class Memif : public Transport {
 }; // namespace face
 }; // namespace ndnc
 
-#endif // NDNC_TRANSPORT_MEMIF_CONNECTION_HPP
+#endif // NDNC_FACE_MEMIF_HPP

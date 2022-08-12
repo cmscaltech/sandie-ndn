@@ -37,8 +37,7 @@
 
 namespace ndnc {
 namespace ping {
-namespace client {
-Runner::Runner(face::Face &face, Options options)
+Client::Client(face::Face &face, ClientOptions options)
     : m_options{options}, m_counters{}, m_stop(false) {
 
     std::random_device rd;
@@ -50,20 +49,20 @@ Runner::Runner(face::Face &face, Options options)
     m_pipeline->run();
 }
 
-Runner::~Runner() {
+Client::~Client() {
     this->stop();
 }
 
-void Runner::stop() {
+void Client::stop() {
     m_stop = true;
     m_pipeline->stop();
 }
 
-bool Runner::canContinue() {
+bool Client::canContinue() {
     return !m_stop && m_pipeline->isValid();
 }
 
-void Runner::run() {
+void Client::run() {
     auto interest = std::make_shared<ndn::Interest>(
         ndn::Name(m_options.name).appendSequenceNumber(++m_sequence));
     interest->setMustBeFresh(true);
@@ -93,9 +92,8 @@ void Runner::run() {
     ++m_counters.nRxData;
 }
 
-Runner::Counters Runner::readCounters() {
+Client::Counters Client::getCounters() {
     return m_counters;
 }
-}; // namespace client
 }; // namespace ping
 }; // namespace ndnc

@@ -25,14 +25,14 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_PENDING_INTEREST_HPP
-#define NDNC_PENDING_INTEREST_HPP
+#ifndef NDNC_CONGESTION_CONTROL_PIPELINE_PENDING_INTEREST_HPP
+#define NDNC_CONGESTION_CONTROL_PIPELINE_PENDING_INTEREST_HPP
 
 #include <ndn-cxx/util/time.hpp>
 
 #include "concurrentqueue/blockingconcurrentqueue.h"
 #include "concurrentqueue/concurrentqueue.h"
-#include "encoding/encoding.hpp"
+#include "codecs/encoding.hpp"
 
 namespace ndnc {
 class PendingInterest {
@@ -80,4 +80,4 @@ typedef moodycamel::BlockingConcurrentQueue<std::shared_ptr<ndn::Data>>
     ResponseQueue;
 }; // namespace ndnc
 
-#endif // NDNC_PENDING_INTEREST_HPP
+#endif // NDNC_CONGESTION_CONTROL_PIPELINE_PENDING_INTEREST_HPP

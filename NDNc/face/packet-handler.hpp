@@ -28,7 +28,7 @@
 #ifndef NDNC_FACE_PACKET_HANDLER_HPP
 #define NDNC_FACE_PACKET_HANDLER_HPP
 
-#include "encoding/encoding.hpp"
+#include "codecs/encoding.hpp"
 
 namespace ndnc {
 namespace face {

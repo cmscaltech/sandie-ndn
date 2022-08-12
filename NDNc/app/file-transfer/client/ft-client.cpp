@@ -29,9 +29,8 @@
 #include "logger/logger.hpp"
 
 namespace ndnc {
-namespace benchmark {
 namespace ft {
-Runner::Runner(face::Face &face, ClientOptions options)
+Client::Client(face::Face &face, ClientOptions options)
     : m_stop{false}, m_error{false} {
     m_options = std::make_shared<ClientOptions>(options);
 
@@ -49,15 +48,15 @@ Runner::Runner(face::Face &face, ClientOptions options)
     m_pipeline->run();
 }
 
-Runner::~Runner() {
+Client::~Client() {
     this->stop();
 }
 
-bool Runner::canContinue() {
+bool Client::canContinue() {
     return !m_stop && !m_error && m_pipeline->isValid();
 }
 
-void Runner::stop() {
+void Client::stop() {
     m_stop = true;
 
     if (m_pipeline != nullptr && m_pipeline->isValid()) {
@@ -65,12 +64,12 @@ void Runner::stop() {
     }
 }
 
-std::shared_ptr<PipelineInterests::Counters> Runner::getCounters() {
+std::shared_ptr<PipelineInterests::Counters> Client::getCounters() {
     return m_pipeline->getCounters();
 }
 
 std::shared_ptr<ndn::Data>
-Runner::syncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest) {
+Client::syncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest) {
     // Insert the Interest packet in the pipeline
     if (!m_pipeline->enqueueInterest(std::move(interest))) {
         LOG_FATAL("unable to insert Interest packet in the pipeline");
@@ -84,7 +83,7 @@ Runner::syncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest) {
     return packet;
 }
 
-std::vector<std::shared_ptr<ndn::Data>> Runner::syncRequestDataFor(
+std::vector<std::shared_ptr<ndn::Data>> Client::syncRequestDataFor(
     std::vector<std::shared_ptr<ndn::Interest>> &&interests) {
     auto npackets = interests.size();
 
@@ -120,7 +119,7 @@ std::vector<std::shared_ptr<ndn::Data>> Runner::syncRequestDataFor(
     return packets;
 }
 
-bool Runner::asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest) {
+bool Client::asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest) {
     interest->setInterestLifetime(m_options->lifetime);
 
     if (!m_pipeline->enqueueInterest(std::move(interest))) {
@@ -131,7 +130,7 @@ bool Runner::asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest) {
     return true;
 }
 
-bool Runner::asyncRequestDataFor(
+bool Client::asyncRequestDataFor(
     std::vector<std::shared_ptr<ndn::Interest>> &&interests) {
 
     if (!m_pipeline->enqueueInterests(std::move(interests))) {
@@ -142,7 +141,7 @@ bool Runner::asyncRequestDataFor(
     return true;
 }
 
-void Runner::listFile(std::string path,
+void Client::listFile(std::string path,
                       std::shared_ptr<FileMetadata> &metadata) {
     metadata = nullptr;
 
@@ -167,7 +166,7 @@ void Runner::listFile(std::string path,
     metadata = std::make_shared<FileMetadata>(data->getContent());
 }
 
-void Runner::listDir(std::string path,
+void Client::listDir(std::string path,
                      std::vector<std::shared_ptr<FileMetadata>> &all) {
     std::shared_ptr<FileMetadata> metadata(nullptr);
     all.clear();
@@ -283,7 +282,7 @@ void Runner::listDir(std::string path,
     }
 }
 
-void Runner::listDirRecursive(std::string path,
+void Client::listDirRecursive(std::string path,
                               std::vector<std::shared_ptr<FileMetadata>> &all) {
     {
         std::shared_ptr<FileMetadata> metadata(nullptr);
@@ -313,7 +312,7 @@ void Runner::listDirRecursive(std::string path,
     }
 }
 
-void Runner::requestFileContent(int wid, int wcount, uint64_t finalBlockID,
+void Client::requestFileContent(int wid, int wcount, uint64_t finalBlockID,
                                 ndn::Name name) {
     uint64_t npackets = 64;
 
@@ -347,7 +346,7 @@ void Runner::requestFileContent(int wid, int wcount, uint64_t finalBlockID,
     }
 }
 
-void Runner::receiveFileContent(NotifyProgressStatus onProgress,
+void Client::receiveFileContent(NotifyProgressStatus onProgress,
                                 std::atomic<uint64_t> &segmentsCount,
                                 uint64_t finalBlockID) {
     uint64_t bytesCount = 0;
@@ -375,5 +374,4 @@ void Runner::receiveFileContent(NotifyProgressStatus onProgress,
     onProgress(bytesCount);
 }
 }; // namespace ft
-}; // namespace benchmark
 }; // namespace ndnc

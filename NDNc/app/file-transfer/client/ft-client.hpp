@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_APP_BENCHMARK_FT_CLIENT_HPP
-#define NDNC_APP_BENCHMARK_FT_CLIENT_HPP
+#ifndef NDNC_APP_FILE_TRANSFER_CLIENT_FT_CLIENT_HPP
+#define NDNC_APP_FILE_TRANSFER_CLIENT_FT_CLIENT_HPP
 
 #include <atomic>
 #include <vector>
@@ -34,11 +34,10 @@
 #include "../common/file-metadata.hpp"
 #include "../common/rdr-file.hpp"
 
-#include "pipeline/pipeline-interests-aimd.hpp"
-#include "pipeline/pipeline-interests-fixed.hpp"
+#include "congestion-control/pipeline-interests-aimd.hpp"
+#include "congestion-control/pipeline-interests-fixed.hpp"
 
 namespace ndnc {
-namespace benchmark {
 namespace ft {
 
 struct ClientOptions {
@@ -56,13 +55,13 @@ struct ClientOptions {
     uint16_t pipelineSize = 32768;
 };
 
-class Runner : public std::enable_shared_from_this<Runner> {
+class Client : public std::enable_shared_from_this<Client> {
   public:
     using NotifyProgressStatus = std::function<void(uint64_t bytes)>;
 
   public:
-    explicit Runner(face::Face &face, ClientOptions options);
-    ~Runner();
+    explicit Client(face::Face &face, ClientOptions options);
+    ~Client();
 
     void stop();
 
@@ -101,7 +100,6 @@ class Runner : public std::enable_shared_from_this<Runner> {
     std::shared_ptr<PipelineInterests> m_pipeline;
 };
 }; // namespace ft
-}; // namespace benchmark
 }; // namespace ndnc
 
-#endif // NDNC_APP_BENCHMARK_FT_CLIENT_HPP
+#endif // NDNC_APP_FILE_TRANSFER_CLIENT_FT_CLIENT_HPP

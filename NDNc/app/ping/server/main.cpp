@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, handler);
     signal(SIGABRT, handler);
 
-    ndnc::ping::server::Options opts;
+    ndnc::ping::ServerOptions opts;
     po::options_description description("Options", 120);
     description.add_options()(
         "gqlserver",
@@ -133,8 +133,7 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    ndnc::ping::server::Runner *server =
-        new ndnc::ping::server::Runner(*face, opts);
+    ndnc::ping::Server *server = new ndnc::ping::Server(*face, opts);
 
     LOG_INFO("running…");
 
@@ -145,8 +144,8 @@ int main(int argc, char **argv) {
     }
 
     cout << "\n--- statistics --\n"
-         << server->readCounters().nTxData << " packets transmitted, "
-         << server->readCounters().nRxInterests << " packets received\n\n";
+         << server->getCounters().nTxData << " packets transmitted, "
+         << server->getCounters().nRxInterests << " packets received\n\n";
 
     if (server != nullptr) {
         delete server;

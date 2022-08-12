@@ -48,7 +48,7 @@ namespace po = boost::program_options;
 namespace al = boost::algorithm;
 
 static std::unique_ptr<ndnc::face::Face> face;
-static std::unique_ptr<ndnc::benchmark::ft::Runner> client;
+static std::unique_ptr<ndnc::ft::Client> client;
 static std::vector<std::thread> workers;
 
 static void programUsage(std::ostream &os, const std::string &app,
@@ -60,7 +60,7 @@ static void programUsage(std::ostream &os, const std::string &app,
 }
 
 static void programOptions(int argc, char *argv[],
-                           ndnc::benchmark::ft::ClientOptions &opts, bool &copy,
+                           ndnc::ft::ClientOptions &opts, bool &copy,
                            bool &list, bool &recursive) {
     po::options_description description("Options", 120);
     std::string pipelineType = "aimd";
@@ -221,7 +221,7 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, signalHandler);
 
     // Parse command line arguments
-    ndnc::benchmark::ft::ClientOptions opts;
+    ndnc::ft::ClientOptions opts;
     bool copy = false, list = false, recursive = false;
     programOptions(argc, argv, opts, copy, list, recursive);
 
@@ -232,7 +232,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Init client
-    client = std::make_unique<ndnc::benchmark::ft::Runner>(*face, opts);
+    client = std::make_unique<ndnc::ft::Client>(*face, opts);
 
     // Get all file information
     std::vector<std::shared_ptr<ndnc::FileMetadata>> metadata{};

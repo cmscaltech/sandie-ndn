@@ -25,31 +25,42 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_PIPELINE_INTERESTS_FIXED_HPP
-#define NDNC_PIPELINE_INTERESTS_FIXED_HPP
+#ifndef NDNC_APP_FILE_TRANSFER_SERVER_FT_SERVER_HPP
+#define NDNC_APP_FILE_TRANSFER_SERVER_FT_SERVER_HPP
 
-#include "pipeline-interests.hpp"
+#include "../common/file-metadata.hpp"
+#include "face/packet-handler.hpp"
 
 namespace ndnc {
-class PipelineInterestsFixed : public PipelineInterests {
-  public:
-    PipelineInterestsFixed(face::Face &face, size_t windowSize);
-    ~PipelineInterestsFixed();
+namespace ft {
 
-  private:
-    void process() final;
-
-    void onData(std::shared_ptr<ndn::Data> &&data,
-                ndn::lp::PitToken &&pitToken) final;
-
-    void onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
-                ndn::lp::PitToken &&pitToken) final;
-
-    void onTimeout() final;
-
-  private:
-    size_t m_windowSize;
+struct ServerOptions {
+    std::string namePrefix = NDNC_NAME_PREFIX_DEFAULT;
+    size_t namePrefixNoComponents = NDNC_NAME_PREFIX_DEFAULT_NO_COMPONENTS;
+    size_t segmentSize = 6600;
+    size_t mtu = 9000;                                // Dataroom size
+    std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
 };
+
+class Server : public PacketHandler {
+  public:
+    explicit Server(face::Face &face, ServerOptions options);
+    ~Server();
+
+  public:
+    void onInterest(std::shared_ptr<ndn::Interest> &&interest,
+                    ndn::lp::PitToken &&pitToken) final;
+
+  private:
+    std::shared_ptr<ndn::Data> getFileMetadata(const ndn::Name name);
+    std::shared_ptr<ndn::Data> getFileContentData(const ndn::Name name);
+
+  private:
+    ServerOptions m_options;
+    ndn::Block m_payload;
+    ndn::SignatureInfo m_signatureInfo;
+};
+}; // namespace ft
 }; // namespace ndnc
 
-#endif // NDNC_PIPELINE_INTERESTS_FIXED_HPP
+#endif // NDNC_APP_FILE_TRANSFER_SERVER_FT_SERVER_HPP

@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_TRANSPORT_MEMIF_CONNECTION_HPP
-#define NDNC_TRANSPORT_MEMIF_CONNECTION_HPP
+#ifndef NDNC_FACE_MEMIF_CONNECTION_HPP
+#define NDNC_FACE_MEMIF_CONNECTION_HPP
 
 extern "C" {
 #include <libmemif.h>
@@ -58,4 +58,4 @@ typedef struct memif_connection {
 }; // namespace face
 }; // namespace ndnc
 
-#endif // NDNC_TRANSPORT_MEMIF_CONNECTION_HPP
+#endif // NDNC_FACE_MEMIF_CONNECTION_HPP

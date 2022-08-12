@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_APP_BENCHMARK_FT_CLIENT_UTILS_HPP
-#define NDNC_APP_BENCHMARK_FT_CLIENT_UTILS_HPP
+#ifndef NDNC_APP_FILE_TRANSFER_CLIENT_FT_CLIENT_UTILS_HPP
+#define NDNC_APP_FILE_TRANSFER_CLIENT_FT_CLIENT_UTILS_HPP
 
 #include <string>
 
@@ -54,4 +54,4 @@ static std::string binaryPrefix(double value) {
     return std::string(output);
 }
 
-#endif // NDNC_APP_BENCHMARK_FT_CLIENT_UTILS_HPP
+#endif // NDNC_APP_FILE_TRANSFER_CLIENT_FT_CLIENT_UTILS_HPP

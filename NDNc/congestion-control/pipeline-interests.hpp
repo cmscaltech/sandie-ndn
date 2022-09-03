@@ -176,7 +176,7 @@ class PipelineInterests : public PacketHandler {
     }
 
     size_t popDataBulk(uint64_t consumerId,
-                       std::vector<std::shared_ptr<ndn::Data>> &&pkts) {
+                       std::vector<std::shared_ptr<ndn::Data>> &pkts) {
         try {
             return m_responseQueues.at(consumerId)
                 .wait_dequeue_bulk_timed(pkts.begin(), pkts.size(), 1e4);

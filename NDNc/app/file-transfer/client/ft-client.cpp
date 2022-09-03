@@ -58,47 +58,48 @@ Client::syncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest,
         return nullptr;
     }
 
-    std::shared_ptr<ndn::Data> packet(nullptr);
+    std::shared_ptr<ndn::Data> pkt(nullptr);
     // Wait for the response from the pipeline
-    while (this->canContinue(), !m_pipeline->popData(id, packet)) {}
+    while (this->canContinue(), !m_pipeline->popData(id, pkt)) {}
 
-    return packet;
+    return pkt;
 }
 
 std::vector<std::shared_ptr<ndn::Data>> Client::syncRequestDataFor(
     std::vector<std::shared_ptr<ndn::Interest>> &&interests, uint64_t id) {
-    auto npackets = interests.size();
+    auto npkts = interests.size();
 
     if (!m_pipeline->pushInterestBulk(id, std::move(interests))) {
         LOG_FATAL("unable to push Interest packets to pipeline");
         return {};
     }
 
-    std::vector<std::shared_ptr<ndn::Data>> packets(npackets);
+    std::vector<std::shared_ptr<ndn::Data>> pkts(npkts);
 
-    for (; npackets > 0; --npackets) {
-        std::shared_ptr<ndn::Data> packet(nullptr);
-        while (this->canContinue() && !m_pipeline->popData(id, packet)) {}
+    for (; npkts > 0; --npkts) {
+        std::shared_ptr<ndn::Data> pkt(nullptr);
 
-        if (packet == nullptr) {
+        while (this->canContinue() && !m_pipeline->popData(id, pkt)) {}
+
+        if (pkt == nullptr) {
             return {};
         }
 
-        if (!packet->getName().at(-1).isSegment()) {
+        if (!pkt->getName().at(-1).isSegment()) {
             LOG_FATAL("last name component of Data packet is not a segment");
             m_error = true;
             return {};
         }
 
         try {
-            packets[packet->getName().at(-1).toSegment()] = packet;
+            pkts[pkt->getName().at(-1).toSegment()] = pkt;
         } catch (ndn::Name::Error &error) {
             LOG_FATAL("unable to get the segment from the Data Name");
             return {};
         }
     }
 
-    return packets;
+    return pkts;
 }
 
 bool Client::asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest,
@@ -319,10 +320,10 @@ void Client::listDirRecursive(std::string path,
 
 void Client::requestFileContent(int wid, int wcount,
                                 std::shared_ptr<FileMetadata> metadata) {
-    uint64_t npackets = 64;
+    uint64_t npkts = 64;
     uint64_t id = m_files->at(metadata->getVersionedName().toUri());
 
-    for (uint64_t segmentNo = wid * npackets;
+    for (uint64_t segmentNo = wid * npkts;
          segmentNo <= metadata->getFinalBlockID() && this->canContinue();) {
 
         if (m_pipeline->getQueuedInterestsCount() > 65536) {
@@ -330,11 +331,11 @@ void Client::requestFileContent(int wid, int wcount,
             continue;
         }
 
-        std::vector<std::shared_ptr<ndn::Interest>> interests;
-        interests.reserve(npackets);
+        std::vector<std::shared_ptr<ndn::Interest>> pkts;
+        pkts.reserve(npkts);
 
         for (uint64_t nextSegment = segmentNo, n = 0;
-             nextSegment <= metadata->getFinalBlockID() && n < npackets;
+             nextSegment <= metadata->getFinalBlockID() && n < npkts;
              ++nextSegment, ++n) {
 
             auto interest = std::make_shared<ndn::Interest>(
@@ -342,15 +343,15 @@ void Client::requestFileContent(int wid, int wcount,
                     nextSegment));
 
             interest->setInterestLifetime(m_options->lifetime);
-            interests.emplace_back(std::move(interest));
+            pkts.emplace_back(std::move(interest));
         }
 
-        if (!asyncRequestDataFor(std::move(interests), id)) {
+        if (!asyncRequestDataFor(std::move(pkts), id)) {
             m_error = true;
             return;
         }
 
-        segmentNo += wcount * npackets;
+        segmentNo += wcount * npkts;
     }
 }
 
@@ -362,17 +363,25 @@ void Client::receiveFileContent(NotifyProgressStatus onProgress,
 
     while (this->canContinue() &&
            segmentsCount <= metadata->getFinalBlockID()) {
-        std::shared_ptr<ndn::Data> data;
 
-        while (!m_pipeline->popData(id, data)) {}
+        size_t npkts = 64;
+        std::vector<std::shared_ptr<ndn::Data>> pkts(npkts);
+        npkts = m_pipeline->popDataBulk(id, pkts);
 
-        if (data == nullptr) {
-            LOG_FATAL("pipeline error on receive file content");
-            return;
+        if (npkts == 0) {
+            continue;
         }
 
-        bytesCount += data->getContent().value_size();
-        segmentsCount += 1;
+        for (size_t i = 0; i < npkts; ++i) {
+            if (pkts[i] == nullptr) {
+                LOG_FATAL("pipeline error on receive file content");
+                return;
+            }
+
+            bytesCount += pkts[i]->getContent().value_size();
+        }
+
+        segmentsCount += npkts;
 
         if (bytesCount > 5242880) {
             onProgress(bytesCount);

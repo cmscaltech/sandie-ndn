@@ -35,29 +35,22 @@ PipelineInterestsFixed::PipelineInterestsFixed(face::Face &face,
 }
 
 PipelineInterestsFixed::~PipelineInterestsFixed() {
-    this->stop();
+    this->close();
 }
 
-void PipelineInterestsFixed::process() {
+void PipelineInterestsFixed::open() {
     std::vector<PendingInterest> pendingInterests{};
     size_t size = 0, index = 0;
 
-    auto clearPendingInterests = [&]() {
-        pendingInterests.clear();
-        index = 0;
-    };
-
     auto getNextPendingInterests = [&]() {
-        clearPendingInterests();
-
-        size = std::min(static_cast<int>(m_windowSize - m_pit->size()), 64);
-        pendingInterests.reserve(size);
-        size = m_requestQueue.try_dequeue_bulk(pendingInterests.begin(), size);
-
+        index = 0;
+        size = popPendingInterests(
+            pendingInterests,
+            std::min(static_cast<int>(m_windowSize - m_pit->size()), 64));
         return size;
     };
 
-    while (isValid()) {
+    while (!isClosed()) {
         face->loop();
         onTimeout();
 
@@ -74,23 +67,23 @@ void PipelineInterestsFixed::process() {
                        pendingInterests.begin() + index + size,
                        std::back_inserter(pkts),
                        [](PendingInterest pi) -> ndn::Block {
-                           return pi.interestBlockValue;
+                           return pi.getInterestBlockValue();
                        });
 
         auto n = face->send(std::move(pkts), size);
         if (n < 0) {
             LOG_FATAL("unable to send Interest packets on face");
-            stop();
+            close();
             return;
         }
 
-        m_counters->nTxPackets += n;
+        m_counters.tx += n;
 
         for (n += index; index < (size_t)n; ++index, --size) {
             pendingInterests[index].markAsExpressed();
-            // Timeouts handler
-            m_queue->push(pendingInterests[index].pitTokenValue);
-            m_pit->emplace(pendingInterests[index].pitTokenValue,
+            // Timeout handler
+            m_piq->push(pendingInterests[index].getPITTokenValue());
+            m_pit->emplace(pendingInterests[index].getPITTokenValue(),
                            pendingInterests[index]);
         }
     }
@@ -98,32 +91,37 @@ void PipelineInterestsFixed::process() {
 
 void PipelineInterestsFixed::onData(std::shared_ptr<ndn::Data> &&data,
                                     ndn::lp::PitToken &&pitToken) {
-    ++m_counters->nRxPackets;
+    ++m_counters.rx;
 
     auto pitKey = getPITTokenValue(std::move(pitToken));
     auto it = m_pit->find(pitKey);
 
     if (it == m_pit->end()) {
         LOG_DEBUG("unexpected Data packet dropped");
-        ++m_counters->nUnexpectedRxPackets;
+        ++m_counters.rxUnexpected;
         return;
     }
 
-    m_counters->delay += it->second.timeSinceExpressed();
+    m_counters.delay += it->second.getTimeSinceExpressed();
 
+    // Enqueue Data into the response queue
+    if (!pushData(it->second.getConsumerId(), std::move(data))) {
+        this->close();
+        return;
+    }
     m_pit->erase(it);
-    enqueueData(std::move(data)); // Enqueue Data into Response queue
 }
 
 void PipelineInterestsFixed::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
                                     ndn::lp::PitToken &&pitToken) {
-    ++m_counters->nNacks;
+    ++m_counters.nack;
 
     auto pitKey = getPITTokenValue(std::move(pitToken));
+    auto it = m_pit->find(pitKey);
 
-    if (m_pit->find(pitKey) == m_pit->end()) {
+    if (it == m_pit->end()) {
         LOG_DEBUG("unexpected NACK for packet dropped");
-        ++m_counters->nUnexpectedRxPackets;
+        ++m_counters.rxUnexpected;
         return;
     }
 
@@ -138,63 +136,80 @@ void PipelineInterestsFixed::onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
 
     switch (nack->getReason()) {
     case ndn::lp::NackReason::DUPLICATE: {
-        auto interest = getWireDecode(m_pit->at(pitKey).interestBlockValue);
-        interest->refreshNonce();
+        if (!this->refreshPITEntry(pitKey)) {
+            LOG_FATAL("unable to refresh Interest on duplicate NACK");
 
-        auto timeoutCounter = m_pit->at(pitKey).timeoutCounter;
-        m_pit->erase(pitKey);
-
-        if (!this->enqueueInterest(std::move(interest), timeoutCounter)) {
-            LOG_FATAL("unable to enqueue Interest for duplicate NACK");
-            enqueueData(nullptr); // Enqueue null to mark error
+            if (!pushData(it->second.getConsumerId(), nullptr)) {
+                this->close();
+                return;
+            }
+            m_pit->erase(pitKey);
             return;
         }
         break;
     }
     default:
         LOG_FATAL("received unsupported NACK packet");
-        enqueueData(nullptr); // Enqueue null to mark error
+
+        if (!pushData(it->second.getConsumerId(), nullptr)) {
+            // Enqueue null to mark error
+            this->close();
+            return;
+        }
         m_pit->erase(pitKey);
         break;
     }
 }
 
 void PipelineInterestsFixed::onTimeout() {
-    while (!m_queue->empty()) {
+    while (!m_piq->empty()) {
+        auto it = m_pit->find(m_piq->front());
 
-        auto it = m_pit->find(m_queue->front());
         if (it == m_pit->end()) {
-            m_queue->pop(); // Remove already satisfied entries
+            m_piq->pop(); // Remove already satisfied entries
             continue;
         }
 
-        auto pendingInterest = it->second;
-        if (!pendingInterest.hasExpired()) {
+        if (!it->second.isExpired()) {
             return;
         }
 
-        ++m_counters->nTimeouts;
+        ++m_counters.timeout;
 
-        m_pit->erase(it);
-        m_queue->pop();
+        auto consumerId = it->second.getConsumerId();
 
-        auto interest = getWireDecode(pendingInterest.interestBlockValue);
-        interest->refreshNonce();
+        if (it->second.hasReachedMaximumNumOfRetries()) {
+            LOG_FATAL("reached maximum number of timeout retries");
 
-        auto timeoutCounter = pendingInterest.timeoutCounter + 1;
-        LOG_INFO("timeout (%li) for %s", timeoutCounter,
-                 interest->getName().toUri().c_str());
-
-        if (timeoutCounter < 8) {
-            if (!this->enqueueInterest(std::move(interest), timeoutCounter)) {
-                LOG_FATAL("unable to enqueue Interest on timeout");
-                enqueueData(nullptr); // Enqueue null to mark error
+            if (!pushData(consumerId, nullptr)) {
+                // Enqueue null to mark error
+                this->close();
                 return;
             }
-        } else {
-            LOG_FATAL("reached maximum number of timeout retries");
-            enqueueData(nullptr); // Enqueue null to mark error
+
+            m_pit->erase(it);
             return;
+        }
+
+        auto pitKey = it->first;
+
+        LOG_DEBUG("timeout (%li) for %s", it->second.getRetriesCount() + 1,
+                  it->second.getInterest()->getName().toUri().c_str());
+
+        if (!this->refreshPITEntry(pitKey, true)) {
+            LOG_FATAL("unable to refresh Interest on timeout");
+
+            if (!pushData(consumerId, nullptr)) {
+                // Enqueue null to mark error
+                this->close();
+                return;
+            }
+
+            m_pit->erase(it);
+            m_piq->pop();
+            return;
+        } else {
+            m_piq->pop();
         }
     }
 }

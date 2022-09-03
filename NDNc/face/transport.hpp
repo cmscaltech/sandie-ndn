@@ -39,33 +39,45 @@ namespace face {
 namespace transport {
 class Transport {
   public:
+    using OnDisconnectCallback = void (*)(void *ctx);
     using OnReceiveCallback = void (*)(void *ctx, const uint8_t *pkt,
                                        size_t len);
 
   public:
     virtual bool connect() noexcept = 0;
-
     virtual bool isConnected() noexcept = 0;
-
-    virtual void disconnect() noexcept = 0;
-
     virtual bool loop() noexcept = 0;
-
     virtual int send(ndn::Block pkt) noexcept = 0;
-
     virtual int send(std::vector<ndn::Block> &&pkt, uint16_t n) noexcept = 0;
 
-    void receive(const uint8_t *pkt, size_t len) noexcept {
-        onReceive(context, pkt, len);
+    void setOnDisconnectCallback(OnDisconnectCallback cb, void *ctx) noexcept {
+        this->onDisconnectCtx = ctx;
+        this->onDisconnect = cb;
     }
 
     void setOnReceiveCallback(OnReceiveCallback cb, void *ctx) noexcept {
-        this->context = ctx; // face object
+        this->onReceiveCtx = ctx; // face object
         this->onReceive = cb;
     }
 
+  protected:
+    void disconnect() noexcept {
+        if (onDisconnect != nullptr && onDisconnectCtx != nullptr) {
+            onDisconnect(onDisconnectCtx);
+        }
+    }
+
+    void receive(const uint8_t *pkt, size_t len) noexcept {
+        if (onReceive != nullptr && onReceiveCtx != nullptr) {
+            onReceive(onReceiveCtx, pkt, len);
+        }
+    }
+
   private:
-    void *context = nullptr;
+    void *onDisconnectCtx = nullptr;
+    void *onReceiveCtx = nullptr;
+
+    OnDisconnectCallback onDisconnect = nullptr;
     OnReceiveCallback onReceive = nullptr;
 };
 }; // namespace transport

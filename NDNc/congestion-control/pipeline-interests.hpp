@@ -39,127 +39,221 @@
 #include "utils/random-number-generator.hpp"
 
 namespace ndnc {
+struct PipelineCounters {
+    ndn::time::milliseconds delay{0};
+    uint64_t nack = 0;
+    uint64_t timeout = 0;
+    uint64_t tx = 0;
+    uint64_t rx = 0;
+    uint64_t rxUnexpected = 0;
+
+    ndn::time::milliseconds getAverageDelay() {
+        return ndn::time::milliseconds{rx > 0 ? delay.count() / rx : 0};
+    }
+};
+
 class PipelineInterests : public PacketHandler {
-  public:
+  private:
+    using PendingInterestsOrder = std::queue<uint64_t>;
     using PendingInterestsTable = std::unordered_map<uint64_t, PendingInterest>;
-    using ExpressedInterestsQueue = std::queue<uint64_t>;
-
-    struct Counters {
-        uint64_t nTxPackets = 0;
-        uint64_t nRxPackets = 0;
-        uint64_t nUnexpectedRxPackets = 0;
-        uint64_t nNacks = 0;
-        uint64_t nTimeouts = 0;
-
-        ndn::time::milliseconds delay = ndn::time::milliseconds{0};
-
-        ndn::time::milliseconds averageDelay() {
-            return ndn::time::milliseconds{
-                nRxPackets > 0 ? delay.count() / nRxPackets : 0};
-        }
-    };
+    using ResponseQueues = std::unordered_map<uint64_t, ResponseQueue>;
 
   public:
     explicit PipelineInterests(face::Face &face)
-        : PacketHandler(face), m_stop{false} {
+        : PacketHandler(face), m_counters{}, m_closed{false} {
+
+        face.addOnDisconnectHandler([&]() { this->m_closed = true; });
+
         m_pit = std::make_shared<PendingInterestsTable>();
-        m_queue = std::make_shared<ExpressedInterestsQueue>();
+        m_piq = std::make_shared<PendingInterestsOrder>();
         m_rdn = std::make_shared<RandomNumberGenerator<uint64_t>>();
-        m_counters = std::make_shared<Counters>();
+
+        registerConsumer(0);
+        m_worker = std::thread(&PipelineInterests::open, this);
     }
 
     virtual ~PipelineInterests() {
-        this->stop();
+        this->close();
 
-        if (this->m_sender.joinable()) {
-            this->m_sender.join();
+        if (m_worker.joinable()) {
+            m_worker.join();
         }
 
         m_pit->clear();
-        while (!m_queue->empty()) {
-            m_queue->pop();
+
+        while (!m_piq->empty()) {
+            m_piq->pop();
         }
     }
 
-    void run() {
-        this->m_stop = false;
-        this->m_sender = std::thread(&PipelineInterests::process, this);
+    void close() {
+        m_closed = true;
     }
 
-    void stop() {
-        this->m_stop = true;
+    bool isClosed() {
+        return m_closed;
     }
 
-    bool isValid() {
-        return !this->m_stop && face != nullptr && face->isConnected();
+    PipelineCounters getCounters() {
+        return m_counters;
     }
 
-    uint64_t getPendingRequestsCount() {
+    uint64_t getQueuedInterestsCount() {
         return m_requestQueue.size_approx();
     }
 
-    std::shared_ptr<Counters> getCounters() {
-        return this->m_counters;
+    uint64_t registerConsumer() {
+        return registerConsumer(m_rdn->get());
     }
 
-  public:
-    bool enqueueInterest(std::shared_ptr<ndn::Interest> &&interest,
-                         uint64_t timeoutCounter = 0) {
-        if (!isValid()) {
+    uint64_t registerConsumer(const uint64_t consumerId) {
+        m_responseQueues[consumerId] = ResponseQueue();
+        return consumerId;
+    }
+
+    void unregisterConsumer(const uint64_t consumerId) {
+        m_responseQueues.erase(consumerId);
+    }
+
+    bool pushInterest(uint64_t consumerId,
+                      std::shared_ptr<ndn::Interest> &&pkt) {
+        // Do nothing if the pipeline is already closed
+        if (isClosed()) {
+            LOG_ERROR("unable to push interest pkt. reason: pipeline closed");
             return false;
         }
 
-        return m_requestQueue.enqueue(
-            PendingInterest(std::move(interest), m_rdn->get(), timeoutCounter));
-    }
-
-    bool
-    enqueueInterests(std::vector<std::shared_ptr<ndn::Interest>> &&interests) {
-        if (!isValid()) {
+        // Do nothing for requests from unregistered consumer ids
+        if (m_responseQueues.find(consumerId) == m_responseQueues.end()) {
+            LOG_ERROR("unable to push interest pkt. reason: unregistered "
+                      "consumer id=%ld",
+                      consumerId);
             return false;
         }
 
-        std::vector<PendingInterest> pendingInterests;
-        pendingInterests.reserve(interests.size());
+        auto newPendingInterest =
+            PendingInterest(std::move(pkt), m_rdn->get(), consumerId);
 
-        for (size_t i = 0; i < interests.size(); ++i) {
-            pendingInterests.emplace_back(
-                PendingInterest(std::move(interests[i]), m_rdn->get()));
-        }
-
-        return m_requestQueue.enqueue_bulk(pendingInterests.begin(),
-                                           pendingInterests.size());
+        return m_requestQueue.enqueue(std::move(newPendingInterest));
     }
 
-    bool dequeueData(std::shared_ptr<ndn::Data> &data) {
-        return m_responseQueue.wait_dequeue_timed(data, 1000);
+    bool pushInterestBulk(uint64_t consumerId,
+                          std::vector<std::shared_ptr<ndn::Interest>> &&pkts) {
+        // Do nothing if the pipeline is already closed
+        if (isClosed()) {
+            LOG_ERROR("unable to push interest pkts. reason: pipeline closed");
+            return false;
+        }
+
+        // Do nothing for requests from unregistered consumer ids
+        if (m_responseQueues.find(consumerId) == m_responseQueues.end()) {
+            LOG_ERROR("unable to push interest pkts. reason: unregistered "
+                      "consumer id=%ld",
+                      consumerId);
+            return false;
+        }
+
+        std::vector<PendingInterest> newPendingInterests;
+        newPendingInterests.reserve(pkts.size());
+
+        for (uint64_t i = 0; i < pkts.size(); ++i) {
+            auto newPendingInterest =
+                PendingInterest(std::move(pkts[i]), m_rdn->get(), consumerId);
+            newPendingInterests.emplace_back(std::move(newPendingInterest));
+        }
+
+        return m_requestQueue.enqueue_bulk(newPendingInterests.begin(),
+                                           newPendingInterests.size());
+    }
+
+    bool popData(uint64_t consumerId, std::shared_ptr<ndn::Data> &pkt) {
+        try {
+            return m_responseQueues.at(consumerId).wait_dequeue_timed(pkt, 1e4);
+        } catch (const std::out_of_range &oor) {
+            LOG_ERROR("out of range error (pop data): %s", oor.what());
+            return false;
+        }
+    }
+
+    size_t popDataBulk(uint64_t consumerId,
+                       std::vector<std::shared_ptr<ndn::Data>> &&pkts) {
+        try {
+            return m_responseQueues.at(consumerId)
+                .wait_dequeue_bulk_timed(pkts.begin(), pkts.size(), 1e4);
+        } catch (const std::out_of_range &oor) {
+            LOG_ERROR("out of range error (pop many data): %s", oor.what());
+            return 0;
+        }
     }
 
   protected:
-    bool enqueueData(std::shared_ptr<ndn::Data> &&data) {
-        if (!isValid()) {
+    bool pushData(uint64_t consumerId, std::shared_ptr<ndn::Data> &&pkt) {
+        // Do nothing if the pipeline is already closed
+        if (isClosed()) {
+            LOG_ERROR("unable to push data pkt. reason: pipeline closed");
             return false;
         }
 
-        return m_responseQueue.enqueue(std::move(data));
+        try {
+            return m_responseQueues.at(consumerId).enqueue(std::move(pkt));
+        } catch (const std::out_of_range &oor) {
+            LOG_ERROR("out of range error (push data): %s", oor.what());
+            return false;
+        }
+    }
+
+    size_t popPendingInterests(std::vector<PendingInterest> &pendingInterests,
+                               size_t n) {
+        if (isClosed()) {
+            LOG_ERROR(
+                "unable to pop pending interests. reason: pipeline closed");
+            return 0;
+        }
+
+        pendingInterests.clear();
+        pendingInterests.reserve(n);
+
+        return m_requestQueue.try_dequeue_bulk(pendingInterests.begin(), n);
+    }
+
+    bool refreshPITEntry(uint64_t key, bool timeoutReason = false) {
+        try {
+            auto pendingInterest = m_pit->at(key);
+            pendingInterest.refresh(m_rdn->get(), timeoutReason);
+
+            if (isClosed()) {
+                LOG_ERROR("unable to push refresh local pit entry. reason: "
+                          "pipeline closed");
+                return false;
+            }
+
+            m_pit->erase(key);
+            return m_requestQueue.enqueue(std::move(pendingInterest));
+
+        } catch (const std::out_of_range &oor) {
+            LOG_ERROR("out of range error (refresh pit): %s", oor.what());
+            return false;
+        }
+
+        return true;
     }
 
   private:
-    virtual void process() = 0;
+    virtual void open() = 0;
     virtual void onTimeout() = 0;
 
   public:
     std::shared_ptr<PendingInterestsTable> m_pit;
-    std::shared_ptr<ExpressedInterestsQueue> m_queue;
+    std::shared_ptr<PendingInterestsOrder> m_piq;
     std::shared_ptr<RandomNumberGenerator<uint64_t>> m_rdn;
-    std::shared_ptr<Counters> m_counters;
-
-    RequestQueue m_requestQueue;
-    ResponseQueue m_responseQueue;
+    PipelineCounters m_counters;
 
   private:
-    std::atomic_bool m_stop;
-    std::thread m_sender;
+    RequestQueue m_requestQueue;
+    ResponseQueues m_responseQueues;
+
+    std::atomic_bool m_closed;
+    std::thread m_worker;
 };
 }; // namespace ndnc
 

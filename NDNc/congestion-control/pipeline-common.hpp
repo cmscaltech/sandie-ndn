@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2021 California Institute of Technology
+ * Copyright (c) 2022 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,31 +25,19 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_CONGESTION_CONTROL_PIPELINE_INTERESTS_FIXED_HPP
-#define NDNC_CONGESTION_CONTROL_PIPELINE_INTERESTS_FIXED_HPP
+#ifndef NDNC_CONGESTION_CONTROL_PIPELINE_COMMON_HPP
+#define NDNC_CONGESTION_CONTROL_PIPELINE_COMMON_HPP
 
-#include "pipeline-interests.hpp"
+#include "codecs/encoding.hpp"
+#include "concurrentqueue/blockingconcurrentqueue.h"
+#include "concurrentqueue/concurrentqueue.h"
 
 namespace ndnc {
-class PipelineInterestsFixed : public PipelineInterests {
-  public:
-    PipelineInterestsFixed(face::Face &face, size_t windowSize);
-    ~PipelineInterestsFixed();
+class PendingInterest;
 
-  private:
-    void open() final;
-
-    void onData(std::shared_ptr<ndn::Data> &&data,
-                ndn::lp::PitToken &&pitToken) final;
-
-    void onNack(std::shared_ptr<ndn::lp::Nack> &&nack,
-                ndn::lp::PitToken &&pitToken) final;
-
-    void onTimeout() final;
-
-  private:
-    size_t m_windowSize;
-};
+typedef moodycamel::ConcurrentQueue<PendingInterest> RequestQueue;
+typedef moodycamel::BlockingConcurrentQueue<std::shared_ptr<ndn::Data>>
+    ResponseQueue;
 }; // namespace ndnc
 
-#endif // NDNC_CONGESTION_CONTROL_PIPELINE_INTERESTS_FIXED_HPP
+#endif // NDNC_CONGESTION_CONTROL_PIPELINE_COMMON_HPP

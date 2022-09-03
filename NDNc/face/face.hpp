@@ -47,22 +47,21 @@ namespace face {
 class Face {
   public:
     Face();
-
     ~Face();
 
     bool connect(int dataroom, std::string gqlserver, std::string name);
-
     bool isConnected();
+    void disconnect();
 
     bool loop();
 
-    bool addPacketHandler(PacketHandler &h);
+    int send(ndn::Block pkt);
+    int send(std::vector<ndn::Block> &&pkts, uint16_t n);
 
     bool advertise(const std::string prefix);
 
-    int send(ndn::Block pkt);
-
-    int send(std::vector<ndn::Block> &&pkts, uint16_t n);
+    bool addPacketHandler(PacketHandler &h);
+    void addOnDisconnectHandler(std::function<void()> cb);
 
   private:
     /**
@@ -76,8 +75,10 @@ class Face {
   private:
     std::shared_ptr<transport::Transport> m_transport;
     std::shared_ptr<mgmt::Client> m_gqlClient;
+
     PacketHandler *m_packetHandler;
     bool m_hasError;
+    std::function<void()> onDisconnect = nullptr;
 };
 }; // namespace face
 }; // namespace ndnc

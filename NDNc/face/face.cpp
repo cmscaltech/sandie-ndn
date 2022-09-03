@@ -63,6 +63,9 @@ bool Face::connect(int dataroom, std::string gqlserver, std::string appName) {
         return false;
     }
 
+    m_transport->setOnDisconnectCallback(
+        [](void *self) { reinterpret_cast<Face *>(self)->disconnect(); }, this);
+
     m_transport->setOnReceiveCallback(
         [](void *self, const uint8_t *pkt, size_t len) {
             reinterpret_cast<Face *>(self)->receive(pkt, len);
@@ -74,6 +77,10 @@ bool Face::connect(int dataroom, std::string gqlserver, std::string appName) {
 
 bool Face::isConnected() {
     return m_transport != nullptr && m_transport->isConnected() && !m_hasError;
+}
+
+void Face::disconnect() {
+    this->onDisconnect();
 }
 
 bool Face::loop() {
@@ -92,6 +99,10 @@ bool Face::addPacketHandler(PacketHandler &h) {
 
     m_packetHandler->face = this;
     return true;
+}
+
+void Face::addOnDisconnectHandler(std::function<void()> cb) {
+    this->onDisconnect = cb;
 }
 
 bool Face::advertise(const std::string prefix) {

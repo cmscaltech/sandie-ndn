@@ -46,7 +46,6 @@ Client::Client(face::Face &face, ClientOptions options)
     m_sequence = dist(gen);
 
     m_pipeline = std::make_shared<PipelineInterestsFixed>(face, 1);
-    m_pipeline->run();
 }
 
 Client::~Client() {
@@ -55,11 +54,11 @@ Client::~Client() {
 
 void Client::stop() {
     m_stop = true;
-    m_pipeline->stop();
+    m_pipeline->close();
 }
 
 bool Client::canContinue() {
-    return !m_stop && m_pipeline->isValid();
+    return !m_stop && !m_pipeline->isClosed();
 }
 
 void Client::run() {
@@ -68,17 +67,17 @@ void Client::run() {
     interest->setMustBeFresh(true);
     interest->setInterestLifetime(m_options.lifetime);
 
-    if (!m_pipeline->enqueueInterest(std::move(interest))) {
+    if (!m_pipeline->pushInterest(0, std::move(interest))) {
         m_stop = true;
-        LOG_WARN("unable to send Interest packet");
+        LOG_WARN("unable to push Interest packet");
         return;
     }
 
     ++m_counters.nTxInterests;
     auto start = ndn::time::system_clock::now();
 
-    std::shared_ptr<ndn::Data> data;
-    while (!m_pipeline->dequeueData(data) && !m_stop) {}
+    std::shared_ptr<ndn::Data> data(nullptr);
+    while (!m_stop && !m_pipeline->popData(0, data)) {}
 
     auto end = ndn::time::system_clock::now();
 

@@ -30,9 +30,7 @@
 
 #include <ndn-cxx/util/time.hpp>
 
-#include "concurrentqueue/blockingconcurrentqueue.h"
-#include "concurrentqueue/concurrentqueue.h"
-#include "codecs/encoding.hpp"
+#include "pipeline-common.hpp"
 
 namespace ndnc {
 class PendingInterest {
@@ -41,43 +39,74 @@ class PendingInterest {
     }
 
     PendingInterest(std::shared_ptr<ndn::Interest> &&interest,
-                    uint64_t pitTokenValue, uint64_t timeoutCounter = 0)
-        : pitTokenValue{pitTokenValue}, timeoutCounter{timeoutCounter} {
-
-        interestLifetime = interest->getInterestLifetime();
-        interestBlockValue = getWireEncode(std::move(interest), pitTokenValue);
+                    uint64_t pitTokenValue, uint64_t consumerId) {
+        m_pitTokenValue = pitTokenValue;
+        m_consumerId = consumerId;
+        m_retriesCount = 0;
+        m_interestLifetime = interest->getInterestLifetime();
+        m_interest = getWireEncode(std::move(interest), pitTokenValue);
     }
 
     ~PendingInterest() {
+    }
+
+    uint64_t getPITTokenValue() {
+        return m_pitTokenValue;
+    }
+
+    uint64_t getConsumerId() {
+        return m_consumerId;
+    }
+
+    uint64_t getRetriesCount() {
+        return m_retriesCount;
+    }
+
+    bool hasReachedMaximumNumOfRetries() {
+        return m_retriesCount >= 8;
+    }
+
+    std::shared_ptr<ndn::Interest> getInterest() {
+        return getWireDecode(this->m_interest);
+    }
+
+    ndn::Block getInterestBlockValue() {
+        return m_interest;
+    }
+
+    bool isExpired() const {
+        return getTimeSinceExpressed() > m_interestLifetime;
     }
 
     void markAsExpressed() {
         expressedAt = ndn::time::steady_clock::now();
     }
 
-    inline ndn::time::milliseconds timeSinceExpressed() const {
+    inline ndn::time::milliseconds getTimeSinceExpressed() const {
         return ndn::time::duration_cast<ndn::time::milliseconds>(
             ndn::time::steady_clock::now() - expressedAt);
     }
 
-    bool hasExpired() const {
-        return timeSinceExpressed() > interestLifetime;
+    void refresh(uint64_t pitTokenValue, bool timeoutReason) {
+        auto interest = this->getInterest();
+        interest->refreshNonce();
+
+        this->m_pitTokenValue = pitTokenValue;
+        this->m_interest = getWireEncode(std::move(interest), pitTokenValue);
+
+        if (timeoutReason) {
+            this->m_retriesCount += 1;
+        }
     }
 
-  public:
-    uint64_t pitTokenValue;
-    uint64_t timeoutCounter;
-
-    ndn::Block interestBlockValue;
-
   private:
-    ndn::time::milliseconds interestLifetime;
+    uint64_t m_pitTokenValue;
+    uint64_t m_consumerId;
+    uint64_t m_retriesCount;
+    ndn::Block m_interest;
+    ndn::time::milliseconds m_interestLifetime;
     ndn::time::steady_clock::TimePoint expressedAt;
 };
-
-typedef moodycamel::ConcurrentQueue<PendingInterest> RequestQueue;
-typedef moodycamel::BlockingConcurrentQueue<std::shared_ptr<ndn::Data>>
-    ResponseQueue;
 }; // namespace ndnc
 
 #endif // NDNC_CONGESTION_CONTROL_PIPELINE_PENDING_INTEREST_HPP

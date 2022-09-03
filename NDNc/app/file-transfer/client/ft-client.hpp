@@ -52,7 +52,7 @@ struct ClientOptions {
     uint16_t nthreads = 2;          // The number of worker threads
 
     PipelineType pipelineType = PipelineType::aimd;
-    uint16_t pipelineSize = 32768;
+    size_t pipelineSize = 32768;
 };
 
 class Client : public std::enable_shared_from_this<Client> {
@@ -60,44 +60,54 @@ class Client : public std::enable_shared_from_this<Client> {
     using NotifyProgressStatus = std::function<void(uint64_t bytes)>;
 
   public:
-    explicit Client(face::Face &face, ClientOptions options);
+    Client(ClientOptions options, std::shared_ptr<PipelineInterests> pipeline);
     ~Client();
 
     void stop();
 
-    void listFile(std::string path, std::shared_ptr<FileMetadata> &);
+    void openFile(std::shared_ptr<FileMetadata> metadata);
+    void closeFile(std::shared_ptr<FileMetadata> metadata);
+    void listFile(std::string path, std::shared_ptr<FileMetadata> &metadata);
     void listDir(std::string path,
-                 std::vector<std::shared_ptr<FileMetadata>> &);
+                 std::vector<std::shared_ptr<FileMetadata>> &all);
     void listDirRecursive(std::string path,
-                          std::vector<std::shared_ptr<FileMetadata>> &);
+                          std::vector<std::shared_ptr<FileMetadata>> &all);
 
-    void requestFileContent(int wid, int wcount, uint64_t finalBlockID,
-                            ndn::Name name);
+    void requestFileContent(int wid, int wcount,
+                            std::shared_ptr<FileMetadata> metadata);
     void receiveFileContent(NotifyProgressStatus onProgress,
                             std::atomic<uint64_t> &segmentsCount,
-                            uint64_t finalBlockID);
-
-    std::shared_ptr<PipelineInterests::Counters> getCounters();
+                            std::shared_ptr<FileMetadata> metadata);
 
   private:
     bool canContinue();
 
     std::shared_ptr<ndn::Data>
-    syncRequestDataFor(std::shared_ptr<ndn::Interest> &&);
+    syncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest,
+                       uint64_t id = 0);
 
     std::vector<std::shared_ptr<ndn::Data>>
-    syncRequestDataFor(std::vector<std::shared_ptr<ndn::Interest>> &&);
+    syncRequestDataFor(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
+                       uint64_t id = 0);
 
-    bool asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&);
+    bool asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest,
+                             uint64_t id = 0);
 
-    bool asyncRequestDataFor(std::vector<std::shared_ptr<ndn::Interest>> &&);
+    bool
+    asyncRequestDataFor(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
+                        uint64_t id = 0);
 
   private:
     std::atomic_bool m_stop;
     std::atomic_bool m_error;
 
+    // TODO: This doesn't have to be a shared ptr
     std::shared_ptr<ClientOptions> m_options;
+
     std::shared_ptr<PipelineInterests> m_pipeline;
+
+    // TODO: This doesn't have to be a shared ptr
+    std::shared_ptr<std::unordered_map<std::string, uint64_t>> m_files;
 };
 }; // namespace ft
 }; // namespace ndnc

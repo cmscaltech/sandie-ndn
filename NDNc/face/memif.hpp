@@ -52,27 +52,17 @@ class Memif : public Transport {
 
   public:
     bool connect() noexcept final;
-
     bool isConnected() noexcept final;
-
-    void disconnect() noexcept final;
-
     bool loop() noexcept final;
-
     int send(ndn::Block pkt) noexcept final;
-
     int send(std::vector<ndn::Block> &&pkts, uint16_t n) noexcept final;
 
   private:
     static int handleConnect(memif_conn_handle_t conn_handle, void *ctx);
-
     static int handleDisconnect(memif_conn_handle_t conn_handle, void *ctx);
-
     static int handleInterrupt(memif_conn_handle_t conn_handle, void *ctx,
                                uint16_t qid);
-
     static void logDetails(memif_connection_t *conn);
-
     static uint16_t pow2(size_t len);
 
   private:

@@ -42,7 +42,29 @@ Memif::Memif(uint16_t dataroom, const char *socketPath, const char *appName)
 }
 
 Memif::~Memif() {
-    disconnect();
+    if (m_conn == nullptr) {
+        m_conn->is_connected = 0;
+
+        if (m_conn->tx_bufs != nullptr) {
+            free(m_conn->tx_bufs);
+        }
+        m_conn->tx_bufs = nullptr;
+        m_conn->tx_buf_num = 0;
+
+        if (m_conn->rx_bufs != nullptr) {
+            free(m_conn->rx_bufs);
+        }
+        m_conn->rx_bufs = nullptr;
+        m_conn->rx_buf_num = 0;
+
+        m_conn->transport = nullptr;
+
+        if (m_conn->conn_handle != nullptr) {
+            memif_delete(&m_conn->conn_handle);
+        }
+
+        free(m_conn);
+    }
 
     if (m_socket != nullptr) {
         memif_delete_socket(&m_socket);
@@ -132,34 +154,6 @@ bool Memif::connect() noexcept {
 
 bool Memif::isConnected() noexcept {
     return m_conn->is_connected;
-}
-
-void Memif::disconnect() noexcept {
-    if (m_conn == nullptr) {
-        return;
-    }
-
-    m_conn->is_connected = 0;
-
-    if (m_conn->tx_bufs != nullptr) {
-        free(m_conn->tx_bufs);
-    }
-    m_conn->tx_bufs = nullptr;
-    m_conn->tx_buf_num = 0;
-
-    if (m_conn->rx_bufs != nullptr) {
-        free(m_conn->rx_bufs);
-    }
-    m_conn->rx_bufs = nullptr;
-    m_conn->rx_buf_num = 0;
-
-    m_conn->transport = nullptr;
-
-    if (m_conn->conn_handle != nullptr) {
-        memif_delete(&m_conn->conn_handle);
-    }
-
-    free(m_conn);
 }
 
 bool Memif::loop() noexcept {
@@ -312,6 +306,9 @@ int Memif::handleDisconnect(memif_conn_handle_t conn_handle, void *ctx) {
     }
 
     conn->is_connected = 0;
+
+    auto transport = reinterpret_cast<Memif *>(conn->transport);
+    transport->disconnect();
 
     LOG_DEBUG("memif disconnected");
     return 0;

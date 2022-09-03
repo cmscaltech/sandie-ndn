@@ -49,6 +49,7 @@ namespace al = boost::algorithm;
 
 static std::unique_ptr<ndnc::face::Face> face;
 static std::unique_ptr<ndnc::ft::Client> client;
+static std::shared_ptr<ndnc::PipelineInterests> pipeline;
 static std::vector<std::thread> workers;
 
 static void programUsage(std::ostream &os, const std::string &app,
@@ -102,11 +103,11 @@ static void programOptions(int argc, char *argv[],
         "pipeline-type",
         po::value<std::string>(&pipelineType)->default_value(pipelineType),
         "The pipeline type. Available options: fixed, aimd");
-    description.add_options()("pipeline-size",
-                              po::value<uint16_t>(&opts.pipelineSize)
-                                  ->default_value(opts.pipelineSize),
-                              "The maximum pipeline size for `fixed` type or "
-                              "the initial ssthresh for `aimd` type");
+    description.add_options()(
+        "pipeline-size",
+        po::value<size_t>(&opts.pipelineSize)->default_value(opts.pipelineSize),
+        "The maximum pipeline size for `fixed` type or "
+        "the initial ssthresh for `aimd` type");
     description.add_options()("recursive,r", po::bool_switch(&recursive),
                               "Set recursive copy or list of directories");
 
@@ -209,6 +210,10 @@ static void programTerminate() {
             }
         }
     }
+
+    if (pipeline != nullptr && !pipeline->isClosed()) {
+        pipeline->close();
+    }
 }
 
 static void signalHandler(sig_atomic_t signum) {
@@ -231,14 +236,29 @@ int main(int argc, char *argv[]) {
         return 2;
     }
 
+    switch (opts.pipelineType) {
+    case ndnc::PipelineType::aimd:
+        pipeline = std::make_shared<ndnc::PipelineInterestsAimd>(
+            *face, opts.pipelineSize);
+        break;
+    case ndnc::PipelineType::fixed:
+    default:
+        pipeline = std::make_shared<ndnc::PipelineInterestsFixed>(
+            *face, opts.pipelineSize);
+    }
+
     // Init client
-    client = std::make_unique<ndnc::ft::Client>(*face, opts);
+    client = std::make_unique<ndnc::ft::Client>(opts, pipeline);
 
     // Get all file information
     std::vector<std::shared_ptr<ndnc::FileMetadata>> metadata{};
     for (auto path : opts.paths) {
         std::shared_ptr<ndnc::FileMetadata> md;
         client->listFile(path, md);
+
+        if (md == nullptr) {
+            continue;
+        }
 
         if (md->isFile()) {
             metadata.push_back(md);
@@ -271,7 +291,7 @@ int main(int argc, char *argv[]) {
     }
 
     std::cout << "\ntotal " << totalFileCount << "\n";
-    std::cout << "total files size(bytes) " << totalByteCount << "\n";
+    std::cout << "total size " << totalByteCount << " bytes\n";
 
     if (list || totalByteCount == 0) {
         programTerminate();
@@ -307,14 +327,12 @@ int main(int argc, char *argv[]) {
                 bar.set_progress(currentByteCount);
                 bar.tick();
             },
-            std::ref(segmentCount), metadata->getFinalBlockID());
+            std::ref(segmentCount), metadata);
     };
 
     auto requestWorker = [&opts](std::shared_ptr<ndnc::FileMetadata> metadata,
                                  int wid) {
-        client->requestFileContent(wid, opts.nthreads / 2,
-                                   metadata->getFinalBlockID(),
-                                   metadata->getVersionedName());
+        client->requestFileContent(wid, opts.nthreads / 2, metadata);
     };
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -325,9 +343,12 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
+        client->openFile(metadata[i]);
+
         std::atomic<uint64_t> segmentCount = 0;
 
         for (int wid = 0; wid < opts.nthreads / 2; ++wid) {
+
             workers.push_back(std::thread(receiveWorker, metadata[i],
                                           std::ref(segmentCount)));
             workers.push_back(std::thread(requestWorker, metadata[i], wid));
@@ -338,6 +359,8 @@ int main(int argc, char *argv[]) {
                 it->join();
             }
         }
+
+        client->closeFile(metadata[i]);
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -349,14 +372,13 @@ int main(int argc, char *argv[]) {
     double goodput = ((double)totalByteCount * 8.0) /
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
-    auto clientCounters = client->getCounters();
+    auto pipeCounters = pipeline->getCounters();
 
     std::cout << "\n--- statistics ---\n"
-              << clientCounters->nTxPackets << " interest packets transmitted, "
-              << clientCounters->nRxPackets << " data packets received, "
-              << clientCounters->nTimeouts
-              << " packets retransmitted on timeout\n"
-              << "average delay: " << clientCounters->averageDelay() << "\n"
+              << pipeCounters.tx << " interest packets transmitted, "
+              << pipeCounters.rx << " data packets received, "
+              << pipeCounters.timeout << " timeout retries\n"
+              << "average delay: " << pipeCounters.getAverageDelay() << "\n"
               << "goodput: " << binaryPrefix(goodput) << "bit/s"
               << "\n\n";
 

@@ -30,22 +30,11 @@
 
 namespace ndnc {
 namespace ft {
-Client::Client(face::Face &face, ClientOptions options)
-    : m_stop{false}, m_error{false} {
+Client::Client(ClientOptions options,
+               std::shared_ptr<PipelineInterests> pipeline)
+    : m_stop{false}, m_error{false}, m_pipeline{pipeline} {
     m_options = std::make_shared<ClientOptions>(options);
-
-    switch (m_options->pipelineType) {
-    case aimd:
-        m_pipeline = std::make_shared<PipelineInterestsAimd>(
-            face, m_options->pipelineSize);
-        break;
-    case fixed:
-    default:
-        m_pipeline = std::make_shared<PipelineInterestsFixed>(
-            face, m_options->pipelineSize);
-    }
-
-    m_pipeline->run();
+    m_files = std::make_shared<std::unordered_map<std::string, uint64_t>>();
 }
 
 Client::~Client() {
@@ -53,42 +42,35 @@ Client::~Client() {
 }
 
 bool Client::canContinue() {
-    return !m_stop && !m_error && m_pipeline->isValid();
+    return !m_stop && !m_error && !m_pipeline->isClosed();
 }
 
 void Client::stop() {
     m_stop = true;
-
-    if (m_pipeline != nullptr && m_pipeline->isValid()) {
-        m_pipeline->stop();
-    }
-}
-
-std::shared_ptr<PipelineInterests::Counters> Client::getCounters() {
-    return m_pipeline->getCounters();
 }
 
 std::shared_ptr<ndn::Data>
-Client::syncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest) {
+Client::syncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest,
+                           uint64_t id) {
     // Insert the Interest packet in the pipeline
-    if (!m_pipeline->enqueueInterest(std::move(interest))) {
-        LOG_FATAL("unable to insert Interest packet in the pipeline");
+    if (!m_pipeline->pushInterest(id, std::move(interest))) {
+        LOG_FATAL("unable to push Interest packet to pipeline");
         return nullptr;
     }
 
-    // Wait for the response from the pipeline
     std::shared_ptr<ndn::Data> packet(nullptr);
-    while (this->canContinue() && !m_pipeline->dequeueData(packet)) {}
+    // Wait for the response from the pipeline
+    while (this->canContinue(), !m_pipeline->popData(id, packet)) {}
 
     return packet;
 }
 
 std::vector<std::shared_ptr<ndn::Data>> Client::syncRequestDataFor(
-    std::vector<std::shared_ptr<ndn::Interest>> &&interests) {
+    std::vector<std::shared_ptr<ndn::Interest>> &&interests, uint64_t id) {
     auto npackets = interests.size();
 
-    if (!m_pipeline->enqueueInterests(std::move(interests))) {
-        LOG_FATAL("unable to insert Interest packets in the pipeline");
+    if (!m_pipeline->pushInterestBulk(id, std::move(interests))) {
+        LOG_FATAL("unable to push Interest packets to pipeline");
         return {};
     }
 
@@ -96,9 +78,9 @@ std::vector<std::shared_ptr<ndn::Data>> Client::syncRequestDataFor(
 
     for (; npackets > 0; --npackets) {
         std::shared_ptr<ndn::Data> packet(nullptr);
-        while (this->canContinue() && !m_pipeline->dequeueData(packet)) {}
+        while (this->canContinue() && !m_pipeline->popData(id, packet)) {}
 
-        if (!this->canContinue() || packet == nullptr) {
+        if (packet == nullptr) {
             return {};
         }
 
@@ -119,11 +101,12 @@ std::vector<std::shared_ptr<ndn::Data>> Client::syncRequestDataFor(
     return packets;
 }
 
-bool Client::asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest) {
+bool Client::asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest,
+                                 uint64_t id) {
     interest->setInterestLifetime(m_options->lifetime);
 
-    if (!m_pipeline->enqueueInterest(std::move(interest))) {
-        LOG_FATAL("unable to insert Interest packet in the pipeline");
+    if (!m_pipeline->pushInterest(id, std::move(interest))) {
+        LOG_FATAL("unable to push Interest packet to pipeline");
         return false;
     }
 
@@ -131,14 +114,31 @@ bool Client::asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest) {
 }
 
 bool Client::asyncRequestDataFor(
-    std::vector<std::shared_ptr<ndn::Interest>> &&interests) {
+    std::vector<std::shared_ptr<ndn::Interest>> &&interests, uint64_t id) {
 
-    if (!m_pipeline->enqueueInterests(std::move(interests))) {
-        LOG_FATAL("unable to insert Interest packets in the pipeline");
+    if (!m_pipeline->pushInterestBulk(id, std::move(interests))) {
+        LOG_FATAL("unable to push Interest packets to pipeline");
         return false;
     }
 
     return true;
+}
+
+void Client::openFile(std::shared_ptr<FileMetadata> metadata) {
+    auto id = m_pipeline->registerConsumer();
+    m_files->emplace(metadata->getVersionedName().toUri(), id);
+}
+
+void Client::closeFile(std::shared_ptr<FileMetadata> metadata) {
+    auto it = m_files->find(metadata->getVersionedName().toUri());
+
+    if (it == m_files->end()) {
+        LOG_WARN("trying to close an unopened file");
+        return;
+    }
+
+    m_pipeline->unregisterConsumer(it->second);
+    m_files->erase(it);
 }
 
 void Client::listFile(std::string path,
@@ -155,6 +155,7 @@ void Client::listFile(std::string path,
     auto data = syncRequestDataFor(std::move(interest));
 
     if (data == nullptr || !data->hasContent()) {
+        LOG_ERROR("invalid data");
         return;
     }
 
@@ -183,6 +184,7 @@ void Client::listDir(std::string path,
         auto data = syncRequestDataFor(std::move(interest));
 
         if (data == nullptr || !data->hasContent()) {
+            LOG_ERROR("invalid data");
             return;
         }
 
@@ -226,6 +228,7 @@ void Client::listDir(std::string path,
             auto data = syncRequestDataFor(std::move(interest));
 
             if (data == nullptr || !data->hasContent()) {
+                LOG_ERROR("invalid data");
                 return;
             }
 
@@ -275,6 +278,7 @@ void Client::listDir(std::string path,
         listFile(file, metadata);
 
         if (metadata == nullptr) {
+            LOG_ERROR("null metadata");
             continue;
         } else {
             all.push_back(metadata);
@@ -289,6 +293,7 @@ void Client::listDirRecursive(std::string path,
         listFile(path, metadata);
 
         if (metadata == nullptr) {
+            LOG_ERROR("null metadata");
             return;
         }
 
@@ -312,14 +317,15 @@ void Client::listDirRecursive(std::string path,
     }
 }
 
-void Client::requestFileContent(int wid, int wcount, uint64_t finalBlockID,
-                                ndn::Name name) {
+void Client::requestFileContent(int wid, int wcount,
+                                std::shared_ptr<FileMetadata> metadata) {
     uint64_t npackets = 64;
+    uint64_t id = m_files->at(metadata->getVersionedName().toUri());
 
     for (uint64_t segmentNo = wid * npackets;
-         segmentNo <= finalBlockID && canContinue();) {
+         segmentNo <= metadata->getFinalBlockID() && this->canContinue();) {
 
-        if (m_pipeline->getPendingRequestsCount() > 65536) {
+        if (m_pipeline->getQueuedInterestsCount() > 65536) {
             // backoff; plenty of work to be done by the pipeline
             continue;
         }
@@ -328,16 +334,18 @@ void Client::requestFileContent(int wid, int wcount, uint64_t finalBlockID,
         interests.reserve(npackets);
 
         for (uint64_t nextSegment = segmentNo, n = 0;
-             nextSegment <= finalBlockID && n < npackets; ++nextSegment, ++n) {
+             nextSegment <= metadata->getFinalBlockID() && n < npackets;
+             ++nextSegment, ++n) {
 
             auto interest = std::make_shared<ndn::Interest>(
-                name.deepCopy().appendSegment(nextSegment));
+                metadata->getVersionedName().deepCopy().appendSegment(
+                    nextSegment));
 
             interest->setInterestLifetime(m_options->lifetime);
             interests.emplace_back(std::move(interest));
         }
 
-        if (!asyncRequestDataFor(std::move(interests))) {
+        if (!asyncRequestDataFor(std::move(interests), id)) {
             m_error = true;
             return;
         }
@@ -348,14 +356,15 @@ void Client::requestFileContent(int wid, int wcount, uint64_t finalBlockID,
 
 void Client::receiveFileContent(NotifyProgressStatus onProgress,
                                 std::atomic<uint64_t> &segmentsCount,
-                                uint64_t finalBlockID) {
+                                std::shared_ptr<FileMetadata> metadata) {
     uint64_t bytesCount = 0;
+    uint64_t id = m_files->at(metadata->getVersionedName().toUri());
 
-    while (canContinue() && segmentsCount <= finalBlockID) {
+    while (this->canContinue() &&
+           segmentsCount <= metadata->getFinalBlockID()) {
         std::shared_ptr<ndn::Data> data;
-        if (!m_pipeline->dequeueData(data)) {
-            continue;
-        }
+
+        while (!m_pipeline->popData(id, data)) {}
 
         if (data == nullptr) {
             LOG_FATAL("pipeline error on receive file content");

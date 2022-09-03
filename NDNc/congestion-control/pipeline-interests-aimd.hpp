@@ -37,7 +37,7 @@ class PipelineInterestsAimd : public PipelineInterests {
     ~PipelineInterestsAimd();
 
   private:
-    void process() final;
+    void open() final;
 
     void onData(std::shared_ptr<ndn::Data> &&data,
                 ndn::lp::PitToken &&pitToken) final;

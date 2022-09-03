@@ -119,7 +119,6 @@ class PipelineInterests : public PacketHandler {
                       std::shared_ptr<ndn::Interest> &&pkt) {
         // Do nothing if the pipeline is already closed
         if (isClosed()) {
-            LOG_ERROR("unable to push interest pkt. reason: pipeline closed");
             return false;
         }
 
@@ -141,7 +140,6 @@ class PipelineInterests : public PacketHandler {
                           std::vector<std::shared_ptr<ndn::Interest>> &&pkts) {
         // Do nothing if the pipeline is already closed
         if (isClosed()) {
-            LOG_ERROR("unable to push interest pkts. reason: pipeline closed");
             return false;
         }
 
@@ -190,7 +188,6 @@ class PipelineInterests : public PacketHandler {
     bool pushData(uint64_t consumerId, std::shared_ptr<ndn::Data> &&pkt) {
         // Do nothing if the pipeline is already closed
         if (isClosed()) {
-            LOG_ERROR("unable to push data pkt. reason: pipeline closed");
             return false;
         }
 
@@ -205,8 +202,6 @@ class PipelineInterests : public PacketHandler {
     size_t popPendingInterests(std::vector<PendingInterest> &pendingInterests,
                                size_t n) {
         if (isClosed()) {
-            LOG_ERROR(
-                "unable to pop pending interests. reason: pipeline closed");
             return 0;
         }
 
@@ -222,8 +217,6 @@ class PipelineInterests : public PacketHandler {
             pendingInterest.refresh(m_rdn->get(), timeoutReason);
 
             if (isClosed()) {
-                LOG_ERROR("unable to push refresh local pit entry. reason: "
-                          "pipeline closed");
                 return false;
             }
 

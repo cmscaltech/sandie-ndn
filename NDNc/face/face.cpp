@@ -122,12 +122,6 @@ int Face::send(std::vector<ndn::Block> &&pkts, uint16_t n) {
 }
 
 void Face::receive(const uint8_t *pkt, size_t len) {
-    if (m_packetHandler == nullptr) {
-        LOG_FATAL("packet handler is null");
-        m_hasError = true;
-        return;
-    }
-
     ndn::Block wire;
     bool isOk;
 
@@ -137,11 +131,17 @@ void Face::receive(const uint8_t *pkt, size_t len) {
     }
 
     ndn::lp::Packet lpPacket = ndn::lp::Packet(wire);
-
     ndn::Buffer::const_iterator begin, end;
-    std::tie(begin, end) = lpPacket.get<ndn::lp::FragmentField>();
+
+    try {
+        std::tie(begin, end) = lpPacket.get<ndn::lp::FragmentField>();
+    } catch (const std::out_of_range &oor) {
+        LOG_ERROR("out of range error (lp packet get): %s", oor.what());
+        return;
+    }
 
     ndn::Block netPacket(&*begin, std::distance(begin, end));
+
     switch (netPacket.type()) {
     case ndn::tlv::Interest: {
         auto interest = std::make_shared<ndn::Interest>(netPacket);

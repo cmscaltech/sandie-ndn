@@ -333,8 +333,11 @@ int Memif::handleInterrupt(memif_conn_handle_t conn_handle, void *ctx,
 
     auto transport = reinterpret_cast<Memif *>(conn->transport);
 
+    // TODO: pass multiple packets at the same time to the higher level of the
+    // application
     for (uint16_t i = 0; i < conn->rx_buf_num; ++i) {
         auto b = conn->rx_bufs[i];
+
         transport->receive(static_cast<const uint8_t *>(b.data), b.len);
     }
 

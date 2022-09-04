@@ -127,6 +127,7 @@ class PipelineInterests : public PacketHandler {
             LOG_ERROR("unable to push interest pkt. reason: unregistered "
                       "consumer id=%ld",
                       consumerId);
+            close();
             return false;
         }
 
@@ -148,6 +149,7 @@ class PipelineInterests : public PacketHandler {
             LOG_ERROR("unable to push interest pkts. reason: unregistered "
                       "consumer id=%ld",
                       consumerId);
+            close();
             return false;
         }
 
@@ -169,6 +171,7 @@ class PipelineInterests : public PacketHandler {
             return m_responseQueues.at(consumerId).wait_dequeue_timed(pkt, 1e4);
         } catch (const std::out_of_range &oor) {
             LOG_ERROR("out of range error (pop data): %s", oor.what());
+            close();
             return false;
         }
     }
@@ -180,6 +183,7 @@ class PipelineInterests : public PacketHandler {
                 .wait_dequeue_bulk_timed(pkts.begin(), pkts.size(), 1e4);
         } catch (const std::out_of_range &oor) {
             LOG_ERROR("out of range error (pop many data): %s", oor.what());
+            close();
             return 0;
         }
     }
@@ -195,6 +199,7 @@ class PipelineInterests : public PacketHandler {
             return m_responseQueues.at(consumerId).enqueue(std::move(pkt));
         } catch (const std::out_of_range &oor) {
             LOG_ERROR("out of range error (push data): %s", oor.what());
+            close();
             return false;
         }
     }
@@ -225,6 +230,7 @@ class PipelineInterests : public PacketHandler {
 
         } catch (const std::out_of_range &oor) {
             LOG_ERROR("out of range error (refresh pit): %s", oor.what());
+            close();
             return false;
         }
 

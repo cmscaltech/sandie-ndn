@@ -93,13 +93,6 @@ static void programOptions(int argc, char *argv[],
         "The NDN Name prefix this consumer application publishes its "
         "Interest packets. Specify a non-empty string");
     description.add_options()(
-        "nthreads",
-        po::value<uint16_t>(&opts.nthreads)
-            ->default_value(opts.nthreads)
-            ->implicit_value(opts.nthreads),
-        "The number of worker threads. Half will request the Interest packets "
-        "and half will process the Data packets");
-    description.add_options()(
         "pipeline-type",
         po::value<std::string>(&pipelineType)->default_value(pipelineType),
         "The pipeline type. Available options: fixed, aimd");
@@ -110,6 +103,10 @@ static void programOptions(int argc, char *argv[],
         "the initial ssthresh for `aimd` type");
     description.add_options()("recursive,r", po::bool_switch(&recursive),
                               "Set recursive copy or list of directories");
+    description.add_options()(
+        "streams,s",
+        po::value<size_t>(&opts.streams)->default_value(opts.streams),
+        "The number of streams. Specify a positive integer between 1 and 16");
 
     description.add_options()("help,h", "Print this help message and exit");
 
@@ -197,7 +194,13 @@ static void programOptions(int argc, char *argv[],
         }
     }
 
-    opts.nthreads = opts.nthreads % 2 == 1 ? opts.nthreads + 1 : opts.nthreads;
+    if (vm.count("streams") > 0) {
+        if (opts.streams < 1 || opts.streams > 16) {
+            std::cerr << "ERROR: invalid streams value\n\n";
+            programUsage(std::cout, app, description);
+            exit(2);
+        }
+    }
 }
 
 static void programTerminate() {
@@ -310,56 +313,51 @@ int main(int argc, char *argv[]) {
 
     std::atomic<uint64_t> currentByteCount = 0;
 
-    auto receiveWorker = [&currentByteCount, &totalByteCount,
-                          &bar](std::shared_ptr<ndnc::FileMetadata> metadata,
-                                std::atomic<uint64_t> &segmentCount) {
-        client->receiveFileContent(
-            [&](uint64_t bytes) {
-                if (bar.is_completed()) {
-                    return;
-                }
+    auto receiveWorker = [&currentByteCount, &totalByteCount, &bar, &opts,
+                          &metadata](size_t wid) {
+        for (size_t i = wid; i < metadata.size(); i += opts.streams) {
+            client->receiveFileContent(
+                [&](uint64_t bytes) {
+                    if (bar.is_completed()) {
+                        return;
+                    }
 
-                currentByteCount += bytes;
+                    currentByteCount += bytes;
 
-                bar.set_option(indicators::option::PostfixText{
-                    "[" + std::to_string(currentByteCount) + "/" +
-                    std::to_string(totalByteCount) + "]"});
-                bar.set_progress(currentByteCount);
-                bar.tick();
-            },
-            std::ref(segmentCount), metadata);
+                    bar.set_option(indicators::option::PostfixText{
+                        "[" + std::to_string(currentByteCount) + "/" +
+                        std::to_string(totalByteCount) + "]"});
+                    bar.set_progress(currentByteCount);
+                    bar.tick();
+                },
+                metadata[i]);
+        }
     };
 
-    auto requestWorker = [&opts](std::shared_ptr<ndnc::FileMetadata> metadata,
-                                 int wid) {
-        client->requestFileContent(wid, opts.nthreads / 2, metadata);
+    auto requestWorker = [&opts, &metadata](size_t wid) {
+        for (size_t i = wid; i < metadata.size(); i += opts.streams) {
+            client->requestFileContent(metadata[i]);
+        }
     };
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Copy all files one at a time
-    for (auto i = 0; i < static_cast<int>(metadata.size()); ++i) {
-        if (metadata[i]->isDir()) {
-            continue;
-        }
-
+    for (size_t i = 0; i < metadata.size(); ++i) {
         client->openFile(metadata[i]);
+    }
 
-        std::atomic<uint64_t> segmentCount = 0;
+    for (size_t i = 0; i < opts.streams; ++i) {
+        workers.push_back(std::thread(receiveWorker, i));
+        workers.push_back(std::thread(requestWorker, i));
+    }
 
-        for (int wid = 0; wid < opts.nthreads / 2; ++wid) {
-
-            workers.push_back(std::thread(receiveWorker, metadata[i],
-                                          std::ref(segmentCount)));
-            workers.push_back(std::thread(requestWorker, metadata[i], wid));
+    for (auto it = workers.begin(); it != workers.end(); ++it) {
+        if (it->joinable()) {
+            it->join();
         }
+    }
 
-        for (auto it = workers.begin(); it != workers.end(); ++it) {
-            if (it->joinable()) {
-                it->join();
-            }
-        }
-
+    for (size_t i = 0; i < metadata.size(); ++i) {
         client->closeFile(metadata[i]);
     }
 

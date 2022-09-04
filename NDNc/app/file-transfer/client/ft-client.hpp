@@ -49,7 +49,7 @@ struct ClientOptions {
     ndn::time::milliseconds lifetime = ndn::time::seconds{2};
 
     std::vector<std::string> paths; // List of paths to be copied over NDN
-    uint16_t nthreads = 2;          // The number of worker threads
+    size_t streams = 1;             // The number of streams
 
     PipelineType pipelineType = PipelineType::aimd;
     size_t pipelineSize = 32768;
@@ -73,10 +73,8 @@ class Client : public std::enable_shared_from_this<Client> {
     void listDirRecursive(std::string path,
                           std::vector<std::shared_ptr<FileMetadata>> &all);
 
-    void requestFileContent(int wid, int wcount,
-                            std::shared_ptr<FileMetadata> metadata);
+    void requestFileContent(std::shared_ptr<FileMetadata> metadata);
     void receiveFileContent(NotifyProgressStatus onProgress,
-                            std::atomic<uint64_t> &segmentsCount,
                             std::shared_ptr<FileMetadata> metadata);
 
   private:
@@ -101,12 +99,8 @@ class Client : public std::enable_shared_from_this<Client> {
     std::atomic_bool m_stop;
     std::atomic_bool m_error;
 
-    // TODO: This doesn't have to be a shared ptr
     std::shared_ptr<ClientOptions> m_options;
-
     std::shared_ptr<PipelineInterests> m_pipeline;
-
-    // TODO: This doesn't have to be a shared ptr
     std::shared_ptr<std::unordered_map<std::string, uint64_t>> m_files;
 };
 }; // namespace ft

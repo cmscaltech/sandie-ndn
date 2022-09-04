@@ -139,7 +139,7 @@ void Client::closeFile(std::shared_ptr<FileMetadata> metadata) {
     auto it = m_files->find(metadata->getVersionedName().toUri());
 
     if (it == m_files->end()) {
-        LOG_WARN("trying to close an unopened file");
+        LOG_DEBUG("trying to close an unopened file");
         return;
     }
 

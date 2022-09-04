@@ -282,6 +282,7 @@ int main(int argc, char *argv[]) {
     uint64_t totalByteCount = 0;
     uint64_t totalFileCount = 0;
 
+    std::cout << "\n";
     for (auto md : metadata) {
         if (md->isFile()) {
             std::cout << ndnc::rdrFileUri(md->getVersionedName()) << "\n";
@@ -294,7 +295,7 @@ int main(int argc, char *argv[]) {
     }
 
     std::cout << "\ntotal " << totalFileCount << "\n";
-    std::cout << "total size " << totalByteCount << " bytes\n";
+    std::cout << "total size " << totalByteCount << " bytes\n\n";
 
     if (list || totalByteCount == 0) {
         programTerminate();
@@ -357,14 +358,19 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    for (size_t i = 0; i < metadata.size(); ++i) {
-        client->closeFile(metadata[i]);
-    }
-
     auto end = std::chrono::high_resolution_clock::now();
 
     bar.set_option(indicators::option::PrefixText{"Transfer completed "});
     bar.mark_as_completed();
+
+    for (size_t i = 0; i < metadata.size(); ++i) {
+        std::cout << termcolor::bold << termcolor::green << "✔ Downloaded file "
+                  << ndnc::rdrFileUri(metadata[i]->getVersionedName())
+                  << std::endl;
+        std::cout << termcolor::reset;
+
+        client->closeFile(metadata[i]);
+    }
 
     auto duration = end - start;
     double goodput = ((double)totalByteCount * 8.0) /
@@ -372,13 +378,14 @@ int main(int argc, char *argv[]) {
 
     auto pipeCounters = pipeline->getCounters();
 
-    std::cout << "\n--- statistics ---\n"
+    std::cout << termcolor::bold << "\n--- statistics ---\n"
               << pipeCounters.tx << " interest packets transmitted, "
               << pipeCounters.rx << " data packets received, "
               << pipeCounters.timeout << " timeout retries\n"
               << "average delay: " << pipeCounters.getAverageDelay() << "\n"
               << "goodput: " << binaryPrefix(goodput) << "bit/s"
               << "\n\n";
+    std::cout << termcolor::reset;
 
     programTerminate();
     return 0;

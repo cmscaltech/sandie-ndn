@@ -163,7 +163,7 @@ bool Client::deleteID(std::string id) {
         return false;
     }
 
-    LOG_INFO("delete mutation done. id=%s", id.c_str());
+    LOG_DEBUG("delete mutation done. id=%s", id.c_str());
     return response["data"]["delete"];
 }
 }; // namespace mgmt

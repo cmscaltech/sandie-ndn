@@ -55,8 +55,8 @@ class Face {
 
     bool loop();
 
-    int send(ndn::Block pkt);
-    int send(std::vector<ndn::Block> &&pkts, uint16_t n);
+    int send(const ndn::Block pkt);
+    int send(const std::vector<ndn::Block> *pkts, uint16_t n);
 
     bool advertise(const std::string prefix);
 
@@ -70,7 +70,7 @@ class Face {
      * @param pkt Received packet over memif face
      * @param len Size of received packet
      */
-    void receive(const uint8_t *pkt, size_t len);
+    void receive(const ndn::Block &&pkt);
 
   private:
     std::shared_ptr<transport::Transport> m_transport;

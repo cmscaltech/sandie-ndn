@@ -67,8 +67,8 @@ bool Face::connect(int dataroom, std::string gqlserver, std::string appName) {
         [](void *self) { reinterpret_cast<Face *>(self)->disconnect(); }, this);
 
     m_transport->setOnReceiveCallback(
-        [](void *self, const uint8_t *pkt, size_t len) {
-            reinterpret_cast<Face *>(self)->receive(pkt, len);
+        [](void *self, const ndn::Block &&pkt) {
+            reinterpret_cast<Face *>(self)->receive(std::move(pkt));
         },
         this);
 
@@ -113,24 +113,16 @@ bool Face::advertise(const std::string prefix) {
     return m_gqlClient->insertFibEntry(prefix);
 }
 
-int Face::send(ndn::Block pkt) {
+int Face::send(const ndn::Block pkt) {
     return m_transport->send(pkt);
 }
 
-int Face::send(std::vector<ndn::Block> &&pkts, uint16_t n) {
-    return m_transport->send(std::move(pkts), n);
+int Face::send(const std::vector<ndn::Block> *pkts, uint16_t n) {
+    return m_transport->send(pkts, n);
 }
 
-void Face::receive(const uint8_t *pkt, size_t len) {
-    ndn::Block wire;
-    bool isOk;
-
-    std::tie(isOk, wire) = ndn::Block::fromBuffer(pkt, len);
-    if (!isOk) {
-        return;
-    }
-
-    ndn::lp::Packet lpPacket = ndn::lp::Packet(wire);
+void Face::receive(const ndn::Block &&pkt) {
+    ndn::lp::Packet lpPacket = ndn::lp::Packet(pkt);
     ndn::Buffer::const_iterator begin, end;
 
     try {

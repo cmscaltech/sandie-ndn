@@ -40,7 +40,7 @@ PipelineInterestsFixed::~PipelineInterestsFixed() {
 
 void PipelineInterestsFixed::open() {
     std::vector<PendingInterest> pendingInterests{};
-    size_t size = 0, index = 0;
+    int size = 0, index = 0;
 
     auto getNextPendingInterests = [&]() {
         index = 0;
@@ -70,7 +70,7 @@ void PipelineInterestsFixed::open() {
                            return pi.getInterestBlockValue();
                        });
 
-        auto n = face->send(std::move(pkts), size);
+        auto n = face->send(&pkts, size);
         if (n < 0) {
             LOG_FATAL("unable to send Interest packets on face");
             close();
@@ -79,7 +79,7 @@ void PipelineInterestsFixed::open() {
 
         m_counters.tx += n;
 
-        for (n += index; index < (size_t)n; ++index, --size) {
+        for (n += index; index < n; ++index, --size) {
             pendingInterests[index].markAsExpressed();
             // Timeout handler
             m_piq->push(pendingInterests[index].getPITTokenValue());

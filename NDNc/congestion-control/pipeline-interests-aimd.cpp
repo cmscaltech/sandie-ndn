@@ -41,11 +41,10 @@ PipelineInterestsAimd::~PipelineInterestsAimd() {
 
 void PipelineInterestsAimd::open() {
     std::vector<PendingInterest> pendingInterests{};
-    size_t size = 0, index = 0;
+    int size = 0, index = 0;
 
     auto getNextPendingInterests = [&]() {
         index = 0;
-
         size = popPendingInterests(
             pendingInterests,
             std::min(static_cast<int>(m_windowSize - m_pit->size()), 64));
@@ -72,7 +71,7 @@ void PipelineInterestsAimd::open() {
                            return pi.getInterestBlockValue();
                        });
 
-        auto n = face->send(std::move(pkts), size);
+        auto n = face->send(&pkts, size);
         if (n < 0) {
             LOG_FATAL("unable to send Interest packets on face");
 
@@ -82,7 +81,7 @@ void PipelineInterestsAimd::open() {
 
         m_counters.tx += n;
 
-        for (n += index; index < (size_t)n; ++index, --size) {
+        for (n += index; index < n; ++index, --size) {
             pendingInterests[index].markAsExpressed();
             // Timeout handler
             m_piq->push(pendingInterests[index].getPITTokenValue());

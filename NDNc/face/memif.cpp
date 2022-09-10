@@ -167,7 +167,7 @@ bool Memif::loop() noexcept {
     return true;
 }
 
-int Memif::send(ndn::Block pkt) noexcept {
+int Memif::send(const ndn::Block pkt) noexcept {
     if (!isConnected()) {
         LOG_ERROR("memif send drop=transport-disconnected");
         return -1;
@@ -217,7 +217,7 @@ int Memif::send(ndn::Block pkt) noexcept {
     return tx;
 }
 
-int Memif::send(std::vector<ndn::Block> &&pkts, uint16_t n) noexcept {
+int Memif::send(const std::vector<ndn::Block> *pkts, uint16_t n) noexcept {
     if (!isConnected()) {
         LOG_ERROR("memif send drop=transport-disconnected");
         return -1;
@@ -234,8 +234,8 @@ int Memif::send(std::vector<ndn::Block> &&pkts, uint16_t n) noexcept {
         return -1;
     }
 
-    size_t bsize = pkts.front().size();
-    for (auto it = pkts.begin(); it != pkts.end(); ++it) {
+    size_t bsize = pkts->front().size();
+    for (auto it = pkts->begin(); it != pkts->end(); ++it) {
         if (it->size() > bsize)
             bsize = it->size();
     }
@@ -257,7 +257,7 @@ int Memif::send(std::vector<ndn::Block> &&pkts, uint16_t n) noexcept {
     }
 
     for (size_t i = 0; i < m_conn->tx_buf_num; ++i) {
-        std::copy_n(pkts[i].wire(), pkts[i].size(),
+        std::copy_n(pkts->at(i).wire(), pkts->at(i).size(),
                     static_cast<uint8_t *>(m_conn->tx_bufs[i].data));
     }
 
@@ -338,7 +338,17 @@ int Memif::handleInterrupt(memif_conn_handle_t conn_handle, void *ctx,
     for (uint16_t i = 0; i < conn->rx_buf_num; ++i) {
         auto b = conn->rx_bufs[i];
 
-        transport->receive(static_cast<const uint8_t *>(b.data), b.len);
+        ndn::Block wire;
+        bool isOk;
+
+        std::tie(isOk, wire) =
+            ndn::Block::fromBuffer(static_cast<const uint8_t *>(b.data), b.len);
+        if (!isOk) {
+            LOG_WARN("memif_on_interrupt err=invalid-ndn-block");
+            return -1;
+        }
+
+        transport->receive(std::move(wire));
     }
 
     memif_refill_queue(conn_handle, qid, conn->rx_buf_num, 0);

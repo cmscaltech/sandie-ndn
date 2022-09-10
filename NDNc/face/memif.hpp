@@ -54,8 +54,8 @@ class Memif : public Transport {
     bool connect() noexcept final;
     bool isConnected() noexcept final;
     bool loop() noexcept final;
-    int send(ndn::Block pkt) noexcept final;
-    int send(std::vector<ndn::Block> &&pkts, uint16_t n) noexcept final;
+    int send(const ndn::Block pkt) noexcept final;
+    int send(const std::vector<ndn::Block> *pkts, uint16_t n) noexcept final;
 
   private:
     static int handleConnect(memif_conn_handle_t conn_handle, void *ctx);

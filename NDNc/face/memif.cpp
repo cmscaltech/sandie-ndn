@@ -341,8 +341,8 @@ int Memif::handleInterrupt(memif_conn_handle_t conn_handle, void *ctx,
         ndn::Block wire;
         bool isOk;
 
-        std::tie(isOk, wire) =
-            ndn::Block::fromBuffer(static_cast<const uint8_t *>(b.data), b.len);
+        std::tie(isOk, wire) = ndn::Block::fromBuffer(
+            {static_cast<const uint8_t *>(b.data), b.len});
         if (!isOk) {
             LOG_WARN("memif_on_interrupt err=invalid-ndn-block");
             return -1;

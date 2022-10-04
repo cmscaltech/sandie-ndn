@@ -51,12 +51,10 @@ inline ndn::Block getWireEncode(std::shared_ptr<ndn::Interest> &&interest,
 
 inline std::shared_ptr<ndn::Interest> getWireDecode(ndn::Block wire) {
     ndn::lp::Packet lpPacket(wire);
-
-    ndn::Buffer::const_iterator begin, end;
-    std::tie(begin, end) = lpPacket.get<ndn::lp::FragmentField>();
+    auto frag = lpPacket.get<ndn::lp::FragmentField>();
 
     return std::make_shared<ndn::Interest>(
-        ndn::Block(&*begin, std::distance(begin, end)));
+        ndn::Block({frag.first, frag.second}));
 }
 } // namespace ndnc
 

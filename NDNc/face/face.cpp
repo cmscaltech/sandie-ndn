@@ -123,17 +123,9 @@ int Face::send(const std::vector<ndn::Block> *pkts, uint16_t n) {
 
 void Face::receive(const ndn::Block &&pkt) {
     ndn::lp::Packet lpPacket = ndn::lp::Packet(pkt);
-    ndn::Buffer::const_iterator begin, end;
+    auto frag = lpPacket.get<ndn::lp::FragmentField>();
 
-    try {
-        std::tie(begin, end) = lpPacket.get<ndn::lp::FragmentField>();
-    } catch (const std::out_of_range &oor) {
-        LOG_ERROR("out of range error (lp packet get): %s", oor.what());
-        return;
-    }
-
-    ndn::Block netPacket(&*begin, std::distance(begin, end));
-
+    ndn::Block netPacket({frag.first, frag.second});
     switch (netPacket.type()) {
     case ndn::tlv::Interest: {
         auto interest = std::make_shared<ndn::Interest>(netPacket);

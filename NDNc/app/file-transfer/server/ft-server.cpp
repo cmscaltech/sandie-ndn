@@ -72,7 +72,7 @@ std::shared_ptr<ndn::Data> Server::getFileMetadata(const ndn::Name name) {
         data->setContent(metadata.encode());
         data->setContentType(ndn::tlv::ContentType_Blob);
     } else {
-        data->setContent(nullptr, 0);
+        data->setContent(ndn::span<uint8_t>{});
         data->setContentType(ndn::tlv::ContentType_Nack);
     }
 

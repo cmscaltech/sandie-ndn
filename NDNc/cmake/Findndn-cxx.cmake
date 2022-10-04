@@ -31,14 +31,14 @@ endif(NDN_CXX_INCLUDES-NOTFOUND)
 
 # search for ndn-cxx libs
 print_message(STATUS "Looking for libndn-cxx")
-find_library(NDN_CXX_LIB ndn-cxx HINTS "/usr/" "/usr/local/")
+find_library(NDN_CXX_LIB ndn-cxx HINTS "/usr/" "/usr/local/" "/usr/local/lib64")
 
 if(NDN_CXX_LIB-NOTFOUND)
   print_message(STATUS "Looking for libndn-cxx - not found")
-  set(NDN_CXX-NOTFOUND TRUE)
+  set(NDN_CXX_LIB-NOTFOUND TRUE)
 else()
   print_message(STATUS "Looking for libndn-cxx - found: ${NDN_CXX_LIB}")
-  set(NDN_CXX-FOUND TRUE)
+  set(NDN_CXX_LIB-FOUND TRUE)
 endif(NDN_CXX_LIB-NOTFOUND)
 
 if(ndn-cxx_FIND_REQUIRED AND NDN_CXX-NOTFOUND)

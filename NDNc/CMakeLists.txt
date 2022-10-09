@@ -24,6 +24,7 @@ INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 FIND_PACKAGE(CURL REQUIRED)
 FIND_PACKAGE(Threads REQUIRED)
 FIND_PACKAGE(nlohmann_json 3.9.1 REQUIRED)
+find_package(xrootd-utils 5.0.0 REQUIRED)
 
 SET(CMAKE_CXX_STANDARD 17)
 
@@ -88,3 +89,12 @@ TARGET_LINK_LIBRARIES(ndncft-server PRIVATE nlohmann_json::nlohmann_json)
 TARGET_LINK_LIBRARIES(ndncft-server PRIVATE Threads::Threads)
 TARGET_LINK_LIBRARIES(ndncft-server PRIVATE ndnc)
 SET_TARGET_PROPERTIES(ndncft-server PROPERTIES LINKER_LANGUAGE CXX)
+
+# compile XrdNdnOss library
+add_library(XrdNdnOss
+            MODULE
+            lib/xrdndnposix/xrd-ndn-oss.cpp
+            lib/xrdndnposix/xrd-ndn-oss-file.cpp
+            lib/xrdndnposix/xrd-ndn-oss-dir.cpp)
+            TARGET_LINK_LIBRARIES(XrdNdnOss ${XROOTD_UTILS})
+TARGET_INCLUDE_DIRECTORIES(XrdNdnOss SYSTEM PUBLIC ${XROOTD_INCLUDES})

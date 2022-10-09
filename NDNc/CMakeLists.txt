@@ -91,10 +91,18 @@ TARGET_LINK_LIBRARIES(ndncft-server PRIVATE ndnc)
 SET_TARGET_PROPERTIES(ndncft-server PROPERTIES LINKER_LANGUAGE CXX)
 
 # compile XrdNdnOss library
-add_library(XrdNdnOss
-            MODULE
+add_library(XrdNdnOss SHARED
             lib/xrdndnposix/xrd-ndn-oss.cpp
             lib/xrdndnposix/xrd-ndn-oss-file.cpp
             lib/xrdndnposix/xrd-ndn-oss-dir.cpp)
             TARGET_LINK_LIBRARIES(XrdNdnOss ${XROOTD_UTILS})
 TARGET_INCLUDE_DIRECTORIES(XrdNdnOss SYSTEM PUBLIC ${XROOTD_INCLUDES})
+
+# install
+set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
+
+if(NOT DEFINED LIB_INSTALL_DIR)
+  set(LIB_INSTALL_DIR "/usr/lib64")
+endif()
+
+install(TARGETS ndnc XrdNdnOss LIBRARY DESTINATION ${LIB_INSTALL_DIR} OPTIONAL)

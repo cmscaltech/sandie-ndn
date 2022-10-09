@@ -1,0 +1,84 @@
+/*
+ * N-DISE: NDN for Data Intensive Science Experiments
+ * Author: Catalin Iordache <catalin.iordache@cern.ch>
+ *
+ * MIT License
+ *
+ * Copyright (c) 2022 California Institute of Technology
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#ifndef LIB_XRD_NDN_OSS_VERSION_HPP
+#define LIB_XRD_NDN_OSS_VERSION_HPP
+
+namespace xrdndnofs {
+/**
+ * @brief XrdNdnOss version follows Semantic Versioning 2.0.0
+ * specification https://semver.org/
+ *
+ */
+
+/**
+ * @brief XrdNdnOss version represented as an integer
+ *
+ * MAJOR*1000000 + MINOR*1000 + PATCH
+ *
+ */
+#define XRDNDNOSS_VERSION @XRDNDNOSS_VERSION@
+
+/**
+ * @brief XrdNdnOss version represented as a string
+ *
+ * MAJOR.MINOR.PATCH
+ *
+ */
+#define XRDNDNOSS_VERSION_STRING "@XRDNDNOSS_VERSION_STRING@"
+
+/**
+ * @brief XrdNdnOss version string, including git commit information, if
+ * XrdNdnOss is build from specific git commit. If XrdNdnOss is not
+ * built from git XRDNDNOSS_VERSION_BUILD_STRING equals version string
+ *
+ * MAJOR.MINOR.PATCH(-release-candidate-tag)(-(number-of-commits-since-tag)-COMMIT-HASH)
+ *
+ * Example: 0.1.4-72-gb6cf0df3
+ */
+#define XRDNDNOSS_VERSION_BUILD_STRING "@XRDNDNOSS_VERSION_BUILD_STRING@"
+
+/**
+ * @brief Major version
+ *
+ */
+#define XRDNDNOSS_VERSION_MAJOR @XRDNDNOSS_VERSION_MAJOR@
+
+/**
+ * @brief Minor version
+ *
+ */
+#define XRDNDNOSS_VERSION_MINOR @XRDNDNOSS_VERSION_MINOR@
+
+/**
+ * @brief Patch version
+ *
+ */
+#define XRDNDNOSS_VERSION_PATCH @XRDNDNOSS_VERSION_PATCH@
+} // namespace xrdndnofs
+
+#endif //  LIB_XRD_NDN_OSS_VERSION_HPP

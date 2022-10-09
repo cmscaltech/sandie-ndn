@@ -32,6 +32,11 @@ ADD_DEFINITIONS(-D_GNU_SOURCE)
 ADD_COMPILE_OPTIONS(-g -Wall -Wextra -Wpedantic -fPIC)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
+EXECUTE_PROCESS(COMMAND git describe --abbrev=8 --always --tags
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+                OUTPUT_VARIABLE GIT_VERSION
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 add_subdirectory(logger)
 
 # compile ndnc library
@@ -91,18 +96,41 @@ TARGET_LINK_LIBRARIES(ndncft-server PRIVATE ndnc)
 SET_TARGET_PROPERTIES(ndncft-server PROPERTIES LINKER_LANGUAGE CXX)
 
 # compile XrdNdnOss library
-add_library(XrdNdnOss SHARED
-            lib/xrdndnposix/xrd-ndn-oss.cpp
-            lib/xrdndnposix/xrd-ndn-oss-file.cpp
-            lib/xrdndnposix/xrd-ndn-oss-dir.cpp)
+SET(XRDNDNOSS_VERSION_MAJOR 0)
+SET(XRDNDNOSS_VERSION_MINOR 1)
+SET(XRDNDNOSS_VERSION_PATCH 0)
+
+MATH(
+  EXPR XRDNDNOSS_VERSION
+  ${XRDNDNOSS_VERSION_MAJOR}*1000000+${XRDNDNOSS_VERSION_MINOR}*1000+${XRDNDNOSS_VERSION_PATCH}
+  )
+SET(
+  XRDNDNOSS_VERSION_STRING
+  "${XRDNDNOSS_VERSION_MAJOR}.${XRDNDNOSS_VERSION_MINOR}.${XRDNDNOSS_VERSION_PATCH}"
+  )
+
+if(GIT_VERSION STREQUAL "")
+  SET(XRDNDNOSS_VERSION_BUILD_STRING "${XRDNDNOSS_VERSION_STRING}")
+else()
+  SET(XRDNDNOSS_VERSION_BUILD_STRING "${GIT_VERSION}")
+endif()
+
+configure_file("${PROJECT_SOURCE_DIR}/lib/xrdndnoss/xrd-ndn-oss-version.hpp.in"
+               "${PROJECT_BINARY_DIR}/include/xrd-ndn-oss-version.hpp")
+include_directories("${PROJECT_BINARY_DIR}/include/")
+
+ADD_LIBRARY(XrdNdnOss SHARED
+            lib/xrdndnoss/xrd-ndn-oss.cpp
+            lib/xrdndnoss/xrd-ndn-oss-file.cpp
+            lib/xrdndnoss/xrd-ndn-oss-dir.cpp)
             TARGET_LINK_LIBRARIES(XrdNdnOss ${XROOTD_UTILS})
 TARGET_INCLUDE_DIRECTORIES(XrdNdnOss SYSTEM PUBLIC ${XROOTD_INCLUDES})
 
 # install
-set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
+SET(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
 
 if(NOT DEFINED LIB_INSTALL_DIR)
-  set(LIB_INSTALL_DIR "/usr/lib64")
+  SET(LIB_INSTALL_DIR "/usr/lib64")
 endif()
 
-install(TARGETS ndnc XrdNdnOss LIBRARY DESTINATION ${LIB_INSTALL_DIR} OPTIONAL)
+INSTALL(TARGETS ndnc XrdNdnOss LIBRARY DESTINATION ${LIB_INSTALL_DIR} OPTIONAL)

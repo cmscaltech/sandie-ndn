@@ -32,6 +32,7 @@
 
 #include "xrd-ndn-oss-dir.hpp"
 #include "xrd-ndn-oss-file.hpp"
+#include "xrd-ndn-oss-version.hpp"
 #include "xrd-ndn-oss.hpp"
 
 /**
@@ -124,7 +125,8 @@ int XrdNdnOss::Init(XrdSysLogger *lp, const char *cfn) {
 
     eDest_->Say("Copyright © 2022 California Institute of Technology\n"
                 "Author: Catalin Iordache <catalin.iordache@cern.ch>");
-    eDest_->Say("Named Data Networking storage system initialization.\n");
+    eDest_->Say("Named Data Networking storage system v",
+                XRDNDNOSS_VERSION_STRING, " initialization.\n");
 
     return XrdOssOK;
 }

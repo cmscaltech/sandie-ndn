@@ -25,6 +25,8 @@
  * SOFTWARE.
  */
 
+#include <queue>
+
 #include "ft-client.hpp"
 #include "logger/logger.hpp"
 
@@ -174,7 +176,7 @@ void Client::listFile(std::string path,
     metadata = std::make_shared<FileMetadata>(data->getContent());
 }
 
-void Client::listDir(std::string path,
+void Client::listDir(std::string root,
                      std::vector<std::shared_ptr<FileMetadata>> &all) {
     std::shared_ptr<FileMetadata> metadata(nullptr);
     all.clear();
@@ -182,7 +184,7 @@ void Client::listDir(std::string path,
     {
         // Get list dir Metadata
         auto interest = std::make_shared<ndn::Interest>(
-            rdrDiscoveryNameDirListing(path, m_options->namePrefix));
+            rdrDiscoveryNameDirListing(root, m_options->namePrefix));
 
         interest->setCanBePrefix(true);
         interest->setMustBeFresh(true);
@@ -197,7 +199,7 @@ void Client::listDir(std::string path,
         }
 
         if (data->getContentType() == ndn::tlv::ContentType_Nack) {
-            LOG_ERROR("unable to list dir: '%s'", path.c_str());
+            LOG_ERROR("unable to list dir: '%s'", root.c_str());
             return;
         }
 
@@ -205,12 +207,12 @@ void Client::listDir(std::string path,
     }
 
     if (metadata == nullptr) {
-        LOG_ERROR("unable to list dir: '%s'", path.c_str());
+        LOG_ERROR("unable to list dir: '%s'", root.c_str());
         return;
     }
 
     if (!metadata->isDir()) {
-        LOG_ERROR("request to list dir on a file path: '%s'", path.c_str());
+        LOG_ERROR("request to list dir on a file path: '%s'", root.c_str());
         return;
     }
 
@@ -242,7 +244,7 @@ void Client::listDir(std::string path,
             }
 
             if (data->getContentType() == ndn::tlv::ContentType_Nack) {
-                LOG_FATAL("unable to get list dir content '%s'", path.c_str());
+                LOG_FATAL("unable to get list dir content '%s'", root.c_str());
                 m_error = true;
                 return;
             } else {
@@ -275,7 +277,7 @@ void Client::listDir(std::string path,
         }
 
         auto suffix = std::string((const char *)(byteContent + i), j - i);
-        auto prefix = path.back() == '/' ? path : path + "/";
+        auto prefix = root.back() == '/' ? root : root + "/";
 
         content.push_back(prefix + suffix);
         i = j + 1;
@@ -297,32 +299,27 @@ void Client::listDir(std::string path,
     }
 }
 
-void Client::listDirRecursive(std::string path,
+void Client::listDirRecursive(std::string root,
                               std::vector<std::shared_ptr<FileMetadata>> &all) {
-    {
-        std::shared_ptr<FileMetadata> metadata(nullptr);
-        listFile(path, metadata);
+    std::queue<std::string> paths;
+    paths.push(root);
 
-        if (metadata == nullptr) {
-            LOG_ERROR("null metadata");
-            return;
-        }
+    while (!paths.empty()) {
+        auto path = paths.front();
+        paths.pop();
 
-        if (metadata->isFile()) {
-            all.push_back(metadata);
-            return;
-        }
-    }
-
-    {
         std::vector<std::shared_ptr<FileMetadata>> metadata{};
         listDir(path, metadata);
 
+        if (metadata.empty()) {
+            continue;
+        }
+
         for (auto md : metadata) {
-            if (md->isFile()) {
-                all.push_back(md);
-            } else {
-                listDirRecursive(ndnc::rdrDirUri(md->getVersionedName()), all);
+            all.push_back(md);
+
+            if (md->isDir()) {
+                paths.push(ndnc::rdrDirUri(md->getVersionedName()));
             }
         }
     }

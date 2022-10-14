@@ -68,9 +68,9 @@ class Client : public std::enable_shared_from_this<Client> {
     void openFile(std::shared_ptr<FileMetadata> metadata);
     void closeFile(std::shared_ptr<FileMetadata> metadata);
     void listFile(std::string path, std::shared_ptr<FileMetadata> &metadata);
-    void listDir(std::string path,
+    void listDir(std::string root,
                  std::vector<std::shared_ptr<FileMetadata>> &all);
-    void listDirRecursive(std::string path,
+    void listDirRecursive(std::string root,
                           std::vector<std::shared_ptr<FileMetadata>> &all);
 
     void requestFileContent(std::shared_ptr<FileMetadata> metadata);

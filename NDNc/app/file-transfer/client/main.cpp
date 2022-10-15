@@ -364,6 +364,10 @@ int main(int argc, char *argv[]) {
     bar.mark_as_completed();
 
     for (size_t i = 0; i < metadata.size(); ++i) {
+        if (metadata[i]->isDir()) {
+            continue;
+        }
+
         std::cout << termcolor::bold << termcolor::green << "✔ Downloaded file "
                   << ndnc::rdrFileUri(metadata[i]->getVersionedName())
                   << std::endl;

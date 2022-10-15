@@ -25,6 +25,7 @@
  * SOFTWARE.
  */
 
+#include <algorithm>
 #include <queue>
 
 #include "ft-client.hpp"
@@ -323,6 +324,13 @@ void Client::listDirRecursive(std::string root,
             }
         }
     }
+
+    std::sort(all.begin(), all.end(),
+              [](std::shared_ptr<FileMetadata> lhs,
+                 std::shared_ptr<FileMetadata> rhs) {
+                  return ndnc::rdrDirUri(lhs->getVersionedName()) <
+                         ndnc::rdrDirUri(rhs->getVersionedName());
+              });
 }
 
 void Client::requestFileContent(std::shared_ptr<FileMetadata> metadata) {

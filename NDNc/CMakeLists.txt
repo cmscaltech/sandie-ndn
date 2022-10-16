@@ -47,7 +47,10 @@ ADD_LIBRARY(ndnc SHARED
                 congestion-control/pipeline-interests-fixed.cpp
                 congestion-control/pipeline-interests-aimd.cpp
                 mgmt/client.cpp
-                utils)
+                utils
+                lib/posix/consumer.cpp
+                lib/posix/file.cpp)
+
 TARGET_LINK_LIBRARIES(ndnc PRIVATE logger)
 TARGET_LINK_LIBRARIES(ndnc PRIVATE curl)
 TARGET_LINK_LIBRARIES(ndnc PRIVATE nlohmann_json::nlohmann_json)

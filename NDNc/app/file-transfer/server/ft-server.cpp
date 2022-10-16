@@ -30,16 +30,15 @@
 #include "ft-server.hpp"
 #include "logger/logger.hpp"
 
-namespace ndnc {
-namespace ft {
+namespace ndnc::app::filetransfer {
 Server::Server(face::Face &face, ServerOptions options)
-    : PacketHandler(face), m_options{options}, m_signatureInfo{} {
+    : PacketHandler(face), options_{options}, signatureInfo_{} {
 
     auto buff = std::make_unique<ndn::Buffer>();
-    buff->assign(m_options.segmentSize, 'p');
-    m_payload = ndn::Block(ndn::tlv::Content, std::move(buff));
+    buff->assign(options_.segmentSize, 'p');
+    payload_ = ndn::Block(ndn::tlv::Content, std::move(buff));
 
-    m_signatureInfo.setSignatureType(ndn::tlv::DigestSha256);
+    signatureInfo_.setSignatureType(ndn::tlv::DigestSha256);
 }
 
 Server::~Server() {
@@ -49,10 +48,11 @@ void Server::onInterest(std::shared_ptr<ndn::Interest> &&interest,
                         ndn::lp::PitToken &&pitToken) {
 
     auto name = interest->getName();
-    auto data = isRDRDiscoveryName(name) ? getFileMetadata(name)
-                                         : getFileContentData(name);
+    auto data = ndnc::posix::isRDRDiscoveryName(name)
+                    ? getFileMetadata(name)
+                    : getFileContentData(name);
 
-    data->setSignatureInfo(m_signatureInfo);
+    data->setSignatureInfo(signatureInfo_);
     data->setSignatureValue(std::make_shared<ndn::Buffer>());
 
     if (face != nullptr &&
@@ -65,9 +65,9 @@ std::shared_ptr<ndn::Data> Server::getFileMetadata(const ndn::Name name) {
     LOG_INFO("received meta Interest %s", name.toUri().c_str());
 
     auto data = std::make_shared<ndn::Data>(name);
-    FileMetadata metadata{m_options.segmentSize};
+    ndnc::posix::FileMetadata metadata{options_.segmentSize};
 
-    if (metadata.prepare(rdrFileUri(name, m_options.namePrefixNoComponents),
+    if (metadata.prepare(ndnc::posix::rdrFileUri(name, options_.prefix),
                          name.getPrefix(-1))) {
         data->setContent(metadata.encode());
         data->setContentType(ndn::tlv::ContentType_Blob);
@@ -83,9 +83,8 @@ std::shared_ptr<ndn::Data> Server::getFileMetadata(const ndn::Name name) {
 std::shared_ptr<ndn::Data> Server::getFileContentData(const ndn::Name name) {
     auto data = std::make_shared<ndn::Data>(name);
 
-    data->setContent(m_payload);
+    data->setContent(payload_);
     data->setContentType(ndn::tlv::ContentType_Blob);
     return data;
 }
-}; // namespace ft
-}; // namespace ndnc
+}; // namespace ndnc::app::filetransfer

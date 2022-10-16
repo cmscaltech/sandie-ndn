@@ -28,82 +28,60 @@
 #ifndef NDNC_APP_FILE_TRANSFER_CLIENT_FT_CLIENT_HPP
 #define NDNC_APP_FILE_TRANSFER_CLIENT_FT_CLIENT_HPP
 
-#include <atomic>
-#include <vector>
+#include "lib/posix/consumer.hpp"
 
-#include "../common/file-metadata.hpp"
-#include "../common/rdr-file.hpp"
+#include "../common/ft-naming-scheme.hpp"
+#include "lib/posix/file-metadata.hpp"
+#include "lib/posix/file-rdr.hpp"
 
-#include "congestion-control/pipeline-interests-aimd.hpp"
-#include "congestion-control/pipeline-interests-fixed.hpp"
-
-namespace ndnc {
-namespace ft {
-
+namespace ndnc::app::filetransfer {
 struct ClientOptions {
-    std::string namePrefix = NDNC_NAME_PREFIX_DEFAULT;
+    struct ndnc::posix::ConsumerOptions consumer;
 
-    size_t mtu = 9000;                                 // Dataroom size
-    std::string gqlserver = "http://172.17.0.2:3030/"; // GraphQL server address
-    // Interest lifetime
-    ndn::time::milliseconds lifetime = ndn::time::seconds{2};
-
-    std::vector<std::string> paths; // List of paths to be copied over NDN
+    std::vector<std::string> paths; // List of paths
     size_t streams = 1;             // The number of streams
-
-    PipelineType pipelineType = PipelineType::aimd;
-    size_t pipelineSize = 32768;
 };
+}; // namespace ndnc::app::filetransfer
 
+namespace ndnc::app::filetransfer {
 class Client : public std::enable_shared_from_this<Client> {
   public:
     using NotifyProgressStatus = std::function<void(uint64_t bytes)>;
 
   public:
-    Client(ClientOptions options, std::shared_ptr<PipelineInterests> pipeline);
+    Client(std::shared_ptr<ndnc::posix::Consumer> consumer,
+           ClientOptions options);
     ~Client();
 
     void stop();
 
-    void openFile(std::shared_ptr<FileMetadata> metadata);
-    void closeFile(std::shared_ptr<FileMetadata> metadata);
-    void listFile(std::string path, std::shared_ptr<FileMetadata> &metadata);
+    void openFile(std::shared_ptr<ndnc::posix::FileMetadata> metadata);
+    void closeFile(std::shared_ptr<ndnc::posix::FileMetadata> metadata);
+    void listFile(std::string path,
+                  std::shared_ptr<ndnc::posix::FileMetadata> &metadata);
     void listDir(std::string root,
-                 std::vector<std::shared_ptr<FileMetadata>> &all);
-    void listDirRecursive(std::string root,
-                          std::vector<std::shared_ptr<FileMetadata>> &all);
+                 std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> &all);
+    void listDirRecursive(
+        std::string root,
+        std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> &all);
 
-    void requestFileContent(std::shared_ptr<FileMetadata> metadata);
-    void receiveFileContent(NotifyProgressStatus onProgress,
-                            std::shared_ptr<FileMetadata> metadata);
+    void
+    requestFileContent(std::shared_ptr<ndnc::posix::FileMetadata> metadata);
+    void
+    receiveFileContent(NotifyProgressStatus onProgress,
+                       std::shared_ptr<ndnc::posix::FileMetadata> metadata);
 
   private:
     bool canContinue();
 
-    std::shared_ptr<ndn::Data>
-    syncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest,
-                       uint64_t id = 0);
-
-    std::vector<std::shared_ptr<ndn::Data>>
-    syncRequestDataFor(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
-                       uint64_t id = 0);
-
-    bool asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest,
-                             uint64_t id = 0);
-
-    bool
-    asyncRequestDataFor(std::vector<std::shared_ptr<ndn::Interest>> &&interests,
-                        uint64_t id = 0);
-
   private:
-    std::atomic_bool m_stop;
-    std::atomic_bool m_error;
+    std::atomic_bool stop_;
+    std::atomic_bool error_;
 
-    std::shared_ptr<ClientOptions> m_options;
-    std::shared_ptr<PipelineInterests> m_pipeline;
-    std::shared_ptr<std::unordered_map<std::string, uint64_t>> m_files;
+    std::shared_ptr<ndnc::posix::Consumer> consumer_;
+    ClientOptions options_;
+    std::shared_ptr<std::unordered_map<std::string, uint64_t>> files_;
 };
-}; // namespace ft
-}; // namespace ndnc
+}; // namespace ndnc::app::filetransfer
 
 #endif // NDNC_APP_FILE_TRANSFER_CLIENT_FT_CLIENT_HPP

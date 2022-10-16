@@ -25,18 +25,35 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_APP_FILE_TRANSFER_COMMON_FT_NAMING_SCHEME_HPP
-#define NDNC_APP_FILE_TRANSFER_COMMON_FT_NAMING_SCHEME_HPP
+#ifndef NDNC_LIB_POSIX_FILE_HPP
+#define NDNC_LIB_POSIX_FILE_HPP
 
-#include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 
-/**
- * @brief NDN Name related constants in NDNc file transfer applications
- *
- */
-namespace ndnc::app::filetransfer {
-// NDNc default Name prefix as string
-static const std::string NDNC_NAME_PREFIX_DEFAULT = "/ndnc/ft";
-}; // namespace ndnc::app::filetransfer
+#include "consumer.hpp"
+#include "file-metadata.hpp"
 
-#endif // NDNC_APP_FILE_TRANSFER_COMMON_FT_NAMING_SCHEME_HPP
+namespace ndnc::posix {
+class File {
+  public:
+    File(std::shared_ptr<Consumer> consumer);
+    ~File();
+
+    int fstat(struct stat *buf);
+    int open(const char *path);
+    int close();
+    // ssize_t read(void *buf, size_t count, off_t offset);
+
+  private:
+    void getFileMetadata(const char *path);
+
+  private:
+    std::shared_ptr<Consumer> consumer_;
+    std::shared_ptr<FileMetadata> metadata_;
+
+    uint64_t id_;
+};
+}; // namespace ndnc::posix
+
+#endif // NDNC_LIB_POSIX_FILE_HPP

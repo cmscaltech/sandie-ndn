@@ -25,17 +25,17 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_APP_FILE_TRANSFER_COMMON_FILE_METADATA_HPP
-#define NDNC_APP_FILE_TRANSFER_COMMON_FILE_METADATA_HPP
+#ifndef NDNC_LIB_POSIX_FILE_METADATA_HPP
+#define NDNC_LIB_POSIX_FILE_METADATA_HPP
 
 #include <cstdint>
 #include <math.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 
-#include "rdr-file.hpp"
+#include "file-rdr.hpp"
 
-namespace ndnc {
+namespace ndnc::posix {
 static const uint32_t STATX_REQUIRED =
     STATX_TYPE | STATX_MODE | STATX_MTIME | STATX_SIZE;
 static const uint32_t STATX_OPTIONAL = STATX_ATIME | STATX_CTIME | STATX_BTIME;
@@ -46,8 +46,7 @@ static const uint32_t STATX_OPTIONAL = STATX_ATIME | STATX_CTIME | STATX_BTIME;
  *
  */
 class FileMetadata {
-    enum
-    {
+    enum {
         TtSegmentSize = 0xF500,
         TtSize = 0xF502,
         TtMode = 0xF504, // always present
@@ -61,8 +60,8 @@ class FileMetadata {
     FileMetadata() {
     }
 
-    FileMetadata(uint64_t segmentSize) : m_segmentSize{segmentSize} {
-        this->m_segmentSize = segmentSize;
+    FileMetadata(uint64_t segmentSize) : segmentSize_{segmentSize} {
+        this->segmentSize_ = segmentSize;
     }
 
     FileMetadata(const ndn::Block &content) {
@@ -74,17 +73,18 @@ class FileMetadata {
 
     bool prepare(const std::string path, ndn::Name name) {
         int res = syscall(__NR_statx, -1, path.c_str(), 0,
-                          STATX_REQUIRED | STATX_OPTIONAL, &this->m_stx);
+                          STATX_REQUIRED | STATX_OPTIONAL, &this->stx_);
 
         if (res != 0 || !has(STATX_REQUIRED)) {
+
             return false;
         }
 
-        this->m_versionedName =
-            name.appendVersion(timestamp_to_uint64(m_stx.stx_mtime));
+        this->versionedName_ =
+            name.appendVersion(timestamp_to_uint64(stx_.stx_mtime));
 
-        this->m_finalBlockId =
-            (uint64_t)(ceil((double)m_stx.stx_size / m_segmentSize));
+        this->finalBlockId_ =
+            (uint64_t)(ceil((double)stx_.stx_size / segmentSize_));
 
         return true;
     }
@@ -94,13 +94,13 @@ class FileMetadata {
 
         // Name: versioned name prefix; version number is derived from last
         // modification time
-        content.push_back(this->m_versionedName.wireEncode());
+        content.push_back(this->versionedName_.wireEncode());
 
         // FinalBlockId: enclosed SegmentNameComponent that reflects
         // last segment number (inclusive)
         ndn::Block finalBlockId{ndn::tlv::FinalBlockId};
         finalBlockId.push_back(
-            ndn::name::Component::fromSegment(this->m_finalBlockId)
+            ndn::name::Component::fromSegment(this->finalBlockId_)
                 .wireEncode());
         finalBlockId.encode();
         content.push_back(finalBlockId);
@@ -108,43 +108,43 @@ class FileMetadata {
         // SegmentSize (TLV-TYPE 0xF500, NonNegativeInteger): segment
         // size (octets); last segment may be shorter
         content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
-            TtSegmentSize, this->m_segmentSize));
+            TtSegmentSize, this->segmentSize_));
 
         // Size (TLV-TYPE 0xF502, NonNegativeInteger): file size
         // (octets)
         content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
-            TtSize, this->m_stx.stx_size));
+            TtSize, this->stx_.stx_size));
 
         // Mode (TLV-TYPE 0xF504, NonNegativeInteger): file type and mode,
         // see https://man7.org/linux/man-pages/man7/inode.7.html
         content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
-            TtMode, this->m_stx.stx_mode));
+            TtMode, this->stx_.stx_mode));
 
         // atime (TLV-TYPE 0xF506, NonNegativeInteger): last accessed time
         // (nanoseconds since Unix epoch)
         if (has(STATX_ATIME)) {
             content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
-                TtAtime, timestamp_to_uint64(this->m_stx.stx_atime)));
+                TtAtime, timestamp_to_uint64(this->stx_.stx_atime)));
         }
 
         // btime (TLV-TYPE 0xF508, NonNegativeInteger): creation time
         // (nanoseconds since Unix epoch)
         if (has(STATX_BTIME)) {
             content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
-                TtBtime, timestamp_to_uint64(this->m_stx.stx_btime)));
+                TtBtime, timestamp_to_uint64(this->stx_.stx_btime)));
         }
 
         // ctime (TLV-TYPE 0xF50A, NonNegativeInteger): last status change
         // time (nanoseconds since Unix epoch)
         if (has(STATX_CTIME)) {
             content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
-                TtCtime, timestamp_to_uint64(this->m_stx.stx_ctime)));
+                TtCtime, timestamp_to_uint64(this->stx_.stx_ctime)));
         }
 
         // mtime (TLV-TYPE 0xF50C, NonNegativeInteger): last modification
         // time (nanoseconds since Unix epoch)
         content.push_back(ndn::encoding::makeNonNegativeIntegerBlock(
-            TtMtime, timestamp_to_uint64(this->m_stx.stx_mtime)));
+            TtMtime, timestamp_to_uint64(this->stx_.stx_mtime)));
 
         content.encode();
         return content;
@@ -153,60 +153,60 @@ class FileMetadata {
     void decode(const ndn::Block &content) {
         content.parse();
 
-        this->m_versionedName.wireDecode(content.get(ndn::tlv::Name));
+        this->versionedName_.wireDecode(content.get(ndn::tlv::Name));
 
         if (content.find(ndn::tlv::FinalBlockId) != content.elements_end()) {
             auto finalBlockId = content.get(ndn::tlv::FinalBlockId);
-            this->m_finalBlockId =
+            this->finalBlockId_ =
                 ndn::Name::Component(finalBlockId.blockFromValue()).toSegment();
         } else {
-            this->m_finalBlockId = 0;
+            this->finalBlockId_ = 0;
         }
 
         if (content.find(TtSegmentSize) != content.elements_end()) {
-            this->m_segmentSize =
+            this->segmentSize_ =
                 ndn::readNonNegativeInteger(content.get(TtSegmentSize));
         } else {
-            this->m_segmentSize = 0;
+            this->segmentSize_ = 0;
         }
 
         if (content.find(TtSize) != content.elements_end()) {
-            this->m_stx.stx_size =
+            this->stx_.stx_size =
                 ndn::readNonNegativeInteger(content.get(TtSize));
         } else {
-            this->m_stx.stx_size = 0;
+            this->stx_.stx_size = 0;
         }
 
-        this->m_stx.stx_mode = ndn::readNonNegativeInteger(content.get(TtMode));
+        this->stx_.stx_mode = ndn::readNonNegativeInteger(content.get(TtMode));
 
         if (content.find(TtAtime) != content.elements_end()) {
-            this->m_stx.stx_atime = uint64_to_timestamp(
+            this->stx_.stx_atime = uint64_to_timestamp(
                 ndn::readNonNegativeInteger(content.get(TtAtime)));
         } else {
-            this->m_stx.stx_atime = uint64_to_timestamp(0);
+            this->stx_.stx_atime = uint64_to_timestamp(0);
         }
 
         if (content.find(TtBtime) != content.elements_end()) {
-            this->m_stx.stx_btime = uint64_to_timestamp(
+            this->stx_.stx_btime = uint64_to_timestamp(
                 ndn::readNonNegativeInteger(content.get(TtBtime)));
         } else {
-            this->m_stx.stx_btime = uint64_to_timestamp(0);
+            this->stx_.stx_btime = uint64_to_timestamp(0);
         }
 
         if (content.find(TtCtime) != content.elements_end()) {
-            this->m_stx.stx_ctime = uint64_to_timestamp(
+            this->stx_.stx_ctime = uint64_to_timestamp(
                 ndn::readNonNegativeInteger(content.get(TtCtime)));
         } else {
-            this->m_stx.stx_ctime = uint64_to_timestamp(0);
+            this->stx_.stx_ctime = uint64_to_timestamp(0);
         }
 
-        this->m_stx.stx_mtime = uint64_to_timestamp(
+        this->stx_.stx_mtime = uint64_to_timestamp(
             ndn::readNonNegativeInteger(content.get(TtMtime)));
     }
 
   private:
     bool has(uint32_t bit) const {
-        return (this->m_stx.stx_mask & bit) == bit;
+        return (this->stx_.stx_mask & bit) == bit;
     }
 
     uint64_t timestamp_to_uint64(struct statx_timestamp t) const {
@@ -220,45 +220,61 @@ class FileMetadata {
         return t;
     }
 
+    void copy_statx_to_stat_time(struct statx_timestamp *stx,
+                                 struct timespec *st) {
+        st->tv_sec = stx->tv_sec;
+        st->tv_nsec = stx->tv_nsec;
+    }
+
   public:
     ndn::Name getVersionedName() {
-        return this->m_versionedName;
+        return this->versionedName_;
     }
 
     uint64_t getFinalBlockID() {
-        return this->m_finalBlockId;
+        return this->finalBlockId_;
     }
 
     uint64_t getSegmentSize() {
-        return this->m_segmentSize;
+        return this->segmentSize_;
     }
 
     uint64_t getFileSize() {
-        return this->m_stx.stx_size;
+        return this->stx_.stx_size;
     }
 
     struct statx_timestamp getAtime() {
-        return this->m_stx.stx_atime;
+        return this->stx_.stx_atime;
     }
 
     struct statx_timestamp getBtime() {
-        return this->m_stx.stx_btime;
+        return this->stx_.stx_btime;
     }
 
     struct statx_timestamp getCtime() {
-        return this->m_stx.stx_ctime;
+        return this->stx_.stx_ctime;
     }
 
     struct statx_timestamp getMtime() {
-        return this->m_stx.stx_mtime;
+        return this->stx_.stx_mtime;
     }
 
     bool isFile() {
-        return S_ISREG(m_stx.stx_mode);
+        return S_ISREG(stx_.stx_mode);
     }
 
     bool isDir() {
-        return S_ISDIR(m_stx.stx_mode);
+        return S_ISDIR(stx_.stx_mode);
+    }
+
+    void stat(struct stat *st) {
+        st = (struct stat *)malloc(sizeof(struct stat));
+
+        st->st_mode = stx_.stx_mode;
+        st->st_size = stx_.stx_size;
+        copy_statx_to_stat_time(&stx_.stx_atime, &st->st_atim);
+        copy_statx_to_stat_time(&stx_.stx_ctime, &st->st_ctim);
+        copy_statx_to_stat_time(&stx_.stx_mtime, &st->st_mtim);
     }
 
     std::string timestamp_to_string(struct statx_timestamp t) {
@@ -267,13 +283,13 @@ class FileMetadata {
     }
 
   private:
-    ndn::Name m_versionedName;
+    ndn::Name versionedName_;
 
-    uint64_t m_finalBlockId;
-    uint64_t m_segmentSize;
+    uint64_t finalBlockId_;
+    uint64_t segmentSize_;
 
-    struct statx m_stx;
+    struct statx stx_;
 };
-}; // namespace ndnc
+}; // namespace ndnc::posix
 
-#endif // NDNC_APP_FILE_TRANSFER_COMMON_FILE_METADATA_HPP
+#endif // NDNC_LIB_POSIX_FILE_METADATA_HPP

@@ -28,20 +28,26 @@
 #ifndef NDNC_APP_FILE_TRANSFER_SERVER_FT_SERVER_HPP
 #define NDNC_APP_FILE_TRANSFER_SERVER_FT_SERVER_HPP
 
-#include "../common/file-metadata.hpp"
+#include "../common/ft-naming-scheme.hpp"
 #include "face/packet-handler.hpp"
+#include "lib/posix/file-metadata.hpp"
+#include "lib/posix/file-rdr.hpp"
 
-namespace ndnc {
-namespace ft {
-
+namespace ndnc::app::filetransfer {
 struct ServerOptions {
-    std::string namePrefix = NDNC_NAME_PREFIX_DEFAULT;
-    size_t namePrefixNoComponents = NDNC_NAME_PREFIX_DEFAULT_NO_COMPONENTS;
-    size_t segmentSize = 6600;
-    size_t mtu = 9000;                                // Dataroom size
-    std::string gqlserver = "http://localhost:3030/"; // GraphQL server address
-};
+    // GraphQL server address
+    std::string gqlserver = "http://localhost:3030/";
+    // Dataroom size
+    size_t mtu = 9000;
+    // Name prefix
+    ndn::Name prefix = ndn::Name(NDNC_NAME_PREFIX_DEFAULT);
 
+    // Segment size
+    size_t segmentSize = 6600;
+};
+}; // namespace ndnc::app::filetransfer
+
+namespace ndnc::app::filetransfer {
 class Server : public PacketHandler {
   public:
     explicit Server(face::Face &face, ServerOptions options);
@@ -56,11 +62,10 @@ class Server : public PacketHandler {
     std::shared_ptr<ndn::Data> getFileContentData(const ndn::Name name);
 
   private:
-    ServerOptions m_options;
-    ndn::Block m_payload;
-    ndn::SignatureInfo m_signatureInfo;
+    ServerOptions options_;
+    ndn::Block payload_;
+    ndn::SignatureInfo signatureInfo_;
 };
-}; // namespace ft
-}; // namespace ndnc
+}; // namespace ndnc::app::filetransfer
 
 #endif // NDNC_APP_FILE_TRANSFER_SERVER_FT_SERVER_HPP

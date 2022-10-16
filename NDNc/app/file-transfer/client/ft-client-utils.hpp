@@ -30,6 +30,7 @@
 
 #include <string>
 
+namespace ndnc::app::filetransfer {
 /**
  * @brief Convert number to binary prefix.
  * https://en.wikipedia.org/wiki/Binary_prefix
@@ -53,5 +54,6 @@ static std::string binaryPrefix(double value) {
     sprintf(output, "%.1f Yi", value);
     return std::string(output);
 }
+}; // namespace ndnc::app::filetransfer
 
 #endif // NDNC_APP_FILE_TRANSFER_CLIENT_FT_CLIENT_UTILS_HPP

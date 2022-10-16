@@ -31,13 +31,11 @@
 #include "ft-client.hpp"
 #include "logger/logger.hpp"
 
-namespace ndnc {
-namespace ft {
-Client::Client(ClientOptions options,
-               std::shared_ptr<PipelineInterests> pipeline)
-    : m_stop{false}, m_error{false}, m_pipeline{pipeline} {
-    m_options = std::make_shared<ClientOptions>(options);
-    m_files = std::make_shared<std::unordered_map<std::string, uint64_t>>();
+namespace ndnc::app::filetransfer {
+Client::Client(std::shared_ptr<ndnc::posix::Consumer> consumer,
+               ClientOptions options)
+    : stop_{false}, error_{false}, consumer_{consumer}, options_{options} {
+    files_ = std::make_shared<std::unordered_map<std::string, uint64_t>>();
 }
 
 Client::~Client() {
@@ -45,127 +43,46 @@ Client::~Client() {
 }
 
 bool Client::canContinue() {
-    return !m_stop && !m_error && !m_pipeline->isClosed();
+    return !stop_ && !error_ && consumer_->isValid();
 }
 
 void Client::stop() {
-    m_stop = true;
+    stop_ = true;
 }
 
-std::shared_ptr<ndn::Data>
-Client::syncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest,
-                           uint64_t id) {
-    // Insert the Interest packet in the pipeline
-    if (!m_pipeline->pushInterest(id, std::move(interest))) {
-        LOG_FATAL("unable to push Interest packet to pipeline");
-        m_error = true;
-        return nullptr;
-    }
-
-    std::shared_ptr<ndn::Data> pkt(nullptr);
-    // Wait for the response from the pipeline
-    while (this->canContinue(), !m_pipeline->popData(id, pkt)) {}
-
-    return pkt;
+void Client::openFile(std::shared_ptr<ndnc::posix::FileMetadata> metadata) {
+    auto id = consumer_->registerConsumer();
+    files_->emplace(metadata->getVersionedName().toUri(), id);
 }
 
-std::vector<std::shared_ptr<ndn::Data>> Client::syncRequestDataFor(
-    std::vector<std::shared_ptr<ndn::Interest>> &&interests, uint64_t id) {
-    auto npkts = interests.size();
+void Client::closeFile(std::shared_ptr<ndnc::posix::FileMetadata> metadata) {
+    auto it = files_->find(metadata->getVersionedName().toUri());
 
-    if (!m_pipeline->pushInterestBulk(id, std::move(interests))) {
-        LOG_FATAL("unable to push Interest packets to pipeline");
-        m_error = true;
-        return {};
-    }
-
-    std::vector<std::shared_ptr<ndn::Data>> pkts(npkts);
-
-    for (; npkts > 0; --npkts) {
-        std::shared_ptr<ndn::Data> pkt(nullptr);
-
-        while (this->canContinue() && !m_pipeline->popData(id, pkt)) {}
-
-        if (pkt == nullptr) {
-            return {};
-        }
-
-        if (!pkt->getName().at(-1).isSegment()) {
-            LOG_FATAL("last name component of Data packet is not a segment");
-            m_error = true;
-            return {};
-        }
-
-        try {
-            pkts[pkt->getName().at(-1).toSegment()] = pkt;
-        } catch (ndn::Name::Error &error) {
-            LOG_FATAL("unable to get the segment from the Data Name");
-            m_error = true;
-            return {};
-        }
-    }
-
-    return pkts;
-}
-
-bool Client::asyncRequestDataFor(std::shared_ptr<ndn::Interest> &&interest,
-                                 uint64_t id) {
-    interest->setInterestLifetime(m_options->lifetime);
-
-    if (!m_pipeline->pushInterest(id, std::move(interest))) {
-        LOG_FATAL("unable to push Interest packet to pipeline");
-        m_error = true;
-        return false;
-    }
-
-    return true;
-}
-
-bool Client::asyncRequestDataFor(
-    std::vector<std::shared_ptr<ndn::Interest>> &&interests, uint64_t id) {
-
-    if (!m_pipeline->pushInterestBulk(id, std::move(interests))) {
-        LOG_FATAL("unable to push Interest packets to pipeline");
-        m_error = true;
-        return false;
-    }
-
-    return true;
-}
-
-void Client::openFile(std::shared_ptr<FileMetadata> metadata) {
-    auto id = m_pipeline->registerConsumer();
-    m_files->emplace(metadata->getVersionedName().toUri(), id);
-}
-
-void Client::closeFile(std::shared_ptr<FileMetadata> metadata) {
-    auto it = m_files->find(metadata->getVersionedName().toUri());
-
-    if (it == m_files->end()) {
+    if (it == files_->end()) {
         LOG_DEBUG("trying to close an unopened file");
         return;
     }
 
-    m_pipeline->unregisterConsumer(it->second);
-    m_files->erase(it);
+    consumer_->unregisterConsumer(it->second);
+    files_->erase(it);
 }
 
 void Client::listFile(std::string path,
-                      std::shared_ptr<FileMetadata> &metadata) {
+                      std::shared_ptr<ndnc::posix::FileMetadata> &metadata) {
     metadata = nullptr;
 
     auto interest = std::make_shared<ndn::Interest>(
-        rdrDiscoveryNameFileRetrieval(path, m_options->namePrefix));
+        ndnc::posix::rdrDiscoveryNameFileRetrieval(path,
+                                                   options_.consumer.prefix));
 
     interest->setCanBePrefix(true);
     interest->setMustBeFresh(true);
-    interest->setInterestLifetime(m_options->lifetime);
 
-    auto data = syncRequestDataFor(std::move(interest));
+    auto data = consumer_->syncRequestDataFor(std::move(interest), 0);
 
     if (data == nullptr || !data->hasContent()) {
         LOG_ERROR("invalid data");
-        m_error = true;
+        error_ = true;
         return;
     }
 
@@ -174,28 +91,29 @@ void Client::listFile(std::string path,
         return;
     }
 
-    metadata = std::make_shared<FileMetadata>(data->getContent());
+    metadata = std::make_shared<ndnc::posix::FileMetadata>(data->getContent());
 }
 
-void Client::listDir(std::string root,
-                     std::vector<std::shared_ptr<FileMetadata>> &all) {
-    std::shared_ptr<FileMetadata> metadata(nullptr);
+void Client::listDir(
+    std::string root,
+    std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> &all) {
+    std::shared_ptr<ndnc::posix::FileMetadata> metadata(nullptr);
     all.clear();
 
     {
         // Get list dir Metadata
         auto interest = std::make_shared<ndn::Interest>(
-            rdrDiscoveryNameDirListing(root, m_options->namePrefix));
+            ndnc::posix::rdrDiscoveryNameDirListing(root,
+                                                    options_.consumer.prefix));
 
         interest->setCanBePrefix(true);
         interest->setMustBeFresh(true);
-        interest->setInterestLifetime(m_options->lifetime);
 
-        auto data = syncRequestDataFor(std::move(interest));
+        auto data = consumer_->syncRequestDataFor(std::move(interest), 0);
 
         if (data == nullptr || !data->hasContent()) {
             LOG_ERROR("invalid data");
-            m_error = true;
+            error_ = true;
             return;
         }
 
@@ -204,7 +122,8 @@ void Client::listDir(std::string root,
             return;
         }
 
-        metadata = std::make_shared<FileMetadata>(data->getContent());
+        metadata =
+            std::make_shared<ndnc::posix::FileMetadata>(data->getContent());
     }
 
     if (metadata == nullptr) {
@@ -222,7 +141,7 @@ void Client::listDir(std::string root,
 
     if (NULL == byteContent) {
         LOG_FATAL("unable to allocate memory for retrieving dir list content");
-        m_error = true;
+        error_ = true;
         return;
     }
 
@@ -234,25 +153,23 @@ void Client::listDir(std::string root,
             auto interest = std::make_shared<ndn::Interest>(
                 metadata->getVersionedName().appendSegment(i));
 
-            interest->setInterestLifetime(m_options->lifetime);
-
-            auto data = syncRequestDataFor(std::move(interest));
+            auto data = consumer_->syncRequestDataFor(std::move(interest), 0);
 
             if (data == nullptr || !data->hasContent()) {
                 LOG_ERROR("invalid data");
-                m_error = true;
+                error_ = true;
                 return;
             }
 
             if (data->getContentType() == ndn::tlv::ContentType_Nack) {
                 LOG_FATAL("unable to get list dir content '%s'", root.c_str());
-                m_error = true;
+                error_ = true;
                 return;
             } else {
                 if (!data->getFinalBlock()->isSegment()) {
                     LOG_ERROR(
                         "dir list data content FinalBlockId is not a segment");
-                    m_error = true;
+                    error_ = true;
                     return;
                 } else {
                     contentFinalBlockId = data->getFinalBlock()->toSegment();
@@ -300,8 +217,9 @@ void Client::listDir(std::string root,
     }
 }
 
-void Client::listDirRecursive(std::string root,
-                              std::vector<std::shared_ptr<FileMetadata>> &all) {
+void Client::listDirRecursive(
+    std::string root,
+    std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> &all) {
     std::queue<std::string> paths;
     paths.push(root);
 
@@ -309,7 +227,7 @@ void Client::listDirRecursive(std::string root,
         auto path = paths.front();
         paths.pop();
 
-        std::vector<std::shared_ptr<FileMetadata>> metadata{};
+        std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> metadata{};
         listDir(path, metadata);
 
         if (metadata.empty()) {
@@ -320,22 +238,26 @@ void Client::listDirRecursive(std::string root,
             all.push_back(md);
 
             if (md->isDir()) {
-                paths.push(ndnc::rdrDirUri(md->getVersionedName()));
+                paths.push(ndnc::posix::rdrDirUri(md->getVersionedName(),
+                                                  options_.consumer.prefix));
             }
         }
     }
 
     std::sort(all.begin(), all.end(),
-              [](std::shared_ptr<FileMetadata> lhs,
-                 std::shared_ptr<FileMetadata> rhs) {
-                  return ndnc::rdrDirUri(lhs->getVersionedName()) <
-                         ndnc::rdrDirUri(rhs->getVersionedName());
+              [this](std::shared_ptr<ndnc::posix::FileMetadata> lhs,
+                     std::shared_ptr<ndnc::posix::FileMetadata> rhs) {
+                  return ndnc::posix::rdrDirUri(lhs->getVersionedName(),
+                                                options_.consumer.prefix) <
+                         ndnc::posix::rdrDirUri(rhs->getVersionedName(),
+                                                options_.consumer.prefix);
               });
 }
 
-void Client::requestFileContent(std::shared_ptr<FileMetadata> metadata) {
+void Client::requestFileContent(
+    std::shared_ptr<ndnc::posix::FileMetadata> metadata) {
     uint64_t npkts = 64;
-    uint64_t id = m_files->at(metadata->getVersionedName().toUri());
+    uint64_t id = files_->at(metadata->getVersionedName().toUri());
 
     for (uint64_t segmentNo = 0;
          segmentNo <= metadata->getFinalBlockID() && this->canContinue();) {
@@ -356,33 +278,31 @@ void Client::requestFileContent(std::shared_ptr<FileMetadata> metadata) {
                 metadata->getVersionedName().deepCopy().appendSegment(
                     nextSegment));
 
-            interest->setInterestLifetime(m_options->lifetime);
             pkts.emplace_back(std::move(interest));
         }
 
-        if (!asyncRequestDataFor(std::move(pkts), id)) {
-            m_error = true;
+        if (!consumer_->asyncRequestDataFor(std::move(pkts), id)) {
+            error_ = true;
             return;
         }
 
         segmentNo += npkts;
-
-        // std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
 }
 
-void Client::receiveFileContent(NotifyProgressStatus onProgress,
-                                std::shared_ptr<FileMetadata> metadata) {
+void Client::receiveFileContent(
+    NotifyProgressStatus onProgress,
+    std::shared_ptr<ndnc::posix::FileMetadata> metadata) {
     uint64_t bytesCount = 0;
     uint64_t segmentsCount = 0;
-    uint64_t id = m_files->at(metadata->getVersionedName().toUri());
+    uint64_t id = files_->at(metadata->getVersionedName().toUri());
 
     while (this->canContinue() &&
            segmentsCount <= metadata->getFinalBlockID()) {
 
         size_t npkts = 16;
         std::vector<std::shared_ptr<ndn::Data>> pkts(npkts);
-        npkts = m_pipeline->popDataBulk(id, pkts);
+        npkts = consumer_->getData(pkts, id);
 
         if (npkts == 0) {
             continue;
@@ -391,7 +311,7 @@ void Client::receiveFileContent(NotifyProgressStatus onProgress,
         for (size_t i = 0; i < npkts; ++i) {
             if (pkts[i] == nullptr) {
                 LOG_FATAL("pipeline error on receive file content");
-                m_error = true;
+                error_ = true;
                 return;
             }
 
@@ -408,5 +328,4 @@ void Client::receiveFileContent(NotifyProgressStatus onProgress,
 
     onProgress(bytesCount);
 }
-}; // namespace ft
-}; // namespace ndnc
+}; // namespace ndnc::app::filetransfer

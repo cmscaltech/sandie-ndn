@@ -34,21 +34,17 @@ XrdNdnOssDir::~XrdNdnOssDir() {
 }
 
 int XrdNdnOssDir::Opendir(const char *, XrdOucEnv &) {
-    // TODO
     return -ENOTDIR;
 }
 
 int XrdNdnOssDir::Readdir(char *, int) {
-    // TODO
     return -ENOTDIR;
 }
 
 int XrdNdnOssDir::StatRet(struct stat *) {
-    // TODO
     return -ENOTDIR;
 }
 
 int XrdNdnOssDir::Close(long long *) {
-    // TODO
     return XrdOssOK;
 }

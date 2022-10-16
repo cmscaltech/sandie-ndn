@@ -41,7 +41,7 @@ using namespace std;
 namespace po = boost::program_options;
 
 static ndnc::face::Face *face;
-static ndnc::ft::Server *server;
+static ndnc::app::filetransfer::Server *server;
 static bool shouldRun = true;
 
 void handler(sig_atomic_t) {
@@ -56,7 +56,8 @@ int main(int argc, char **argv) {
     signal(SIGINT, handler);
     signal(SIGABRT, handler);
 
-    ndnc::ft::ServerOptions opts;
+    ndnc::app::filetransfer::ServerOptions opts;
+    std::string prefix = ndnc::app::filetransfer::NDNC_NAME_PREFIX_DEFAULT;
 
     po::options_description description("Options", 120);
     description.add_options()(
@@ -67,8 +68,7 @@ int main(int argc, char **argv) {
         "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
         "Dataroom size. Specify a positive integer between 64 and 9000");
     description.add_options()(
-        "name-prefix",
-        po::value<string>(&opts.namePrefix)->default_value(opts.namePrefix),
+        "name-prefix", po::value<string>(&prefix)->default_value(prefix),
         "The NDN Name prefix this producer application advertises. Specify a "
         "non-empty string");
     description.add_options()(
@@ -124,23 +124,23 @@ int main(int argc, char **argv) {
     }
 
     if (vm.count("name-prefix") > 0) {
-        if (opts.namePrefix.empty()) {
+        if (opts.prefix.empty()) {
             cerr << "ERROR: empty name prefix value\n\n";
             usage(cout, description);
             return 2;
         }
     }
 
-    opts.namePrefixNoComponents = ndn::Name(opts.namePrefix).size();
+    opts.prefix = ndn::Name(prefix);
 
     face = new ndnc::face::Face();
     if (!face->connect(opts.mtu, opts.gqlserver, "ndncft-server")) {
         return 2;
     }
 
-    server = new ndnc::ft::Server(*face, opts);
+    server = new ndnc::app::filetransfer::Server(*face, opts);
 
-    if (!face->advertise(opts.namePrefix)) {
+    if (!face->advertise(prefix)) {
         cerr << "ERROR: unable to advertise prefix on face\n";
         return 2;
     }

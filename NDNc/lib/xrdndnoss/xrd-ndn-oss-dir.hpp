@@ -25,8 +25,8 @@
  * SOFTWARE.
  */
 
-#ifndef LIB_XRD_NDN_OSS_DIR_HPP
-#define LIB_XRD_NDN_OSS_DIR_HPP
+#ifndef NDNC_LIB_XRD_NDN_OSS_DIR_HPP
+#define NDNC_LIB_XRD_NDN_OSS_DIR_HPP
 
 #include "xrd-ndn-oss.hpp"
 
@@ -42,4 +42,4 @@ class XrdNdnOssDir : public XrdOssDF {
     int Close(long long *);
 };
 
-#endif // LIB_XRD_NDN_OSS_DIR_HPP
+#endif // NDNC_LIB_XRD_NDN_OSS_DIR_HPP

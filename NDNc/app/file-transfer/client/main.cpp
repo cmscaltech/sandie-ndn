@@ -42,14 +42,14 @@
 #include "ft-client-utils.hpp"
 #include "ft-client.hpp"
 #include "indicators/indicators.hpp"
+#include "lib/posix/consumer.hpp"
 #include "logger/logger.hpp"
 
 namespace po = boost::program_options;
 namespace al = boost::algorithm;
 
-static std::unique_ptr<ndnc::face::Face> face;
-static std::unique_ptr<ndnc::ft::Client> client;
-static std::shared_ptr<ndnc::PipelineInterests> pipeline;
+static std::shared_ptr<ndnc::posix::Consumer> consumer;
+static std::unique_ptr<ndnc::app::filetransfer::Client> client;
 static std::vector<std::thread> workers;
 
 static void programUsage(std::ostream &os, const std::string &app,
@@ -61,46 +61,47 @@ static void programUsage(std::ostream &os, const std::string &app,
 }
 
 static void programOptions(int argc, char *argv[],
-                           ndnc::ft::ClientOptions &opts, bool &copy,
-                           bool &list, bool &recursive) {
+                           ndnc::app::filetransfer::ClientOptions &opts,
+                           bool &copy, bool &list, bool &recursive) {
     po::options_description description("Options", 120);
+
     std::string pipelineType = "aimd";
+    std::string prefix = ndnc::app::filetransfer::NDNC_NAME_PREFIX_DEFAULT;
 
     description.add_options()(
         "copy,c",
         po::value<std::vector<std::string>>(&opts.paths)->multitoken(),
         "Copy a list files or directories over NDN");
-    description.add_options()(
-        "gqlserver",
-        po::value<std::string>(&opts.gqlserver)->default_value(opts.gqlserver),
-        "The GraphQL server address");
+    description.add_options()("gqlserver",
+                              po::value<std::string>(&opts.consumer.gqlserver)
+                                  ->default_value(opts.consumer.gqlserver),
+                              "The GraphQL server address");
     description.add_options()(
         "lifetime",
         po::value<ndn::time::milliseconds::rep>()->default_value(
-            opts.lifetime.count()),
+            opts.consumer.interestLifetime.count()),
         "The Interest lifetime in milliseconds. Specify a positive integer");
     description.add_options()(
         "list,l",
         po::value<std::vector<std::string>>(&opts.paths)->multitoken(),
         "List one or more files or directories");
     description.add_options()(
-        "mtu", po::value<size_t>(&opts.mtu)->default_value(opts.mtu),
+        "mtu",
+        po::value<size_t>(&opts.consumer.mtu)->default_value(opts.consumer.mtu),
         "Dataroom size. Specify a positive integer between 64 and 9000");
     description.add_options()(
-        "name-prefix",
-        po::value<std::string>(&opts.namePrefix)
-            ->default_value(opts.namePrefix),
+        "name-prefix", po::value<std::string>(&prefix)->default_value(prefix),
         "The NDN Name prefix this consumer application publishes its "
         "Interest packets. Specify a non-empty string");
     description.add_options()(
         "pipeline-type",
         po::value<std::string>(&pipelineType)->default_value(pipelineType),
         "The pipeline type. Available options: fixed, aimd");
-    description.add_options()(
-        "pipeline-size",
-        po::value<size_t>(&opts.pipelineSize)->default_value(opts.pipelineSize),
-        "The maximum pipeline size for `fixed` type or "
-        "the initial ssthresh for `aimd` type");
+    description.add_options()("pipeline-size",
+                              po::value<size_t>(&opts.consumer.pipelineSize)
+                                  ->default_value(opts.consumer.pipelineSize),
+                              "The maximum pipeline size for `fixed` type or "
+                              "the initial ssthresh for `aimd` type");
     description.add_options()("recursive,r", po::bool_switch(&recursive),
                               "Set recursive copy or list of directories");
     description.add_options()(
@@ -131,7 +132,7 @@ static void programOptions(int argc, char *argv[],
     }
 
     if (vm.count("mtu") > 0) {
-        if (opts.mtu < 64 || opts.mtu > 9000) {
+        if (opts.consumer.mtu < 64 || opts.consumer.mtu > 9000) {
             std::cerr << "ERROR: invalid MTU size\n\n";
             programUsage(std::cout, app, description);
             exit(2);
@@ -139,7 +140,7 @@ static void programOptions(int argc, char *argv[],
     }
 
     if (vm.count("gqlserver") > 0) {
-        if (opts.gqlserver.empty()) {
+        if (opts.consumer.gqlserver.empty()) {
             std::cerr << "ERROR: empty gqlserver argument value\n\n";
             programUsage(std::cout, app, description);
             exit(2);
@@ -147,11 +148,11 @@ static void programOptions(int argc, char *argv[],
     }
 
     if (vm.count("lifetime") > 0) {
-        opts.lifetime = ndn::time::milliseconds(
+        opts.consumer.interestLifetime = ndn::time::milliseconds(
             vm["lifetime"].as<ndn::time::milliseconds::rep>());
     }
 
-    if (opts.lifetime < ndn::time::milliseconds{0}) {
+    if (opts.consumer.interestLifetime < ndn::time::milliseconds{0}) {
         std::cerr << "ERROR: negative lifetime argument value\n\n";
         programUsage(std::cout, app, description);
         exit(2);
@@ -173,26 +174,28 @@ static void programOptions(int argc, char *argv[],
     }
 
     if (al::to_lower_copy(pipelineType).compare("fixed") == 0) {
-        opts.pipelineType = ndnc::PipelineType::fixed;
+        opts.consumer.pipelineType = ndnc::PipelineType::fixed;
     } else if (al::to_lower_copy(pipelineType).compare("aimd") == 0) {
-        opts.pipelineType = ndnc::PipelineType::aimd;
+        opts.consumer.pipelineType = ndnc::PipelineType::aimd;
     } else {
-        opts.pipelineType = ndnc::PipelineType::invalid;
+        opts.consumer.pipelineType = ndnc::PipelineType::invalid;
     }
 
-    if (opts.pipelineType == ndnc::PipelineType::invalid) {
+    if (opts.consumer.pipelineType == ndnc::PipelineType::invalid) {
         std::cerr << "ERROR: invalid pipeline type\n\n";
         programUsage(std::cout, app, description);
         exit(2);
     }
 
     if (vm.count("name-prefix") > 0) {
-        if (opts.namePrefix.empty()) {
+        if (opts.consumer.prefix.empty()) {
             std::cerr << "ERROR: empty name prefix value\n\n";
             programUsage(std::cout, app, description);
             exit(2);
         }
     }
+
+    opts.consumer.prefix = ndn::Name(prefix);
 
     if (vm.count("streams") > 0) {
         if (opts.streams < 1 || opts.streams > 16) {
@@ -213,10 +216,6 @@ static void programTerminate() {
             }
         }
     }
-
-    if (pipeline != nullptr && !pipeline->isClosed()) {
-        pipeline->close();
-    }
 }
 
 static void signalHandler(sig_atomic_t signum) {
@@ -229,34 +228,22 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, signalHandler);
 
     // Parse command line arguments
-    ndnc::ft::ClientOptions opts;
+    ndnc::app::filetransfer::ClientOptions opts;
+    opts.consumer.name = "ndncft-client";
     bool copy = false, list = false, recursive = false;
+
     programOptions(argc, argv, opts, copy, list, recursive);
 
-    // Open memif face
-    face = std::make_unique<ndnc::face::Face>();
-    if (!face->connect(opts.mtu, opts.gqlserver, "ndncft-client")) {
-        return 2;
-    }
-
-    switch (opts.pipelineType) {
-    case ndnc::PipelineType::aimd:
-        pipeline = std::make_shared<ndnc::PipelineInterestsAimd>(
-            *face, opts.pipelineSize);
-        break;
-    case ndnc::PipelineType::fixed:
-    default:
-        pipeline = std::make_shared<ndnc::PipelineInterestsFixed>(
-            *face, opts.pipelineSize);
-    }
+    // Init consumer
+    consumer = std::make_shared<ndnc::posix::Consumer>(opts.consumer);
 
     // Init client
-    client = std::make_unique<ndnc::ft::Client>(opts, pipeline);
+    client = std::make_unique<ndnc::app::filetransfer::Client>(consumer, opts);
 
     // Get all file information
-    std::vector<std::shared_ptr<ndnc::FileMetadata>> metadata{};
+    std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> metadata{};
     for (auto path : opts.paths) {
-        std::shared_ptr<ndnc::FileMetadata> md;
+        std::shared_ptr<ndnc::posix::FileMetadata> md;
         client->listFile(path, md);
 
         if (md == nullptr) {
@@ -266,7 +253,7 @@ int main(int argc, char *argv[]) {
         if (md->isFile()) {
             metadata.push_back(md);
         } else {
-            std::vector<std::shared_ptr<ndnc::FileMetadata>> partial{};
+            std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> partial{};
 
             if (recursive) {
                 client->listDirRecursive(path, partial);
@@ -285,11 +272,15 @@ int main(int argc, char *argv[]) {
     std::cout << "\n";
     for (auto md : metadata) {
         if (md->isFile()) {
-            std::cout << ndnc::rdrFileUri(md->getVersionedName()) << "\n";
+            std::cout << ndnc::posix::rdrFileUri(md->getVersionedName(),
+                                                 opts.consumer.prefix)
+                      << "\n";
             totalByteCount += md->getFileSize();
             totalFileCount += 1;
         } else if (list) {
-            std::cout << ndnc::rdrDirUri(md->getVersionedName()) << "\n";
+            std::cout << ndnc::posix::rdrDirUri(md->getVersionedName(),
+                                                opts.consumer.prefix)
+                      << "\n";
             totalFileCount += 1;
         }
     }
@@ -369,7 +360,8 @@ int main(int argc, char *argv[]) {
         }
 
         std::cout << termcolor::bold << termcolor::green << "✔ Downloaded file "
-                  << ndnc::rdrFileUri(metadata[i]->getVersionedName())
+                  << ndnc::posix::rdrFileUri(metadata[i]->getVersionedName(),
+                                             opts.consumer.prefix)
                   << std::endl;
         std::cout << termcolor::reset;
 
@@ -380,14 +372,15 @@ int main(int argc, char *argv[]) {
     double goodput = ((double)totalByteCount * 8.0) /
                      (duration / std::chrono::nanoseconds(1)) * 1e9;
 
-    auto pipeCounters = pipeline->getCounters();
+    auto statistics = consumer->getCounters();
 
     std::cout << termcolor::bold << "\n--- statistics ---\n"
-              << pipeCounters.tx << " interest packets transmitted, "
-              << pipeCounters.rx << " data packets received, "
-              << pipeCounters.timeout << " timeout retries\n"
-              << "average delay: " << pipeCounters.getAverageDelay() << "\n"
-              << "goodput: " << binaryPrefix(goodput) << "bit/s"
+              << statistics.tx << " interest packets transmitted, "
+              << statistics.rx << " data packets received, "
+              << statistics.timeout << " timeout retries\n"
+              << "average delay: " << statistics.getAverageDelay() << "\n"
+              << "goodput: " << ndnc::app::filetransfer::binaryPrefix(goodput)
+              << "bit/s"
               << "\n\n";
     std::cout << termcolor::reset;
 

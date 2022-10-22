@@ -27,24 +27,26 @@
 
 #include "xrd-ndn-oss-dir.hpp"
 
-XrdNdnOssDir::XrdNdnOssDir(const char *) {
+XrdNdnOssDir::XrdNdnOssDir(std::shared_ptr<ndnc::posix::Consumer> consumer) {
+    this->dir_ = std::make_shared<ndnc::posix::Dir>(consumer);
 }
 
 XrdNdnOssDir::~XrdNdnOssDir() {
+    this->Close(nullptr);
 }
 
-int XrdNdnOssDir::Opendir(const char *, XrdOucEnv &) {
-    return -ENOTDIR;
+int XrdNdnOssDir::Opendir(const char *path, XrdOucEnv &) {
+    return dir_->open(path);
 }
 
-int XrdNdnOssDir::Readdir(char *, int) {
-    return -ENOTDIR;
+int XrdNdnOssDir::Readdir(char *buff, int blen) {
+    return dir_->read(buff, blen);
 }
 
-int XrdNdnOssDir::StatRet(struct stat *) {
-    return -ENOTDIR;
+int XrdNdnOssDir::StatRet(struct stat *buff) {
+    return dir_->stat(buff);
 }
 
-int XrdNdnOssDir::Close(long long *) {
-    return XrdOssOK;
+int XrdNdnOssDir::Close(long long * = 0) {
+    return 0;
 }

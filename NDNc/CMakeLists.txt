@@ -49,7 +49,8 @@ ADD_LIBRARY(ndnc SHARED
                 mgmt/client.cpp
                 utils
                 lib/posix/consumer.cpp
-                lib/posix/file.cpp)
+                lib/posix/file.cpp
+                lib/posix/dir.cpp)
 
 TARGET_LINK_LIBRARIES(ndnc PRIVATE logger)
 TARGET_LINK_LIBRARIES(ndnc PRIVATE curl)

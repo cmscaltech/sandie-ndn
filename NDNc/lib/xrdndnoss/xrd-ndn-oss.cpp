@@ -71,6 +71,7 @@ XrdNdnOss::XrdNdnOss() : XrdOss(), consumerOptions_{} {
 }
 
 XrdNdnOss::~XrdNdnOss() {
+    // TODO: Need to investigate why ths is never called
     if (eDest_ != nullptr) {
         eDest_->Say("d'tor: XrdNdnOss");
     }
@@ -108,14 +109,18 @@ int XrdNdnOss::Emsg(const char *pfx, XrdOucErrInfo &einfo, int ecode,
     return -1;
 }
 
-XrdOssDF *XrdNdnOss::newDir(const char *tident) {
-    return (XrdNdnOssDir *)new XrdNdnOssDir(tident);
+XrdOssDF *XrdNdnOss::newDir(const char * /*tident*/) {
+    if (!this->consumer_->isValid()) {
+        Emsg("newDir", XrdNdnOfs.error_, -1, "null consumer");
+        return nullptr;
+    }
+
+    return (XrdNdnOssDir *)new XrdNdnOssDir(this->consumer_);
 }
 
-XrdOssDF *XrdNdnOss::newFile(const char *tident) {
+XrdOssDF *XrdNdnOss::newFile(const char * /*tident*/) {
     if (!this->consumer_->isValid()) {
-        Emsg("newFile", XrdNdnOfs.error_, -1,
-             "get new file because of invalid consumer");
+        Emsg("newFile", XrdNdnOfs.error_, -1, "null consumer");
         return nullptr;
     }
 

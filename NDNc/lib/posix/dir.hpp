@@ -25,25 +25,36 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_LIB_XRD_NDN_OSS_DIR_HPP
-#define NDNC_LIB_XRD_NDN_OSS_DIR_HPP
+#ifndef NDNC_LIB_POSIX_DIR_HPP
+#define NDNC_LIB_POSIX_DIR_HPP
 
-#include "lib/posix/dir.hpp"
-#include "xrd-ndn-oss.hpp"
+#include <iterator>
 
-class XrdNdnOssDir : public XrdOssDF {
+#include "consumer.hpp"
+#include "file-metadata.hpp"
+
+namespace ndnc::posix {
+class Dir {
   public:
-    XrdNdnOssDir(std::shared_ptr<ndnc::posix::Consumer> consumer);
-    ~XrdNdnOssDir();
+    Dir(std::shared_ptr<Consumer> consumer);
+    ~Dir();
 
-  public:
-    int Opendir(const char *path, XrdOucEnv &);
-    int Readdir(char *buff, int blen);
-    int StatRet(struct stat *buff);
-    int Close(long long *);
+    int open(const char *path);
+    int stat(struct stat *buf);
+    int read(char *buf, int blen);
+    int close();
 
   private:
-    std::shared_ptr<ndnc::posix::Dir> dir_;
-};
+    void getDirMetadata(const char *path);
 
-#endif // NDNC_LIB_XRD_NDN_OSS_DIR_HPP
+  private:
+    std::shared_ptr<Consumer> consumer_;
+    std::shared_ptr<FileMetadata> metadata_;
+    std::vector<std::string> content_;
+    size_t contentIterator_;
+
+    uint64_t id_;
+};
+}; // namespace ndnc::posix
+
+#endif // NDNC_LIB_POSIX_DIR_HPP

@@ -24,7 +24,7 @@ INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR} )
 FIND_PACKAGE(CURL REQUIRED)
 FIND_PACKAGE(Threads REQUIRED)
 FIND_PACKAGE(nlohmann_json 3.9.1 REQUIRED)
-find_package(xrootd-utils 5.0.0 REQUIRED)
+FIND_PACKAGE(xrootd-utils 5.0.0 REQUIRED)
 
 SET(CMAKE_CXX_STANDARD 17)
 
@@ -37,7 +37,7 @@ EXECUTE_PROCESS(COMMAND git describe --abbrev=8 --always --tags
                 OUTPUT_VARIABLE GIT_VERSION
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-add_subdirectory(logger)
+ADD_SUBDIRECTORY(logger)
 
 # compile ndnc library
 ADD_LIBRARY(ndnc SHARED
@@ -120,20 +120,21 @@ endif()
 
 configure_file("${PROJECT_SOURCE_DIR}/lib/xrdndnoss/xrd-ndn-oss-version.hpp.in"
                "${PROJECT_BINARY_DIR}/include/xrd-ndn-oss-version.hpp")
-include_directories("${PROJECT_BINARY_DIR}/include/")
+INCLUDE_DIRECTORIES("${PROJECT_BINARY_DIR}/include/")
 
 ADD_LIBRARY(XrdNdnOss SHARED
             lib/xrdndnoss/xrd-ndn-oss.cpp
             lib/xrdndnoss/xrd-ndn-oss-file.cpp
             lib/xrdndnoss/xrd-ndn-oss-dir.cpp)
-            TARGET_LINK_LIBRARIES(XrdNdnOss ${XROOTD_UTILS})
+
+TARGET_LINK_LIBRARIES(XrdNdnOss LINK_PUBLIC ${XROOTD_UTILS} ndnc)
 TARGET_INCLUDE_DIRECTORIES(XrdNdnOss SYSTEM PUBLIC ${XROOTD_INCLUDES})
 
 # install
 SET(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY true)
 
 if(NOT DEFINED LIB_INSTALL_DIR)
-  SET(LIB_INSTALL_DIR "/usr/lib64")
+  SET(LIB_INSTALL_DIR "/usr/local/lib64")
 endif()
 
 INSTALL(TARGETS ndnc XrdNdnOss LIBRARY DESTINATION ${LIB_INSTALL_DIR} OPTIONAL)

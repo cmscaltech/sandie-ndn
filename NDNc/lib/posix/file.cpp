@@ -37,17 +37,6 @@ File::~File() {
     this->close();
 }
 
-int File::fstat(struct stat *buf) {
-    if (metadata_ != nullptr) {
-        LOG_ERROR("file not opened");
-        return -1;
-    }
-
-    metadata_->stat(buf);
-
-    return 0;
-}
-
 int File::open(const char *path) {
     this->id_ = consumer_->registerConsumer();
     this->getFileMetadata(path);
@@ -64,10 +53,32 @@ int File::close() {
 
     if (metadata_ != nullptr) {
         metadata_ = nullptr;
-    } else {
-        LOG_WARN("try to close unopened file");
     }
 
+    return 0;
+}
+
+int File::stat(const char *path, struct stat *buf) {
+    if (metadata_ != nullptr) {
+        return fstat(buf);
+    }
+
+    auto openRes = this->open(path);
+    if (openRes != 0) {
+        return openRes;
+    }
+
+    metadata_->fstat(buf);
+    return 0;
+}
+
+int File::fstat(struct stat *buf) {
+    if (metadata_ == nullptr) {
+        LOG_ERROR("file not opened");
+        return -1;
+    }
+
+    metadata_->fstat(buf);
     return 0;
 }
 

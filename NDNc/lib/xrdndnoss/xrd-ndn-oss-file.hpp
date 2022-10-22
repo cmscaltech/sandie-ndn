@@ -28,13 +28,14 @@
 #ifndef NDNC_LIB_XRD_NDN_OSS_FILE_HPP
 #define NDNC_LIB_XRD_NDN_OSS_FILE_HPP
 
+#include "lib/posix/file.hpp"
 #include "xrd-ndn-oss.hpp"
 
 class XrdSfsAio;
 
 class XrdNdnOssFile : public XrdOssDF {
   public:
-    XrdNdnOssFile();
+    XrdNdnOssFile(std::shared_ptr<ndnc::posix::Consumer> consumer);
     ~XrdNdnOssFile();
 
   public:
@@ -54,6 +55,9 @@ class XrdNdnOssFile : public XrdOssDF {
     int isCompressed(char *);
     ssize_t Write(const void *, off_t, size_t);
     int Write(XrdSfsAio *);
+
+  private:
+    std::shared_ptr<ndnc::posix::File> file_;
 };
 
 #endif // NDNC_LIB_XRD_NDN_OSS_FILE_HPP

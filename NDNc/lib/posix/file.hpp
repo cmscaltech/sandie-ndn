@@ -40,9 +40,11 @@ class File {
     File(std::shared_ptr<Consumer> consumer);
     ~File();
 
-    int fstat(struct stat *buf);
     int open(const char *path);
     int close();
+    int stat(const char *path, struct stat *buf);
+    int fstat(struct stat *buf);
+
     // ssize_t read(void *buf, size_t count, off_t offset);
 
   private:

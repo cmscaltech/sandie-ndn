@@ -76,7 +76,6 @@ class FileMetadata {
                           STATX_REQUIRED | STATX_OPTIONAL, &this->stx_);
 
         if (res != 0 || !has(STATX_REQUIRED)) {
-
             return false;
         }
 
@@ -267,8 +266,10 @@ class FileMetadata {
         return S_ISDIR(stx_.stx_mode);
     }
 
-    void stat(struct stat *st) {
-        st = (struct stat *)malloc(sizeof(struct stat));
+    void fstat(struct stat *st) {
+        if (st == nullptr) {
+            return;
+        }
 
         st->st_mode = stx_.stx_mode;
         st->st_size = stx_.stx_size;

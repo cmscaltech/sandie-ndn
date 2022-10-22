@@ -40,6 +40,10 @@ Consumer::~Consumer() {
     if (pipeline_ != nullptr && !pipeline_->isClosed()) {
         pipeline_->close();
     }
+
+    if (face_ != nullptr) {
+        face_.reset();
+    }
 }
 
 bool Consumer::isValid() {

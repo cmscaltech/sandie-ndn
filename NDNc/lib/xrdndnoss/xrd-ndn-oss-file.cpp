@@ -27,20 +27,28 @@
 
 #include "xrd-ndn-oss-file.hpp"
 
-XrdNdnOssFile::XrdNdnOssFile() {
+XrdNdnOssFile::XrdNdnOssFile(std::shared_ptr<ndnc::posix::Consumer> consumer) {
+    this->file_ = std::make_shared<ndnc::posix::File>(consumer);
 }
 
 XrdNdnOssFile::~XrdNdnOssFile() {
+    this->Close(0);
 }
 
 int XrdNdnOssFile::Fstat(struct stat *buf) {
-    // TODO
-    return 0;
+    if (this->file_ == nullptr) {
+        return -EINVAL;
+    }
+
+    return file_->fstat(buf);
 }
 
 int XrdNdnOssFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
-    // TODO
-    return 0;
+    if (this->file_ == nullptr) {
+        return -EINVAL;
+    }
+
+    return file_->open(path);
 }
 
 ssize_t XrdNdnOssFile::Read(off_t, size_t) {
@@ -64,8 +72,11 @@ ssize_t XrdNdnOssFile::ReadRaw(void *buff, off_t offset, size_t blen) {
 }
 
 int XrdNdnOssFile::Close(long long *retsz = 0) {
-    // TODO
-    return XrdOssOK;
+    if (file_ == nullptr) {
+        return 0;
+    }
+
+    return file_->close();
 }
 
 int XrdNdnOssFile::Fchmod(mode_t mode) {

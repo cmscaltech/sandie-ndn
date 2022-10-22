@@ -36,6 +36,8 @@
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysPlugin.hh>
 
+#include "lib/posix/consumer.hpp"
+
 class XrdSysLogger;
 
 class XrdNdnOss : public XrdOss {
@@ -78,6 +80,8 @@ class XrdNdnOss : public XrdOss {
 
   private:
     XrdSysError *eDest_;
+    struct ndnc::posix::ConsumerOptions consumerOptions_;
+    std::shared_ptr<ndnc::posix::Consumer> consumer_;
 };
 
 #endif // NDNC_LIB_XRD_NDN_OSS_HPP

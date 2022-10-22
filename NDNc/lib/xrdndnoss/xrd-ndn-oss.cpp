@@ -57,7 +57,7 @@ XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
                                const char *config_fn, const char *parms) {
     if (XrdNdnOfs.Init(Logger, config_fn) != 0) {
         XrdNdnOfs.Emsg("XrdOssGetStorageSystem", XrdNdnOfs.error_, -1,
-                       "Unable to Init XrdNdnOfs");
+                       "init XrdNdnOfs");
         return NULL;
     }
 
@@ -65,10 +65,15 @@ XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
 }
 }
 
-XrdNdnOss::XrdNdnOss() : XrdOss() {
+XrdNdnOss::XrdNdnOss() : XrdOss(), consumerOptions_{} {
+    this->consumer_ =
+        std::make_shared<ndnc::posix::Consumer>(this->consumerOptions_);
 }
 
 XrdNdnOss::~XrdNdnOss() {
+    if (eDest_ != nullptr) {
+        eDest_->Say("d'tor: XrdNdnOss");
+    }
 }
 
 void XrdNdnOss::Say(const char *msg, const char *x = "", const char *y = "",
@@ -108,7 +113,13 @@ XrdOssDF *XrdNdnOss::newDir(const char *tident) {
 }
 
 XrdOssDF *XrdNdnOss::newFile(const char *tident) {
-    return (XrdNdnOssFile *)new XrdNdnOssFile();
+    if (!this->consumer_->isValid()) {
+        Emsg("newFile", XrdNdnOfs.error_, -1,
+             "get new file because of invalid consumer");
+        return nullptr;
+    }
+
+    return (XrdNdnOssFile *)new XrdNdnOssFile(this->consumer_);
 }
 
 int XrdNdnOss::Chmod(const char *, mode_t, XrdOucEnv *) {
@@ -128,25 +139,29 @@ int XrdNdnOss::Init(XrdSysLogger *lp, const char *cfn) {
     eDest_->Say("Named Data Networking storage system v",
                 XRDNDNOSS_VERSION_STRING, " initialization.\n");
 
+    if (!consumer_->isValid()) {
+        return -1;
+    }
+
     return XrdOssOK;
 }
 
 int XrdNdnOss::Mkdir(const char *, mode_t, int = 0, XrdOucEnv * = 0) {
-    return -ENOTSUP;
+    return 0;
 }
 
 int XrdNdnOss::Remdir(const char *, int, XrdOucEnv *) {
-    return -ENOTSUP;
+    return 0;
 }
 
 int XrdNdnOss::Rename(const char *, const char *, XrdOucEnv *, XrdOucEnv *) {
     return -ENOTSUP;
 }
 
-int XrdNdnOss::Stat(const char *path, struct stat *buff, int opts = 0,
-                    XrdOucEnv *envP = 0) {
-    // TODO
-    return -ENOTSUP;
+int XrdNdnOss::Stat(const char *path, struct stat *buff, int = 0,
+                    XrdOucEnv * = 0) {
+    auto file = std::make_shared<ndnc::posix::File>(this->consumer_);
+    return file->stat(path, buff);
 }
 
 int XrdNdnOss::Truncate(const char *, unsigned long long, XrdOucEnv *) {

@@ -54,7 +54,7 @@ bool Face::connect(int dataroom, std::string gqlserver, std::string appName) {
         m_transport = std::make_shared<transport::Memif>(
             dataroom, m_gqlClient->getSocketPath().c_str(), appName.c_str());
     } catch (const std::exception &e) {
-        LOG_FATAL(e.what());
+        LOG_FATAL("%s", e.what());
         return false;
     }
 #endif

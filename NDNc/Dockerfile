@@ -73,9 +73,10 @@ RUN echo $(cat /usr/local/include/libmemif.h | grep LIBMEMIF_VERSION | head -1)
 RUN echo NLOHMANN JSON $(cat /usr/include/nlohmann/json.hpp | grep version | head -1)
 
 RUN git clone https://github.com/cmscaltech/sandie-ndn.git
-RUN mkidr -p /root/sandie-ndn/NDNc/build
+RUN mkdir -p /root/sandie-ndn/NDNc/build
 WORKDIR /root/sandie-ndn/NDNc/build
-RUN cmake -DCMAKE_BUILD_TYPE=Release ../ && make -j16 && make install && ldconfig
+RUN cmake -DCMAKE_BUILD_TYPE=Release ../ && make -j16 && make install
+RUN ldconfig /usr/lib64
 WORKDIR ${HOME}
 
 RUN mkdir -p /var/log/xrootd/ndn/

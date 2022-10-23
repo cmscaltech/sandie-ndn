@@ -46,6 +46,7 @@ class XrdNdnOss : public XrdOss {
     ~XrdNdnOss();
 
   public:
+    bool Config(const char *parms);
     void Say(const char *, const char *, const char *, const char *);
 
     /**
@@ -77,10 +78,11 @@ class XrdNdnOss : public XrdOss {
 
   public:
     XrdOucErrInfo error_;
+    XrdSysError *eDest_;
+
+    struct ndnc::posix::ConsumerOptions options_;
 
   private:
-    XrdSysError *eDest_;
-    struct ndnc::posix::ConsumerOptions consumerOptions_;
     std::shared_ptr<ndnc::posix::Consumer> consumer_;
 };
 

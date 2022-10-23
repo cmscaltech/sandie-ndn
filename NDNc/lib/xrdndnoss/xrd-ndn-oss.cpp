@@ -55,23 +55,54 @@ using namespace xrdndnofs;
 extern "C" {
 XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
                                const char *config_fn, const char *parms) {
+
+    if (parms && strlen(parms) != 0) {
+        if (!XrdNdnOfs.Config(parms)) {
+            return NULL;
+        }
+    }
+
     if (XrdNdnOfs.Init(Logger, config_fn) != 0) {
         XrdNdnOfs.Emsg("XrdOssGetStorageSystem", XrdNdnOfs.error_, -1,
                        "init XrdNdnOfs");
         return NULL;
     }
 
+    XrdNdnOfs.eDest_->Say(
+        "++++++ The Named Data Networking Storage System configuration...");
+
+    XrdNdnOfs.eDest_->Say("       ofs NDNc consumer. gqlserver=",
+                          XrdNdnOfs.options_.gqlserver.c_str());
+
+    XrdNdnOfs.eDest_->Say("       ofs NDNc consumer. mtu=",
+                          std::to_string(XrdNdnOfs.options_.mtu).c_str());
+
+    XrdNdnOfs.eDest_->Say("       ofs NDNc consumer. prefix=",
+                          XrdNdnOfs.options_.prefix.toUri().c_str());
+
+    XrdNdnOfs.eDest_->Say(
+        "       ofs NDNc consumer. interestLifetime=",
+        std::to_string(XrdNdnOfs.options_.interestLifetime.count()).c_str());
+
+    XrdNdnOfs.eDest_->Say(
+        "       ofs NDNc consumer. pipelineType=",
+        std::to_string(XrdNdnOfs.options_.pipelineType).c_str());
+
+    XrdNdnOfs.eDest_->Say(
+        "       ofs NDNc consumer. pipelineSize=",
+        std::to_string(XrdNdnOfs.options_.pipelineSize).c_str());
+
+    XrdNdnOfs.eDest_->Say(
+        "------ Named Data Networking Storage System configuration completed.");
+
     return ((XrdOss *)&XrdNdnOfs);
 }
 }
 
-XrdNdnOss::XrdNdnOss() : XrdOss(), consumerOptions_{} {
-    this->consumer_ =
-        std::make_shared<ndnc::posix::Consumer>(this->consumerOptions_);
+XrdNdnOss::XrdNdnOss() : XrdOss(), options_{}, consumer_{nullptr} {
 }
 
 XrdNdnOss::~XrdNdnOss() {
-    // TODO: Need to investigate why ths is never called
     if (eDest_ != nullptr) {
         eDest_->Say("d'tor: XrdNdnOss");
     }
@@ -135,16 +166,21 @@ int XrdNdnOss::Create(const char *, const char *, mode_t, XrdOucEnv &, int) {
     return -ENOTSUP;
 }
 
-int XrdNdnOss::Init(XrdSysLogger *lp, const char *cfn) {
+int XrdNdnOss::Init(XrdSysLogger *lp, const char *) {
     eDest_ = &OssEroute;
     eDest_->logger(lp);
 
     eDest_->Say("Copyright © 2022 California Institute of Technology\n"
                 "Author: Catalin Iordache <catalin.iordache@cern.ch>");
     eDest_->Say("Named Data Networking storage system v",
-                XRDNDNOSS_VERSION_STRING, " initialization.\n");
+                XRDNDNOSS_VERSION_STRING, " initialization.");
 
-    if (!consumer_->isValid()) {
+    if (consumer_ == nullptr) {
+        consumer_ = std::make_shared<ndnc::posix::Consumer>(options_);
+    }
+
+    if (consumer_ == nullptr || !consumer_->isValid()) {
+        Emsg("Init", XrdNdnOfs.error_, -1, "invalid consumer");
         return -1;
     }
 
@@ -175,6 +211,139 @@ int XrdNdnOss::Truncate(const char *, unsigned long long, XrdOucEnv *) {
 
 int XrdNdnOss::Unlink(const char *, int, XrdOucEnv *) {
     return -ENOTSUP;
+}
+
+bool XrdNdnOss::Config(const char *parms) {
+    std::string sparms(parms);
+    { // Remove comments from params line in config file
+        std::size_t foundComment = sparms.find("#");
+        if (foundComment != std::string::npos)
+            sparms = sparms.substr(0, foundComment);
+    }
+
+    if (sparms.empty()) {
+        return false;
+    }
+
+    std::istringstream iss(sparms);
+    std::vector<std::string> vparms(std::istream_iterator<std::string>{iss},
+                                    std::istream_iterator<std::string>());
+
+    if (vparms.size() % 2 != 0) {
+        Emsg("Config", XrdNdnOfs.error_, -1,
+             "the list of parameters in config file is not even. The custom "
+             "arguments will be ignored");
+        return true;
+    }
+
+    auto getStringFromParams = [&](std::string key, string &ret) {
+        for (auto it = vparms.begin(); it != vparms.end(); ++it) {
+            if (key.compare(*it) != 0)
+                continue;
+            ++it;
+            ret = *it;
+            return true;
+        }
+
+        return false;
+    };
+
+    auto getIntFromParams = [&](std::string key, int &ret) {
+        for (auto it = vparms.begin(); it != vparms.end(); ++it) {
+            if (key.compare(*it) != 0)
+                continue;
+            try {
+                ret = std::stoi(*++it);
+                return true;
+            } catch (const std::exception &e) {
+                Emsg("Config", XrdNdnOfs.error_, -1, e.what());
+                return false;
+            }
+        }
+        return false;
+    };
+
+    {
+        std::string gqlserver = "";
+        if (getStringFromParams("gqlserver", gqlserver)) {
+            if (gqlserver.empty()) {
+                Emsg("Config", XrdNdnOfs.error_, -1, "invalid gqlserver value");
+                return false;
+            } else {
+                options_.gqlserver = gqlserver;
+            }
+        }
+    }
+
+    {
+        int mtu = 0;
+        if (getIntFromParams("mtu", mtu)) {
+            if (mtu < 64 || mtu > 9000) {
+                Emsg("Config", XrdNdnOfs.error_, -1, "invalid mtu value");
+                return false;
+            } else {
+                options_.mtu = mtu;
+            }
+        }
+    }
+
+    {
+        std::string prefix = "";
+        if (getStringFromParams("prefix", prefix)) {
+            if (prefix.empty()) {
+                Emsg("Config", XrdNdnOfs.error_, -1, "invalid prefix value");
+                return false;
+            } else {
+                options_.prefix = prefix;
+            }
+        }
+    }
+
+    {
+        int interestLifetime = 0;
+        if (getIntFromParams("interestLifetime", interestLifetime)) {
+            if (interestLifetime < 0) {
+                Emsg("Config", XrdNdnOfs.error_, -1,
+                     "invalid interestLifetime value. this argument will be "
+                     "ignored");
+            } else {
+                options_.interestLifetime =
+                    ndn::time::milliseconds{interestLifetime};
+            }
+        }
+    }
+
+    {
+        std::string pipelineType = "";
+        if (getStringFromParams("pipelineType", pipelineType)) {
+            if (pipelineType.empty()) {
+                Emsg("Config", XrdNdnOfs.error_, -1,
+                     "invalid pipelineType value. this argument will be "
+                     "ignored");
+            } else {
+                if (pipelineType.compare("aimd") == 0) {
+                    options_.pipelineType = ndnc::PipelineType::aimd;
+                } else {
+                    options_.pipelineType = ndnc::PipelineType::fixed;
+                }
+            }
+        }
+    }
+
+    {
+        int pipelineSize = 0;
+        if (getIntFromParams("pipelineSize", pipelineSize)) {
+            if (pipelineSize < 0) {
+                Emsg("Config", XrdNdnOfs.error_, -1,
+                     "invalid pipelineSize value. this argument will be "
+                     "ignored");
+            } else {
+                options_.pipelineSize = pipelineSize;
+            }
+        }
+    }
+
+    return true;
 }
 
 XrdVERSIONINFO(XrdOssGetStorageSystem, "xrdndnoss")

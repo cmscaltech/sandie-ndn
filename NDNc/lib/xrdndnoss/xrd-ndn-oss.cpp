@@ -51,7 +51,7 @@ static XrdNdnOss XrdNdnOfs;
 
 using namespace xrdndnofs;
 
-// Get FileSystem
+// Get the FileSystem
 extern "C" {
 XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
                                const char *config_fn, const char *parms) {
@@ -109,7 +109,7 @@ int XrdNdnOss::Emsg(const char *pfx, XrdOucErrInfo &einfo, int ecode,
     return -1;
 }
 
-XrdOssDF *XrdNdnOss::newDir(const char * /*tident*/) {
+XrdOssDF *XrdNdnOss::newDir(const char *) {
     if (!this->consumer_->isValid()) {
         Emsg("newDir", XrdNdnOfs.error_, -1, "null consumer");
         return nullptr;
@@ -118,7 +118,7 @@ XrdOssDF *XrdNdnOss::newDir(const char * /*tident*/) {
     return (XrdNdnOssDir *)new XrdNdnOssDir(this->consumer_);
 }
 
-XrdOssDF *XrdNdnOss::newFile(const char * /*tident*/) {
+XrdOssDF *XrdNdnOss::newFile(const char *) {
     if (!this->consumer_->isValid()) {
         Emsg("newFile", XrdNdnOfs.error_, -1, "null consumer");
         return nullptr;

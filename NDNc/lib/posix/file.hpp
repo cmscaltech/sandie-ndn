@@ -49,11 +49,13 @@ class File {
     // ssize_t read(void *buf, size_t count, off_t offset);
 
   private:
-    void getFileMetadata(const char *path);
+    bool isOpened();
+    bool getFileMetadata(const char *path);
 
   private:
     std::shared_ptr<Consumer> consumer_;
     std::shared_ptr<FileMetadata> metadata_;
+    std::string path_;
 
     uint64_t id_;
 };

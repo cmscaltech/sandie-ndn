@@ -45,13 +45,17 @@ class Dir {
     int close();
 
   private:
-    void getDirMetadata(const char *path);
+    bool isOpened();
+    bool getDirMetadata(const char *path);
+    bool getDirContent();
 
   private:
     std::shared_ptr<Consumer> consumer_;
     std::shared_ptr<FileMetadata> metadata_;
+
+    std::string path_;
     std::vector<std::string> content_;
-    size_t contentIterator_;
+    size_t onReadNextEntryPos_;
 
     uint64_t id_;
 };

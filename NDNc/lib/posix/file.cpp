@@ -30,42 +30,48 @@
 
 namespace ndnc::posix {
 File::File(std::shared_ptr<Consumer> consumer)
-    : consumer_{consumer}, metadata_(nullptr) {
+    : consumer_{consumer}, metadata_(nullptr), path_{} {
 }
 
 File::~File() {
-    this->close();
+    close();
 }
 
 int File::open(const char *path) {
-    this->id_ = consumer_->registerConsumer();
-    this->getFileMetadata(path);
-
-    if (metadata_ == nullptr) {
+    id_ = consumer_->registerConsumer();
+    if (!getFileMetadata(path) || !isOpened()) {
+        close();
         return -1;
     }
 
+    if (!isOpened()) {
+        return -1;
+    }
+
+    path_ = std::string(path);
     return 0;
 }
 
-int File::close() {
-    consumer_->unregisterConsumer(this->id_);
+bool File::isOpened() {
+    return metadata_ != nullptr;
+}
 
-    if (metadata_ != nullptr) {
-        metadata_ = nullptr;
-    }
+int File::close() {
+    consumer_->unregisterConsumer(id_);
+    metadata_ = nullptr;
+    path_.clear();
 
     return 0;
 }
 
 int File::stat(const char *path, struct stat *buf) {
-    if (metadata_ != nullptr) {
+    if (isOpened()) {
         return fstat(buf);
     }
 
-    auto openRes = this->open(path);
-    if (openRes != 0) {
-        return openRes;
+    auto res = open(path);
+    if (res != 0) {
+        return res;
     }
 
     metadata_->fstat(buf);
@@ -73,7 +79,7 @@ int File::stat(const char *path, struct stat *buf) {
 }
 
 int File::fstat(struct stat *buf) {
-    if (metadata_ == nullptr) {
+    if (!isOpened()) {
         LOG_ERROR("file not opened");
         return -1;
     }
@@ -82,10 +88,10 @@ int File::fstat(struct stat *buf) {
     return 0;
 }
 
-void File::getFileMetadata(const char *path) {
-    if (metadata_ != nullptr) {
-        LOG_WARN("file already opened");
-        return;
+bool File::getFileMetadata(const char *path) {
+    if (isOpened()) {
+        LOG_DEBUG("file already opened");
+        return false;
     }
 
     auto interest =
@@ -97,15 +103,16 @@ void File::getFileMetadata(const char *path) {
     auto data = consumer_->syncRequestDataFor(std::move(interest), id_);
 
     if (data == nullptr || !data->hasContent()) {
-        LOG_ERROR("invalid data");
-        return;
+        LOG_ERROR("file metadata: invalid data");
+        return false;
     }
 
     if (data->getContentType() == ndn::tlv::ContentType_Nack) {
         LOG_ERROR("unable to list file '%s'", path);
-        return;
+        return false;
     }
 
     metadata_ = std::make_shared<FileMetadata>(data->getContent());
+    return true;
 }
 } // namespace ndnc::posix

@@ -1,12 +1,14 @@
 # syntax=docker/dockerfile:experimental
-FROM ubuntu:focal
+FROM ubuntu:jammy
 FROM gcc:latest
 
+# add user for running the xrootd
 ARG UNAME=xrootd
 ARG UID=2010
 ARG GID=2010
 RUN groupadd -g $GID -o $UNAME
 RUN useradd -m -u $UID -g $GID -o -s /bin/bash $UNAME
+RUN usermod -aG root xrootd
 
 ENV HOME /root
 ENV BOOST_ROOT=/usr/include/boost
@@ -54,3 +56,4 @@ WORKDIR ${HOME}
 
 RUN mkdir -p /var/log/xrootd/clustered/
 RUN chown -R xrootd:xrootd /var/log/xrootd/
+RUN cp ${HOME}/sandie-ndn/NDNc/docker/xrootd-ndn.sample.cfg /etc/xrootd/xrootd-ndn.cfg

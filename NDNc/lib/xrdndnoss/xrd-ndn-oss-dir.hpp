@@ -31,6 +31,7 @@
 #include "lib/posix/dir.hpp"
 #include "xrd-ndn-oss.hpp"
 
+namespace xrdndnofs {
 class XrdNdnOssDir : public XrdOssDF {
   public:
     XrdNdnOssDir(std::shared_ptr<ndnc::posix::Consumer> consumer);
@@ -45,5 +46,6 @@ class XrdNdnOssDir : public XrdOssDF {
   private:
     std::shared_ptr<ndnc::posix::Dir> dir_;
 };
+}; // namespace xrdndnofs
 
 #endif // NDNC_LIB_XRD_NDN_OSS_DIR_HPP

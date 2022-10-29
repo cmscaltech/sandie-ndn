@@ -27,6 +27,7 @@
 
 #include "xrd-ndn-oss-dir.hpp"
 
+namespace xrdndnofs {
 XrdNdnOssDir::XrdNdnOssDir(std::shared_ptr<ndnc::posix::Consumer> consumer) {
     this->dir_ = std::make_shared<ndnc::posix::Dir>(consumer);
 }
@@ -50,3 +51,4 @@ int XrdNdnOssDir::StatRet(struct stat *buff) {
 int XrdNdnOssDir::Close(long long * = 0) {
     return 0;
 }
+}; // namespace xrdndnofs

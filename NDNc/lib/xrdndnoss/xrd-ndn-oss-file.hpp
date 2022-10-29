@@ -33,6 +33,7 @@
 
 class XrdSfsAio;
 
+namespace xrdndnofs {
 class XrdNdnOssFile : public XrdOssDF {
   public:
     XrdNdnOssFile(std::shared_ptr<ndnc::posix::Consumer> consumer);
@@ -59,5 +60,6 @@ class XrdNdnOssFile : public XrdOssDF {
   private:
     std::shared_ptr<ndnc::posix::File> file_;
 };
+}; // namespace xrdndnofs
 
 #endif // NDNC_LIB_XRD_NDN_OSS_FILE_HPP

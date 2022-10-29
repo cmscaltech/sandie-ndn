@@ -27,6 +27,7 @@
 
 #include "xrd-ndn-oss-file.hpp"
 
+namespace xrdndnofs {
 XrdNdnOssFile::XrdNdnOssFile(std::shared_ptr<ndnc::posix::Consumer> consumer) {
     this->file_ = std::make_shared<ndnc::posix::File>(consumer);
 }
@@ -61,8 +62,8 @@ ssize_t XrdNdnOssFile::Read(void *buff, off_t offset, size_t blen) {
 }
 
 int XrdNdnOssFile::Read(XrdSfsAio *aoip) {
-    aoip->Result = this->Read((void *)aoip->sfsAio.aio_buf,
-                              aoip->sfsAio.aio_offset, aoip->sfsAio.aio_nbytes);
+    aoip->Result = Read((void *)aoip->sfsAio.aio_buf, aoip->sfsAio.aio_offset,
+                        aoip->sfsAio.aio_nbytes);
     aoip->doneRead();
     return 0;
 }
@@ -71,7 +72,7 @@ ssize_t XrdNdnOssFile::ReadRaw(void *buff, off_t offset, size_t blen) {
     return Read(buff, offset, blen);
 }
 
-int XrdNdnOssFile::Close(long long *retsz = 0) {
+int XrdNdnOssFile::Close(long long * = 0) {
     if (file_ == nullptr) {
         return 0;
     }
@@ -119,3 +120,4 @@ int XrdNdnOssFile::Write(XrdSfsAio *aiop) {
     (void)aiop;
     return (ssize_t)-EISDIR;
 }
+}; // namespace xrdndnofs

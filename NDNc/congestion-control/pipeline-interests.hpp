@@ -87,7 +87,9 @@ class PipelineInterests : public PacketHandler {
     }
 
     void close() {
-        m_closed = true;
+        if (!isClosed()) {
+            m_closed = true;
+        }
     }
 
     bool isClosed() {

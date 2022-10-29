@@ -40,6 +40,7 @@
 
 class XrdSysLogger;
 
+namespace xrdndnofs {
 class XrdNdnOss : public XrdOss {
   public:
     XrdNdnOss();
@@ -85,5 +86,6 @@ class XrdNdnOss : public XrdOss {
   private:
     std::shared_ptr<ndnc::posix::Consumer> consumer_;
 };
+}; // namespace xrdndnofs
 
 #endif // NDNC_LIB_XRD_NDN_OSS_HPP

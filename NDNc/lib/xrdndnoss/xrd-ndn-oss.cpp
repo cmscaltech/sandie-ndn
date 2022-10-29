@@ -25,6 +25,7 @@
  * SOFTWARE.
  */
 
+#include <signal.h>
 #include <sstream>
 
 #include <XrdOuc/XrdOucTrace.hh>
@@ -47,7 +48,11 @@ namespace xrdndnofs {
 XrdSysError OssEroute(0, "xrdndnoss_");
 XrdOucTrace OssTrace(&OssEroute);
 static XrdNdnOss XrdNdnOfs;
-} // namespace xrdndnofs
+
+static void sigint_handler(sig_atomic_t signum) {
+    exit(signum);
+}
+}; // namespace xrdndnofs
 
 using namespace xrdndnofs;
 
@@ -95,16 +100,23 @@ XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
     XrdNdnOfs.eDest_->Say(
         "------ Named Data Networking Storage System configuration completed.");
 
+    signal(SIGINT, sigint_handler);
+
     return ((XrdOss *)&XrdNdnOfs);
 }
 }
 
+namespace xrdndnofs {
 XrdNdnOss::XrdNdnOss() : XrdOss(), options_{}, consumer_{nullptr} {
 }
 
 XrdNdnOss::~XrdNdnOss() {
     if (eDest_ != nullptr) {
-        eDest_->Say("d'tor: XrdNdnOss");
+        eDest_->Say("dtor: XrdNdnOss");
+    }
+
+    if (consumer_ != nullptr) {
+        consumer_->stop();
     }
 }
 
@@ -345,5 +357,6 @@ bool XrdNdnOss::Config(const char *parms) {
 
     return true;
 }
+}; // namespace xrdndnofs
 
 XrdVERSIONINFO(XrdOssGetStorageSystem, "xrdndnoss")

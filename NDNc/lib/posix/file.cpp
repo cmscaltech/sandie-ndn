@@ -38,6 +38,11 @@ File::~File() {
 }
 
 int File::open(const char *path) {
+    if (consumer_ == nullptr) {
+        LOG_ERROR("null consumer object");
+        return -1;
+    }
+
     id_ = consumer_->registerConsumer();
     if (!getFileMetadata(path) || !isOpened()) {
         close();
@@ -57,6 +62,11 @@ bool File::isOpened() {
 }
 
 int File::close() {
+    if (consumer_ == nullptr) {
+        LOG_ERROR("null consumer object");
+        return -1;
+    }
+
     consumer_->unregisterConsumer(id_);
     metadata_ = nullptr;
     path_.clear();
@@ -91,6 +101,11 @@ int File::fstat(struct stat *buf) {
 bool File::getFileMetadata(const char *path) {
     if (isOpened()) {
         LOG_DEBUG("file already opened");
+        return false;
+    }
+
+    if (consumer_ == nullptr) {
+        LOG_ERROR("null consumer object");
         return false;
     }
 

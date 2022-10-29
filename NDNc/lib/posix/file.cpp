@@ -25,6 +25,9 @@
  * SOFTWARE.
  */
 
+#include <algorithm>
+#include <cmath>
+
 #include "file.hpp"
 #include "logger/logger.hpp"
 
@@ -96,6 +99,56 @@ int File::fstat(struct stat *buf) {
 
     metadata_->fstat(buf);
     return 0;
+}
+
+ssize_t File::read(void *buf, off_t offset, size_t blen) {
+    if (!isOpened()) {
+        return -1;
+    }
+
+    auto indexFirstSegment = offset / metadata_->getSegmentSize();
+    auto indexLastSegment = ceil(
+        (offset + blen) / static_cast<double>(metadata_->getSegmentSize()));
+
+    std::vector<std::shared_ptr<ndn::Interest>> pkts;
+    for (auto segment = indexFirstSegment; segment < indexLastSegment;
+         ++segment) {
+        auto interest = std::make_shared<ndn::Interest>(
+            metadata_->getVersionedName().deepCopy().appendSegment(segment));
+        pkts.emplace_back(std::move(interest));
+    }
+
+    auto response = consumer_->syncRequestDataFor(std::move(pkts), id_);
+    if (response.empty()) {
+        return -1;
+    }
+
+    std::sort(response.begin(), response.end(),
+              [](const std::shared_ptr<ndn::Data> data1,
+                 const std::shared_ptr<ndn::Data> data2) {
+                  return data1->getName().at(-1).toSegment() <
+                         data2->getName().at(-1).toSegment();
+              });
+
+    ssize_t n = 0;
+
+    auto copyDataContent = [&](const ndn::Block &block, size_t off) {
+        auto len = std::min(block.value_size() - off, blen);
+        memcpy((uint8_t *)buf + n, block.value() + off, len);
+        n += len;
+        blen -= len;
+    };
+
+    auto it = response.begin();
+    copyDataContent(it->get()->getContent(),
+                    offset % metadata_->getSegmentSize());
+    ++it;
+
+    for (; it != response.end(); ++it) {
+        copyDataContent(it->get()->getContent(), 0);
+    }
+
+    return n;
 }
 
 bool File::getFileMetadata(const char *path) {

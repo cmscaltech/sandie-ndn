@@ -118,7 +118,7 @@ std::vector<std::shared_ptr<ndn::Data>> Consumer::syncRequestDataFor(
         return {};
     }
 
-    std::vector<std::shared_ptr<ndn::Data>> pkts(npkts);
+    std::vector<std::shared_ptr<ndn::Data>> pkts;
 
     for (; npkts > 0; --npkts) {
         std::shared_ptr<ndn::Data> pkt(nullptr);
@@ -130,18 +130,11 @@ std::vector<std::shared_ptr<ndn::Data>> Consumer::syncRequestDataFor(
         }
 
         if (!pkt->getName().at(-1).isSegment()) {
-            LOG_FATAL("last name component of Data packet is not a segment");
-            error_ = true;
+            LOG_ERROR("last name component of Data packet is not a segment");
             return {};
         }
 
-        try {
-            pkts[pkt->getName().at(-1).toSegment()] = pkt;
-        } catch (ndn::Name::Error &error) {
-            LOG_FATAL("unable to get the segment from the Data Name");
-            error_ = true;
-            return {};
-        }
+        pkts.emplace_back(std::move(pkt));
     }
 
     return pkts;

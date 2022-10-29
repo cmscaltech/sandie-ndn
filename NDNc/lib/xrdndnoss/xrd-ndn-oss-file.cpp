@@ -57,8 +57,11 @@ ssize_t XrdNdnOssFile::Read(off_t, size_t) {
 }
 
 ssize_t XrdNdnOssFile::Read(void *buff, off_t offset, size_t blen) {
-    // TODO
-    return 0;
+    if (file_ == nullptr) {
+        return -EINVAL;
+    }
+
+    return file_->read(buff, offset, blen);
 }
 
 int XrdNdnOssFile::Read(XrdSfsAio *aoip) {

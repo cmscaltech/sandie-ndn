@@ -65,10 +65,10 @@ class Consumer : public std::enable_shared_from_this<Consumer> {
     Consumer(ConsumerOptions options);
     ~Consumer();
 
+    void stop();
     bool isValid();
 
     uint64_t registerConsumer();
-
     void unregisterConsumer(const uint64_t id);
 
     std::shared_ptr<ndn::Data>

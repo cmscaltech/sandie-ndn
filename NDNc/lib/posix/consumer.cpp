@@ -37,12 +37,16 @@ Consumer::Consumer(ConsumerOptions options)
 }
 
 Consumer::~Consumer() {
+    this->stop();
+}
+
+void Consumer::stop() {
     if (pipeline_ != nullptr && !pipeline_->isClosed()) {
         pipeline_->close();
     }
 
     if (face_ != nullptr) {
-        face_.reset();
+        face_.reset(nullptr);
     }
 }
 

@@ -154,7 +154,7 @@ int XrdNdnOss::Emsg(const char *pfx, XrdOucErrInfo &einfo, int ecode,
 
 XrdOssDF *XrdNdnOss::newDir(const char *) {
     if (!this->consumer_->isValid()) {
-        Emsg("newDir", XrdNdnOfs.error_, -1, "null consumer");
+        Emsg("newDir", XrdNdnOfs.error_, -1, "invalid consumer");
         return nullptr;
     }
 
@@ -163,7 +163,7 @@ XrdOssDF *XrdNdnOss::newDir(const char *) {
 
 XrdOssDF *XrdNdnOss::newFile(const char *) {
     if (!this->consumer_->isValid()) {
-        Emsg("newFile", XrdNdnOfs.error_, -1, "null consumer");
+        Emsg("newFile", XrdNdnOfs.error_, -1, "invalid consumer");
         return nullptr;
     }
 

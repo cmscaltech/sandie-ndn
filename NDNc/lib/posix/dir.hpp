@@ -56,8 +56,6 @@ class Dir {
     std::string path_;
     std::vector<std::string> content_;
     size_t onReadNextEntryPos_;
-
-    uint64_t id_;
 };
 }; // namespace ndnc::posix
 

@@ -42,7 +42,6 @@ int Dir::open(const char *path) {
         return -1;
     }
 
-    id_ = consumer_->registerConsumer();
     if (!getDirMetadata(path) || !isOpened()) {
         LOG_ERROR("null consumer object");
         return -1;
@@ -94,7 +93,6 @@ int Dir::close() {
         return -1;
     }
 
-    consumer_->unregisterConsumer(id_);
     metadata_ = nullptr;
 
     content_.clear();
@@ -121,7 +119,9 @@ bool Dir::getDirMetadata(const char *path) {
     interest->setCanBePrefix(true);
     interest->setMustBeFresh(true);
 
-    auto data = consumer_->syncRequestDataFor(std::move(interest), id_);
+    auto id = consumer_->registerConsumer();
+    auto data = consumer_->syncRequestDataFor(std::move(interest), id);
+    consumer_->unregisterConsumer(id);
 
     if (data == nullptr || !data->hasContent()) {
         LOG_ERROR("dir metadata: invalid data");
@@ -156,24 +156,29 @@ bool Dir::getDirContent() {
         return false;
     }
 
+    auto id = consumer_->registerConsumer();
+
     for (uint64_t i = 0, finalBlockId = 0; i <= finalBlockId; ++i) {
         auto interest = std::make_shared<ndn::Interest>(
             metadata_->getVersionedName().appendSegment(i));
 
-        auto data = consumer_->syncRequestDataFor(std::move(interest), 0);
+        auto data = consumer_->syncRequestDataFor(std::move(interest), id);
 
         if (data == nullptr || !data->hasContent()) {
             LOG_ERROR("read dir contents: invalid data");
+            consumer_->unregisterConsumer(id);
             return false;
         }
 
         if (data->getContentType() == ndn::tlv::ContentType_Nack) {
             LOG_FATAL("unable to get the contents of dir '%s'", path_.c_str());
+            consumer_->unregisterConsumer(id);
             return false;
         } else {
             if (!data->getFinalBlock()->isSegment()) {
                 LOG_ERROR(
                     "dir list data content FinalBlockId is not a segment");
+                consumer_->unregisterConsumer(id);
                 return false;
             } else {
                 finalBlockId = data->getFinalBlock()->toSegment();
@@ -184,6 +189,8 @@ bool Dir::getDirContent() {
                data->getContent().value_size());
         offset += data->getContent().value_size();
     }
+
+    consumer_->unregisterConsumer(id);
 
     for (uint64_t i = 0, j = 0; i <= offset && j <= offset; ++j) {
         if (bytes[j] != '\0') {

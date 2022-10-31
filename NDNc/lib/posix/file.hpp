@@ -28,8 +28,10 @@
 #ifndef NDNC_LIB_POSIX_FILE_HPP
 #define NDNC_LIB_POSIX_FILE_HPP
 
+#include <mutex>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <unordered_map>
 
 #include "consumer.hpp"
 #include "file-metadata.hpp"
@@ -49,13 +51,15 @@ class File {
   private:
     bool isOpened();
     bool getFileMetadata(const char *path);
+    uint64_t getConsumerId();
 
   private:
     std::shared_ptr<Consumer> consumer_;
     std::shared_ptr<FileMetadata> metadata_;
     std::string path_;
 
-    uint64_t id_;
+    std::unordered_map<std::thread::id, uint64_t> consumer_ids_;
+    std::mutex mutex_;
 };
 }; // namespace ndnc::posix
 

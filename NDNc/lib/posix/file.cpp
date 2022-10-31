@@ -33,7 +33,7 @@
 
 namespace ndnc::posix {
 File::File(std::shared_ptr<Consumer> consumer)
-    : consumer_{consumer}, metadata_(nullptr), path_{} {
+    : consumer_{consumer}, metadata_(nullptr), path_{}, consumer_ids_{} {
 }
 
 File::~File() {
@@ -46,7 +46,6 @@ int File::open(const char *path) {
         return -1;
     }
 
-    id_ = consumer_->registerConsumer();
     if (!getFileMetadata(path) || !isOpened()) {
         close();
         return -1;
@@ -70,9 +69,16 @@ int File::close() {
         return -1;
     }
 
-    consumer_->unregisterConsumer(id_);
     metadata_ = nullptr;
     path_.clear();
+
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        for (auto it = consumer_ids_.begin(); it != consumer_ids_.end(); ++it) {
+            consumer_->unregisterConsumer(it->second);
+        }
+        consumer_ids_.clear();
+    }
 
     return 0;
 }
@@ -105,7 +111,6 @@ ssize_t File::read(void *buf, off_t offset, size_t blen) {
     if (!isOpened()) {
         return -1;
     }
-
     auto indexFirstSegment = offset / metadata_->getSegmentSize();
     auto indexLastSegment = ceil(
         (offset + blen) / static_cast<double>(metadata_->getSegmentSize()));
@@ -118,7 +123,8 @@ ssize_t File::read(void *buf, off_t offset, size_t blen) {
         pkts.emplace_back(std::move(interest));
     }
 
-    auto response = consumer_->syncRequestDataFor(std::move(pkts), id_);
+    auto response =
+        consumer_->syncRequestDataFor(std::move(pkts), getConsumerId());
     if (response.empty()) {
         return -1;
     }
@@ -168,7 +174,8 @@ bool File::getFileMetadata(const char *path) {
     interest->setCanBePrefix(true);
     interest->setMustBeFresh(true);
 
-    auto data = consumer_->syncRequestDataFor(std::move(interest), id_);
+    auto data =
+        consumer_->syncRequestDataFor(std::move(interest), getConsumerId());
 
     if (data == nullptr || !data->hasContent()) {
         LOG_ERROR("file metadata: invalid data");
@@ -182,5 +189,17 @@ bool File::getFileMetadata(const char *path) {
 
     metadata_ = std::make_shared<FileMetadata>(data->getContent());
     return true;
+}
+
+uint64_t File::getConsumerId() {
+    auto tid = std::this_thread::get_id();
+
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    if (consumer_ids_.find(tid) == consumer_ids_.end()) {
+        consumer_ids_[tid] = consumer_->registerConsumer();
+    }
+
+    return consumer_ids_[tid];
 }
 } // namespace ndnc::posix

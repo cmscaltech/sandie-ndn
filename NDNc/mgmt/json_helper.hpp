@@ -31,13 +31,11 @@
 #include <nlohmann/json.hpp>
 #include <set>
 
-namespace ndnc {
-namespace mgmt {
 /**
  * @brief GraphQL documents for NDN-DPDK forwarder configuration
  *
  */
-namespace json_helper {
+namespace ndnc::mgmt::json_helper {
 /**
  * @brief GraphQL server operation
  *
@@ -130,9 +128,6 @@ void from_json(const nlohmann::json &json, insertFibEntry &vars) {
     json.at("name").get_to(vars.name);
     json.at("nexthops").get_to(vars.nextHops);
 }
-
-}; // namespace json_helper
-}; // namespace mgmt
-}; // namespace ndnc
+}; // namespace ndnc::mgmt::json_helper
 
 #endif // NDNC_MGMT_JSON_HELPER_HPP

@@ -32,9 +32,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-namespace ndnc {
-namespace mgmt {
-
+namespace ndnc::mgmt {
 class Client {
   public:
     Client();
@@ -69,19 +67,20 @@ class Client {
     bool deleteFace();
 
     std::string getSocketPath() {
-        return m_socketPath;
+        return socketPath_;
     }
 
     std::string getFaceID() {
-        return m_faceID;
+        return faceID_;
     }
 
     std::string getFibEntryID() {
-        return m_fibEntryID;
+        return fibEntryID_;
     }
 
   private:
     bool deleteID(std::string id);
+    void logResponseError(const nlohmann::json response);
 
   private:
     static size_t writeCallback(char *ptr, size_t size, size_t nmemb,
@@ -131,12 +130,11 @@ class Client {
     }
 
   private:
-    std::string m_socketPath;
-    std::string m_gqlserver;
-    std::string m_faceID;
-    std::string m_fibEntryID;
+    std::string socketPath_;
+    std::string gqlserver_;
+    std::string faceID_;
+    std::string fibEntryID_;
 };
-}; // namespace mgmt
-}; // namespace ndnc
+}; // namespace ndnc::mgmt
 
 #endif // NDNC_MGMT_CLIENT_HPP

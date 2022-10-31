@@ -25,7 +25,10 @@
  * SOFTWARE.
  */
 
+#include <algorithm>
 #include <chrono>
+#include <iterator>
+#include <sstream>
 #include <unistd.h>
 
 #include "client.hpp"
@@ -34,21 +37,33 @@
 
 using json = nlohmann::json;
 
-namespace ndnc {
-namespace mgmt {
-Client::Client() : m_gqlserver{}, m_faceID{}, m_fibEntryID{} {
+namespace ndnc::mgmt {
+Client::Client() : gqlserver_{}, faceID_{}, fibEntryID_{} {
     auto pid = std::to_string(getpid());
     auto timestamp = std::to_string(
         std::chrono::system_clock::now().time_since_epoch().count());
 
-    m_socketPath = "/run/ndn/ndnc-memif-" + pid + "-" + timestamp + ".sock";
+    socketPath_ = "/run/ndn/ndnc-memif-" + pid + "-" + timestamp + ".sock";
 }
 
 Client::~Client() {
 }
 
+void Client::logResponseError(const nlohmann::json response) {
+    if (response["errors"] != nullptr) {
+        for (auto error : response["errors"]) {
+            std::stringstream path;
+            std::copy(error["path"].begin(), error["path"].end(),
+                      std::ostream_iterator<std::string>(path, "."));
+
+            LOG_ERROR("%s: %s", path.str().c_str(),
+                      std::string(error["message"]).c_str());
+        }
+    }
+}
+
 bool Client::createFace(int id, int dataroom, std::string gqlserver) {
-    this->m_gqlserver = gqlserver;
+    this->gqlserver_ = gqlserver;
 
     auto request = json_helper::getOperation(
         "\
@@ -58,11 +73,11 @@ bool Client::createFace(int id, int dataroom, std::string gqlserver) {
       }\n\
     }",
         "createFace",
-        nlohmann::json{{"locator", json_helper::createFace{
-                                       m_socketPath, "memif", id, dataroom}}});
+        nlohmann::json{{"locator", json_helper::createFace{socketPath_, "memif",
+                                                           id, dataroom}}});
 
     json response;
-    if (auto code = doOperation(request, response, m_gqlserver);
+    if (auto code = doOperation(request, response, gqlserver_);
         CURLE_OK != code) {
         LOG_ERROR("createFace mutation POST result=%s. Hint: double check "
                   "GraphQL Server address",
@@ -71,12 +86,7 @@ bool Client::createFace(int id, int dataroom, std::string gqlserver) {
     }
 
     if (response["data"] == nullptr) {
-        if (response["errors"] != nullptr) {
-            for (auto error : response["errors"]) {
-                LOG_ERROR("%s: %s", std::string(error["path"]).c_str(),
-                          std::string(error["message"]).c_str());
-            }
-        }
+        logResponseError(response);
         return false;
     }
 
@@ -86,8 +96,8 @@ bool Client::createFace(int id, int dataroom, std::string gqlserver) {
         return false;
     }
 
-    this->m_faceID = response["data"]["createFace"]["id"];
-    LOG_INFO("createFace mutation done. id=%s", m_faceID.c_str());
+    this->faceID_ = response["data"]["createFace"]["id"];
+    LOG_INFO("createFace mutation done. id=%s", faceID_.c_str());
     return true;
 }
 
@@ -99,11 +109,10 @@ bool Client::insertFibEntry(const std::string prefix) {
             id\n\
         }\n\
     }",
-        "insertFibEntry",
-        json_helper::insertFibEntry{prefix, {this->m_faceID}});
+        "insertFibEntry", json_helper::insertFibEntry{prefix, {this->faceID_}});
 
     json response;
-    if (auto code = doOperation(request, response, m_gqlserver);
+    if (auto code = doOperation(request, response, gqlserver_);
         CURLE_OK != code) {
         LOG_ERROR("insertFibEntry mutation POST result=%s",
                   curl_easy_strerror(code));
@@ -111,12 +120,7 @@ bool Client::insertFibEntry(const std::string prefix) {
     }
 
     if (response["data"] == nullptr) {
-        if (response["errors"] != nullptr) {
-            for (auto error : response["errors"]) {
-                LOG_ERROR("%s: %s", std::string(error["path"]).c_str(),
-                          std::string(error["message"]).c_str());
-            }
-        }
+        logResponseError(response);
         return false;
     }
 
@@ -127,20 +131,20 @@ bool Client::insertFibEntry(const std::string prefix) {
         return false;
     }
 
-    this->m_fibEntryID = response["data"]["insertFibEntry"]["id"];
+    this->fibEntryID_ = response["data"]["insertFibEntry"]["id"];
     LOG_INFO("insertFibEntry mutation done. id=%s for prefix=%s",
-             m_fibEntryID.c_str(), prefix.c_str());
+             fibEntryID_.c_str(), prefix.c_str());
     return true;
 }
 
 bool Client::deleteFace() {
-    if (!this->m_fibEntryID.empty()) {
-        LOG_DEBUG("delete FIB entry id=%s", m_fibEntryID.c_str());
-        this->deleteID(this->m_fibEntryID);
+    if (!this->fibEntryID_.empty()) {
+        LOG_DEBUG("delete FIB entry id=%s", fibEntryID_.c_str());
+        this->deleteID(this->fibEntryID_);
     }
 
-    LOG_DEBUG("delete face id=%s", m_faceID.c_str());
-    return deleteID(this->m_faceID);
+    LOG_DEBUG("delete face id=%s", faceID_.c_str());
+    return deleteID(this->faceID_);
 }
 
 bool Client::deleteID(std::string id) {
@@ -152,7 +156,7 @@ bool Client::deleteID(std::string id) {
                                   "delete", json_helper::deleteFace{id});
 
     json response;
-    if (auto code = doOperation(request, response, m_gqlserver);
+    if (auto code = doOperation(request, response, gqlserver_);
         CURLE_OK != code) {
         LOG_ERROR("delete mutation POST result=%s", curl_easy_strerror(code));
         return false;
@@ -166,5 +170,4 @@ bool Client::deleteID(std::string id) {
     LOG_DEBUG("delete mutation done. id=%s", id.c_str());
     return response["data"]["delete"];
 }
-}; // namespace mgmt
-}; // namespace ndnc
+}; // namespace ndnc::mgmt

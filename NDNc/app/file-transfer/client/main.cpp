@@ -236,6 +236,10 @@ int main(int argc, char *argv[]) {
 
     // Init consumer
     consumer = std::make_shared<ndnc::posix::Consumer>(opts.consumer);
+    if (!consumer->isValid()) {
+        LOG_FATAL("invalid consumer");
+        return -2;
+    }
 
     // Init client
     client = std::make_unique<ndnc::app::filetransfer::Client>(consumer, opts);

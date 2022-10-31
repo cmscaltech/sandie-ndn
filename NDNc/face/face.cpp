@@ -45,7 +45,6 @@ Face::~Face() {
 
 bool Face::connect(int dataroom, std::string gqlserver, std::string appName) {
     if (!m_gqlClient->createFace(0, dataroom, gqlserver)) {
-        LOG_ERROR("unable to create memif");
         return false;
     }
 

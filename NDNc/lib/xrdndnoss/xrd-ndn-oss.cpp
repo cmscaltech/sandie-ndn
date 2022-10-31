@@ -138,7 +138,7 @@ int XrdNdnOss::Emsg(const char *pfx, XrdOucErrInfo &einfo, int ecode,
     }
 
     // Format the error message
-    snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
+    snprintf(buffer, sizeof(buffer), "unable to %s %s; %s", op, target, etext);
 
 #ifndef NODEBUG // Print it out if debugging is enabled
     OssEroute.Emsg(pfx, buffer);
@@ -192,7 +192,7 @@ int XrdNdnOss::Init(XrdSysLogger *lp, const char *) {
     }
 
     if (consumer_ == nullptr || !consumer_->isValid()) {
-        Emsg("Init", XrdNdnOfs.error_, -1, "invalid consumer");
+        Emsg("Init", XrdNdnOfs.error_, -1, "init consumer");
         return -1;
     }
 

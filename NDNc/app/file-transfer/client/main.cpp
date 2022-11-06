@@ -39,17 +39,18 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/variables_map.hpp>
 
-#include "ft-client-utils.hpp"
 #include "ft-client.hpp"
 #include "indicators/indicators.hpp"
 #include "lib/posix/consumer.hpp"
 #include "logger/logger.hpp"
+#include "utils/measurements-reporter.hpp"
 
 namespace po = boost::program_options;
 namespace al = boost::algorithm;
 
 static std::shared_ptr<ndnc::posix::Consumer> consumer;
 static std::unique_ptr<ndnc::app::filetransfer::Client> client;
+static std::unique_ptr<ndnc::MeasurementsReporter> reporter;
 static std::vector<std::thread> workers;
 
 static void programUsage(std::ostream &os, const std::string &app,
@@ -76,6 +77,10 @@ static void programOptions(int argc, char *argv[],
                               po::value<std::string>(&opts.consumer.gqlserver)
                                   ->default_value(opts.consumer.gqlserver),
                               "The GraphQL server address");
+    description.add_options()("influxdb",
+                              po::value<std::string>(&opts.consumer.influxdb)
+                                  ->default_value(opts.consumer.influxdb),
+                              "URL to the Influx Database");
     description.add_options()(
         "lifetime",
         po::value<ndn::time::milliseconds::rep>()->default_value(
@@ -223,6 +228,23 @@ static void signalHandler(sig_atomic_t signum) {
     exit(signum);
 }
 
+static std::string binaryPrefix(double value) {
+    char output[1024];
+
+    for (auto unit : {"", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"}) {
+        if (abs(value) >= 1024.0) {
+            value /= 1024.0;
+            continue;
+        }
+
+        sprintf(output, "%3.1f %s", value, unit);
+        return std::string(output);
+    }
+
+    sprintf(output, "%.1f Yi", value);
+    return std::string(output);
+}
+
 int main(int argc, char *argv[]) {
     // Register signal handler for program clean exit
     signal(SIGINT, signalHandler);
@@ -243,6 +265,10 @@ int main(int argc, char *argv[]) {
 
     // Init client
     client = std::make_unique<ndnc::app::filetransfer::Client>(consumer, opts);
+
+    // Init influxdb reporter
+    reporter = std::make_unique<ndnc::MeasurementsReporter>(32);
+    reporter->init("ft-client", opts.consumer.influxdb);
 
     // Get all file information
     std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> metadata{};
@@ -314,6 +340,10 @@ int main(int argc, char *argv[]) {
         for (size_t i = wid; i < metadata.size(); i += opts.streams) {
             client->receiveFileContent(
                 [&](uint64_t bytes) {
+                    auto statistics = consumer->getCounters();
+                    reporter->write(statistics.tx, statistics.rx, bytes,
+                                    statistics.getAverageDelay().count());
+
                     if (bar.is_completed()) {
                         return;
                     }
@@ -383,8 +413,7 @@ int main(int argc, char *argv[]) {
               << statistics.rx << " data packets received, "
               << statistics.timeout << " timeout retries\n"
               << "average delay: " << statistics.getAverageDelay() << "\n"
-              << "goodput: " << ndnc::app::filetransfer::binaryPrefix(goodput)
-              << "bit/s"
+              << "goodput: " << binaryPrefix(goodput) << "bit/s"
               << "\n\n";
     std::cout << termcolor::reset;
 

@@ -47,6 +47,9 @@ struct ConsumerOptions {
     // Dataroom size
     size_t mtu = 9000;
 
+    // Influxdb URL
+    std::string influxdb = "";
+
     // Name prefix
     ndn::Name prefix = ndn::Name("/ndnc/xrootd");
     // Interest lifetime
@@ -90,6 +93,7 @@ class Consumer : public std::enable_shared_from_this<Consumer> {
   public:
     ndn::Name getNamePrefix();
     ndnc::PipelineCounters getCounters();
+    ConsumerOptions getOptions();
 
   private:
     void openFace();

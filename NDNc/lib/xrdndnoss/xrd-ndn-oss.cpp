@@ -97,6 +97,9 @@ XrdOss *XrdOssGetStorageSystem(XrdOss *, XrdSysLogger *Logger,
         "       ofs NDNc consumer. pipelineSize=",
         std::to_string(XrdNdnOfs.options_.pipelineSize).c_str());
 
+    XrdNdnOfs.eDest_->Say("       ofs NDNc consumer. influxdb url=",
+                          XrdNdnOfs.options_.influxdb.c_str());
+
     XrdNdnOfs.eDest_->Say(
         "------ Named Data Networking Storage System configuration completed.");
 
@@ -352,6 +355,13 @@ bool XrdNdnOss::Config(const char *parms) {
             } else {
                 options_.pipelineSize = pipelineSize;
             }
+        }
+    }
+
+    {
+        std::string influxdb = "";
+        if (getStringFromParams("influxdb", influxdb)) {
+            options_.influxdb = influxdb;
         }
     }
 

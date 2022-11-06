@@ -181,4 +181,8 @@ ndn::Name Consumer::getNamePrefix() {
 ndnc::PipelineCounters Consumer::getCounters() {
     return pipeline_->getCounters();
 }
+
+ConsumerOptions Consumer::getOptions() {
+    return this->options_;
+}
 } // namespace ndnc::posix

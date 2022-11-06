@@ -33,7 +33,13 @@
 
 namespace ndnc::posix {
 File::File(std::shared_ptr<Consumer> consumer)
-    : consumer_{consumer}, metadata_(nullptr), path_{}, consumer_ids_{} {
+    : consumer_{consumer}, metadata_{nullptr}, reporter_{nullptr}, path_{},
+      consumer_ids_{} {
+
+    if (!consumer_->getOptions().influxdb.empty()) {
+        this->reporter_ = std::make_unique<ndnc::MeasurementsReporter>(256);
+        this->reporter_->init("xrd", consumer->getOptions().influxdb);
+    }
 }
 
 File::~File() {
@@ -64,6 +70,10 @@ bool File::isOpened() {
 }
 
 int File::close() {
+    if (reporter_ != nullptr) {
+        reporter_.reset();
+    }
+
     if (consumer_ == nullptr) {
         LOG_ERROR("null consumer object");
         return -1;
@@ -137,6 +147,7 @@ ssize_t File::read(void *buf, off_t offset, size_t blen) {
               });
 
     ssize_t n = 0;
+    auto blen_copy = blen;
 
     auto copyDataContent = [&](const ndn::Block &block, size_t off) {
         auto len = std::min(block.value_size() - off, blen);
@@ -152,6 +163,12 @@ ssize_t File::read(void *buf, off_t offset, size_t blen) {
 
     for (; it != response.end(); ++it) {
         copyDataContent(it->get()->getContent(), 0);
+    }
+
+    if (reporter_ != nullptr) {
+        auto counters = consumer_->getCounters();
+        reporter_->write(counters.tx, counters.rx, blen_copy,
+                         counters.getAverageDelay().count());
     }
 
     return n;

@@ -61,9 +61,13 @@ RUN git clone https://github.com/FDio/vpp.git --single-branch --branch v23.02-rc
     cmake -G Ninja ../vpp/extras/libmemif && \
     ninja && $(which ninja) install && ldconfig && cd ../
 
+RUN git clone https://github.com/offa/influxdb-cxx.git --single-branch --branch v0.6.7 --depth=1 && \
+    cd influxdb-cxx && mkdir build && cd build && cmake -DINFLUXCXX_TESTING=OFF ../ && \
+    make -j16 && make install && ldconfig && cd ../../
+
 # cleanup
 WORKDIR ${HOME}
-RUN rm -rf ndn-cxx vpp libmemif-build json xrootd-lcmaps
+RUN rm -rf ndn-cxx vpp libmemif-build json xrootd-lcmaps influxdb-cxx
 
 # print version of all NDNc dependencies
 RUN g++ -v

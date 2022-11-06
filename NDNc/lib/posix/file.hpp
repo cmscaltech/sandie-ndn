@@ -35,6 +35,7 @@
 
 #include "consumer.hpp"
 #include "file-metadata.hpp"
+#include "utils/measurements-reporter.hpp"
 
 namespace ndnc::posix {
 class File {
@@ -56,6 +57,7 @@ class File {
   private:
     std::shared_ptr<Consumer> consumer_;
     std::shared_ptr<FileMetadata> metadata_;
+    std::unique_ptr<ndnc::MeasurementsReporter> reporter_;
     std::string path_;
 
     std::unordered_map<std::thread::id, uint64_t> consumer_ids_;

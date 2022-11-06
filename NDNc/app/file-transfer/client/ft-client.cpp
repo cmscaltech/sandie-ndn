@@ -320,7 +320,7 @@ void Client::receiveFileContent(
 
         segmentsCount += npkts;
 
-        if (bytesCount > 5242880) {
+        if (bytesCount > 2097152) {
             onProgress(bytesCount);
             bytesCount = 0;
         }

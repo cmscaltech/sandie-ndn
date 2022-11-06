@@ -30,7 +30,6 @@ FIND_PACKAGE(InfluxDB 0.6.7 REQUIRED)
 SET(CMAKE_CXX_STANDARD 17)
 
 ADD_DEFINITIONS(-D_GNU_SOURCE)
-ADD_DEFINITIONS(-D_GLIBCXX_USE_CXX17_ABI=0)
 ADD_COMPILE_OPTIONS(-g -Wall -Wextra -Wpedantic -fPIC)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -67,7 +66,7 @@ ADD_EXECUTABLE(ndncping-client
                 app/ping/client/main.cpp
                 app/ping/client/ping-client.cpp)
 
-TARGET_LINK_LIBRARIES(ndncping-client LINK_PUBLIC ${Boost_LIBRARIES})
+TARGET_LINK_LIBRARIES(ndncping-client LINK_PUBLIC ${Boost_LIBRARIES} ${Boost_PROGRAM_OPTIONS_LIBRARY})
 TARGET_LINK_LIBRARIES(ndncping-client PRIVATE nlohmann_json::nlohmann_json)
 TARGET_LINK_LIBRARIES(ndncping-client PRIVATE Threads::Threads)
 TARGET_LINK_LIBRARIES(ndncping-client PRIVATE ndnc)
@@ -77,7 +76,7 @@ ADD_EXECUTABLE(ndncping-server
                 app/ping/server/main.cpp
                 app/ping/server/ping-server.cpp)
 
-TARGET_LINK_LIBRARIES(ndncping-server LINK_PUBLIC ${Boost_LIBRARIES})
+TARGET_LINK_LIBRARIES(ndncping-server LINK_PUBLIC ${Boost_LIBRARIES} ${Boost_PROGRAM_OPTIONS_LIBRARY})
 TARGET_LINK_LIBRARIES(ndncping-server PRIVATE nlohmann_json::nlohmann_json)
 TARGET_LINK_LIBRARIES(ndncping-server PRIVATE Threads::Threads)
 TARGET_LINK_LIBRARIES(ndncping-server PRIVATE ndnc)
@@ -88,7 +87,7 @@ ADD_EXECUTABLE(ndncft-client
                 app/file-transfer/client/main.cpp
                 app/file-transfer/client/ft-client.cpp)
 
-TARGET_LINK_LIBRARIES(ndncft-client LINK_PUBLIC ${Boost_LIBRARIES})
+TARGET_LINK_LIBRARIES(ndncft-client LINK_PUBLIC ${Boost_LIBRARIES} ${Boost_PROGRAM_OPTIONS_LIBRARY})
 TARGET_LINK_LIBRARIES(ndncft-client PRIVATE Threads::Threads)
 TARGET_LINK_LIBRARIES(ndncft-client PRIVATE ndnc)
 TARGET_LINK_LIBRARIES(ndncft-client PRIVATE curl)
@@ -99,7 +98,7 @@ ADD_EXECUTABLE(ndncft-server
                 app/file-transfer/server/main.cpp
                 app/file-transfer/server/ft-server.cpp)
 
-TARGET_LINK_LIBRARIES(ndncft-server LINK_PUBLIC ${Boost_LIBRARIES})
+TARGET_LINK_LIBRARIES(ndncft-server LINK_PUBLIC ${Boost_LIBRARIES} ${Boost_PROGRAM_OPTIONS_LIBRARY})
 TARGET_LINK_LIBRARIES(ndncft-server PRIVATE nlohmann_json::nlohmann_json)
 TARGET_LINK_LIBRARIES(ndncft-server PRIVATE Threads::Threads)
 TARGET_LINK_LIBRARIES(ndncft-server PRIVATE ndnc)

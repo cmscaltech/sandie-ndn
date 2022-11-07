@@ -63,7 +63,8 @@ static void programUsage(std::ostream &os, const std::string &app,
 
 static void programOptions(int argc, char *argv[],
                            ndnc::app::filetransfer::ClientOptions &opts,
-                           bool &copy, bool &list, bool &recursive) {
+                           bool &copy, bool &list, bool &recursive,
+                           int &repeat) {
     po::options_description description("Options", 120);
 
     std::string pipelineType = "aimd";
@@ -109,6 +110,9 @@ static void programOptions(int argc, char *argv[],
                               "the initial ssthresh for `aimd` type");
     description.add_options()("recursive,r", po::bool_switch(&recursive),
                               "Set recursive copy or list of directories");
+    description.add_options()(
+        "repeat", po::value<int>(&repeat)->default_value(0),
+        "The number of times to repeat the copy operation");
     description.add_options()(
         "streams,s",
         po::value<size_t>(&opts.streams)->default_value(opts.streams),
@@ -209,6 +213,12 @@ static void programOptions(int argc, char *argv[],
             exit(2);
         }
     }
+
+    if (vm.count("repeat") > 0) {
+        if (repeat < 0) {
+            repeat = 0;
+        }
+    }
 }
 
 static void programTerminate() {
@@ -253,8 +263,9 @@ int main(int argc, char *argv[]) {
     ndnc::app::filetransfer::ClientOptions opts;
     opts.consumer.name = "ndncft-client";
     bool copy = false, list = false, recursive = false;
+    int repeat = 0;
 
-    programOptions(argc, argv, opts, copy, list, recursive);
+    programOptions(argc, argv, opts, copy, list, recursive, repeat);
 
     // Init consumer
     consumer = std::make_shared<ndnc::posix::Consumer>(opts.consumer);
@@ -323,6 +334,10 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+    if (repeat > 0) {
+        totalByteCount *= (repeat + 1);
+    }
+
     // Prepare progress bar indicator for terminal output
     indicators::BlockProgressBar bar{
         indicators::option::BarWidth{80},
@@ -372,14 +387,21 @@ int main(int argc, char *argv[]) {
         client->openFile(metadata[i]);
     }
 
-    for (size_t i = 0; i < opts.streams; ++i) {
-        workers.push_back(std::thread(receiveWorker, i));
-        workers.push_back(std::thread(requestWorker, i));
+    if (repeat > 0) {
+        std::cout << "BE AWARE: THE COPY OPERATION WILL BE REPEATED " << repeat
+                  << " TIMES\n";
     }
 
-    for (auto it = workers.begin(); it != workers.end(); ++it) {
-        if (it->joinable()) {
-            it->join();
+    for (int r = 0; r <= repeat; ++r) {
+        for (size_t i = 0; i < opts.streams; ++i) {
+            workers.push_back(std::thread(receiveWorker, i));
+            workers.push_back(std::thread(requestWorker, i));
+        }
+
+        for (auto it = workers.begin(); it != workers.end(); ++it) {
+            if (it->joinable()) {
+                it->join();
+            }
         }
     }
 

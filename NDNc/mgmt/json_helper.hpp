@@ -73,6 +73,7 @@ nlohmann::json getOperation(std::string query, std::string name,
 struct createFace {
     std::string socketName; // Socket name
     std::string scheme = "memif";
+    std::vector<uint> socketOwner = {0, 0}; // Socket owner {uid, gid}
     int id;       // Face ID
     int dataroom; // Dataroom size
     int ringCapacity = 4096;
@@ -82,6 +83,7 @@ void to_json(nlohmann::json &json, const createFace &loc) {
     json = nlohmann::json{{"dataroom", loc.dataroom},
                           {"id", loc.id},
                           {"socketName", loc.socketName},
+                          {"socketOwner", loc.socketOwner},
                           {"scheme", loc.scheme},
                           {"ringCapacity", loc.ringCapacity}};
 }
@@ -90,6 +92,7 @@ void from_json(const nlohmann::json &json, createFace &loc) {
     json.at("dataroom").get_to(loc.dataroom);
     json.at("id").get_to(loc.id);
     json.at("socketName").get_to(loc.socketName);
+    json.at("socketOwner").get_to(loc.socketOwner);
     json.at("scheme").get_to(loc.scheme);
     json.at("ringCapacity").get_to(loc.ringCapacity);
 }

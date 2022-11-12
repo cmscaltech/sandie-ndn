@@ -63,21 +63,23 @@ class MeasurementsReporter {
         }
 
         if (influxdb_ == nullptr) {
-            LOG_WARN(
-                "null influxdb factory ptr. data will not be submitted...");
+            LOG_INFO("data will not be submitted to an influxdb server");
             return false;
-        }
-
-        influxdb_->batchOf(batch_size_);
-
-        char hostname[HOST_NAME_MAX];
-        if (gethostname(hostname, HOST_NAME_MAX) == 0) {
-            hostname_ = std::string(hostname);
         } else {
-            LOG_WARN("unable to get hostname");
-        }
+            LOG_INFO("data will be submitted to an influxdb server");
 
-        this->id_ = hostname_ + "_" + id + "_" + std::to_string(getpid());
+            influxdb_->batchOf(batch_size_);
+
+            char hostname[HOST_NAME_MAX];
+            if (gethostname(hostname, HOST_NAME_MAX) == 0) {
+                hostname_ = std::string(hostname);
+            } else {
+                LOG_WARN("unable to get the hostname");
+                hostname_ = "n/a";
+            }
+
+            this->id_ = hostname_ + "_" + id + "_" + std::to_string(getpid());
+        }
 
         return true;
     }

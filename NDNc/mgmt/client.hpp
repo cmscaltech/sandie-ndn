@@ -80,7 +80,7 @@ class Client {
 
   private:
     bool deleteID(std::string id);
-    void logResponseError(const nlohmann::json response);
+    void onError(const nlohmann::json response);
 
   private:
     static size_t writeCallback(char *ptr, size_t size, size_t nmemb,

@@ -42,7 +42,7 @@ Memif::Memif(uint16_t dataroom, const char *socketPath, const char *appName)
 }
 
 Memif::~Memif() {
-    if (m_conn == nullptr) {
+    if (m_conn != nullptr) {
         m_conn->is_connected = 0;
 
         if (m_conn->tx_bufs != nullptr) {

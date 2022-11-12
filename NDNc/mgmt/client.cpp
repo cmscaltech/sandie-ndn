@@ -49,19 +49,6 @@ Client::Client() : gqlserver_{}, faceID_{}, fibEntryID_{} {
 Client::~Client() {
 }
 
-void Client::logResponseError(const nlohmann::json response) {
-    if (response["errors"] != nullptr) {
-        for (auto error : response["errors"]) {
-            std::stringstream path;
-            std::copy(error["path"].begin(), error["path"].end(),
-                      std::ostream_iterator<std::string>(path, "."));
-
-            LOG_ERROR("%s: %s", path.str().c_str(),
-                      std::string(error["message"]).c_str());
-        }
-    }
-}
-
 bool Client::createFace(int id, int dataroom, std::string gqlserver) {
     this->gqlserver_ = gqlserver;
 
@@ -73,8 +60,10 @@ bool Client::createFace(int id, int dataroom, std::string gqlserver) {
       }\n\
     }",
         "createFace",
-        nlohmann::json{{"locator", json_helper::createFace{socketPath_, "memif",
-                                                           id, dataroom}}});
+        nlohmann::json{
+            {"locator",
+             json_helper::createFace{
+                 socketPath_, "memif", {geteuid(), getegid()}, id, dataroom}}});
 
     json response;
     if (auto code = doOperation(request, response, gqlserver_);
@@ -86,7 +75,7 @@ bool Client::createFace(int id, int dataroom, std::string gqlserver) {
     }
 
     if (response["data"] == nullptr) {
-        logResponseError(response);
+        onError(response);
         return false;
     }
 
@@ -98,6 +87,10 @@ bool Client::createFace(int id, int dataroom, std::string gqlserver) {
 
     this->faceID_ = response["data"]["createFace"]["id"];
     LOG_INFO("createFace mutation done. id=%s", faceID_.c_str());
+
+    // Avoid race condition between the graphql server creating the face and
+    // setting the socket owner
+    sleep(1);
     return true;
 }
 
@@ -120,7 +113,7 @@ bool Client::insertFibEntry(const std::string prefix) {
     }
 
     if (response["data"] == nullptr) {
-        logResponseError(response);
+        onError(response);
         return false;
     }
 
@@ -163,11 +156,24 @@ bool Client::deleteID(std::string id) {
     }
 
     if (response["data"] == nullptr || response["data"]["delete"] == nullptr) {
-        LOG_ERROR("delete mutation response data has null values");
+        onError(response);
         return false;
     }
 
     LOG_DEBUG("delete mutation done. id=%s", id.c_str());
     return response["data"]["delete"];
+}
+
+void Client::onError(const nlohmann::json response) {
+    if (response["errors"] != nullptr) {
+        for (auto error : response["errors"]) {
+            std::stringstream path;
+            std::copy(error["path"].begin(), error["path"].end(),
+                      std::ostream_iterator<std::string>(path, "."));
+
+            LOG_ERROR("%s: %s", path.str().c_str(),
+                      std::string(error["message"]).c_str());
+        }
+    }
 }
 }; // namespace ndnc::mgmt

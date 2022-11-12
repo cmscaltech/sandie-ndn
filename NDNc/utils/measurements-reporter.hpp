@@ -57,8 +57,7 @@ class MeasurementsReporter {
         try {
             influxdb_ = influxdb::InfluxDBFactory::Get(url);
         } catch (...) {
-            LOG_WARN("unable to get influx db factory. data will not be "
-                     "submitted...");
+            LOG_INFO("data will not be submitted to an influxdb server");
             return false;
         }
 

@@ -62,10 +62,10 @@ class MeasurementsReporter {
         }
 
         if (influxdb_ == nullptr) {
-            LOG_INFO("data will not be submitted to an influxdb server");
+            LOG_DEBUG("data will not be submitted to an influxdb server");
             return false;
         } else {
-            LOG_INFO("data will be submitted to an influxdb server");
+            LOG_DEBUG("data will be submitted to an influxdb server");
 
             influxdb_->batchOf(batch_size_);
 

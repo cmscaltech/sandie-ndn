@@ -283,7 +283,7 @@ int Memif::send(const std::vector<ndn::Block> *pkts, uint16_t n) noexcept {
 int Memif::handleConnect(memif_conn_handle_t conn_handle, void *ctx) {
     auto conn = reinterpret_cast<memif_connection_t *>(ctx);
 
-    if (conn->conn_handle != conn_handle) {
+    if (conn == nullptr || conn->conn_handle != conn_handle) {
         LOG_WARN("memif_on_connect err=invalid-connection");
         return -1;
     }
@@ -300,7 +300,7 @@ int Memif::handleConnect(memif_conn_handle_t conn_handle, void *ctx) {
 int Memif::handleDisconnect(memif_conn_handle_t conn_handle, void *ctx) {
     auto conn = reinterpret_cast<memif_connection_t *>(ctx);
 
-    if (conn->conn_handle != conn_handle) {
+    if (conn == nullptr || conn->conn_handle != conn_handle) {
         LOG_WARN("memif_on_disconnect err=invalid-connection");
         return -1;
     }
@@ -308,7 +308,10 @@ int Memif::handleDisconnect(memif_conn_handle_t conn_handle, void *ctx) {
     conn->is_connected = 0;
 
     auto transport = reinterpret_cast<Memif *>(conn->transport);
-    transport->disconnect();
+
+    if (transport != nullptr) {
+        transport->disconnect();
+    }
 
     LOG_DEBUG("memif disconnected");
     return 0;
@@ -318,7 +321,7 @@ int Memif::handleInterrupt(memif_conn_handle_t conn_handle, void *ctx,
                            uint16_t qid) {
     auto conn = reinterpret_cast<memif_connection_t *>(ctx);
 
-    if (conn->conn_handle != conn_handle) {
+    if (conn == nullptr || conn->conn_handle != conn_handle) {
         LOG_WARN("memif_on_interrupt err=invalid-connection");
         return -1;
     }
@@ -332,6 +335,10 @@ int Memif::handleInterrupt(memif_conn_handle_t conn_handle, void *ctx,
     }
 
     auto transport = reinterpret_cast<Memif *>(conn->transport);
+
+    if (transport == nullptr) {
+        LOG_WARN("memif_on_interrupt err=invalid-transport");
+    }
 
     // TODO: pass multiple packets at the same time to the higher level of the
     // application

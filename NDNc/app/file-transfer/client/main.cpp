@@ -278,7 +278,8 @@ int main(int argc, char *argv[]) {
     client = std::make_unique<ndnc::app::filetransfer::Client>(consumer, opts);
 
     // Init influxdb reporter
-    reporter = std::make_unique<ndnc::MeasurementsReporter>(32);
+    reporter = std::make_unique<ndnc::MeasurementsReporter>(
+        32, opts.consumer.to_string());
     reporter->init("ft-client", opts.consumer.influxdb);
 
     // Get all file information

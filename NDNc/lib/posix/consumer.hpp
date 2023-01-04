@@ -59,6 +59,26 @@ struct ConsumerOptions {
     PipelineType pipelineType = PipelineType::aimd;
     // Pipeline size
     size_t pipelineSize = 32768;
+
+    std::string to_string() {
+        std::string asString = "";
+
+        asString += "mtu=" + std::to_string(mtu);
+        asString += ",prefix=" + prefix.toUri();
+        asString +=
+            ",lifetime=" + std::to_string(interestLifetime.count()) + "ms";
+
+        asString += ",pipelineType=";
+        if (pipelineType == PipelineType::aimd) {
+            asString += "aimd";
+        } else if (pipelineType == PipelineType::fixed) {
+            asString += "fixed";
+        }
+
+        asString += ",pipelineSize=" + std::to_string(pipelineSize);
+
+        return asString;
+    }
 };
 }; // namespace ndnc::posix
 

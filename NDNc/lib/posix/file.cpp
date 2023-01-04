@@ -37,7 +37,8 @@ File::File(std::shared_ptr<Consumer> consumer)
       consumer_ids_{} {
 
     if (!consumer_->getOptions().influxdb.empty()) {
-        this->reporter_ = std::make_unique<ndnc::MeasurementsReporter>(256);
+        this->reporter_ = std::make_unique<ndnc::MeasurementsReporter>(
+            256, consumer->getOptions().to_string());
         this->reporter_->init("xrd", consumer->getOptions().influxdb);
     }
 }

@@ -39,11 +39,12 @@
 namespace ndnc {
 class MeasurementsReporter {
   public:
-    MeasurementsReporter(std::size_t batch_size = 128) {
+    MeasurementsReporter(std::size_t batch_size = 128, std::string other = "") {
         this->influxdb_ = nullptr;
         this->batch_size_ = batch_size;
         this->hostname_ = "";
         this->id_ = "";
+        this->other_ = other;
     }
 
     ~MeasurementsReporter() {
@@ -96,6 +97,7 @@ class MeasurementsReporter {
                                    .addField("bytes", bytes)
                                    .addField("mean_delay_msec", msec)
                                    .addField("id", id_)
+                                   .addField("other", other_)
                                    .addTag("id", id_)
                                    .addTag("hostname", hostname_));
     }
@@ -106,6 +108,7 @@ class MeasurementsReporter {
     std::size_t batch_size_;
     std::string hostname_;
     std::string id_;
+    std::string other_;
 };
 }; // namespace ndnc
 

@@ -95,6 +95,7 @@ class MeasurementsReporter {
                                    .addField("rx", rx)
                                    .addField("bytes", bytes)
                                    .addField("mean_delay_msec", msec)
+                                   .addField("id", id_)
                                    .addTag("id", id_)
                                    .addTag("hostname", hostname_));
     }

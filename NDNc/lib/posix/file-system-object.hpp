@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2022 California Institute of Technology
+ * Copyright (c) 2023 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,37 +25,44 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_LIB_POSIX_DIR_HPP
-#define NDNC_LIB_POSIX_DIR_HPP
+#ifndef NDNC_LIB_POSIX_FSO_HPP
+#define NDNC_LIB_POSIX_FSO_HPP
 
-#include <iterator>
+#include <stdexcept>
 
-#include "file-system-object.hpp"
+#include "consumer.hpp"
+#include "file-metadata.hpp"
 
 namespace ndnc::posix {
-class Dir {
-  public:
-    Dir(std::shared_ptr<Consumer> consumer,
-        std::shared_ptr<FileMetadata> metadata);
-    ~Dir();
 
-    int open(const char *path);
-    int stat(struct stat *buf);
-    int read(char *buf, int blen);
-    int close();
+inline static std::shared_ptr<FileMetadata>
+getMetadata(const char *path, std::shared_ptr<Consumer> consumer) {
+    if (consumer == nullptr) {
+        throw std::exception_ptr();
+    }
 
-  private:
-    bool isOpened();
-    bool getDirContent();
+    auto interest =
+        std::make_shared<ndn::Interest>(rdrDiscoveryNameFileRetrieval(
+            std::string(path), consumer->getNamePrefix()));
+    interest->setCanBePrefix(true);
+    interest->setMustBeFresh(true);
 
-  private:
-    std::shared_ptr<Consumer> consumer_;
-    std::shared_ptr<FileMetadata> metadata_;
+    auto id = consumer->registerConsumer();
+    auto data = consumer->syncRequestDataFor(std::move(interest), id);
+    consumer->unregisterConsumer(id);
 
-    std::string path_;
-    std::vector<std::string> content_;
-    size_t onReadNextEntryPos_;
-};
+    if (data == nullptr || !data->hasContent()) {
+        LOG_ERROR("invalid data");
+        return nullptr;
+    }
+
+    if (data->getContentType() == ndn::tlv::ContentType_Nack) {
+        LOG_ERROR("unable to list path '%s'", path);
+        return nullptr;
+    }
+
+    return std::make_shared<FileMetadata>(data->getContent());
+}
 }; // namespace ndnc::posix
 
-#endif // NDNC_LIB_POSIX_DIR_HPP
+#endif // NDNC_LIB_POSIX_FSO_HPP

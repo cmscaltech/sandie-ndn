@@ -31,14 +31,18 @@
 #include "lib/posix/consumer.hpp"
 
 #include "../common/ft-naming-scheme.hpp"
+#include "lib/posix/dir.hpp"
 #include "lib/posix/file-metadata.hpp"
 #include "lib/posix/file-rdr.hpp"
+#include "lib/posix/file-system-object.hpp"
+#include "lib/posix/file.hpp"
 
 namespace ndnc::app::filetransfer {
 struct ClientOptions {
     struct ndnc::posix::ConsumerOptions consumer;
 
     std::vector<std::string> paths; // List of paths
+    bool recursive;                 // Recursive list/copy paths
     size_t streams = 1;             // The number of streams
 };
 }; // namespace ndnc::app::filetransfer
@@ -55,32 +59,28 @@ class Client : public std::enable_shared_from_this<Client> {
 
     void stop();
 
-    void openFile(std::shared_ptr<ndnc::posix::FileMetadata> metadata);
-    void closeFile(std::shared_ptr<ndnc::posix::FileMetadata> metadata);
-    void listFile(std::string path,
-                  std::shared_ptr<ndnc::posix::FileMetadata> &metadata);
-    void listDir(std::string root,
-                 std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> &all);
-    void listDirRecursive(
-        std::string root,
-        std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> &all);
+    int openAllPaths();
+    int closeAllPaths();
+    std::vector<std::string> listAllFilePaths();
+    uint64_t getByteCountOfAllOpenedFiles();
 
-    void
-    requestFileContent(std::shared_ptr<ndnc::posix::FileMetadata> metadata);
-    void
-    receiveFileContent(NotifyProgressStatus onProgress,
-                       std::shared_ptr<ndnc::posix::FileMetadata> metadata);
+    // void
+    // requestFileContent(std::shared_ptr<ndnc::posix::FileMetadata> metadata);
+    // void
+    // receiveFileContent(NotifyProgressStatus onProgress,
+    //                    std::shared_ptr<ndnc::posix::FileMetadata> metadata);
 
   private:
     bool canContinue();
 
   private:
-    std::atomic_bool stop_;
+    std::mutex mutex_;
+    std::atomic_bool isStopped_;
     std::atomic_bool error_;
 
-    std::shared_ptr<ndnc::posix::Consumer> consumer_;
     ClientOptions options_;
-    std::shared_ptr<std::unordered_map<std::string, uint64_t>> files_;
+    std::shared_ptr<ndnc::posix::Consumer> consumer_;
+    std::unordered_map<std::string, std::shared_ptr<ndnc::posix::File>> files_;
 };
 }; // namespace ndnc::app::filetransfer
 

@@ -63,8 +63,7 @@ static void programUsage(std::ostream &os, const std::string &app,
 
 static void programOptions(int argc, char *argv[],
                            ndnc::app::filetransfer::ClientOptions &opts,
-                           bool &copy, bool &list, bool &recursive,
-                           int &repeat) {
+                           bool &copy, bool &list, int &repeat) {
     po::options_description description("Options", 120);
 
     std::string pipelineType = "aimd";
@@ -108,7 +107,7 @@ static void programOptions(int argc, char *argv[],
                                   ->default_value(opts.consumer.pipelineSize),
                               "The maximum pipeline size for `fixed` type or "
                               "the initial ssthresh for `aimd` type");
-    description.add_options()("recursive,r", po::bool_switch(&recursive),
+    description.add_options()("recursive,r", po::bool_switch(&opts.recursive),
                               "Set recursive copy or list of directories");
     description.add_options()(
         "repeat", po::value<int>(&repeat)->default_value(0),
@@ -262,10 +261,10 @@ int main(int argc, char *argv[]) {
     // Parse command line arguments
     ndnc::app::filetransfer::ClientOptions opts;
     opts.consumer.name = "ndncft-client";
-    bool copy = false, list = false, recursive = false;
+    bool copy = false, list = false;
     int repeat = 0;
 
-    programOptions(argc, argv, opts, copy, list, recursive, repeat);
+    programOptions(argc, argv, opts, copy, list, repeat);
 
     // Init consumer
     consumer = std::make_shared<ndnc::posix::Consumer>(opts.consumer);
@@ -282,163 +281,136 @@ int main(int argc, char *argv[]) {
         32, opts.consumer.to_string());
     reporter->init("ft-client", opts.consumer.influxdb);
 
-    // Get all file information
-    std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> metadata{};
-    for (auto path : opts.paths) {
-        std::shared_ptr<ndnc::posix::FileMetadata> md;
-        client->listFile(path, md);
+    // Open all files
+    int totalFileCount = client->openAllPaths();
 
-        if (md == nullptr) {
-            continue;
-        }
-
-        if (md->isFile()) {
-            metadata.push_back(md);
-        } else {
-            std::vector<std::shared_ptr<ndnc::posix::FileMetadata>> partial{};
-
-            if (recursive) {
-                client->listDirRecursive(path, partial);
-            } else {
-                client->listDir(path, partial);
-            }
-
-            metadata.insert(std::end(metadata), std::begin(partial),
-                            std::end(partial));
-        }
+    if (totalFileCount == -1) {
+        LOG_FATAL("unable to open all files");
+        programTerminate();
+        return -2;
     }
 
-    uint64_t totalByteCount = 0;
-    uint64_t totalFileCount = 0;
+    uint64_t totalByteCount = client->getByteCountOfAllOpenedFiles();
 
     std::cout << "\n";
-    for (auto md : metadata) {
-        if (md->isFile()) {
-            std::cout << ndnc::posix::rdrFileUri(md->getVersionedName(),
-                                                 opts.consumer.prefix)
-                      << "\n";
-            totalByteCount += md->getFileSize();
-            totalFileCount += 1;
-        } else if (list) {
-            std::cout << ndnc::posix::rdrDirUri(md->getVersionedName(),
-                                                opts.consumer.prefix)
-                      << "\n";
-            totalFileCount += 1;
-        }
+    for (auto path : client->listAllFilePaths()) {
+        std::cout << path << "\n";
     }
 
     std::cout << "\ntotal " << totalFileCount << "\n";
     std::cout << "total size " << totalByteCount << " bytes\n\n";
 
-    if (list || totalByteCount == 0) {
+    if (totalFileCount == 0 || totalByteCount == 0) {
         programTerminate();
         return 0;
     }
 
-    if (repeat > 0) {
-        totalByteCount *= (repeat + 1);
-    }
+    // if (repeat > 0) {
+    //     totalByteCount *= (repeat + 1);
+    // }
 
-    // Prepare progress bar indicator for terminal output
-    indicators::BlockProgressBar bar{
-        indicators::option::BarWidth{80},
-        indicators::option::PrefixText{"Transferring "},
-        indicators::option::ShowPercentage{true},
-        indicators::option::ShowElapsedTime{true},
-        indicators::option::ShowRemainingTime{true},
-        indicators::option::MaxProgress{totalByteCount}};
-    indicators::show_console_cursor(true);
+    // // Prepare progress bar indicator for terminal output
+    // indicators::BlockProgressBar bar{
+    //     indicators::option::BarWidth{80},
+    //     indicators::option::PrefixText{"Transferring "},
+    //     indicators::option::ShowPercentage{true},
+    //     indicators::option::ShowElapsedTime{true},
+    //     indicators::option::ShowRemainingTime{true},
+    //     indicators::option::MaxProgress{totalByteCount}};
+    // indicators::show_console_cursor(true);
 
-    std::atomic<uint64_t> currentByteCount = 0;
+    // std::atomic<uint64_t> currentByteCount = 0;
 
-    auto receiveWorker = [&currentByteCount, &totalByteCount, &bar, &opts,
-                          &metadata](size_t wid) {
-        for (size_t i = wid; i < metadata.size(); i += opts.streams) {
-            client->receiveFileContent(
-                [&](uint64_t bytes) {
-                    auto statistics = consumer->getCounters();
-                    reporter->write(statistics.tx, statistics.rx, bytes,
-                                    statistics.getAverageDelay().count());
+    // auto receiveWorker = [&currentByteCount, &totalByteCount, &bar, &opts,
+    //                       &metadata](size_t wid) {
+    //     for (size_t i = wid; i < metadata.size(); i += opts.streams) {
+    //         client->receiveFileContent(
+    //             [&](uint64_t bytes) {
+    //                 auto statistics = consumer->getCounters();
+    //                 reporter->write(statistics.tx, statistics.rx, bytes,
+    //                                 statistics.getAverageDelay().count());
 
-                    if (bar.is_completed()) {
-                        return;
-                    }
+    //                 if (bar.is_completed()) {
+    //                     return;
+    //                 }
 
-                    currentByteCount += bytes;
+    //                 currentByteCount += bytes;
 
-                    bar.set_option(indicators::option::PostfixText{
-                        "[" + std::to_string(currentByteCount) + "/" +
-                        std::to_string(totalByteCount) + "]"});
-                    bar.set_progress(currentByteCount);
-                    bar.tick();
-                },
-                metadata[i]);
-        }
-    };
+    //                 bar.set_option(indicators::option::PostfixText{
+    //                     "[" + std::to_string(currentByteCount) + "/" +
+    //                     std::to_string(totalByteCount) + "]"});
+    //                 bar.set_progress(currentByteCount);
+    //                 bar.tick();
+    //             },
+    //             metadata[i]);
+    //     }
+    // };
 
-    auto requestWorker = [&opts, &metadata](size_t wid) {
-        for (size_t i = wid; i < metadata.size(); i += opts.streams) {
-            client->requestFileContent(metadata[i]);
-        }
-    };
+    // auto requestWorker = [&opts, &metadata](size_t wid) {
+    //     for (size_t i = wid; i < metadata.size(); i += opts.streams) {
+    //         client->requestFileContent(metadata[i]);
+    //     }
+    // };
 
-    auto start = std::chrono::high_resolution_clock::now();
+    // auto start = std::chrono::high_resolution_clock::now();
 
-    for (size_t i = 0; i < metadata.size(); ++i) {
-        client->openFile(metadata[i]);
-    }
+    // for (size_t i = 0; i < metadata.size(); ++i) {
+    //     client->openFile(metadata[i]->getVersionedName().toUri());
+    // }
 
-    if (repeat > 0) {
-        std::cout << "BE AWARE: THE COPY OPERATION WILL BE REPEATED " << repeat
-                  << " TIMES\n";
-    }
+    // if (repeat > 0) {
+    //     std::cout << "BE AWARE: THE COPY OPERATION WILL BE REPEATED " <<
+    //     repeat
+    //               << " TIMES\n";
+    // }
 
-    for (int r = 0; r <= repeat; ++r) {
-        for (size_t i = 0; i < opts.streams; ++i) {
-            workers.push_back(std::thread(receiveWorker, i));
-            workers.push_back(std::thread(requestWorker, i));
-        }
+    // for (int r = 0; r <= repeat; ++r) {
+    //     for (size_t i = 0; i < opts.streams; ++i) {
+    //         workers.push_back(std::thread(receiveWorker, i));
+    //         workers.push_back(std::thread(requestWorker, i));
+    //     }
 
-        for (auto it = workers.begin(); it != workers.end(); ++it) {
-            if (it->joinable()) {
-                it->join();
-            }
-        }
-    }
+    //     for (auto it = workers.begin(); it != workers.end(); ++it) {
+    //         if (it->joinable()) {
+    //             it->join();
+    //         }
+    //     }
+    // }
 
-    auto end = std::chrono::high_resolution_clock::now();
+    // auto end = std::chrono::high_resolution_clock::now();
 
-    bar.set_option(indicators::option::PrefixText{"Transfer completed "});
-    bar.mark_as_completed();
+    // bar.set_option(indicators::option::PrefixText{"Transfer completed "});
+    // bar.mark_as_completed();
 
-    for (size_t i = 0; i < metadata.size(); ++i) {
-        if (metadata[i]->isDir()) {
-            continue;
-        }
+    // for (size_t i = 0; i < metadata.size(); ++i) {
+    //     if (metadata[i]->isDir()) {
+    //         continue;
+    //     }
 
-        std::cout << termcolor::bold << termcolor::green << "✔ Downloaded file "
-                  << ndnc::posix::rdrFileUri(metadata[i]->getVersionedName(),
-                                             opts.consumer.prefix)
-                  << std::endl;
-        std::cout << termcolor::reset;
+    //     std::cout << termcolor::bold << termcolor::green << "✔ Downloaded
+    //     file "
+    //               << ndnc::posix::rdrFileUri(metadata[i]->getVersionedName(),
+    //                                          opts.consumer.prefix)
+    //               << std::endl;
+    //     std::cout << termcolor::reset;
 
-        client->closeFile(metadata[i]);
-    }
+    //     client->closeFile(metadata[i]->getVersionedName().toUri());
+    // }
 
-    auto duration = end - start;
-    double goodput = ((double)totalByteCount * 8.0) /
-                     (duration / std::chrono::nanoseconds(1)) * 1e9;
+    // auto duration = end - start;
+    // double goodput = ((double)totalByteCount * 8.0) /
+    //                  (duration / std::chrono::nanoseconds(1)) * 1e9;
 
-    auto statistics = consumer->getCounters();
+    // auto statistics = consumer->getCounters();
 
-    std::cout << termcolor::bold << "\n--- statistics ---\n"
-              << statistics.tx << " interest packets transmitted, "
-              << statistics.rx << " data packets received, "
-              << statistics.timeout << " timeout retries\n"
-              << "average delay: " << statistics.getAverageDelay() << "\n"
-              << "goodput: " << binaryPrefix(goodput) << "bit/s"
-              << "\n\n";
-    std::cout << termcolor::reset;
+    // std::cout << termcolor::bold << "\n--- statistics ---\n"
+    //           << statistics.tx << " interest packets transmitted, "
+    //           << statistics.rx << " data packets received, "
+    //           << statistics.timeout << " timeout retries\n"
+    //           << "average delay: " << statistics.getAverageDelay() << "\n"
+    //           << "goodput: " << binaryPrefix(goodput) << "bit/s"
+    //           << "\n\n";
+    // std::cout << termcolor::reset;
 
     programTerminate();
     return 0;

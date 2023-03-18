@@ -32,8 +32,9 @@
 #include "logger/logger.hpp"
 
 namespace ndnc::posix {
-File::File(std::shared_ptr<Consumer> consumer)
-    : consumer_{consumer}, metadata_{nullptr}, reporter_{nullptr}, path_{},
+File::File(std::shared_ptr<Consumer> consumer,
+           std::shared_ptr<FileMetadata> metadata = nullptr)
+    : consumer_{consumer}, metadata_{metadata}, reporter_{nullptr}, path_{},
       consumer_ids_{} {
 
     if (!consumer_->getOptions().influxdb.empty()) {
@@ -53,8 +54,14 @@ int File::open(const char *path) {
         return -1;
     }
 
-    if (!getFileMetadata(path) || !isOpened()) {
-        close();
+    if (isOpened()) {
+        LOG_DEBUG("file already opened");
+        return 0;
+    }
+
+    try {
+        this->metadata_ = getMetadata(path, this->consumer_);
+    } catch (...) {
         return -1;
     }
 
@@ -173,40 +180,6 @@ ssize_t File::read(void *buf, off_t offset, size_t blen) {
     }
 
     return n;
-}
-
-bool File::getFileMetadata(const char *path) {
-    if (isOpened()) {
-        LOG_DEBUG("file already opened");
-        return false;
-    }
-
-    if (consumer_ == nullptr) {
-        LOG_ERROR("null consumer object");
-        return false;
-    }
-
-    auto interest =
-        std::make_shared<ndn::Interest>(rdrDiscoveryNameFileRetrieval(
-            std::string(path), consumer_->getNamePrefix()));
-    interest->setCanBePrefix(true);
-    interest->setMustBeFresh(true);
-
-    auto data =
-        consumer_->syncRequestDataFor(std::move(interest), getConsumerId());
-
-    if (data == nullptr || !data->hasContent()) {
-        LOG_ERROR("file metadata: invalid data");
-        return false;
-    }
-
-    if (data->getContentType() == ndn::tlv::ContentType_Nack) {
-        LOG_ERROR("unable to list file '%s'", path);
-        return false;
-    }
-
-    metadata_ = std::make_shared<FileMetadata>(data->getContent());
-    return true;
 }
 
 uint64_t File::getConsumerId() {

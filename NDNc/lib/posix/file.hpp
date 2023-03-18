@@ -33,14 +33,14 @@
 #include <unistd.h>
 #include <unordered_map>
 
-#include "consumer.hpp"
-#include "file-metadata.hpp"
+#include "file-system-object.hpp"
 #include "utils/measurements-reporter.hpp"
 
 namespace ndnc::posix {
 class File {
   public:
-    File(std::shared_ptr<Consumer> consumer);
+    File(std::shared_ptr<Consumer> consumer,
+         std::shared_ptr<FileMetadata> metadata);
     ~File();
 
     int open(const char *path);
@@ -51,7 +51,6 @@ class File {
 
   private:
     bool isOpened();
-    bool getFileMetadata(const char *path);
     uint64_t getConsumerId();
 
   private:

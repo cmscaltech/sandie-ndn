@@ -28,9 +28,10 @@
 #include "dir.hpp"
 
 namespace ndnc::posix {
-Dir::Dir(std::shared_ptr<Consumer> consumer)
-    : consumer_{consumer},
-      metadata_(nullptr), path_{}, content_{}, onReadNextEntryPos_{0} {
+Dir::Dir(std::shared_ptr<Consumer> consumer,
+         std::shared_ptr<FileMetadata> metadata = nullptr)
+    : consumer_{consumer}, metadata_{metadata}, path_{}, content_{},
+      onReadNextEntryPos_{0} {
 }
 
 Dir::~Dir() {
@@ -42,8 +43,18 @@ int Dir::open(const char *path) {
         return -1;
     }
 
-    if (!getDirMetadata(path) || !isOpened()) {
-        LOG_ERROR("null consumer object");
+    if (isOpened()) {
+        LOG_DEBUG("dir already opened");
+        return 0;
+    }
+
+    try {
+        this->metadata_ = getMetadata(path, this->consumer_);
+    } catch (...) {
+        return -1;
+    }
+
+    if (!isOpened()) {
         return -1;
     }
 
@@ -100,41 +111,6 @@ int Dir::close() {
     path_.clear();
 
     return 0;
-}
-
-bool Dir::getDirMetadata(const char *path) {
-    if (isOpened()) {
-        LOG_DEBUG("dir already opened");
-        return false;
-    }
-
-    if (consumer_ == nullptr) {
-        LOG_ERROR("null consumer object");
-        return -1;
-    }
-
-    auto interest =
-        std::make_shared<ndn::Interest>(rdrDiscoveryNameFileRetrieval(
-            std::string(path), consumer_->getNamePrefix()));
-    interest->setCanBePrefix(true);
-    interest->setMustBeFresh(true);
-
-    auto id = consumer_->registerConsumer();
-    auto data = consumer_->syncRequestDataFor(std::move(interest), id);
-    consumer_->unregisterConsumer(id);
-
-    if (data == nullptr || !data->hasContent()) {
-        LOG_ERROR("dir metadata: invalid data");
-        return false;
-    }
-
-    if (data->getContentType() == ndn::tlv::ContentType_Nack) {
-        LOG_ERROR("unable to list dir '%s'", path);
-        return false;
-    }
-
-    metadata_ = std::make_shared<FileMetadata>(data->getContent());
-    return true;
 }
 
 bool Dir::getDirContent() {

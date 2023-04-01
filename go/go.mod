@@ -11,5 +11,5 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/urfave/cli/v2 v2.2.0
 	github.com/usnistgov/ndn-dpdk v0.0.0-20200917203352-1586ca4294cc
-	golang.org/x/net v0.0.0-20201002202402-0a1ea396d57c // indirect
+	golang.org/x/net v0.7.0 // indirect
 )

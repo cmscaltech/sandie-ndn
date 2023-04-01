@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:experimental
-FROM ubuntu:jammy
+FROM ubuntu:lunar
 
 # add user for running the xrootd
 ARG UNAME=xrootd
@@ -49,7 +49,9 @@ RUN apt-get -y -qq update --allow-releaseinfo-change && \
         git-all
 
 RUN git clone https://github.com/opensciencegrid/xrootd-lcmaps.git  --single-branch --branch v1.7.8 --depth 1 && \
-    cd xrootd-lcmaps && sed -i '1s/^/#include <cstring>\n /' src/XrdHttpLcmaps.cc && \
+    cd xrootd-lcmaps && \
+    sed -i '1s/^/#include <cstring>\n /' src/XrdHttpLcmaps.cc && \
+    sed -i '1s/^/#include <array>\n /' src/GlobusSupport.cc && \
     cmake . && make -j4 && make install && \
     mkdir -p /usr/lib64/ && cp libXrdLcmaps-5.so /usr/lib64/libXrdLcmaps.so && cd ../
 
@@ -61,13 +63,17 @@ RUN git clone https://github.com/FDio/vpp.git --single-branch --branch v23.02-rc
     cmake -G Ninja ../vpp/extras/libmemif && \
     ninja && $(which ninja) install && ldconfig && cd ../
 
-RUN git clone https://github.com/offa/influxdb-cxx.git --single-branch --branch v0.6.7 --depth=1 && \
+RUN git clone https://github.com/libcpr/cpr.git --single-branch --branch 1.10.2 --depth=1 && \
+    cd cpr && mkdir build && cd build && \
+    cmake .. -DCPR_USE_SYSTEM_CURL=ON && cmake --build . && cmake --install . && cd ../../
+
+RUN git clone https://github.com/offa/influxdb-cxx.git --single-branch --branch v0.7.1 --depth=1 && \
     cd influxdb-cxx && mkdir build && cd build && cmake -DINFLUXCXX_TESTING=OFF ../ && \
     make -j16 && make install && ldconfig && cd ../../
 
 # cleanup
 WORKDIR ${HOME}
-RUN rm -rf ndn-cxx vpp libmemif-build json xrootd-lcmaps influxdb-cxx
+RUN rm -rf ndn-cxx vpp libmemif-build json xrootd-lcmaps influxdb-cxx cpr
 
 # print version of all NDNc dependencies
 RUN g++ -v

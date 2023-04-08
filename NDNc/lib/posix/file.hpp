@@ -49,6 +49,9 @@ class File {
     int fstat(struct stat *buf);
     ssize_t read(void *buf, off_t offset, size_t blen);
 
+  public:
+    uint64_t getSegmentSize();
+
   private:
     bool isOpened();
     uint64_t getConsumerId();

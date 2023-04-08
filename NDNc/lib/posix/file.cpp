@@ -133,6 +133,10 @@ ssize_t File::read(void *buf, off_t offset, size_t blen) {
     auto indexLastSegment = ceil(
         (offset + blen) / static_cast<double>(metadata_->getSegmentSize()));
 
+    if (indexLastSegment > metadata_->getFinalBlockID()) {
+        indexLastSegment = metadata_->getFinalBlockID() + 1;
+    }
+
     std::vector<std::shared_ptr<ndn::Interest>> pkts;
     for (auto segment = indexFirstSegment; segment < indexLastSegment;
          ++segment) {
@@ -192,5 +196,13 @@ uint64_t File::getConsumerId() {
     }
 
     return consumer_ids_[tid];
+}
+
+uint64_t File::getSegmentSize() {
+    if (!isOpened()) {
+        return 0;
+    }
+
+    return metadata_->getSegmentSize();
 }
 } // namespace ndnc::posix

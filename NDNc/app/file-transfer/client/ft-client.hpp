@@ -50,7 +50,7 @@ struct ClientOptions {
 namespace ndnc::app::filetransfer {
 class Client : public std::enable_shared_from_this<Client> {
   public:
-    using NotifyProgressStatus = std::function<void(uint64_t bytes)>;
+    using NotifyProgressStatus = std::function<void(int64_t bytes)>;
 
   public:
     Client(std::shared_ptr<ndnc::posix::Consumer> consumer,
@@ -62,7 +62,9 @@ class Client : public std::enable_shared_from_this<Client> {
     int openAllPaths();
     int closeAllPaths();
     std::vector<std::string> listAllFilePaths();
-    uint64_t getByteCountOfAllOpenedFiles();
+    uint64_t getTotalByteCount();
+
+    void syncReadFile(std::string path, NotifyProgressStatus onProgress);
 
     // void
     // requestFileContent(std::shared_ptr<ndnc::posix::FileMetadata> metadata);

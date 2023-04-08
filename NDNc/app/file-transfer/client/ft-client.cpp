@@ -107,6 +107,7 @@ int Client::openAllPaths() {
                 memset(buf, 0, len);
             }
 
+            free(buf);
             dir.close();
 
             for (auto path : dirPaths) {
@@ -145,7 +146,7 @@ std::vector<std::string> Client::listAllFilePaths() {
     return paths;
 }
 
-uint64_t Client::getByteCountOfAllOpenedFiles() {
+uint64_t Client::getTotalByteCount() {
     uint64_t byteCount = 0;
 
     mutex_.lock();
@@ -164,6 +165,35 @@ uint64_t Client::getByteCountOfAllOpenedFiles() {
     mutex_.unlock();
 
     return byteCount;
+}
+
+void Client::syncReadFile(std::string path, NotifyProgressStatus onProgress) {
+    std::shared_ptr<ndnc::posix::File> file = nullptr;
+
+    try {
+        std::lock_guard<std::mutex> guard(mutex_);
+        file = files_.at(path);
+    } catch (const std::out_of_range &e) {
+        LOG_ERROR("exception at %s", e.what());
+        onProgress(-1);
+        return;
+    }
+
+    auto blen = 128 * file->getSegmentSize();
+    auto buf = (uint8_t *)malloc(blen);
+    off_t offset = 0;
+
+    auto n = file->read(buf, offset, blen);
+    while (n > 0) {
+        onProgress(n);
+        offset += n;
+
+        memset(buf, 0, blen);
+        n = file->read(buf, offset, blen);
+    }
+
+    onProgress(0);
+    free(buf);
 }
 
 // void Client::requestFileContent(

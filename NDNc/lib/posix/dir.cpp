@@ -148,13 +148,8 @@ bool Dir::getDirContent() {
         return -1;
     }
 
-    auto bytes = (uint8_t *)malloc(8800 * (metadata_->getFinalBlockID() + 1));
+    uint8_t *bytes = nullptr;
     uint64_t offset = 0;
-
-    if (bytes == nullptr) {
-        LOG_FATAL("unable to allocate memory for reading dir contents");
-        return false;
-    }
 
     auto id = consumer_->registerConsumer();
 
@@ -182,6 +177,15 @@ bool Dir::getDirContent() {
                 return false;
             } else {
                 finalBlockId = data->getFinalBlock()->toSegment();
+            }
+        }
+
+        if (bytes == nullptr) {
+            bytes = (uint8_t *)malloc(8800 * finalBlockId);
+
+            if (bytes == nullptr) {
+                LOG_FATAL("unable to allocate memory for reading dir contents");
+                return false;
             }
         }
 

@@ -136,20 +136,13 @@ void Client::listDir(
         return;
     }
 
-    uint8_t *byteContent =
-        (uint8_t *)malloc(8800 * (metadata->getFinalBlockID() + 1));
-
-    if (NULL == byteContent) {
-        LOG_FATAL("unable to allocate memory for retrieving dir list content");
-        error_ = true;
-        return;
-    }
-
+    uint8_t *byteContent = nullptr;
     uint64_t byteContentOffset = 0;
-    uint64_t contentFinalBlockId = 0;
+
     {
         // Get all list dir content
-        for (uint64_t i = 0; i <= contentFinalBlockId; ++i) {
+        for (uint64_t i = 0, contentFinalBlockId = 0; i <= contentFinalBlockId;
+             ++i) {
             auto interest = std::make_shared<ndn::Interest>(
                 metadata->getVersionedName().appendSegment(i));
 
@@ -173,6 +166,17 @@ void Client::listDir(
                     return;
                 } else {
                     contentFinalBlockId = data->getFinalBlock()->toSegment();
+                }
+            }
+
+            if (byteContent == nullptr) {
+                byteContent = (uint8_t *)malloc(8800 * (contentFinalBlockId));
+
+                if (byteContent == nullptr) {
+                    LOG_FATAL("unable to allocate memory for retrieving "
+                              "dir list content");
+                    error_ = true;
+                    return;
                 }
             }
 

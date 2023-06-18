@@ -181,7 +181,7 @@ bool Dir::getDirContent() {
         }
 
         if (bytes == nullptr) {
-            bytes = (uint8_t *)malloc(8800 * finalBlockId + 1);
+            bytes = (uint8_t *)malloc(8800 * (finalBlockId + 1));
 
             if (bytes == nullptr) {
                 LOG_FATAL("unable to allocate memory for reading dir contents");

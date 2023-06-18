@@ -170,7 +170,8 @@ void Client::listDir(
             }
 
             if (byteContent == nullptr) {
-                byteContent = (uint8_t *)malloc(8800 * (contentFinalBlockId));
+                byteContent =
+                    (uint8_t *)malloc(8800 * (contentFinalBlockId + 1));
 
                 if (byteContent == nullptr) {
                     LOG_FATAL("unable to allocate memory for retrieving "

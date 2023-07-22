@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2021 California Institute of Technology
+ * Copyright (c) 2023 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,7 @@
 #include "face/packet-handler.hpp"
 #include "pending-interest.hpp"
 #include "pipeline-type.hpp"
-#include "utils/random-number-generator.hpp"
+#include "utils/threadsafe-uint64-generator.hpp"
 
 namespace ndnc {
 struct PipelineCounters {
@@ -56,7 +56,7 @@ class PipelineInterests : public PacketHandler {
   private:
     using PendingInterestsOrder = std::queue<uint64_t>;
     using PendingInterestsTable = std::unordered_map<uint64_t, PendingInterest>;
-    using ResponseQueues = std::unordered_map<uint64_t, ResponseQueue>;
+    using ResponseQueuesMap = std::unordered_map<uint64_t, ResponseQueue>;
 
   public:
     explicit PipelineInterests(face::Face &face)
@@ -66,7 +66,7 @@ class PipelineInterests : public PacketHandler {
 
         m_pit = std::make_shared<PendingInterestsTable>();
         m_piq = std::make_shared<PendingInterestsOrder>();
-        m_rdn = std::make_shared<RandomNumberGenerator<uint64_t>>();
+        m_rdn = std::make_shared<ThreadSafeUInt64Generator>();
 
         registerConsumer(0);
         m_worker = std::thread(&PipelineInterests::open, this);
@@ -105,36 +105,42 @@ class PipelineInterests : public PacketHandler {
     }
 
     uint64_t registerConsumer() {
-        return registerConsumer(m_rdn->get());
+        return registerConsumer(m_rdn->generate());
     }
 
     uint64_t registerConsumer(const uint64_t consumerId) {
-        m_responseQueues[consumerId] = ResponseQueue();
+        std::lock_guard<std::mutex> lock(m_responseQueuesMtx);
+        responseQueuesMap_[consumerId] = ResponseQueue();
         return consumerId;
     }
 
     void unregisterConsumer(const uint64_t consumerId) {
-        m_responseQueues.erase(consumerId);
+        std::lock_guard<std::mutex> lock(m_responseQueuesMtx);
+        responseQueuesMap_.erase(consumerId);
     }
 
     bool pushInterest(uint64_t consumerId,
                       std::shared_ptr<ndn::Interest> &&pkt) {
         // Do nothing if the pipeline is already closed
         if (isClosed()) {
+            LOG_INFO("pipeline is closed (push interest)");
             return false;
         }
 
-        // Do nothing for requests from unregistered consumer ids
-        if (m_responseQueues.find(consumerId) == m_responseQueues.end()) {
-            LOG_ERROR("unable to push interest pkt. reason: unregistered "
-                      "consumer id=%ld",
-                      consumerId);
-            close();
-            return false;
+        {
+            std::lock_guard<std::mutex> lock(m_responseQueuesMtx);
+            if (responseQueuesMap_.find(consumerId) ==
+                responseQueuesMap_.end()) {
+                LOG_WARN("unable to push interest pkt. reason: unregistered "
+                         "consumer id=%lu",
+                         consumerId);
+                close();
+                return false;
+            }
         }
 
         auto newPendingInterest =
-            PendingInterest(std::move(pkt), m_rdn->get(), consumerId);
+            PendingInterest(std::move(pkt), m_rdn->generate(), consumerId);
 
         return m_requestQueue.enqueue(std::move(newPendingInterest));
     }
@@ -143,24 +149,28 @@ class PipelineInterests : public PacketHandler {
                           std::vector<std::shared_ptr<ndn::Interest>> &&pkts) {
         // Do nothing if the pipeline is already closed
         if (isClosed()) {
+            LOG_INFO("pipeline is closed (push interest bulk)");
             return false;
         }
 
-        // Do nothing for requests from unregistered consumer ids
-        if (m_responseQueues.find(consumerId) == m_responseQueues.end()) {
-            LOG_ERROR("unable to push interest pkts. reason: unregistered "
-                      "consumer id=%ld",
-                      consumerId);
-            close();
-            return false;
+        {
+            std::lock_guard<std::mutex> lock(m_responseQueuesMtx);
+            if (responseQueuesMap_.find(consumerId) ==
+                responseQueuesMap_.end()) {
+                LOG_ERROR("unable to push interest pkts. reason: unregistered "
+                          "consumer id=%ld",
+                          consumerId);
+                close();
+                return false;
+            }
         }
 
         std::vector<PendingInterest> newPendingInterests;
         newPendingInterests.reserve(pkts.size());
 
         for (uint64_t i = 0; i < pkts.size(); ++i) {
-            auto newPendingInterest =
-                PendingInterest(std::move(pkts[i]), m_rdn->get(), consumerId);
+            auto newPendingInterest = PendingInterest(
+                std::move(pkts[i]), m_rdn->generate(), consumerId);
             newPendingInterests.emplace_back(std::move(newPendingInterest));
         }
 
@@ -169,10 +179,19 @@ class PipelineInterests : public PacketHandler {
     }
 
     bool popData(uint64_t consumerId, std::shared_ptr<ndn::Data> &pkt) {
+        // Do nothing if the pipeline is already closed
+        if (isClosed()) {
+            LOG_INFO("pipeline is closed (pop data)");
+            return false;
+        }
+
+        std::lock_guard<std::mutex> lock(m_responseQueuesMtx);
+
         try {
-            return m_responseQueues.at(consumerId).wait_dequeue_timed(pkt, 1e4);
+            return responseQueuesMap_.at(consumerId).try_dequeue(pkt);
         } catch (const std::out_of_range &oor) {
-            LOG_ERROR("out of range error (pop data): %s", oor.what());
+            LOG_ERROR("out of range error (pop data): %s for consumer id: %ld",
+                      oor.what(), consumerId);
             close();
             return false;
         }
@@ -180,11 +199,21 @@ class PipelineInterests : public PacketHandler {
 
     size_t popDataBulk(uint64_t consumerId,
                        std::vector<std::shared_ptr<ndn::Data>> &pkts) {
+        // Do nothing if the pipeline is already closed
+        if (isClosed()) {
+            LOG_INFO("pipeline is closed (pop data bulk)");
+            return 0;
+        }
+
+        std::lock_guard<std::mutex> lock(m_responseQueuesMtx);
+
         try {
-            return m_responseQueues.at(consumerId)
-                .wait_dequeue_bulk_timed(pkts.begin(), pkts.size(), 1e4);
+            return responseQueuesMap_.at(consumerId)
+                .try_dequeue_bulk(pkts.begin(), pkts.size());
         } catch (const std::out_of_range &oor) {
-            LOG_ERROR("out of range error (pop many data): %s", oor.what());
+            LOG_ERROR("out of range error (pop data bulk): %s for consumer "
+                      "id: %ld",
+                      oor.what(), consumerId);
             close();
             return 0;
         }
@@ -192,15 +221,18 @@ class PipelineInterests : public PacketHandler {
 
   protected:
     bool pushData(uint64_t consumerId, std::shared_ptr<ndn::Data> &&pkt) {
-        // Do nothing if the pipeline is already closed
         if (isClosed()) {
+            LOG_INFO("pipeline is closed (push data)");
             return false;
         }
 
+        std::lock_guard<std::mutex> lock(m_responseQueuesMtx);
+
         try {
-            return m_responseQueues.at(consumerId).enqueue(std::move(pkt));
+            return responseQueuesMap_.at(consumerId).enqueue(std::move(pkt));
         } catch (const std::out_of_range &oor) {
-            LOG_ERROR("out of range error (push data): %s", oor.what());
+            LOG_ERROR("out of range error (push data): %s for consumer id: %ld",
+                      oor.what(), consumerId);
             close();
             return false;
         }
@@ -209,6 +241,7 @@ class PipelineInterests : public PacketHandler {
     size_t popPendingInterests(std::vector<PendingInterest> &pendingInterests,
                                size_t n) {
         if (isClosed()) {
+            LOG_INFO("pipeline is closed (pop pending interests)");
             return 0;
         }
 
@@ -221,7 +254,7 @@ class PipelineInterests : public PacketHandler {
     bool refreshPITEntry(uint64_t key, bool timeoutReason = false) {
         try {
             auto pendingInterest = m_pit->at(key);
-            pendingInterest.refresh(m_rdn->get(), timeoutReason);
+            pendingInterest.refresh(m_rdn->generate(), timeoutReason);
 
             if (isClosed()) {
                 return false;
@@ -246,13 +279,14 @@ class PipelineInterests : public PacketHandler {
   public:
     std::shared_ptr<PendingInterestsTable> m_pit;
     std::shared_ptr<PendingInterestsOrder> m_piq;
-    std::shared_ptr<RandomNumberGenerator<uint64_t>> m_rdn;
+    std::shared_ptr<ThreadSafeUInt64Generator> m_rdn;
     PipelineCounters m_counters;
 
   private:
     RequestQueue m_requestQueue;
-    ResponseQueues m_responseQueues;
+    ResponseQueuesMap responseQueuesMap_;
 
+    std::mutex m_responseQueuesMtx;
     std::atomic_bool m_closed;
     std::thread m_worker;
 };

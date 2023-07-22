@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2022 California Institute of Technology
+ * Copyright (c) 2023 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -141,7 +141,7 @@ int XrdNdnOss::Emsg(const char *pfx, XrdOucErrInfo &einfo, int ecode,
     }
 
     // Format the error message
-    snprintf(buffer, sizeof(buffer), "unable to %s %s; %s", op, target, etext);
+    snprintf(buffer, sizeof(buffer), "%s %s; %s", op, target, etext);
 
 #ifndef NODEBUG // Print it out if debugging is enabled
     OssEroute.Emsg(pfx, buffer);
@@ -185,7 +185,7 @@ int XrdNdnOss::Init(XrdSysLogger *lp, const char *) {
     eDest_ = &OssEroute;
     eDest_->logger(lp);
 
-    eDest_->Say("Copyright © 2022 California Institute of Technology\n"
+    eDest_->Say("Copyright © 2023 California Institute of Technology\n"
                 "Author: Catalin Iordache <catalin.iordache@cern.ch>");
     eDest_->Say("Named Data Networking storage system v",
                 XRDNDNOSS_VERSION_STRING, " initialization.");
@@ -195,7 +195,7 @@ int XrdNdnOss::Init(XrdSysLogger *lp, const char *) {
     }
 
     if (consumer_ == nullptr || !consumer_->isValid()) {
-        Emsg("Init", XrdNdnOfs.error_, -1, "init consumer");
+        Emsg("Init", XrdNdnOfs.error_, -1, "unable to init consumer");
         return -1;
     }
 

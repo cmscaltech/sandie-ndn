@@ -38,10 +38,6 @@ Dir::~Dir() {
 }
 
 int Dir::open(const char *path) {
-    if (consumer_ == nullptr) {
-        return -1;
-    }
-
     if (!getDirMetadata(path) || !isOpened()) {
         LOG_ERROR("null consumer object");
         return -1;
@@ -88,11 +84,6 @@ int Dir::read(char *buf, int blen) {
 }
 
 int Dir::close() {
-    if (consumer_ == nullptr) {
-        LOG_ERROR("null consumer object");
-        return -1;
-    }
-
     metadata_ = nullptr;
 
     content_.clear();
@@ -106,11 +97,6 @@ bool Dir::getDirMetadata(const char *path) {
     if (isOpened()) {
         LOG_DEBUG("dir already opened");
         return false;
-    }
-
-    if (consumer_ == nullptr) {
-        LOG_ERROR("null consumer object");
-        return -1;
     }
 
     auto interest =
@@ -141,11 +127,6 @@ bool Dir::getDirContent() {
     if (!isOpened()) {
         LOG_ERROR("trying to read the contents of an unopened dir");
         return false;
-    }
-
-    if (consumer_ == nullptr) {
-        LOG_ERROR("null consumer object");
-        return -1;
     }
 
     uint8_t *bytes = nullptr;

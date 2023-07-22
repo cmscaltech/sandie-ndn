@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2022 California Institute of Technology
+ * Copyright (c) 2023 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,27 +28,48 @@
 #include "xrd-ndn-oss-dir.hpp"
 
 namespace xrdndnofs {
-XrdNdnOssDir::XrdNdnOssDir(std::shared_ptr<ndnc::posix::Consumer> consumer) {
-    this->dir_ = std::make_shared<ndnc::posix::Dir>(consumer);
+XrdNdnOssDir::XrdNdnOssDir(std::shared_ptr<ndnc::posix::Consumer> consumer)
+    : consumer_{consumer}, dir_{nullptr} {
 }
 
 XrdNdnOssDir::~XrdNdnOssDir() {
-    this->Close(nullptr);
 }
 
 int XrdNdnOssDir::Opendir(const char *path, XrdOucEnv &) {
+    if (consumer_ == nullptr) {
+        return -EINVAL;
+    }
+
+    dir_ = std::make_shared<ndnc::posix::Dir>(consumer_);
+
+    if (dir_ == nullptr) {
+        return -EINVAL;
+    }
+
     return dir_->open(path);
 }
 
 int XrdNdnOssDir::Readdir(char *buff, int blen) {
+    if (dir_ == nullptr) {
+        return -EINVAL;
+    }
+
     return dir_->read(buff, blen);
 }
 
 int XrdNdnOssDir::StatRet(struct stat *buff) {
+    if (dir_ == nullptr) {
+        return -EINVAL;
+    }
+
     return dir_->stat(buff);
 }
 
 int XrdNdnOssDir::Close(long long * = 0) {
-    return 0;
+    if (dir_ == nullptr) {
+        return 0;
+    }
+
+    return dir_->close();
 }
 }; // namespace xrdndnofs

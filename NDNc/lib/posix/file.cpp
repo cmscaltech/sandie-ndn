@@ -37,9 +37,9 @@ File::File(std::shared_ptr<Consumer> consumer)
       consumer_ids_{} {
 
     if (!consumer_->getOptions().influxdb.empty()) {
-        this->reporter_ = std::make_unique<ndnc::MeasurementsReporter>(
+        reporter_ = std::make_unique<ndnc::MeasurementsReporter>(
             256, consumer->getOptions().to_string());
-        this->reporter_->init("xrd", consumer->getOptions().influxdb);
+        reporter_->init("xrd", consumer->getOptions().influxdb);
     }
 }
 
@@ -48,11 +48,6 @@ File::~File() {
 }
 
 int File::open(const char *path) {
-    if (consumer_ == nullptr) {
-        LOG_ERROR("null consumer object");
-        return -1;
-    }
-
     if (!getFileMetadata(path) || !isOpened()) {
         close();
         return -1;
@@ -61,6 +56,8 @@ int File::open(const char *path) {
     if (!isOpened()) {
         return -1;
     }
+
+    LOG_INFO("Ref count +1 %s", path);
 
     path_ = std::string(path);
     return 0;
@@ -71,24 +68,24 @@ bool File::isOpened() {
 }
 
 int File::close() {
-    if (reporter_ != nullptr) {
-        reporter_.reset();
+    auto tid = std::this_thread::get_id();
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto id = consumer_ids_.find(tid);
+
+    if (id != consumer_ids_.end()) {
+        consumer_->unregisterConsumer(id->second);
+        consumer_ids_.erase(id);
+
+        LOG_INFO("Ref count -1 %s", path_.c_str());
     }
 
-    if (consumer_ == nullptr) {
-        LOG_ERROR("null consumer object");
-        return -1;
-    }
-
-    metadata_ = nullptr;
-    path_.clear();
-
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        for (auto it = consumer_ids_.begin(); it != consumer_ids_.end(); ++it) {
-            consumer_->unregisterConsumer(it->second);
+    if (!consumer_ids_.empty()) {
+        if (reporter_ != nullptr) {
+            reporter_.reset();
         }
-        consumer_ids_.clear();
+
+        metadata_ = nullptr;
     }
 
     return 0;
@@ -120,8 +117,10 @@ int File::fstat(struct stat *buf) {
 
 ssize_t File::read(void *buf, off_t offset, size_t blen) {
     if (!isOpened()) {
+        LOG_ERROR("read: file not opened");
         return -1;
     }
+
     auto indexFirstSegment = offset / metadata_->getSegmentSize();
     auto indexLastSegment = ceil(
         (offset + blen) / static_cast<double>(metadata_->getSegmentSize()));
@@ -178,11 +177,6 @@ ssize_t File::read(void *buf, off_t offset, size_t blen) {
 bool File::getFileMetadata(const char *path) {
     if (isOpened()) {
         LOG_DEBUG("file already opened");
-        return false;
-    }
-
-    if (consumer_ == nullptr) {
-        LOG_ERROR("null consumer object");
         return false;
     }
 

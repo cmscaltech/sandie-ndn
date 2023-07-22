@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2021 California Institute of Technology
+ * Copyright (c) 2023 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,30 +25,31 @@
  * SOFTWARE.
  */
 
-#ifndef NDNC_UTILS_RANDOM_NUMBER_GENERATOR_HPP
-#define NDNC_UTILS_RANDOM_NUMBER_GENERATOR_HPP
+#ifndef NDNC_UTILS_THREAD_SAFE_UINT64_GENERATOR_HPP
+#define NDNC_UTILS_THREAD_SAFE_UINT64_GENERATOR_HPP
 
+#include <cstdint>
 #include <mutex>
 #include <random>
 
 namespace ndnc {
-template <typename T> class RandomNumberGenerator {
+class ThreadSafeUInt64Generator {
   public:
-    RandomNumberGenerator()
-        : m_engine{std::random_device()()},
-          m_distribution(0, std::numeric_limits<T>::max()) {
+    ThreadSafeUInt64Generator()
+        : generator_(std::random_device{}()),
+          distribution_(0, std::numeric_limits<uint64_t>::max()) {
     }
 
-    T get() {
-        std::lock_guard<std::mutex> lock(m_mtx);
-        return m_distribution(m_engine);
+    uint64_t generate() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return distribution_(generator_);
     }
 
   private:
-    std::mt19937_64 m_engine;
-    std::uniform_int_distribution<T> m_distribution;
-    std::mutex m_mtx;
+    std::mutex mutex_;
+    std::mt19937_64 generator_;
+    std::uniform_int_distribution<uint64_t> distribution_;
 };
-} // namespace ndnc
+}; // namespace ndnc
 
-#endif // NDNC_UTILS_RANDOM_NUMBER_GENERATOR_HPP
+#endif // NDNC_UTILS_THREAD_SAFE_UINT64_GENERATOR_HPP

@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2022 California Institute of Technology
+ * Copyright (c) 2023 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,12 +28,11 @@
 #include "xrd-ndn-oss-file.hpp"
 
 namespace xrdndnofs {
-XrdNdnOssFile::XrdNdnOssFile(std::shared_ptr<ndnc::posix::Consumer> consumer) {
-    this->file_ = std::make_shared<ndnc::posix::File>(consumer);
+XrdNdnOssFile::XrdNdnOssFile(std::shared_ptr<ndnc::posix::Consumer> consumer)
+    : consumer_{consumer}, file_{nullptr} {
 }
 
 XrdNdnOssFile::~XrdNdnOssFile() {
-    this->Close(0);
 }
 
 int XrdNdnOssFile::Fstat(struct stat *buf) {
@@ -45,7 +44,13 @@ int XrdNdnOssFile::Fstat(struct stat *buf) {
 }
 
 int XrdNdnOssFile::Open(const char *path, int, mode_t, XrdOucEnv &) {
-    if (this->file_ == nullptr) {
+    if (consumer_ == nullptr) {
+        return -EINVAL;
+    }
+
+    file_ = std::make_shared<ndnc::posix::File>(consumer_);
+
+    if (file_ == nullptr) {
         return -EINVAL;
     }
 

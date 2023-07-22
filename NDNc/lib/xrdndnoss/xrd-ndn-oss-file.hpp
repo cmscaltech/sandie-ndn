@@ -4,7 +4,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2022 California Institute of Technology
+ * Copyright (c) 2023 California Institute of Technology
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -58,6 +58,7 @@ class XrdNdnOssFile : public XrdOssDF {
     int Write(XrdSfsAio *);
 
   private:
+    std::shared_ptr<ndnc::posix::Consumer> consumer_;
     std::shared_ptr<ndnc::posix::File> file_;
 };
 }; // namespace xrdndnofs
